@@ -94,7 +94,6 @@ int tcpConnect(int socket_fd, sockaddr* source_addr, socklen_t source_len,
       close(socket_fd);
       return TCPStatusCode::tcpError;
     }
-
     printf("connect in progress %d\n", socket_fd);
   }
   return socket_fd;

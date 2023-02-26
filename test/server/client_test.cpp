@@ -22,9 +22,13 @@ struct ConnReadHandler : public connection::ConnHandler {
 };
 
 void writeHandler(connection::Connection* conn) {
-  printf("write to %d\n", conn->getFd());
+  if (conn->getState() != connection::ConnState::connStateConnected) {
+    printf("invalid connection state\n");
+    return;
+  }
 
-  std::vector<std::string> args{"key", "val", "1000"};
+  printf("write to %d\n", conn->getFd());
+  std::vector<std::string> args{"key", "val", "2000"};
   const RedisCommand& setCmd = RedisCommand("SET", args);
   const RedisCommand& getCmd = RedisCommand("GET", {"key"});
   // const RedisCommand& delCmd = RedisCommand("DEL", {"key"});
@@ -52,7 +56,6 @@ void readHandler(connection::Connection* conn) {
   int n = conn->connRead(s);
 
   printf("read %d\n", n);
-
   printf("receive response: %s\n", s.c_str());
 }
 

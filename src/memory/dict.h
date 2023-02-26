@@ -211,19 +211,24 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::unlink(K&& key) {
 template <typename K, typename V>
 int Dict<K, V>::scan(int cursor, dictScanFunc callback) {
   pauseRehashing();
-  const DictEntry* de = ht[0][cursor];
-  while (de) {
-    const DictEntry* next = de->next;
-    callback(de);
-    de = next;
+  if (cursor < ht[0].size()) {
+    const DictEntry* de = ht[0][cursor];
+    while (de) {
+      const DictEntry* next = de->next;
+      callback(de);
+      de = next;
+    }
   }
-  if (isRehashing()) {
+  if (isRehashing() && cursor < ht[1].size()) {
     const DictEntry* de = ht[1][cursor];
     while (de) {
       const DictEntry* next = de->next;
       callback(de);
       de = next;
     }
+  }
+  if (cursor >= std::max(ht[0].size(), ht[1].size())) {
+    cursor = -1;
   }
   resumeRehashing();
   return ++cursor;
