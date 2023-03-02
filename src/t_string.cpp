@@ -2,6 +2,7 @@
 
 #include "src/client.h"
 #include "src/networking/handler/write_client.h"
+#include "src/reply/reply.h"
 #include "src/utils/time_utils.h"
 
 namespace redis_simple {
@@ -16,9 +17,11 @@ inline std::unordered_map<std::string, RedisCmdProc>& getCmdMapping() {
 }
 }  // namespace
 
-void addReplyToClient(Client* client, db::DBStatus status) {
-  client->addReply(status == db::DBStatus::dbOK ? "1" : "0");
+void addReplyToClient(Client* client, const std::string& reply) {
+  client->addReply(reply);
 }
+
+void addReplyToClient(Client* client, const db::RedisObj* robj) {}
 
 void installWriteHandler(Client* client) {
   if (!client->getConn()->hasWriteHandler()) {
@@ -46,13 +49,13 @@ void setCommand(Client* client) {
   const std::string& key = cmd->getArgs()[0];
   int64_t expire = 0;
   if (cmd->getArgs().size() >= 3) {
-    uint64_t now = utils::getNowInMilliseconds();
+    int64_t now = utils::getNowInMilliseconds();
     expire = now + std::stoll(cmd->getArgs()[2]);
   }
   const db::RedisObj* val =
       db::RedisObj::createStringRedisObj(cmd->getArgs()[1]);
   installWriteHandler(client);
-  addReplyToClient(client, db->setKey(key, val, expire));
+  addReplyToClient(client, reply::fromInt64(db->setKey(key, val, expire)));
 }
 
 void getCommand(Client* client) {
@@ -70,10 +73,11 @@ void getCommand(Client* client) {
   const std::string& key = cmd->getArgs()[0];
   const db::RedisObj* val = db->lookupKey(key);
   if (!val) {
-    addReplyToClient(client, db::DBStatus::dbErr);
+    addReplyToClient(client, reply::fromInt64(db::dbErr));
     return;
   }
-  client->addReply(std::get<std::string>(val->getVal()));
+  const std::string& val_str = std::get<std::string>(val->getVal());
+  addReplyToClient(client, reply::fromBulkString(val_str));
   installWriteHandler(client);
   val->decrRefCount();
 }
@@ -92,7 +96,7 @@ void delCommand(Client* client) {
   }
   const std::string& key = cmd->getArgs()[0];
   installWriteHandler(client);
-  addReplyToClient(client, db->delKey(key));
+  addReplyToClient(client, reply::fromInt64(db->delKey(key)));
 }
 }  // namespace t_cmd
 }  // namespace redis_simple

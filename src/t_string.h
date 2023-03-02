@@ -11,7 +11,7 @@ class Client;
 namespace t_cmd {
 using RedisCmdProc = void (*)(Client*);
 RedisCmdProc getRedisCmdProc(const std::string& cmd);
-void addReplyToClient(Client* client, db::DBStatus status);
+void addReplyToClient(Client* client, const std::string& reply);
 void installWriteHandler(Client* client);
 void setCommand(Client* client);
 void getCommand(Client* client);

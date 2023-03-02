@@ -71,7 +71,7 @@ class Dict {
   size_t ht_used[2];
   int ht_size_exp[2];
   long rehash_idx;
-  uint64_t pause_rehash;
+  int64_t pause_rehash;
 };
 
 template <typename K, typename V>

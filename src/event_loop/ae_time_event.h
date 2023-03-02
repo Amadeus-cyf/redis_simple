@@ -33,7 +33,7 @@ class AeTimeEvent {
   AeTimeEvent* getPrev() { return prev; }
   void* getClientData() { return client_data; }
   void setClientData(void* data) { client_data = data; }
-  uint64_t getWhen() { return when; }
+  int64_t getWhen() { return when; }
   void setWhen(time_t w) { when = w; }
 
  private:
@@ -50,7 +50,7 @@ class AeTimeEvent {
   AeTimeEvent* next;
   AeTimeEvent* prev;
   void* client_data;
-  uint64_t when;
+  int64_t when;
 };
 }  // namespace ae
 }  // namespace redis_simple

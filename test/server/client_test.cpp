@@ -31,12 +31,12 @@ void writeHandler(connection::Connection* conn) {
   std::vector<std::string> args{"key", "val", "2000"};
   const RedisCommand& setCmd = RedisCommand("SET", args);
   const RedisCommand& getCmd = RedisCommand("GET", {"key"});
-  // const RedisCommand& delCmd = RedisCommand("DEL", {"key"});
+  const RedisCommand& delCmd = RedisCommand("DEL", {"key"});
 
   networking::sendCommand(conn, &setCmd);
   networking::sendCommand(conn, &getCmd);
-  // networking::sendCommand(conn, &delCmd);
-  // networking::sendCommand(conn, &delCmd);
+  networking::sendCommand(conn, &delCmd);
+  networking::sendCommand(conn, &delCmd);
 
   if (++n >= 1) {
     conn->setWriteHandler(nullptr);

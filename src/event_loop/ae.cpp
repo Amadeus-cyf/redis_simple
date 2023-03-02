@@ -161,7 +161,7 @@ void AeEventLoop::processTimeEvents() {
       delete te;
       te = next;
     } else {
-      uint64_t now = utils::getNowInMilliseconds();
+      int64_t now = utils::getNowInMilliseconds();
       if (te->getWhen() <= now) {
         int ret = te->getTimeProc()(id, te->getClientData());
         if (ret == AeFlags::aeNoMore) {
