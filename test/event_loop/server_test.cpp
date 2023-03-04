@@ -3,10 +3,10 @@
 
 #include <string>
 
-#include "src/conn_handler/conn_handler.h"
-#include "src/connection/connection.h"
-#include "src/event_loop/ae.h"
-#include "src/networking/networking.h"
+#include "server/conn_handler/conn_handler.h"
+#include "server/connection/connection.h"
+#include "server/event_loop/ae.h"
+#include "server/networking/networking.h"
 
 namespace redis_simple {
 void acceptHandler(connection::Connection* conn);

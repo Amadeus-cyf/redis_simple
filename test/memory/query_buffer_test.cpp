@@ -1,4 +1,4 @@
-#include "src/memory/query_buffer.h"
+#include "server/memory/query_buffer.h"
 
 #include <gtest/gtest.h>
 

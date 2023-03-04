@@ -3,10 +3,10 @@
 
 #include <string>
 
-#include "src/conn_handler/conn_handler.h"
-#include "src/connection/connection.h"
-#include "src/event_loop/ae.h"
-#include "src/networking/networking.h"
+#include "server/conn_handler/conn_handler.h"
+#include "server/connection/connection.h"
+#include "server/event_loop/ae.h"
+#include "server/networking/networking.h"
 
 namespace redis_simple {
 void writeHandler(connection::Connection* conn);
@@ -24,6 +24,7 @@ struct ConnReadHandler : public connection::ConnHandler {
 void writeHandler(connection::Connection* conn) {
   if (conn->getState() != connection::ConnState::connStateConnected) {
     printf("invalid connection state\n");
+    conn->setWriteHandler(nullptr);
     return;
   }
 
@@ -61,12 +62,16 @@ void readHandler(connection::Connection* conn) {
 
 void run() {
   ae::AeEventLoop* el = ae::AeEventLoop::initEventLoop();
-
   connection::Connection* conn = new connection::Connection();
 
   conn->bindEventLoop(el);
-  printf("conn result %d\n",
-         conn->connect("localhost", 8080, "localhost", 8081));
+  connection::StatusCode r =
+      conn->connect("localhost", 8081, "localhost", 8080);
+  printf("conn result %d\n", r);
+  if (r == connection::StatusCode::c_err) {
+    printf("connection failed\n");
+    return;
+  }
 
   std::unique_ptr<ConnWriteHandler> handler =
       std::make_unique<ConnWriteHandler>();

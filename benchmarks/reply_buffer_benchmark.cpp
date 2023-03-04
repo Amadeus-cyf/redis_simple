@@ -1,7 +1,7 @@
 #include <benchmark/benchmark.h>
 
 #include "benchmarks/buffer.h"
-#include "src/memory/reply_buffer.h"
+#include "server/memory/reply_buffer.h"
 
 namespace redis_simple {
 in_memory::ReplyBuffer replyBuffer;

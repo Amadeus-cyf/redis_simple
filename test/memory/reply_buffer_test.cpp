@@ -1,4 +1,4 @@
-#include "src/memory/reply_buffer.h"
+#include "server/memory/reply_buffer.h"
 
 #include <gtest/gtest.h>
 
