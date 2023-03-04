@@ -55,6 +55,10 @@ int tcpCreateSocket(int domain, bool non_block) {
   if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
     return TCPStatusCode::tcpError;
   }
+  if (tcpSetReuseAddr(s) < 0) {
+    close(s);
+    return TCPStatusCode::tcpError;
+  }
   if (non_block) {
     if (nonBlock(s) == TCPStatusCode::tcpError) {
       close(s);
@@ -97,7 +101,11 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
       socket_fd = -1;
       continue;
     }
-    nonBlock(socket_fd);
+    if (nonBlock(socket_fd) == TCPStatusCode::tcpError) {
+      close(socket_fd);
+      socket_fd = -1;
+      continue;
+    }
     if (connect(socket_fd, p->ai_addr, p->ai_addrlen) == -1) {
       if (!isNonBlock(socket_fd) || errno != EINPROGRESS) {
         perror("conn error: ");

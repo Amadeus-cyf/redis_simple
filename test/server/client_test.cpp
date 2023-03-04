@@ -24,7 +24,7 @@ struct ConnReadHandler : public connection::ConnHandler {
 void writeHandler(connection::Connection* conn) {
   if (conn->getState() != connection::ConnState::connStateConnected) {
     printf("invalid connection state\n");
-    conn->setWriteHandler(nullptr);
+    exit(-1);
     return;
   }
 

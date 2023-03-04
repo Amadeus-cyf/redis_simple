@@ -129,7 +129,6 @@ ae::AeEventStatus Connection::connSocketEventHandler(int fd, void* client_data,
     return ae::AeEventStatus::aeEventErr;
   }
 
-  printf("event read handler %d\n", conn->read_handler.get() == nullptr);
   printf("state: %d\n", conn->getState());
   if (conn->getState() == ConnState::connStateConnecting &&
       (mask & ae::AeFlags::aeWritable)) {
