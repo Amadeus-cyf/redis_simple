@@ -12,6 +12,22 @@
 namespace redis_simple {
 namespace tcp {
 namespace {
+int tcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
+  int socket_fd = socket(domain, type, protocol);
+  if (socket_fd < 0) {
+    return TCPStatusCode::tcpError;
+  }
+  if (tcpSetReuseAddr(socket_fd) < 0) {
+    close(socket_fd);
+    return TCPStatusCode::tcpError;
+  }
+  if (non_block && nonBlock(socket_fd) == TCPStatusCode::tcpError) {
+    close(socket_fd);
+    return TCPStatusCode::tcpError;
+  }
+  return socket_fd;
+}
+
 int tcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   int s = -1;
   if ((s = accept(socket_fd, addr, len)) == -1) {
@@ -51,29 +67,11 @@ int setCLOEXEC(int fd) {
 }  // namespace
 
 int tcpCreateSocket(int domain, bool non_block) {
-  int s;
-  if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
-    return TCPStatusCode::tcpError;
-  }
-  if (tcpSetReuseAddr(s) < 0) {
-    close(s);
-    return TCPStatusCode::tcpError;
-  }
-  if (non_block) {
-    if (nonBlock(s) == TCPStatusCode::tcpError) {
-      close(s);
-      return TCPStatusCode::tcpError;
-    }
-  }
-  if (setCLOEXEC(s) == TCPStatusCode::tcpError) {
-    close(s);
-    return TCPStatusCode::tcpError;
-  }
-  return s;
+  return tcpGenericCreateSocket(domain, SOCK_STREAM, 0, non_block);
 }
 
 int tcpConnect(const std::string& remote_ip, const int remote_port,
-               const std::optional<std::string>& local_ip,
+               const bool non_block, const std::optional<std::string>& local_ip,
                const std::optional<int>& local_port) {
   struct addrinfo hints, *info;
   memset(&hints, 0, sizeof(hints));
@@ -85,23 +83,14 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
   }
   int socket_fd = -1;
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
-    socket_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+    socket_fd = tcpGenericCreateSocket(p->ai_family, p->ai_socktype,
+                                       p->ai_protocol, non_block);
     if (socket_fd < 0) {
       continue;
     }
     if (local_ip.has_value() && local_port.has_value() &&
         tcpBind(socket_fd, local_ip.value(), local_port.value()) ==
             TCPStatusCode::tcpError) {
-      close(socket_fd);
-      socket_fd = -1;
-      continue;
-    }
-    if (tcpSetReuseAddr(socket_fd) < 0) {
-      close(socket_fd);
-      socket_fd = -1;
-      continue;
-    }
-    if (nonBlock(socket_fd) == TCPStatusCode::tcpError) {
       close(socket_fd);
       socket_fd = -1;
       continue;
@@ -146,14 +135,15 @@ int tcpBind(const int socket_fd, const std::string& ip, const int port) {
 int tcpAccept(const int socket_fd, std::string* const ip, int* const port) {
   sockaddr_storage sa;
   socklen_t len = sizeof(sa);
-  int remote_fd =
-      tcpGenericAccept(socket_fd, reinterpret_cast<sockaddr*>(&sa), &len);
-  if (remote_fd < 0) {
-    if (!isNonBlock(socket_fd) || (errno != EWOULDBLOCK && errno != EAGAIN)) {
-      close(socket_fd);
-      return TCPStatusCode::tcpError;
-    }
-    return socket_fd;
+  int remote_fd = -1;
+  do {
+    remote_fd =
+        tcpGenericAccept(socket_fd, reinterpret_cast<sockaddr*>(&sa), &len);
+  } while (remote_fd == -1 && errno == EINTR);
+  if (nonBlock(remote_fd) == TCPStatusCode::tcpError ||
+      setCLOEXEC(remote_fd) == TCPStatusCode::tcpError) {
+    close(remote_fd);
+    return TCPStatusCode::tcpError;
   }
   struct sockaddr_in* s = reinterpret_cast<sockaddr_in*>(&sa);
   *ip = inet_ntoa(s->sin_addr);

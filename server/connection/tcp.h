@@ -15,6 +15,7 @@ namespace tcp {
 static constexpr const int backlog = 3;
 int tcpCreateSocket(int domain, bool non_block);
 int tcpConnect(const std::string& remote_ip, const int remote_port,
+               const bool non_block,
                const std::optional<std::string>& local_ip = std::nullopt,
                const std::optional<int>& local_port = std::nullopt);
 int tcpBind(const int socket_fd, const std::string& ip, const int port);

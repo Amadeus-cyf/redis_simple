@@ -25,7 +25,7 @@ ssize_t Client::readQuery() {
   memset(buf, 0, sizeof buf);
   ssize_t nread = conn->connRead(buf, 4096);
   printf("nread %zd, buf %s end\n", nread, buf);
-  if (nread < 0) {
+  if (nread <= 0) {
     return nread;
   }
   query_buf->writeToBuffer(buf, nread);

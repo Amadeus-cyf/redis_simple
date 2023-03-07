@@ -58,6 +58,7 @@ void readHandler(connection::Connection* conn) {
 
   printf("read %d\n", n);
   printf("receive response: %s\n", s.c_str());
+  conn->setReadHandler(nullptr);
 }
 
 void run() {

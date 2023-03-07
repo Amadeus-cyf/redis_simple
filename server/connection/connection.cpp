@@ -29,7 +29,7 @@ StatusCode Connection::connect(const std::string& remote_ip, int remote_port,
   }
   std::optional<std::string> opt_ip = std::make_optional<std::string>(local_ip);
   std::optional<int> opt_port = std::make_optional<int>(local_port);
-  int s = tcp::tcpConnect(remote_ip, remote_port, opt_ip, opt_port);
+  int s = tcp::tcpConnect(remote_ip, remote_port, true, opt_ip, opt_port);
   if (s == -1) {
     return StatusCode::c_err;
   }
