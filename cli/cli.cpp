@@ -49,10 +49,8 @@ RedisCli::RedisCli()
     : query_buf(std::make_unique<in_memory::QueryBuffer>()),
       reply_buf(std::make_unique<in_memory::QueryBuffer>()){};
 
-CliStatus RedisCli::connect(const std::string& ip, const int port,
-                            const bool nonBlock) {
-  non_block = nonBlock;
-  socket_fd = tcp::tcpConnect(ip, port, non_block);
+CliStatus RedisCli::connect(const std::string& ip, const int port) {
+  socket_fd = tcp::tcpConnect(ip, port);
   if (socket_fd < 0) {
     return CliStatus::cliErr;
   }
@@ -83,42 +81,49 @@ std::string RedisCli::getReply() {
   return NoReplyResp;
 }
 
-ae::AeEventStatus RedisCli::writeToServer(ae::AeEventLoop* el, int fd,
-                                          void* clientData, int mask) {
-  RedisCli* cli = static_cast<RedisCli*>(clientData);
-  if (cli->query_buf->isEmpty()) {
-    el->aeDelFileEvent(fd, ae::AeFlags::aeWritable);
-  }
-  return writeToSocket(cli->socket_fd, cli->query_buf->getBufInString()) >= 0
-             ? ae::AeEventStatus::aeEventOK
-             : ae::AeEventStatus::aeEventErr;
-}
-
-ae::AeEventStatus RedisCli::readFromServer(ae::AeEventLoop* el, int fd,
-                                           void* clientData, int mask) {
-  RedisCli* cli = static_cast<RedisCli*>(clientData);
-  const std::string& reply = readFromSocket(fd);
-  if (reply.size() > 0) {
-    cli->reply_buf->writeToBuffer(reply.c_str(), reply.size());
-  }
-  cli->query_buf->clear();
-  return ae::AeEventStatus::aeEventOK;
+CompletableFuture<std::string> RedisCli::getReplyAsync() {
+  std::future<std::string> future =
+      std::async(std::launch::async, [&]() { return getReply(); });
+  return CompletableFuture<std::string>(std::move(future));
 }
 }  // namespace cli
 }  // namespace redis_simple
 
 int main() {
-  int i = 0;
   redis_simple::cli::RedisCli cli;
-  cli.connect("localhost", 8081, false);
+  cli.connect("localhost", 8081);
+  int i = 0;
   while (i++ < 1000) {
     const std::string& cmd1 = "SET key val\r\n";
     cli.addCommand(cmd1, cmd1.size());
     const std::string& cmd2 = "SET key\r\n";
     cli.addCommand(cmd2, cmd2.size());
-    const std::string& r1 = cli.getReply();
-    printf("receive resp %s\n", r1.c_str());
-    const std::string& r2 = cli.getReply();
-    printf("receive resp %s\n", r2.c_str());
+
+    // const std::string& r1 = cli.getReply();
+    // printf("receive resp %s\n", r1.c_str());
+    // const std::string& r2 = cli.getReply();
+    // printf("receive resp %s\n", r2.c_str());
+
+    auto r3 = cli.getReplyAsync();
+    const std::string& applied_str1 =
+        r3.thenApply([](const std::string& reply) {
+            printf("receive resp 1: %s\n", reply.c_str());
+            return reply;
+          })
+            .thenApply(
+                [](const std::string& reply) { return reply + "_processed"; })
+            .get();
+    printf("after processed 1, %s\n", applied_str1.c_str());
+
+    auto r4 = cli.getReplyAsync();
+    const std::string& applied_str2 =
+        r4.thenApplyAsync([](const std::string& reply) {
+            printf("receive resp 2: %s\n", reply.c_str());
+            return reply;
+          })
+            .thenApplyAsync(
+                [](const std::string& reply) { return reply + "_processed"; })
+            .get();
+    printf("after processed 2, %s\n", applied_str2.c_str());
   }
 }

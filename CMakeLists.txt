@@ -56,6 +56,7 @@ target_sources(redis_simple_cli
   PRIVATE
     "cli/cli.h"
     "cli/cli.cpp"
+    "cli/completable_future.h"
     "server/event_loop/ae.h"
     "server/event_loop/ae.cpp"
     "server/event_loop/ae_file_event.h"
