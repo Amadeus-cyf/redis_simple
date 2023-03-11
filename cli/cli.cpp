@@ -3,6 +3,8 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
+#include <future>
+
 #include "server/connection/tcp.h"
 
 namespace redis_simple {
@@ -61,18 +63,13 @@ std::string RedisCli::getReply() {
     return reply_buf->processInlineBuffer();
   }
   if (!query_buf || !query_buf->isEmpty()) {
-    if (non_block) {
-      // TODO: async
-      return InProgressResp;
-    } else {
-      if (writeToSocket(socket_fd, query_buf->getBufInString()) < 0) {
-        return ErrResp;
-      }
-      query_buf->clear();
-      const std::string& reply = readFromSocket(socket_fd);
-      reply_buf->writeToBuffer(reply.c_str(), reply.size());
-      return reply_buf->processInlineBuffer();
+    if (writeToSocket(socket_fd, query_buf->getBufInString()) < 0) {
+      return ErrResp;
     }
+    query_buf->clear();
+    const std::string& reply = readFromSocket(socket_fd);
+    reply_buf->writeToBuffer(reply.c_str(), reply.size());
+    return reply_buf->processInlineBuffer();
   }
   return NoReplyResp;
 }
