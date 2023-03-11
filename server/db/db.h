@@ -9,7 +9,7 @@
 namespace redis_simple {
 namespace db {
 enum DBStatus {
-  dbOK = 0,
+  dbOK = 1 << 0,
   dbErr = -1,
 };
 

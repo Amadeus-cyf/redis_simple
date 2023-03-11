@@ -21,8 +21,6 @@ void addReplyToClient(Client* client, const std::string& reply) {
   client->addReply(reply);
 }
 
-void addReplyToClient(Client* client, const db::RedisObj* robj) {}
-
 void installWriteHandler(Client* client) {
   if (!client->getConn()->hasWriteHandler()) {
     client->getConn()->setWriteHandler(connection::ConnHandler::create(
@@ -44,6 +42,7 @@ void setCommand(Client* client) {
   }
   if (cmd->getArgs().size() < 2) {
     printf("invalid args\n");
+    addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
   const std::string& key = cmd->getArgs()[0];

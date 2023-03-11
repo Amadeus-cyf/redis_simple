@@ -33,23 +33,35 @@ class Connection {
   void setReadHandler(std::unique_ptr<ConnHandler> handler);
   void unsetReadHandler();
   bool hasReadHandler() { return read_handler != nullptr; }
+  bool hasReadHandler() const { return read_handler != nullptr; }
   void setWriteHandler(std::unique_ptr<ConnHandler> handler);
   void unsetWriteHandler();
   bool hasWriteHandler() { return write_handler != nullptr; }
+  bool hasWriteHandler() const { return write_handler != nullptr; }
   int getFd() { return fd; }
   ConnState getState() { return state; }
+  ConnState getState() const { return state; }
   void setState(ConnState state) { this->state = state; }
   void setPrivateData(void* data) { private_data = data; }
   void* getPrivateData() { return private_data; }
+  void* getPrivateData() const { return private_data; }
   ssize_t connRead(const char* buf, size_t readlen);
+  ssize_t connRead(const char* buf, size_t readlen) const;
   ssize_t connRead(std::string& s);
+  ssize_t connRead(std::string& s) const;
   ssize_t connSyncReadline(std::string& s, long timeout);
+  ssize_t connSyncReadline(std::string& s, long timeout) const;
   ssize_t connSyncRead(const char* buffer, size_t readlen, long timeout);
+  ssize_t connSyncRead(const char* buffer, size_t readlen, long timeout) const;
   ssize_t connSyncRead(std::string& s, long timeout);
+  ssize_t connSyncRead(std::string& s, long timeout) const;
   ssize_t connWrite(const char* buffer, size_t len);
+  ssize_t connWrite(const char* buffer, size_t len) const;
   ssize_t connWritev(const std::vector<std::pair<char*, size_t>>& mem_blocks);
+  ssize_t connWritev(
+      const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
   ssize_t connSyncWrite(const char* buffer, size_t len, long timeout);
-  bool isBlock();
+  ssize_t connSyncWrite(const char* buffer, size_t len, long timeout) const;
   // void free();
 
  private:
@@ -61,8 +73,8 @@ class Connection {
   std::unique_ptr<ConnHandler> write_handler;
   std::unique_ptr<ConnHandler> accept_handler;
 
-  static ae::AeEventStatus connSocketEventHandler(int fd, void* client_data,
-                                                  int mask);
+  static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
+                                                  void* client_data, int mask);
   bool boundEventLoop() { return el != nullptr; }
   void* private_data;
 };

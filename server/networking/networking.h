@@ -10,11 +10,14 @@ class Connection;
 
 namespace networking {
 static const std::string ErrorRecvResp;
-bool sendCommand(connection::Connection* conn, const RedisCommand* cmd);
-bool sendStringInline(connection::Connection* conn, std::string s);
-bool sendString(connection::Connection* conn, const std::string& s);
-std::string syncReceiveResponse(connection::Connection* conn);
-std::string syncReceiveRespline(connection::Connection* conn);
-ae::AeEventStatus acceptHandler(int fd, void* clientData, int mask);
+bool sendCommand(const connection::Connection* conn, const RedisCommand* cmd);
+bool sendStringInline(const connection::Connection* conn, std::string s);
+bool sendString(const connection::Connection* conn, const std::string& s);
+std::string syncReceiveResponse(const connection::Connection* conn);
+std::string syncReceiveResponse(const connection::Connection* conn,
+                                long timeout);
+std::string syncReceiveRespline(const connection::Connection* conn);
+ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, void* clientData,
+                                int mask);
 }  // namespace networking
 }  // namespace redis_simple

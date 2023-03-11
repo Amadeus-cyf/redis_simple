@@ -27,17 +27,14 @@ class Client {
   void setCmd(RedisCommand* command) { cmd.reset(command); }
   connection::Connection* getConn() { return conn.get(); }
   db::RedisDb* getDb() { return db.get(); }
-
   ssize_t readQuery();
   ssize_t sendReply();
   size_t addReply(const std::string& s) {
     return buf->addReplyToBufferOrList(s.c_str(), s.length());
   }
   bool hasPendingReplies() { return !(buf->isEmpty()); }
-
   ClientStatus processInputBuffer();
   ClientStatus processInlineBuffer();
-
   ClientStatus processCommand();
 
  private:

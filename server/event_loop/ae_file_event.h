@@ -7,7 +7,10 @@ enum class AeEventStatus {
   aeEventErr = -1,
 };
 
-using aeFileProc = AeEventStatus (*)(int fd, void* client_data, int mask);
+class AeEventLoop;
+
+using aeFileProc = AeEventStatus (*)(AeEventLoop* el, int fd, void* client_data,
+                                     int mask);
 
 class AeFileEvent {
  public:

@@ -9,7 +9,7 @@ namespace in_memory {
 QueryBuffer::QueryBuffer()
     : query_buf(new char[4096]), query_read(0), query_off(0), query_len(4096){};
 
-void QueryBuffer::writeToBuffer(char buf[], size_t n) {
+void QueryBuffer::writeToBuffer(const char* buf, size_t n) {
   if (query_len - query_read < n) {
     resize((n + query_read) * 2);
   }
@@ -32,10 +32,15 @@ std::string QueryBuffer::processInlineBuffer() {
     printf("no newline found\n");
     return "";
   }
+  int offset = 1;
+  if (*(c - 1) == '\r') {
+    --c;
+    ++offset;
+  }
   const std::string& s =
       std::string(query_buf + query_off, c - query_buf - query_off);
   // need to include the newline
-  query_off += (s.length() + 1);
+  query_off += (s.length() + offset);
   return s;
 }
 
@@ -45,6 +50,12 @@ void QueryBuffer::resize(size_t n) {
   delete[] query_buf;
   query_buf = newbuf;
   query_len = n;
+}
+
+void QueryBuffer::clear() {
+  memset(query_buf, 0, query_len);
+  query_read = 0;
+  query_off = 0;
 }
 }  // namespace in_memory
 }  // namespace redis_simple

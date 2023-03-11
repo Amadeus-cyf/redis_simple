@@ -12,7 +12,7 @@ class WriteToClientHandler : public connection::ConnHandler {
 
  private:
   void sendReplyToClient(connection::Connection* conn);
-  void writeToClient(Client* c);
+  ssize_t writeToClient(Client* c);
 };
 
 void WriteToClientHandler::handle(connection::Connection* conn) {
@@ -21,33 +21,32 @@ void WriteToClientHandler::handle(connection::Connection* conn) {
 
 void WriteToClientHandler::sendReplyToClient(connection::Connection* conn) {
   Client* c = static_cast<Client*>(conn->getPrivateData());
-
   printf("write reply called %d\n", c->hasPendingReplies());
-
   while (c->hasPendingReplies()) {
-    writeToClient(c);
+    if (writeToClient(c) < 0) {
+      break;
+    }
   }
-
-  conn->unsetWriteHandler();
+  if (!c->hasPendingReplies()) {
+    conn->unsetWriteHandler();
+  }
 }
 
-void WriteToClientHandler::writeToClient(Client* c) {
+ssize_t WriteToClientHandler::writeToClient(Client* c) {
+  ssize_t nwritten = 0;
   if (c->getFlags() & ClientType::clientSlave) {
     // TODO: send repl block to slave
   } else {
-    ssize_t nwritten = c->sendReply();
-    if (nwritten < 0) {
-      if (c->getConn()->getState() ==
+    nwritten = c->sendReply();
+    if (nwritten <= 0) {
+      if (c->getConn()->getState() !=
           connection::ConnState::connStateConnected) {
-        return;
-      } else {
         printf("free client\n");
       }
-    } else if (nwritten == 0) {
-      return;
+      return -1;
     }
-    printf("nwrite %zd\n", nwritten);
   }
+  return nwritten;
 }
 }  // namespace
 

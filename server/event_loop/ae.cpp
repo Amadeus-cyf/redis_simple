@@ -124,18 +124,18 @@ void AeEventLoop::aeProcessEvents() {
     bool fired = false;
     if (!inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
         fe->hasRFileProc()) {
-      fe->getRFileProc()(fd, fe->getClientData(), mask);
+      fe->getRFileProc()(this, fd, fe->getClientData(), mask);
       fired = true;
     }
     if ((mask & fe->getMask() & AeFlags::aeWritable) && fe->hasWFileProc() &&
         (!fired || fe->getWFileProc() != fe->getRFileProc())) {
-      fe->getWFileProc()(fd, fe->getClientData(), mask);
+      fe->getWFileProc()(this, fd, fe->getClientData(), mask);
       fired = true;
     }
     if (inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
         fe->hasRFileProc() &&
         (!fired || fe->getRFileProc() != fe->getWFileProc())) {
-      fe->getRFileProc()(fd, fe->getClientData(), mask);
+      fe->getRFileProc()(this, fd, fe->getClientData(), mask);
     }
   }
   processTimeEvents();

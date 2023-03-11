@@ -51,6 +51,25 @@ target_sources(redis_simple
     "server/reply/reply.cpp"
 )
 
+add_executable(redis_simple_cli "cli/cli.cpp")
+target_sources(redis_simple_cli
+  PRIVATE
+    "cli/cli.h"
+    "cli/cli.cpp"
+    "server/event_loop/ae.h"
+    "server/event_loop/ae.cpp"
+    "server/event_loop/ae_file_event.h"
+    "server/event_loop/ae_kqueue.h"
+    "server/event_loop/ae_kqueue.cpp"
+    "server/event_loop/ae_time_event.h"
+    "server/connection/tcp.h"
+    "server/connection/tcp.cpp"
+    "server/memory/query_buffer.h"
+    "server/memory/query_buffer.cpp"
+    "server/utils/string_utils.h"
+    "server/utils/string_utils.cpp"
+)
+
 add_subdirectory("third_party/googletest")
 
 add_executable(memory_test "") 

@@ -10,9 +10,12 @@ class QueryBuffer {
   size_t getQueryLen() { return query_len; }
   size_t getQueryRead() { return query_read; }
   size_t getQueryOffset() { return query_off; }
-  void writeToBuffer(char buf[], size_t n);
+  void writeToBuffer(const char* buf, size_t n);
   void trimProcessedBuffer();
   std::string processInlineBuffer();
+  std::string getBufInString() { return std::string(query_buf, query_read); }
+  bool isEmpty() { return query_read == 0; }
+  void clear();
   ~QueryBuffer() {
     delete[] query_buf;
     query_buf = nullptr;

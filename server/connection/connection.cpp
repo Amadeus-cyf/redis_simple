@@ -119,7 +119,8 @@ void Connection::unsetWriteHandler() {
   flags &= ~ae::AeFlags::aeWritable;
 }
 
-ae::AeEventStatus Connection::connSocketEventHandler(int fd, void* client_data,
+ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
+                                                     int fd, void* client_data,
                                                      int mask) {
   printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
          fd, mask & ae::AeFlags::aeReadable, mask & ae::AeFlags::aeWritable);
@@ -156,6 +157,10 @@ ae::AeEventStatus Connection::connSocketEventHandler(int fd, void* client_data,
 }
 
 ssize_t Connection::connRead(const char* buffer, size_t readlen) {
+  return std::as_const(*this).connRead(buffer, readlen);
+}
+
+ssize_t Connection::connRead(const char* buffer, size_t readlen) const {
   ssize_t nread = 0;
   int r = 0;
   while (nread < readlen &&
@@ -170,10 +175,13 @@ ssize_t Connection::connRead(const char* buffer, size_t readlen) {
 }
 
 ssize_t Connection::connRead(std::string& s) {
+  return std::as_const(*this).connRead(s);
+}
+
+ssize_t Connection::connRead(std::string& s) const {
   char buffer[1024];
   int r = 0;
   int nread = 0;
-
   while ((r = read(fd, buffer + nread, 1024)) != EOF) {
     if (r == 0) {
       break;
@@ -185,6 +193,11 @@ ssize_t Connection::connRead(std::string& s) {
 
 ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
                                  long timeout) {
+  return std::as_const(*this).connSyncRead(buffer, readlen, timeout);
+}
+
+ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
+                                 long timeout) const {
   int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
   if (r < 0) {
     printf("conn sync read failed for connection %d\n", fd);
@@ -193,13 +206,15 @@ ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
     printf("aeWait timeout\n");
     return 0;
   }
-
   return connRead(buffer, readlen);
 }
 
 ssize_t Connection::connSyncRead(std::string& s, long timeout) {
-  int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
+  return std::as_const(*this).connSyncRead(s, timeout);
+}
 
+ssize_t Connection::connSyncRead(std::string& s, long timeout) const {
+  int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
   if (r < 0) {
     printf("conn sync read string failed for connection %d\n", fd);
     return -1;
@@ -207,12 +222,15 @@ ssize_t Connection::connSyncRead(std::string& s, long timeout) {
     printf("aeWait timeout\n");
     return 0;
   }
-
   printf("Conn start read sync\n");
   return connRead(s);
 }
 
 ssize_t Connection::connSyncReadline(std::string& s, long timeout) {
+  return std::as_const(*this).connSyncReadline(s, timeout);
+}
+
+ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
   int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
   if (r < 0) {
     printf("conn sync readline failed for connection %d\n", fd);
@@ -224,7 +242,6 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) {
 
   r = 0;
   char buffer[1];
-
   while ((r = read(fd, buffer, 1)) != EOF) {
     if (r == 0) {
       break;
@@ -239,6 +256,10 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) {
 }
 
 ssize_t Connection::connWrite(const char* buffer, size_t len) {
+  return std::as_const(*this).connWrite(buffer, len);
+}
+
+ssize_t Connection::connWrite(const char* buffer, size_t len) const {
   ssize_t written = 0;
   while (written < len) {
     ssize_t n = write(fd, buffer + written, len - written);
@@ -253,6 +274,11 @@ ssize_t Connection::connWrite(const char* buffer, size_t len) {
 
 ssize_t Connection::connSyncWrite(const char* buffer, size_t len,
                                   long timeout) {
+  return std::as_const(*this).connSyncWrite(buffer, len, timeout);
+}
+
+ssize_t Connection::connSyncWrite(const char* buffer, size_t len,
+                                  long timeout) const {
   int r = el->aeWait(fd, ae::AeFlags::aeWritable, timeout);
   if (r < 0) {
     printf("conn sync write failed for connection fd %d\n", fd);
@@ -267,15 +293,18 @@ ssize_t Connection::connSyncWrite(const char* buffer, size_t len,
 
 ssize_t Connection::connWritev(
     const std::vector<std::pair<char*, size_t>>& mem_blocks) {
+  return std::as_const(*this).connWritev(mem_blocks);
+}
+
+ssize_t Connection::connWritev(
+    const std::vector<std::pair<char*, size_t>>& mem_blocks) const {
   iovec vec[mem_blocks.size()];
   ssize_t len = 0, written = 0;
-
   for (int i = 0; i < mem_blocks.size(); ++i) {
     vec[i].iov_base = mem_blocks[i].first;
     vec[i].iov_len = mem_blocks[i].second;
     len += mem_blocks[i].second;
   }
-
   return writev(fd, vec, mem_blocks.size());
 }
 }  // namespace connection
