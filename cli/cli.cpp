@@ -30,8 +30,13 @@ std::string readFromSocket(int fd) {
 
 ssize_t writeToSocket(int fd, const std::string& cmds) {
   ssize_t nwritten = 0;
-  while ((nwritten += write(fd, cmds.c_str(), cmds.size())) < cmds.size())
-    ;
+  int nwrite = 0;
+  while ((nwrite = write(fd, cmds.c_str(), cmds.size())) < cmds.size()) {
+    if (nwrite < 0) {
+      break;
+    }
+    nwritten += nwrite;
+  }
   return nwritten;
 }
 }  // namespace
@@ -60,16 +65,20 @@ void RedisCli::addCommand(const std::string& cmd, const size_t len) {
 
 std::string RedisCli::getReply() {
   if (reply_buf && !reply_buf->isEmpty()) {
-    return reply_buf->processInlineBuffer();
+    const std::string& reply = reply_buf->processInlineBuffer();
+    reply_buf->trimProcessedBuffer();
+    return reply;
   }
-  if (!query_buf || !query_buf->isEmpty()) {
+  if (!query_buf->isEmpty()) {
     if (writeToSocket(socket_fd, query_buf->getBufInString()) < 0) {
       return ErrResp;
     }
     query_buf->clear();
-    const std::string& reply = readFromSocket(socket_fd);
-    reply_buf->writeToBuffer(reply.c_str(), reply.size());
-    return reply_buf->processInlineBuffer();
+    const std::string& replies = readFromSocket(socket_fd);
+    reply_buf->writeToBuffer(replies.c_str(), replies.size());
+    const std::string& reply = reply_buf->processInlineBuffer();
+    reply_buf->trimProcessedBuffer();
+    return reply;
   }
   return NoReplyResp;
 }
@@ -99,14 +108,17 @@ ae::AeEventStatus RedisCli::readFromServer(ae::AeEventLoop* el, int fd,
 }  // namespace redis_simple
 
 int main() {
+  int i = 0;
   redis_simple::cli::RedisCli cli;
   cli.connect("localhost", 8081, false);
-  const std::string& cmd1 = "SET key val\r\n";
-  cli.addCommand(cmd1, cmd1.size());
-  const std::string& cmd2 = "SET key\r\n";
-  cli.addCommand(cmd2, cmd2.size());
-  const std::string& r1 = cli.getReply();
-  printf("receive resp %s\n", r1.c_str());
-  const std::string& r2 = cli.getReply();
-  printf("receive resp %s\n", r2.c_str());
+  while (i++ < 1000) {
+    const std::string& cmd1 = "SET key val\r\n";
+    cli.addCommand(cmd1, cmd1.size());
+    const std::string& cmd2 = "SET key\r\n";
+    cli.addCommand(cmd2, cmd2.size());
+    const std::string& r1 = cli.getReply();
+    printf("receive resp %s\n", r1.c_str());
+    const std::string& r2 = cli.getReply();
+    printf("receive resp %s\n", r2.c_str());
+  }
 }

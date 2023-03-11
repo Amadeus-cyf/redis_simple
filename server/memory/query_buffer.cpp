@@ -13,7 +13,6 @@ void QueryBuffer::writeToBuffer(const char* buf, size_t n) {
   if (query_len - query_read < n) {
     resize((n + query_read) * 2);
   }
-
   memcpy(query_buf + query_read, buf, n);
   query_read += n;
 }
@@ -39,13 +38,13 @@ std::string QueryBuffer::processInlineBuffer() {
   }
   const std::string& s =
       std::string(query_buf + query_off, c - query_buf - query_off);
-  // need to include the newline
+  // need to include \r\n
   query_off += (s.length() + offset);
   return s;
 }
 
 void QueryBuffer::resize(size_t n) {
-  char* newbuf = new char[n * 2];
+  char* newbuf = new char[n];
   memcpy(newbuf, query_buf, query_len);
   delete[] query_buf;
   query_buf = newbuf;
