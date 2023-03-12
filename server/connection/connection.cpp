@@ -4,7 +4,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
-#include "tcp.h"
+#include "tcp/tcp.h"
 
 namespace redis_simple {
 namespace connection {

@@ -1,6 +1,6 @@
 #include <benchmark/benchmark.h>
 
-#include "server/memory/dict.h"
+#include "memory/dict.h"
 
 namespace redis_simple {
 std::unique_ptr<in_memory::Dict<std::string, std::string>> dict =

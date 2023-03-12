@@ -3,8 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "memory/dict.h"
 #include "redis_obj.h"
-#include "server/memory/dict.h"
 
 namespace redis_simple {
 namespace db {

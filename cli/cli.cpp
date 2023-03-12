@@ -5,7 +5,7 @@
 
 #include <future>
 
-#include "server/connection/tcp.h"
+#include "tcp/tcp.h"
 
 namespace redis_simple {
 namespace cli {
@@ -46,8 +46,8 @@ const std::string RedisCli::InProgressResp = "+inprogress";
 const std::string RedisCli::NoReplyResp = "+no_reply";
 
 RedisCli::RedisCli()
-    : query_buf(std::make_unique<in_memory::QueryBuffer>()),
-      reply_buf(std::make_unique<in_memory::QueryBuffer>()){};
+    : query_buf(std::make_unique<in_memory::DynamicBuffer>()),
+      reply_buf(std::make_unique<in_memory::DynamicBuffer>()){};
 
 CliStatus RedisCli::connect(const std::string& ip, const int port) {
   socket_fd = tcp::tcpConnect(ip, port);

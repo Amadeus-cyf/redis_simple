@@ -3,8 +3,8 @@
 #include <string>
 
 #include "completable_future.h"
+#include "memory/dynamic_buffer.h"
 #include "server/event_loop/ae.h"
-#include "server/memory/query_buffer.h"
 
 namespace redis_simple {
 namespace cli {
@@ -28,8 +28,8 @@ class RedisCli {
   int socket_fd;
   std::string cli_ip;
   int cli_port;
-  std::unique_ptr<in_memory::QueryBuffer> query_buf;
-  std::unique_ptr<in_memory::QueryBuffer> reply_buf;
+  std::unique_ptr<in_memory::DynamicBuffer> query_buf;
+  std::unique_ptr<in_memory::DynamicBuffer> reply_buf;
 };
 }  // namespace cli
 }  // namespace redis_simple

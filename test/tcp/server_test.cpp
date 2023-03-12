@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "server/connection/tcp.h"
+#include "tcp/tcp.h"
 
 namespace redis_simple {
 void run() {

@@ -1,4 +1,4 @@
-#include "server/memory/dict.h"
+#include "memory/dict.h"
 
 #include <gtest/gtest.h>
 

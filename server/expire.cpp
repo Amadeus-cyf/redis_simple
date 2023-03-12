@@ -1,8 +1,8 @@
 #include "expire.h"
 
+#include "memory/dict.h"
 #include "server.h"
-#include "server/memory/dict.h"
-#include "server/utils/time_utils.h"
+#include "utils/time_utils.h"
 
 namespace redis_simple {
 void activeExpireCycle() {

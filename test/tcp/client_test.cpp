@@ -1,7 +1,7 @@
 #include <arpa/inet.h>
 #include <stdlib.h>
 
-#include "server/connection/tcp.h"
+#include "tcp/tcp.h"
 
 namespace redis_simple {
 void run() { tcp::tcpConnect("localhost", 8081, true, "localhost", 8080); }

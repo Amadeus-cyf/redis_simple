@@ -10,7 +10,7 @@ Client::Client()
     : conn(),
       db(Server::get()->getDb()),
       cmd(),
-      query_buf(std::make_unique<in_memory::QueryBuffer>()),
+      query_buf(std::make_unique<in_memory::DynamicBuffer>()),
       buf(std::make_unique<in_memory::ReplyBuffer>()) {}
 
 Client::Client(connection::Connection* connection)
@@ -18,7 +18,7 @@ Client::Client(connection::Connection* connection)
       db(Server::get()->getDb()),
       cmd(),
       buf(std::make_unique<in_memory::ReplyBuffer>()),
-      query_buf(std::make_unique<in_memory::QueryBuffer>()) {}
+      query_buf(std::make_unique<in_memory::DynamicBuffer>()) {}
 
 ssize_t Client::readQuery() {
   char buf[4096];
@@ -61,9 +61,9 @@ ssize_t Client::_sendvReply() {
 }
 
 ClientStatus Client::processInputBuffer() {
-  while (query_buf->getQueryOffset() < query_buf->getQueryRead()) {
-    printf("process loop %zu %zu\n", query_buf->getQueryOffset(),
-           query_buf->getQueryRead());
+  while (query_buf->getProcessedOffset() < query_buf->getRead()) {
+    printf("process loop %zu %zu\n", query_buf->getProcessedOffset(),
+           query_buf->getRead());
     if (processInlineBuffer() == ClientStatus::clientErr) {
       break;
     }

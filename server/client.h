@@ -2,11 +2,11 @@
 
 #include <string>
 
+#include "memory/dynamic_buffer.h"
+#include "memory/reply_buffer.h"
 #include "networking/networking.h"
 #include "server/connection/connection.h"
 #include "server/db/db.h"
-#include "server/memory/query_buffer.h"
-#include "server/memory/reply_buffer.h"
 
 namespace redis_simple {
 enum ClientType {
@@ -45,7 +45,7 @@ class Client {
   std::unique_ptr<RedisCommand> cmd;
   std::unique_ptr<connection::Connection> conn;
   /* in memory buffer used to store incoming query */
-  std::unique_ptr<in_memory::QueryBuffer> query_buf;
+  std::unique_ptr<in_memory::DynamicBuffer> query_buf;
   /* in memory buffer used to store reply of command */
   std::unique_ptr<in_memory::ReplyBuffer> buf;
 };
