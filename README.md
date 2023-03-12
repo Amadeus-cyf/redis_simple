@@ -9,10 +9,10 @@ cmake .. && cmake --build .
 
 ## Running Unit Tests
 ```sh
-cd build && ./skiplist_test
+cd build && ./memory_test
 ```
 
 ### Running Benchmark
 ```sh
-cd build && ./skiplist_benchmark
+cd build && ./memory_benchmark
 ```

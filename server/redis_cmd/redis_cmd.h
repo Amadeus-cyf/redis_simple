@@ -24,5 +24,4 @@ class RedisCommand {
   const std::vector<std::string> args;
   t_cmd::RedisCmdProc cmd_proc;
 };
-
 }  // namespace redis_simple

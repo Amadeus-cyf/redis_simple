@@ -92,9 +92,7 @@ ClientStatus Client::processInlineBuffer() {
   std::string name = move(args[0]);
   utils::touppercase(name);
   args.erase(args.begin());
-  RedisCommand* command =
-      new RedisCommand(name, args, t_cmd::getRedisCmdProc(name));
-  setCmd(command);
+  setCmd(new RedisCommand(name, args, t_cmd::getRedisCmdProc(name)));
   return ClientStatus::clientOK;
 }
 

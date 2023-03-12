@@ -24,7 +24,6 @@ class Client {
   explicit Client(connection::Connection* connection);
   int getFlags() { return flags; }
   RedisCommand* getCmd() { return cmd.get(); }
-  void setCmd(RedisCommand* command) { cmd.reset(command); }
   connection::Connection* getConn() { return conn.get(); }
   db::RedisDb* getDb() { return db.get(); }
   ssize_t readQuery();
@@ -34,10 +33,11 @@ class Client {
   }
   bool hasPendingReplies() { return !(buf->isEmpty()); }
   ClientStatus processInputBuffer();
-  ClientStatus processInlineBuffer();
   ClientStatus processCommand();
 
  private:
+  ClientStatus processInlineBuffer();
+  void setCmd(RedisCommand* command) { cmd.reset(command); }
   ssize_t _sendReply();
   ssize_t _sendvReply();
   std::shared_ptr<db::RedisDb> db;

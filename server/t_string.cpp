@@ -10,7 +10,7 @@ namespace t_cmd {
 namespace {
 inline std::unordered_map<std::string, RedisCmdProc>& getCmdMapping() {
   static std::unordered_map<std::string, RedisCmdProc> cmdMap;
-  if(cmdMap.size() > 0) {
+  if (cmdMap.size() > 0) {
     return cmdMap;
   }
   cmdMap["SET"] = setCommand;
