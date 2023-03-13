@@ -6,12 +6,11 @@
 #include <string>
 
 namespace redis_simple {
+namespace tcp {
 enum TCPStatusCode {
   tcpError = -1,
   tcpOK = 0,
 };
-
-namespace tcp {
 static constexpr const int backlog = 3;
 int tcpCreateSocket(int domain, bool non_block);
 int tcpConnect(const std::string& remote_ip, const int remote_port,

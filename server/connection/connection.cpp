@@ -50,7 +50,7 @@ StatusCode Connection::listen(const std::string& ip, int port) {
     printf("create socket failed\n");
     return StatusCode::c_err;
   }
-  if (tcp::tcpListen(s, ip, port) == TCPStatusCode::tcpError) {
+  if (tcp::tcpListen(s, ip, port) == tcp::TCPStatusCode::tcpError) {
     return StatusCode::c_err;
   }
   fd = s;
