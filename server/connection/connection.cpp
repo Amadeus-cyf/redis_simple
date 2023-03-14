@@ -8,15 +8,9 @@
 
 namespace redis_simple {
 namespace connection {
-Connection::Connection()
-    : fd(-1),
-      state(ConnState::connStateConnect),
-      read_handler(nullptr),
-      write_handler(nullptr),
-      accept_handler(nullptr) {}
-
-Connection::Connection(int cfd)
-    : fd(cfd),
+Connection::Connection(const Context& ctx)
+    : fd(ctx.fd),
+      el(ctx.loop),
       state(ConnState::connStateConnect),
       read_handler(nullptr),
       write_handler(nullptr),
@@ -119,7 +113,7 @@ void Connection::unsetWriteHandler() {
   flags &= ~ae::AeFlags::aeWritable;
 }
 
-ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
+ae::AeEventStatus Connection::connSocketEventHandler(const ae::AeEventLoop* el,
                                                      int fd, void* client_data,
                                                      int mask) {
   printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",

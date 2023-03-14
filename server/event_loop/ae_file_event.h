@@ -9,8 +9,8 @@ enum class AeEventStatus {
 
 class AeEventLoop;
 
-using aeFileProc = AeEventStatus (*)(AeEventLoop* el, int fd, void* client_data,
-                                     int mask);
+using aeFileProc = AeEventStatus (*)(const AeEventLoop* el, int fd,
+                                     void* client_data, int mask);
 
 class AeFileEvent {
  public:

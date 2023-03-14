@@ -22,18 +22,14 @@ void writeHandler(connection::Connection* conn) {
   // ssize_t n = conn->connSyncWrite(content, 12, 1000000);
   std::vector<std::string> args{"1", "2"};
   const RedisCommand& cmd = redis_simple::RedisCommand("Test newline\n", args);
-
   networking::sendCommand(conn, &cmd);
-
   printf("write handler called\n");
 }
 
 void run() {
-  ae::AeEventLoop* el = ae::AeEventLoop::initEventLoop();
-
-  connection::Connection* conn = new connection::Connection();
-
-  conn->bindEventLoop(el);
+  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+  connection::Connection* conn =
+      new connection::Connection({.fd = -1, .loop = el.get()});
   connection::StatusCode r =
       conn->connect("localhost", 8081, "localhost", 8080);
   printf("conn result %d\n", r);

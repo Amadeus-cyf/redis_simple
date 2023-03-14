@@ -14,26 +14,21 @@
 
 namespace redis_simple {
 namespace ae {
-AeEventLoop::AeEventLoop()
-    : fileEvents(new AeFileEvent*[EventsSize]),
-      timeEventHead(nullptr),
-      aeApiState(nullptr) {}
-
 AeEventLoop::AeEventLoop(AeKqueue* kq)
     : fileEvents(new AeFileEvent*[EventsSize]), aeApiState(kq) {}
 
-AeEventLoop* AeEventLoop::initEventLoop() {
+std::unique_ptr<AeEventLoop> AeEventLoop::initEventLoop() {
   AeKqueue* kq = AeKqueue::aeApiCreate(EventsSize);
-  return new AeEventLoop(kq);
+  return std::unique_ptr<AeEventLoop>(new AeEventLoop(kq));
 }
 
-void AeEventLoop::aeMain() {
+void AeEventLoop::aeMain() const {
   while (true) {
     aeProcessEvents();
   }
 }
 
-int AeEventLoop::aeWait(int fd, int mask, long timeout) {
+int AeEventLoop::aeWait(int fd, int mask, long timeout) const {
   int nfds = 1;
   struct pollfd pfds[1];
   pfds[0].fd = fd;
@@ -49,7 +44,7 @@ int AeEventLoop::aeWait(int fd, int mask, long timeout) {
   return r;
 }
 
-AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent* fe) {
+AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent* fe) const {
   printf("create events for fd = %d, mask = %d\n", fd, fe->getMask());
   if (fe == nullptr) {
     return ae_err;
@@ -79,7 +74,7 @@ AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent* fe) {
   return aeApiState->aeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
 }
 
-AeStatus AeEventLoop::aeDelFileEvent(int fd, int mask) {
+AeStatus AeEventLoop::aeDelFileEvent(int fd, int mask) const {
   if (aeApiState->aeApiDelEvent(fd, mask) < 0) {
     printf(
         "fail to delete the file event of file descriptor %d with errno: "
@@ -103,7 +98,7 @@ AeStatus AeEventLoop::aeDelFileEvent(int fd, int mask) {
   return ae_ok;
 }
 
-void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) {
+void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) const {
   if (!timeEventHead) {
     timeEventHead = te;
     return;
@@ -112,7 +107,7 @@ void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) {
   timeEventHead = te;
 }
 
-void AeEventLoop::aeProcessEvents() {
+void AeEventLoop::aeProcessEvents() const {
   struct timespec tspec;
   tspec.tv_sec = 1;
   tspec.tv_nsec = 0;
@@ -141,7 +136,7 @@ void AeEventLoop::aeProcessEvents() {
   processTimeEvents();
 }
 
-void AeEventLoop::processTimeEvents() {
+void AeEventLoop::processTimeEvents() const {
   AeTimeEvent* te = timeEventHead;
   while (te) {
     long long id = te->getId();

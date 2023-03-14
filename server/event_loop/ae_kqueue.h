@@ -18,7 +18,7 @@ class AeKqueue {
  private:
   explicit AeKqueue(int fd, int nevents);
   int kqueue_fd;
-  int nevents;
+  mutable int nevents;
 };
 }  // namespace ae
 }  // namespace redis_simple

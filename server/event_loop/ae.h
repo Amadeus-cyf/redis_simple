@@ -23,25 +23,24 @@ enum AeStatus {
 
 class AeEventLoop {
  public:
-  static AeEventLoop* initEventLoop();
-  void aeMain();
+  static std::unique_ptr<AeEventLoop> initEventLoop();
+  void aeMain() const;
   /* used for sync read/write. Timeout is in milliseconds */
-  int aeWait(int fd, int mask, long timeout);
-  AeStatus aeCreateFileEvent(int fd, AeFileEvent* fe);
-  AeStatus aeDelFileEvent(int fd, int mask);
-  void aeCreateTimeEvent(AeTimeEvent* te);
-  void aeProcessEvents();
+  int aeWait(int fd, int mask, long timeout) const;
+  AeStatus aeCreateFileEvent(int fd, AeFileEvent* fe) const;
+  AeStatus aeDelFileEvent(int fd, int mask) const;
+  void aeCreateTimeEvent(AeTimeEvent* te) const;
+  void aeProcessEvents() const;
   ~AeEventLoop();
 
  private:
   static constexpr const int EventsSize = 1024;
-  AeEventLoop();
   explicit AeEventLoop(AeKqueue* kq);
   AeFileEvent** fileEvents;
-  AeTimeEvent* timeEventHead;
+  mutable AeTimeEvent* timeEventHead;
   AeKqueue* aeApiState;
-  int max_fd;
-  void processTimeEvents();
+  mutable int max_fd;
+  void processTimeEvents() const;
 };
 }  // namespace ae
 }  // namespace redis_simple

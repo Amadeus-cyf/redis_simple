@@ -25,7 +25,7 @@ class Client {
   int getFlags() { return flags; }
   RedisCommand* getCmd() { return cmd.get(); }
   connection::Connection* getConn() { return conn.get(); }
-  db::RedisDb* getDb() { return db.get(); }
+  const db::RedisDb* getDb() { return db; }
   ssize_t readQuery();
   ssize_t sendReply();
   size_t addReply(const std::string& s) {
@@ -40,7 +40,7 @@ class Client {
   void setCmd(RedisCommand* command) { cmd.reset(command); }
   ssize_t _sendReply();
   ssize_t _sendvReply();
-  std::shared_ptr<db::RedisDb> db;
+  const db::RedisDb* db;
   int flags;
   std::unique_ptr<RedisCommand> cmd;
   std::unique_ptr<connection::Connection> conn;

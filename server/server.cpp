@@ -9,6 +9,8 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
+std::unique_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::initEventLoop();
+
 Server::Server() : db(db::RedisDb::initDb()) {}
 
 Server* Server::get() {
@@ -20,7 +22,8 @@ Server* Server::get() {
 }
 
 void Server::run(const std::string& ip, const int& port) {
-  connection::Connection conn;
+  const connection::Context& ctx = {.fd = -1, .loop = el.get()};
+  connection::Connection conn(ctx);
   if (conn.listen(ip, port) == connection::StatusCode::c_err) {
     return;
   }
@@ -48,9 +51,4 @@ int Server::serverCron(long long id, void* clientData) {
 }
 }  // namespace redis_simple
 
-int main() {
-  redis_simple::ae::AeEventLoop* el =
-      redis_simple::ae::AeEventLoop::initEventLoop();
-  redis_simple::Server::get()->bindEventLoop(el);
-  redis_simple::Server::get()->run("localhost", 8081);
-}
+int main() { redis_simple::Server::get()->run("localhost", 8081); }

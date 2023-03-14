@@ -17,7 +17,7 @@ std::string syncReceiveResponse(const connection::Connection* conn);
 std::string syncReceiveResponse(const connection::Connection* conn,
                                 long timeout);
 std::string syncReceiveRespline(const connection::Connection* conn);
-ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, void* clientData,
-                                int mask);
+ae::AeEventStatus acceptHandler(const ae::AeEventLoop* el, int fd,
+                                void* clientData, int mask);
 }  // namespace networking
 }  // namespace redis_simple

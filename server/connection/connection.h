@@ -21,11 +21,14 @@ enum class ConnState {
   connStateError = 1 << 5,
 };
 
+struct Context {
+  const ae::AeEventLoop* loop;
+  int fd;
+};
+
 class Connection {
  public:
-  Connection();
-  explicit Connection(int cfd);
-  void bindEventLoop(ae::AeEventLoop* loop) { el = loop; }
+  explicit Connection(const Context& ctx);
   StatusCode connect(const std::string& remote_ip, int remote_port,
                      const std::string& local_ip, int local_port);
   StatusCode listen(const std::string& ip, int port);
@@ -67,14 +70,15 @@ class Connection {
  private:
   int fd;
   int flags;
-  ae::AeEventLoop* el;
+  const ae::AeEventLoop* el;
   ConnState state;
   std::unique_ptr<ConnHandler> read_handler;
   std::unique_ptr<ConnHandler> write_handler;
   std::unique_ptr<ConnHandler> accept_handler;
 
-  static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
-                                                  void* client_data, int mask);
+  static ae::AeEventStatus connSocketEventHandler(const ae::AeEventLoop* el,
+                                                  int fd, void* client_data,
+                                                  int mask);
   bool boundEventLoop() { return el != nullptr; }
   void* private_data;
 };

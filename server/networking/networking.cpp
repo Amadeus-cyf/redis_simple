@@ -36,8 +36,8 @@ std::string syncReceiveRespline(const connection::Connection* conn) {
   return r < 0 ? ErrorRecvResp : reply;
 }
 
-ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, void* clientData,
-                                int mask) {
+ae::AeEventStatus acceptHandler(const ae::AeEventLoop* el, int fd,
+                                void* clientData, int mask) {
   std::string dest_ip;
   int dest_port;
   Server* server = static_cast<Server*>(clientData);
@@ -45,14 +45,13 @@ ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, void* clientData,
     printf("invalid server / event loop\n");
     return ae::AeEventStatus::aeEventErr;
   }
-  connection::Connection* conn = new connection::Connection(fd);
+  const connection::Context& ctx = {.fd = fd, .loop = el};
+  connection::Connection* conn = new connection::Connection(ctx);
   conn->setState(connection::ConnState::connStateAccepting);
-  conn->bindEventLoop(server->getEventLoop());
   if (conn->accept(&dest_ip, &dest_port) == connection::StatusCode::c_err) {
     printf("connection accept failed\n");
     return ae::AeEventStatus::aeEventErr;
   }
-
   printf("accept connection from %s:%d with fd = %d\n", dest_ip.c_str(),
          dest_port, conn->getFd());
   printf("start create client\n");

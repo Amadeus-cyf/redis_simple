@@ -55,11 +55,9 @@ void acceptHandler(connection::Connection* conn) {
 }
 
 void run() {
-  ae::AeEventLoop* el = ae::AeEventLoop::initEventLoop();
-
-  connection::Connection* conn = new connection::Connection();
-
-  conn->bindEventLoop(el);
+  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+  connection::Connection* conn =
+      new connection::Connection({.fd = -1, .loop = el.get()});
   if (conn->listen("localhost", 8081) == connection::StatusCode::c_err) {
     printf("listen failed\n");
     return;
@@ -67,7 +65,6 @@ void run() {
 
   std::string ip;
   int port = 0;
-
   if (conn->accept(&ip, &port) == connection::StatusCode::c_err) {
     printf("accept failed\n");
     return;
