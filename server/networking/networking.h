@@ -4,6 +4,8 @@
 #include "server/redis_cmd/redis_cmd.h"
 
 namespace redis_simple {
+class Server;
+
 namespace connection {
 class Connection;
 }
@@ -18,6 +20,6 @@ std::string syncReceiveResponse(const connection::Connection* conn,
                                 long timeout);
 std::string syncReceiveRespline(const connection::Connection* conn);
 ae::AeEventStatus acceptHandler(const ae::AeEventLoop* el, int fd,
-                                void* clientData, int mask);
+                                Server* server, int mask);
 }  // namespace networking
 }  // namespace redis_simple

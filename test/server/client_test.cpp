@@ -28,7 +28,6 @@ void writeHandler(connection::Connection* conn) {
     return;
   }
 
-  printf("write to %d\n", conn->getFd());
   std::vector<std::string> args{"key", "val", "2000"};
   const RedisCommand& setCmd = RedisCommand("SET", args);
   const RedisCommand& getCmd = RedisCommand("GET", {"key"});
@@ -62,7 +61,7 @@ void readHandler(connection::Connection* conn) {
 }
 
 void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+  std::unique_ptr<const ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
   connection::Connection* conn =
       new connection::Connection({.fd = -1, .loop = el.get()});
   connection::StatusCode r =

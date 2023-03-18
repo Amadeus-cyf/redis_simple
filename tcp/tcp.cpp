@@ -75,7 +75,7 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
                const std::optional<int>& local_port) {
   struct addrinfo hints, *info;
   memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_UNSPEC;
+  hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(remote_ip.c_str(), std::to_string(remote_port).c_str(),
                   &hints, &info) < 0) {
@@ -97,8 +97,9 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
     }
     if (connect(socket_fd, p->ai_addr, p->ai_addrlen) == -1) {
       if (!isNonBlock(socket_fd) || errno != EINPROGRESS) {
-        perror("conn error: ");
+        perror("conn error");
         close(socket_fd);
+        socket_fd = -1;
         continue;
       }
       printf("connect in progress %d\n", socket_fd);
@@ -120,7 +121,7 @@ int tcpBind(const int socket_fd, const std::string& ip, const int port) {
   }
   int r = TCPStatusCode::tcpError;
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
-    if (bind(socket_fd, info->ai_addr, info->ai_addrlen) < 0) {
+    if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       perror("fail to bind");
       continue;
     }

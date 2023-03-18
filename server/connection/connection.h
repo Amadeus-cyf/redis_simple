@@ -75,11 +75,10 @@ class Connection {
   std::unique_ptr<ConnHandler> read_handler;
   std::unique_ptr<ConnHandler> write_handler;
   std::unique_ptr<ConnHandler> accept_handler;
-
   static ae::AeEventStatus connSocketEventHandler(const ae::AeEventLoop* el,
-                                                  int fd, void* client_data,
+                                                  int fd,
+                                                  Connection* client_data,
                                                   int mask);
-  bool boundEventLoop() { return el != nullptr; }
   void* private_data;
 };
 }  // namespace connection

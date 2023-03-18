@@ -9,7 +9,8 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
-std::unique_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::initEventLoop();
+std::unique_ptr<const ae::AeEventLoop> Server::el =
+    ae::AeEventLoop::initEventLoop();
 
 Server::Server() : db(db::RedisDb::initDb()) {}
 
@@ -38,8 +39,8 @@ void Server::run(const std::string& ip, const int& port) {
 }
 
 void Server::acceptConnHandler() {
-  ae::AeFileEvent* fe = ae::AeFileEvent::create(networking::acceptHandler,
-                                                nullptr, this, ae::aeReadable);
+  ae::AeFileEvent<Server>* fe = ae::AeFileEvent<Server>::create(
+      networking::acceptHandler, nullptr, this, ae::aeReadable);
   if (el->aeCreateFileEvent(fd, fe) < 0) {
     printf("error in adding client creation file event");
   }

@@ -103,6 +103,7 @@ int main() {
     // printf("receive resp %s\n", r1.c_str());
     // const std::string& r2 = cli.getReply();
     // printf("receive resp %s\n", r2.c_str());
+    // printf("test\n");
 
     auto r3 = cli.getReplyAsync();
     const std::string& applied_str1 =

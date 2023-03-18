@@ -27,7 +27,7 @@ void writeHandler(connection::Connection* conn) {
 }
 
 void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+  std::unique_ptr<const ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
   connection::Connection* conn =
       new connection::Connection({.fd = -1, .loop = el.get()});
   connection::StatusCode r =

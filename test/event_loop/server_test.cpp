@@ -47,7 +47,7 @@ void acceptHandler(connection::Connection* conn) {
 
   printf("accept %s:%d\n", ip.c_str(), port);
 
-  // conn->getEventLoop()->aeDelFileEvent(fd, AeFlags::aeReadable);
+  // conn->getEventLoop()->aeDeleteFileEvent(fd, AeFlags::aeReadable);
   // close(fd);
   std::unique_ptr<ConnReadHandler> handler =
       std::unique_ptr<ConnReadHandler>(new ConnReadHandler());
@@ -55,7 +55,7 @@ void acceptHandler(connection::Connection* conn) {
 }
 
 void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+  std::unique_ptr<const ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
   connection::Connection* conn =
       new connection::Connection({.fd = -1, .loop = el.get()});
   if (conn->listen("localhost", 8081) == connection::StatusCode::c_err) {

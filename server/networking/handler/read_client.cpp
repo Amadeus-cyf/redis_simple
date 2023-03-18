@@ -35,7 +35,6 @@ void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
       printf("free client\n");
     }
   } else if (nread == 0) {
-    conn->unsetReadHandler();
     return;
   }
 

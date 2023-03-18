@@ -18,7 +18,7 @@ Connection::Connection(const Context& ctx)
 
 StatusCode Connection::connect(const std::string& remote_ip, int remote_port,
                                const std::string& local_ip, int local_port) {
-  if (!boundEventLoop()) {
+  if (!el) {
     return StatusCode::c_err;
   }
   std::optional<std::string> opt_ip = std::make_optional<std::string>(local_ip);
@@ -29,8 +29,8 @@ StatusCode Connection::connect(const std::string& remote_ip, int remote_port,
   }
   fd = s;
   setState(ConnState::connStateConnecting);
-  ae::AeFileEvent* e = ae::AeFileEvent::create(nullptr, connSocketEventHandler,
-                                               this, ae::AeFlags::aeWritable);
+  ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
+      nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
   if (el->aeCreateFileEvent(fd, e) < 0) {
     printf("adding connection socket event handler error");
     return StatusCode::c_err;
@@ -78,7 +78,7 @@ void Connection::setReadHandler(std::unique_ptr<ConnHandler> rHandler) {
   if (!rHandler) {
     unsetReadHandler();
   } else {
-    ae::AeFileEvent* e = ae::AeFileEvent::create(
+    ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
         connSocketEventHandler, nullptr, this, ae::AeFlags::aeReadable);
 
     el->aeCreateFileEvent(fd, e);
@@ -90,7 +90,7 @@ void Connection::setReadHandler(std::unique_ptr<ConnHandler> rHandler) {
 
 void Connection::unsetReadHandler() {
   read_handler = nullptr;
-  el->aeDelFileEvent(fd, ae::AeFlags::aeReadable);
+  el->aeDeleteFileEvent(fd, ae::AeFlags::aeReadable);
   flags &= ~ae::AeFlags::aeReadable;
 }
 
@@ -98,7 +98,7 @@ void Connection::setWriteHandler(std::unique_ptr<ConnHandler> wHandler) {
   if (!wHandler) {
     unsetWriteHandler();
   } else {
-    ae::AeFileEvent* e = ae::AeFileEvent::create(
+    ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
         nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
 
     el->aeCreateFileEvent(fd, e);
@@ -109,12 +109,13 @@ void Connection::setWriteHandler(std::unique_ptr<ConnHandler> wHandler) {
 
 void Connection::unsetWriteHandler() {
   write_handler = nullptr;
-  el->aeDelFileEvent(fd, ae::AeFlags::aeWritable);
+  el->aeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
   flags &= ~ae::AeFlags::aeWritable;
 }
 
 ae::AeEventStatus Connection::connSocketEventHandler(const ae::AeEventLoop* el,
-                                                     int fd, void* client_data,
+                                                     int fd,
+                                                     Connection* client_data,
                                                      int mask) {
   printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
          fd, mask & ae::AeFlags::aeReadable, mask & ae::AeFlags::aeWritable);

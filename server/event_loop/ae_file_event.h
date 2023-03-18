@@ -1,5 +1,7 @@
 #pragma once
 
+#include "server/event_loop/ae_file_event_base.h"
+
 namespace redis_simple {
 namespace ae {
 enum class AeEventStatus {
@@ -9,14 +11,20 @@ enum class AeEventStatus {
 
 class AeEventLoop;
 
-using aeFileProc = AeEventStatus (*)(const AeEventLoop* el, int fd,
-                                     void* client_data, int mask);
-
-class AeFileEvent {
+template <typename T>
+class AeFileEvent : public BaseAeFileEvent {
  public:
+  using aeFileProc = AeEventStatus (*)(const AeEventLoop* el, int fd,
+                                       T* client_data, int mask);
   static AeFileEvent* create(aeFileProc rfile_proc, aeFileProc wfile_proc,
-                             void* client_data, int mask) {
+                             T* client_data, int mask) {
     return new AeFileEvent(rfile_proc, wfile_proc, client_data, mask);
+  }
+  void callReadProc(const ae::AeEventLoop* el, int fd) override {
+    rfile_proc(el, fd, client_data, getMask());
+  }
+  void callWriteProc(const ae::AeEventLoop* el, int fd) override {
+    wfile_proc(el, fd, client_data, getMask());
   }
   aeFileProc getRFileProc() { return rfile_proc; }
   aeFileProc getRFileProc() const { return rfile_proc; }
@@ -24,28 +32,26 @@ class AeFileEvent {
   aeFileProc getWFileProc() { return wfile_proc; }
   aeFileProc getWFileProc() const { return wfile_proc; }
   void setWFileProc(aeFileProc p) { wfile_proc = p; }
-  void* getClientData() { return client_data; }
-  void* getClientData() const { return client_data; }
-  void setClientData(void* data) { client_data = data; }
-  int getMask() { return mask; }
-  int getMask() const { return mask; }
-  void setMask(int m) { mask |= m; }
-  bool hasRFileProc() { return rfile_proc != nullptr; }
-  bool hasRFileProc() const { return rfile_proc != nullptr; }
-  bool hasWFileProc() { return wfile_proc != nullptr; }
-  bool hasWFileProc() const { return wfile_proc != nullptr; }
+  bool isRWProcDiff() override { return rfile_proc != wfile_proc; }
+  bool isRWProcDiff() const override { return rfile_proc != wfile_proc; }
+  T* getClientData() { return client_data; }
+  T* getClientData() const { return client_data; }
+  void setClientData(const T* data) { client_data = data; }
+  bool hasRFileProc() override { return rfile_proc != nullptr; }
+  bool hasRFileProc() const override { return rfile_proc != nullptr; }
+  bool hasWFileProc() override { return wfile_proc != nullptr; }
+  bool hasWFileProc() const override { return wfile_proc != nullptr; }
 
  private:
   explicit AeFileEvent(aeFileProc rfile_proc, aeFileProc wfile_proc,
-                       void* client_data, int mask)
+                       T* client_data, int mask)
       : rfile_proc(rfile_proc),
         wfile_proc(wfile_proc),
         client_data(client_data),
-        mask(mask) {}
+        BaseAeFileEvent(mask) {}
   aeFileProc rfile_proc;
   aeFileProc wfile_proc;
-  void* client_data;
-  int mask;
+  T* client_data;
 };
 }  // namespace ae
 }  // namespace redis_simple

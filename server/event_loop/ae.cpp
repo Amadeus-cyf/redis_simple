@@ -15,11 +15,11 @@
 namespace redis_simple {
 namespace ae {
 AeEventLoop::AeEventLoop(AeKqueue* kq)
-    : fileEvents(new AeFileEvent*[EventsSize]), aeApiState(kq) {}
+    : fileEvents(std::vector<BaseAeFileEvent*>(EventsSize)), aeApiState(kq) {}
 
-std::unique_ptr<AeEventLoop> AeEventLoop::initEventLoop() {
+std::unique_ptr<const AeEventLoop> AeEventLoop::initEventLoop() {
   AeKqueue* kq = AeKqueue::aeApiCreate(EventsSize);
-  return std::unique_ptr<AeEventLoop>(new AeEventLoop(kq));
+  return std::unique_ptr<const AeEventLoop>(new AeEventLoop(kq));
 }
 
 void AeEventLoop::aeMain() const {
@@ -44,37 +44,7 @@ int AeEventLoop::aeWait(int fd, int mask, long timeout) const {
   return r;
 }
 
-AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent* fe) const {
-  printf("create events for fd = %d, mask = %d\n", fd, fe->getMask());
-  if (fe == nullptr) {
-    return ae_err;
-  }
-  if (fd < 0 || fd >= EventsSize) {
-    throw("file descriptor out of range");
-  }
-  int mask = 0;
-  if (fileEvents[fd] == nullptr) {
-    printf("add new event\n");
-    fileEvents[fd] = fe;
-    mask = fe->getMask();
-  } else {
-    /* if a file event already exists, merge the event */
-    AeFileEvent* e = fileEvents[fd];
-    mask = e->getMask() | fe->getMask();
-    fe->setMask(mask);
-    if (e->hasRFileProc() && !fe->hasRFileProc()) {
-      fe->setRFileProc(e->getRFileProc());
-    }
-    if (e->hasWFileProc() && !fe->hasWFileProc()) {
-      fe->setWFileProc(e->getWFileProc());
-    }
-    delete e;
-    fileEvents[fd] = fe;
-  }
-  return aeApiState->aeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
-}
-
-AeStatus AeEventLoop::aeDelFileEvent(int fd, int mask) const {
+AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) const {
   if (aeApiState->aeApiDelEvent(fd, mask) < 0) {
     printf(
         "fail to delete the file event of file descriptor %d with errno: "
@@ -83,9 +53,9 @@ AeStatus AeEventLoop::aeDelFileEvent(int fd, int mask) const {
 
     return ae_err;
   }
-  printf("delete file event success for file descriptor: %d\n", fd);
-
-  AeFileEvent* fe = fileEvents[fd];
+  printf("delete file event success for file descriptor = %d, mask = %d\n", fd,
+         mask);
+  BaseAeFileEvent* fe = fileEvents[fd];
   if (fe->getMask() == mask) {
     fileEvents[fd] = nullptr;
     delete fe;
@@ -114,23 +84,22 @@ void AeEventLoop::aeProcessEvents() const {
   std::unordered_map<int, int> fdToMask = aeApiState->aeApiPoll(&tspec);
   for (const auto& it : fdToMask) {
     int fd = it.first, mask = it.second;
-    AeFileEvent* fe = fileEvents[fd];
+    BaseAeFileEvent* fe = fileEvents[fd];
     int inverted = fe->getMask() & AeFlags::aeBarrier;
     bool fired = false;
     if (!inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
         fe->hasRFileProc()) {
-      fe->getRFileProc()(this, fd, fe->getClientData(), mask);
+      fe->callReadProc(this, fd);
       fired = true;
     }
     if ((mask & fe->getMask() & AeFlags::aeWritable) && fe->hasWFileProc() &&
-        (!fired || fe->getWFileProc() != fe->getRFileProc())) {
-      fe->getWFileProc()(this, fd, fe->getClientData(), mask);
+        (!fired || fe->isRWProcDiff())) {
+      fe->callWriteProc(this, fd);
       fired = true;
     }
     if (inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
-        fe->hasRFileProc() &&
-        (!fired || fe->getRFileProc() != fe->getWFileProc())) {
-      fe->getRFileProc()(this, fd, fe->getClientData(), mask);
+        fe->hasRFileProc() && (!fired || fe->isRWProcDiff())) {
+      fe->callReadProc(this, fd);
     }
   }
   processTimeEvents();
@@ -177,8 +146,6 @@ AeEventLoop::~AeEventLoop() {
     delete fileEvents[i];
     fileEvents[i] = nullptr;
   }
-  delete[] fileEvents;
-  fileEvents = nullptr;
 }
 }  // namespace ae
 }  // namespace redis_simple

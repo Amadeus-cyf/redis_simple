@@ -25,6 +25,7 @@ target_sources(redis_simple
     "server/connection/connection.cpp"
     "server/event_loop/ae.h"
     "server/event_loop/ae.cpp"
+    "server/event_loop/ae_file_event_base.h"
     "server/event_loop/ae_file_event.h"
     "server/event_loop/ae_kqueue.h"
     "server/event_loop/ae_kqueue.cpp"
