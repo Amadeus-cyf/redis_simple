@@ -9,7 +9,7 @@
 #include <ctime>
 #include <unordered_map>
 
-#include "server/event_loop/ae_kqueue.h"
+#include "event_loop/ae_kqueue.h"
 #include "utils/time_utils.h"
 
 namespace redis_simple {
@@ -17,12 +17,12 @@ namespace ae {
 AeEventLoop::AeEventLoop(AeKqueue* kq)
     : fileEvents(std::vector<BaseAeFileEvent*>(EventsSize)), aeApiState(kq) {}
 
-std::unique_ptr<const AeEventLoop> AeEventLoop::initEventLoop() {
+std::unique_ptr<AeEventLoop> AeEventLoop::initEventLoop() {
   AeKqueue* kq = AeKqueue::aeApiCreate(EventsSize);
-  return std::unique_ptr<const AeEventLoop>(new AeEventLoop(kq));
+  return std::unique_ptr<AeEventLoop>(new AeEventLoop(kq));
 }
 
-void AeEventLoop::aeMain() const {
+void AeEventLoop::aeMain() {
   while (true) {
     aeProcessEvents();
   }
@@ -44,7 +44,7 @@ int AeEventLoop::aeWait(int fd, int mask, long timeout) const {
   return r;
 }
 
-AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) const {
+AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) {
   if (aeApiState->aeApiDelEvent(fd, mask) < 0) {
     printf(
         "fail to delete the file event of file descriptor %d with errno: "
@@ -68,7 +68,7 @@ AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) const {
   return ae_ok;
 }
 
-void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) const {
+void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) {
   if (!timeEventHead) {
     timeEventHead = te;
     return;
@@ -77,7 +77,7 @@ void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) const {
   timeEventHead = te;
 }
 
-void AeEventLoop::aeProcessEvents() const {
+void AeEventLoop::aeProcessEvents() {
   struct timespec tspec;
   tspec.tv_sec = 1;
   tspec.tv_nsec = 0;

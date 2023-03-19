@@ -2,8 +2,8 @@
 
 #include <string>
 
+#include "event_loop/ae.h"
 #include "server/conn_handler/conn_handler.h"
-#include "server/event_loop/ae.h"
 
 namespace redis_simple {
 namespace connection {
@@ -22,7 +22,7 @@ enum class ConnState {
 };
 
 struct Context {
-  const ae::AeEventLoop* loop;
+  ae::AeEventLoop* loop;
   int fd;
 };
 
@@ -70,13 +70,12 @@ class Connection {
  private:
   int fd;
   int flags;
-  const ae::AeEventLoop* el;
+  ae::AeEventLoop* el;
   ConnState state;
   std::unique_ptr<ConnHandler> read_handler;
   std::unique_ptr<ConnHandler> write_handler;
   std::unique_ptr<ConnHandler> accept_handler;
-  static ae::AeEventStatus connSocketEventHandler(const ae::AeEventLoop* el,
-                                                  int fd,
+  static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
   void* private_data;

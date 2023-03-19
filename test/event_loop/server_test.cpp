@@ -3,9 +3,9 @@
 
 #include <string>
 
+#include "event_loop/ae.h"
 #include "server/conn_handler/conn_handler.h"
 #include "server/connection/connection.h"
-#include "server/event_loop/ae.h"
 #include "server/networking/networking.h"
 
 namespace redis_simple {
@@ -55,7 +55,7 @@ void acceptHandler(connection::Connection* conn) {
 }
 
 void run() {
-  std::unique_ptr<const ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
   connection::Connection* conn =
       new connection::Connection({.fd = -1, .loop = el.get()});
   if (conn->listen("localhost", 8081) == connection::StatusCode::c_err) {

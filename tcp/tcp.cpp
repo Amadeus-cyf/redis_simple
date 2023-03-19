@@ -122,7 +122,6 @@ int tcpBind(const int socket_fd, const std::string& ip, const int port) {
   int r = TCPStatusCode::tcpError;
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
     if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
-      perror("fail to bind");
       continue;
     }
     printf("bind success\n");

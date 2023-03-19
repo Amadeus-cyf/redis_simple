@@ -36,8 +36,8 @@ std::string syncReceiveRespline(const connection::Connection* conn) {
   return r < 0 ? ErrorRecvResp : reply;
 }
 
-ae::AeEventStatus acceptHandler(const ae::AeEventLoop* el, int fd,
-                                Server* server, int mask) {
+ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
+                                int mask) {
   std::string dest_ip;
   int dest_port;
   if (!server || !server->getEventLoop()) {

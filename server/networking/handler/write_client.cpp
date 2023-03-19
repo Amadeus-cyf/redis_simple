@@ -23,7 +23,7 @@ void WriteToClientHandler::sendReplyToClient(connection::Connection* conn) {
   Client* c = static_cast<Client*>(conn->getPrivateData());
   printf("write reply called %d\n", c->hasPendingReplies());
   while (c->hasPendingReplies()) {
-    if (writeToClient(c) < 0) {
+    if (writeToClient(c) <= 0) {
       break;
     }
   }
@@ -43,7 +43,7 @@ ssize_t WriteToClientHandler::writeToClient(Client* c) {
           connection::ConnState::connStateConnected) {
         printf("free client\n");
       }
-      return -1;
+      return nwritten;
     }
   }
   return nwritten;

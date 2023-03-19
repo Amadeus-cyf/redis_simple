@@ -10,8 +10,10 @@ class BaseAeFileEvent {
   int getMask() { return mask; }
   int getMask() const { return mask; }
   void setMask(int m) { mask |= m; }
-  virtual void callReadProc(const AeEventLoop* el, int fd) = 0;
-  virtual void callWriteProc(const AeEventLoop* el, int fd) = 0;
+  virtual void callReadProc(AeEventLoop* el, int fd) = 0;
+  virtual void callReadProc(AeEventLoop* el, int fd) const = 0;
+  virtual void callWriteProc(AeEventLoop* el, int fd) = 0;
+  virtual void callWriteProc(AeEventLoop* el, int fd) const = 0;
   virtual bool hasRFileProc() = 0;
   virtual bool hasRFileProc() const = 0;
   virtual bool hasWFileProc() = 0;

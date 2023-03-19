@@ -113,7 +113,7 @@ void Connection::unsetWriteHandler() {
   flags &= ~ae::AeFlags::aeWritable;
 }
 
-ae::AeEventStatus Connection::connSocketEventHandler(const ae::AeEventLoop* el,
+ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
                                                      int fd,
                                                      Connection* client_data,
                                                      int mask) {

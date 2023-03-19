@@ -1,6 +1,6 @@
 #pragma once
 
-#include "server/event_loop/ae.h"
+#include "event_loop/ae.h"
 #include "server/redis_cmd/redis_cmd.h"
 
 namespace redis_simple {
@@ -19,7 +19,7 @@ std::string syncReceiveResponse(const connection::Connection* conn);
 std::string syncReceiveResponse(const connection::Connection* conn,
                                 long timeout);
 std::string syncReceiveRespline(const connection::Connection* conn);
-ae::AeEventStatus acceptHandler(const ae::AeEventLoop* el, int fd,
-                                Server* server, int mask);
+ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
+                                int mask);
 }  // namespace networking
 }  // namespace redis_simple
