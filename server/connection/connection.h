@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unistd.h>
+
 #include <string>
 
 #include "event_loop/ae.h"
@@ -65,7 +67,8 @@ class Connection {
       const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
   ssize_t connSyncWrite(const char* buffer, size_t len, long timeout);
   ssize_t connSyncWrite(const char* buffer, size_t len, long timeout) const;
-  // void free();
+  void free() { close(fd); }
+  ~Connection() { free(); }
 
  private:
   int fd;
