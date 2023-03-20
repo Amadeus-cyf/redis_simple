@@ -48,14 +48,14 @@ int AeKqueue::aeApiDelEvent(int fd, int mask) const {
   if (mask & AeFlags::aeReadable) {
     EV_SET(&ke, fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
     if (kevent(kqueue_fd, &ke, 1, nullptr, 0, nullptr) < 0) {
-      printf("kevent delete read event failed with errno: %d\n", errno);
+      perror("kevent delete read event failed with errno");
       return -1;
     }
   }
   if (mask & AeFlags::aeWritable) {
     EV_SET(&ke, fd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
     if (kevent(kqueue_fd, &ke, 1, nullptr, 0, nullptr) < 0) {
-      printf("kevent delete write event failed with errno: %d\n", errno);
+      perror("kevent delete write event failed with errno");
       return -1;
     }
   }
@@ -80,6 +80,9 @@ std::unordered_map<int, int> AeKqueue::aeApiPoll(struct timespec* tspec) const {
     if (events[i].filter == EVFILT_WRITE) {
       printf("kqueue: poll write\n");
       fdToMaskMap[events[i].ident] |= AeFlags::aeWritable;
+    }
+    if (events[i].flags & EV_EOF) {
+      aeApiDelEvent(events[i].ident, AeFlags::aeReadable | AeFlags::aeWritable);
     }
   }
   return fdToMaskMap;

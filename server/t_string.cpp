@@ -24,13 +24,6 @@ void addReplyToClient(Client* client, const std::string& reply) {
   client->addReply(reply);
 }
 
-void installWriteHandler(Client* client) {
-  if (!client->getConn()->hasWriteHandler()) {
-    client->getConn()->setWriteHandler(connection::ConnHandler::create(
-        connection::ConnHandlerType::writeReplyToClient));
-  }
-}
-
 RedisCmdProc getRedisCmdProc(const std::string& cmd) {
   return getCmdMapping()[cmd];
 }
@@ -56,7 +49,6 @@ void setCommand(Client* client) {
   }
   const db::RedisObj* val =
       db::RedisObj::createStringRedisObj(cmd->getArgs()[1]);
-  installWriteHandler(client);
   addReplyToClient(client, reply::fromInt64(db->setKey(key, val, expire)));
 }
 
@@ -80,7 +72,6 @@ void getCommand(Client* client) {
   }
   const std::string& val_str = std::get<std::string>(val->getVal());
   addReplyToClient(client, reply::fromBulkString(val_str));
-  installWriteHandler(client);
   val->decrRefCount();
 }
 
@@ -97,7 +88,6 @@ void delCommand(Client* client) {
     return;
   }
   const std::string& key = cmd->getArgs()[0];
-  installWriteHandler(client);
   addReplyToClient(client, reply::fromInt64(db->delKey(key)));
 }
 }  // namespace t_cmd

@@ -58,7 +58,7 @@ ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
   printf("accept connection from %s:%d with fd = %d\n", dest_ip.c_str(),
          dest_port, conn->getFd());
   printf("start create client\n");
-  Client* client = new Client(conn);
+  Client* client = Client::create(conn);
   conn->setPrivateData(client);
   // set read handler for client conn
   conn->setReadHandler(connection::ConnHandler::create(

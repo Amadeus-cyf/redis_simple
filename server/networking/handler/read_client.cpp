@@ -41,6 +41,11 @@ void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
   if (c->processInputBuffer() == ClientStatus::clientErr) {
     printf("process query buffer failed\n");
   }
+  if (c->hasPendingReplies() && !c->getConn()->hasWriteHandler()) {
+    printf("client has pending replies, install write handler\n");
+    c->getConn()->setWriteHandler(connection::ConnHandler::create(
+        connection::ConnHandlerType::writeReplyToClient));
+  }
 }
 }  // namespace
 

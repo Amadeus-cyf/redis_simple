@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unistd.h>
+
 #include <string>
 
 #include "completable_future.h"
@@ -20,6 +22,7 @@ class RedisCli {
   void addCommand(const std::string& cmd, const size_t len);
   std::string getReply();
   CompletableFuture<std::string> getReplyAsync();
+  ~RedisCli() { close(socket_fd); }
 
  private:
   static const std::string ErrResp;

@@ -114,13 +114,10 @@ void Connection::unsetWriteHandler() {
 }
 
 ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
-                                                     int fd,
-                                                     Connection* client_data,
+                                                     int fd, Connection* conn,
                                                      int mask) {
   printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
          fd, mask & ae::AeFlags::aeReadable, mask & ae::AeFlags::aeWritable);
-
-  Connection* conn = static_cast<Connection*>(client_data);
   if (conn == nullptr) {
     return ae::AeEventStatus::aeEventErr;
   }

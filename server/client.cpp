@@ -6,13 +6,6 @@
 #include "utils/string_utils.h"
 
 namespace redis_simple {
-Client::Client()
-    : conn(),
-      db(Server::get()->getDb()),
-      cmd(),
-      query_buf(std::make_unique<in_memory::DynamicBuffer>()),
-      buf(std::make_unique<in_memory::ReplyBuffer>()) {}
-
 Client::Client(connection::Connection* connection)
     : conn(connection),
       db(Server::get()->getDb()),

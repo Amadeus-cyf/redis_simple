@@ -7,10 +7,8 @@ namespace connection {
 class Connection;
 
 enum class ConnHandlerType {
-  syncWithMaster = 1,
-  readSyncBulkPayload = 1 << 1,
-  readQueryFromClient = 1 << 2,
-  writeReplyToClient = 1 << 3,
+  readQueryFromClient = 1,
+  writeReplyToClient = 1 << 1,
 };
 
 class ConnHandler {

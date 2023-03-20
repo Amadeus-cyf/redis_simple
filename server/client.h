@@ -20,8 +20,9 @@ enum class ClientStatus {
 
 class Client {
  public:
-  Client();
-  explicit Client(connection::Connection* connection);
+  static Client* create(connection::Connection* connection) {
+    return new Client(connection);
+  }
   int getFlags() { return flags; }
   RedisCommand* getCmd() { return cmd.get(); }
   connection::Connection* getConn() { return conn.get(); }
@@ -36,6 +37,7 @@ class Client {
   ClientStatus processCommand();
 
  private:
+  explicit Client(connection::Connection* connection);
   ClientStatus processInlineBuffer();
   void setCmd(RedisCommand* command) { cmd.reset(command); }
   ssize_t _sendReply();
