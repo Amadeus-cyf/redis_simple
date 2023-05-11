@@ -10,6 +10,9 @@ class DynamicBuffer {
   size_t getLen() { return len; }
   size_t getRead() { return nread; }
   size_t getProcessedOffset() { return processed_offset; }
+  void incrProcessedOffset(size_t processsed) {
+    processed_offset += processsed;
+  }
   void writeToBuffer(const char* buffer, size_t n);
   void trimProcessedBuffer();
   std::string processInlineBuffer();

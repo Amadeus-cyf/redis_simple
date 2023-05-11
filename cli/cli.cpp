@@ -5,6 +5,7 @@
 
 #include <future>
 
+#include "resp_parser.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple {
@@ -31,6 +32,7 @@ std::string readFromSocket(int fd) {
 ssize_t writeToSocket(int fd, const std::string& cmds) {
   ssize_t nwritten = 0;
   int nwrite = 0;
+  printf("write %s\n", cmds.c_str());
   while ((nwrite = write(fd, cmds.c_str(), cmds.size())) < cmds.size()) {
     if (nwrite < 0) {
       break;
@@ -41,9 +43,8 @@ ssize_t writeToSocket(int fd, const std::string& cmds) {
 }
 }  // namespace
 
-const std::string RedisCli::ErrResp = "+error";
-const std::string RedisCli::InProgressResp = "+inprogress";
-const std::string RedisCli::NoReplyResp = "+no_reply";
+const std::string RedisCli::ErrResp = "error";
+const std::string RedisCli::NoReplyResp = "no_reply";
 
 RedisCli::RedisCli()
     : query_buf(std::make_unique<in_memory::DynamicBuffer>()),
@@ -62,9 +63,8 @@ void RedisCli::addCommand(const std::string& cmd, const size_t len) {
 }
 
 std::string RedisCli::getReply() {
-  if (reply_buf && !reply_buf->isEmpty()) {
-    const std::string& reply = reply_buf->processInlineBuffer();
-    reply_buf->trimProcessedBuffer();
+  std::string reply;
+  if (reply_buf && !reply_buf->isEmpty() && processReply(reply)) {
     return reply;
   }
   if (!query_buf->isEmpty()) {
@@ -74,9 +74,9 @@ std::string RedisCli::getReply() {
     query_buf->clear();
     const std::string& replies = readFromSocket(socket_fd);
     reply_buf->writeToBuffer(replies.c_str(), replies.size());
-    const std::string& reply = reply_buf->processInlineBuffer();
-    reply_buf->trimProcessedBuffer();
-    return reply;
+    if (processReply(reply)) {
+      return reply;
+    }
   }
   return NoReplyResp;
 }
@@ -85,6 +85,16 @@ CompletableFuture<std::string> RedisCli::getReplyAsync() {
   std::future<std::string> future =
       std::async(std::launch::async, [&]() { return getReply(); });
   return CompletableFuture<std::string>(std::move(future));
+}
+
+bool RedisCli::processReply(std::string& reply) {
+  ssize_t processed = resp_parser::parse(reply_buf->getBufInString(), reply);
+  if (processed > 0) {
+    reply_buf->incrProcessedOffset(processed);
+    reply_buf->trimProcessedBuffer();
+    return true;
+  }
+  return false;
 }
 }  // namespace cli
 }  // namespace redis_simple
@@ -96,7 +106,7 @@ int main() {
   while (i++ < 1000) {
     const std::string& cmd1 = "SET key val\r\n";
     cli.addCommand(cmd1, cmd1.size());
-    const std::string& cmd2 = "SET key\r\n";
+    const std::string& cmd2 = "GET key\r\n";
     cli.addCommand(cmd2, cmd2.size());
 
     // const std::string& r1 = cli.getReply();
@@ -108,7 +118,7 @@ int main() {
     auto r3 = cli.getReplyAsync();
     const std::string& applied_str1 =
         r3.thenApply([](const std::string& reply) {
-            printf("receive resp 1: %s\n", reply.c_str());
+            printf("receive resp 1: %s end\n", reply.c_str());
             return reply;
           })
             .thenApply(
@@ -119,7 +129,7 @@ int main() {
     auto r4 = cli.getReplyAsync();
     const std::string& applied_str2 =
         r4.thenApplyAsync([](const std::string& reply) {
-            printf("receive resp 2: %s\n", reply.c_str());
+            printf("receive resp 2: %s end\n", reply.c_str());
             return reply;
           })
             .thenApplyAsync(

@@ -58,6 +58,8 @@ target_sources(redis_simple_cli
     "cli/cli.h"
     "cli/cli.cpp"
     "cli/completable_future.h"
+    "cli/resp_parser.h"
+    "cli/resp_parser.cpp"
     "tcp/tcp.h"
     "tcp/tcp.cpp"
     "event_loop/ae.h"
@@ -97,6 +99,14 @@ target_sources(reply_test
     "test/reply/reply_test.cpp"
 )
 
+add_executable(resp_parser_test "")
+target_sources(resp_parser_test
+PRIVATE
+  "cli/resp_parser.h"
+  "cli/resp_parser.cpp"
+  "test/cli/resp_parser_test.cpp"
+)
+
 target_link_libraries(
   memory_test
   GTest::gtest_main
@@ -107,9 +117,16 @@ target_link_libraries(
   GTest::gtest_main
 )
 
+target_link_libraries(
+  resp_parser_test
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(
   memory_test
+  reply_test
+  resp_parser_test
 )
 
 add_subdirectory("third_party/benchmark")
