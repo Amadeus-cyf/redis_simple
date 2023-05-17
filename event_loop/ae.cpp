@@ -81,7 +81,7 @@ void AeEventLoop::aeProcessEvents() {
   struct timespec tspec;
   tspec.tv_sec = 1;
   tspec.tv_nsec = 0;
-  std::unordered_map<int, int> fdToMask = aeApiState->aeApiPoll(&tspec);
+  const std::unordered_map<int, int>& fdToMask = aeApiState->aeApiPoll(&tspec);
   for (const auto& it : fdToMask) {
     int fd = it.first, mask = it.second;
     BaseAeFileEvent* fe = fileEvents[fd];
