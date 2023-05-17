@@ -12,10 +12,13 @@ struct Prefix {
 };
 
 ssize_t findCRLF(const std::string& resp, int start) {
-  int i = resp.find('\n', start);
-  if (i < 0) return -1;
-  if (i == 0 || resp[i - 1] != '\r') return -1;
-  return i;
+  while (start >= 0) {
+    start = resp.find('\n', start);
+    if (start < 0) break;
+    if (start > 0 && resp[start - 1] == '\r') return start;
+    ++start;
+  }
+  return -1;
 }
 
 ssize_t parseString(const std::string& resp, std::string& reply) {
