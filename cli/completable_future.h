@@ -8,7 +8,8 @@ template <typename T>
 class CompletableFuture {
  public:
   using callback = T (*)(const T&);
-  explicit CompletableFuture(std::future<T>&& future) : future(move(future)){};
+  explicit CompletableFuture(std::future<T>&& future)
+      : future(std::move(future)){};
   CompletableFuture thenApply(callback cb);
   CompletableFuture thenApplyAsync(callback cb);
   T get();

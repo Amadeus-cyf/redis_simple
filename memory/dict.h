@@ -455,7 +455,7 @@ bool Dict<K, V>::_dictRehash(int n) {
     --n, ++rehash_idx;
   }
   if (ht_used[0] == 0) {
-    ht[0] = move(ht[1]);
+    ht[0] = std::move(ht[1]);
     ht_size_exp[0] = ht_size_exp[1];
     ht_used[0] = ht_used[1];
     _dictReset(1);

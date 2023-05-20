@@ -44,7 +44,7 @@ void writeHandler(connection::Connection* conn) {
 
   std::unique_ptr<ConnReadHandler> rhandler =
       std::make_unique<ConnReadHandler>();
-  conn->setReadHandler(move(rhandler));
+  conn->setReadHandler(std::move(rhandler));
 
   printf("write handler called\n");
 }
@@ -74,7 +74,7 @@ void run() {
 
   std::unique_ptr<ConnWriteHandler> handler =
       std::make_unique<ConnWriteHandler>();
-  conn->setWriteHandler(move(handler));
+  conn->setWriteHandler(std::move(handler));
 
   el->aeMain();
 }

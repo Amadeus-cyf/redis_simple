@@ -51,7 +51,7 @@ void acceptHandler(connection::Connection* conn) {
   // close(fd);
   std::unique_ptr<ConnReadHandler> handler =
       std::unique_ptr<ConnReadHandler>(new ConnReadHandler());
-  conn->setReadHandler(move(handler));
+  conn->setReadHandler(std::move(handler));
 }
 
 void run() {

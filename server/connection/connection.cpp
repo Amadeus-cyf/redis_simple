@@ -83,7 +83,7 @@ void Connection::setReadHandler(std::unique_ptr<ConnHandler> rHandler) {
 
     el->aeCreateFileEvent(fd, e);
 
-    read_handler = move(rHandler);
+    read_handler = std::move(rHandler);
     flags |= ae::AeFlags::aeReadable;
   }
 }

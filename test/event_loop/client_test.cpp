@@ -40,7 +40,7 @@ void run() {
 
   std::unique_ptr<ConnWriteHandler> handler =
       std::unique_ptr<ConnWriteHandler>(new ConnWriteHandler());
-  conn->setWriteHandler(move(handler));
+  conn->setWriteHandler(std::move(handler));
 
   el->aeMain();
 }
