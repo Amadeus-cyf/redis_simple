@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "server/t_string.h"
+#include "server/t_cmd.h"
 
 namespace redis_simple {
 class Client;

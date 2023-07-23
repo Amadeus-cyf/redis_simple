@@ -14,6 +14,8 @@ target_sources(redis_simple
     "server/server.cpp"
     "server/expire.h"
     "server/expire.cpp"
+    "server/t_cmd.h"
+    "server/t_cmd.cpp"
     "server/t_string.h"
     "server/t_string.cpp"
     "server/db/db.h"
@@ -34,6 +36,7 @@ target_sources(redis_simple
     "memory/dynamic_buffer.cpp"
     "memory/reply_buffer.h"
     "memory/reply_buffer.cpp"
+    "memory/skiplist.h"
     "server/networking/networking.h"
     "server/networking/networking.cpp"
     "server/networking/handler/read_client.h"
@@ -86,9 +89,11 @@ target_sources(memory_test
     "memory/dynamic_buffer.cpp"
     "memory/reply_buffer.h"
     "memory/reply_buffer.cpp"
+    "memory/skiplist.h"
     "test/memory/dict_test.cpp"
     "test/memory/dynamic_buffer_test.cpp"
     "test/memory/reply_buffer_test.cpp"
+    "test/memory/skiplist_test.cpp"
 )
 
 add_executable(reply_test "")

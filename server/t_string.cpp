@@ -3,31 +3,11 @@
 #include "server/client.h"
 #include "server/networking/handler/write_client.h"
 #include "server/reply/reply.h"
+#include "t_cmd.h"
 #include "utils/time_utils.h"
 
 namespace redis_simple {
 namespace t_cmd {
-namespace {
-inline std::unordered_map<std::string, RedisCmdProc>& getCmdMapping() {
-  static std::unordered_map<std::string, RedisCmdProc> cmdMap;
-  if (cmdMap.size() > 0) {
-    return cmdMap;
-  }
-  cmdMap["SET"] = setCommand;
-  cmdMap["GET"] = getCommand;
-  cmdMap["DEL"] = delCommand;
-  return cmdMap;
-}
-}  // namespace
-
-void addReplyToClient(Client* client, const std::string& reply) {
-  client->addReply(reply);
-}
-
-RedisCmdProc getRedisCmdProc(const std::string& cmd) {
-  return getCmdMapping()[cmd];
-}
-
 void setCommand(Client* client) {
   printf("set command called\n");
   const db::RedisDb* db = client->getDb();
