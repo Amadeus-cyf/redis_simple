@@ -21,6 +21,7 @@ enum class ConnState {
   connStateHandshake = 1 << 3,
   connStateConnected = 1 << 4,
   connStateError = 1 << 5,
+  connStateClosed = 1 << 6,
 };
 
 struct Context {
@@ -74,7 +75,7 @@ class Connection {
   int fd;
   int flags;
   ae::AeEventLoop* el;
-  ConnState state;
+  mutable ConnState state;
   std::unique_ptr<ConnHandler> read_handler;
   std::unique_ptr<ConnHandler> write_handler;
   std::unique_ptr<ConnHandler> accept_handler;

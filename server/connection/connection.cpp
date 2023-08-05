@@ -28,7 +28,7 @@ StatusCode Connection::connect(const std::string& remote_ip, int remote_port,
     return StatusCode::c_err;
   }
   fd = s;
-  setState(ConnState::connStateConnecting);
+  state = ConnState::connStateConnecting;
   ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
       nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
   if (el->aeCreateFileEvent(fd, e) < 0) {
@@ -61,10 +61,11 @@ StatusCode Connection::accept(std::string* remote_ip, int* remote_port) {
   if (s < 0) {
     return StatusCode::c_err;
   }
-
   fd = s;
   tcp::nonBlock(fd);
-  if (accept_handler) accept_handler->handle(this);
+  if (accept_handler) {
+    accept_handler->handle(this);
+  }
   if (state == ConnState::connStateAccepting) {
     state = ConnState::connStateConnected;
   } else {
@@ -157,11 +158,17 @@ ssize_t Connection::connRead(const char* buffer, size_t readlen) const {
   int r = 0;
   while (nread < readlen &&
          (r = read(fd, (char*)buffer + nread, 1024)) != EOF) {
-    if (r) {
-      nread += r;
-    } else {
+    if (!r) {
       break;
     }
+    nread += r;
+  }
+  if (r < 0 && errno != EAGAIN) {
+    state = ConnState::connStateError;
+    return -1;
+  }
+  if (nread == 0) {
+    state = ConnState::connStateClosed;
   }
   return nread;
 }
@@ -179,6 +186,13 @@ ssize_t Connection::connRead(std::string& s) const {
       break;
     }
     s.append(buffer, r);
+  }
+  if (r < 0) {
+    state = ConnState::connStateError;
+    return -1;
+  }
+  if (s.size() == 0) {
+    state = ConnState::connStateClosed;
   }
   return s.length();
 }
@@ -231,7 +245,6 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
     printf("aeWait timeout\n");
     return 0;
   }
-
   r = 0;
   char buffer[1];
   while ((r = read(fd, buffer, 1)) != EOF) {
@@ -244,7 +257,14 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
     }
     s.push_back(buffer[0]);
   }
-  return s.length();
+  if (r < 0 && errno != EAGAIN) {
+    state = ConnState::connStateError;
+    return -1;
+  }
+  if (s.size() == 0) {
+    state = ConnState::connStateClosed;
+  }
+  return s.size();
 }
 
 ssize_t Connection::connWrite(const char* buffer, size_t len) {
@@ -255,9 +275,12 @@ ssize_t Connection::connWrite(const char* buffer, size_t len) const {
   ssize_t written = 0;
   while (written < len) {
     ssize_t n = write(fd, buffer + written, len - written);
-    if (n == -1) {
+    if (n < 0) {
+      if (errno != EINTR && state == ConnState::connStateConnected) {
+        state = ConnState::connStateError;
+      }
       printf("write failed\n");
-      return -1;
+      return n;
     }
     written += n;
   }
@@ -297,7 +320,14 @@ ssize_t Connection::connWritev(
     vec[i].iov_len = mem_blocks[i].second;
     len += mem_blocks[i].second;
   }
-  return writev(fd, vec, mem_blocks.size());
+  ssize_t n = writev(fd, vec, mem_blocks.size());
+  if (n < 0) {
+    if (errno != EINTR && state == ConnState::connStateConnected) {
+      state = ConnState::connStateError;
+    }
+    printf("write failed\n");
+  }
+  return n;
 }
 }  // namespace connection
 }  // namespace redis_simple
