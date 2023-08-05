@@ -187,7 +187,7 @@ ssize_t Connection::connRead(std::string& s) const {
     }
     s.append(buffer, r);
   }
-  if (r < 0) {
+  if (r < 0 && errno != EAGAIN) {
     state = ConnState::connStateError;
     return -1;
   }
