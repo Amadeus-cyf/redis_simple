@@ -2,13 +2,14 @@
 
 #include "server/client.h"
 #include "server/networking/handler/write_client.h"
+#include "server/redis_cmd/redis_cmd.h"
 #include "server/reply/reply.h"
-#include "t_cmd.h"
+#include "server/t_cmd.h"
 #include "utils/time_utils.h"
 
 namespace redis_simple {
 namespace t_cmd {
-void setCommand(Client* client) {
+void setCommand(Client* const client) {
   printf("set command called\n");
   const db::RedisDb* db = client->getDb();
   const RedisCommand* cmd = client->getCmd();
@@ -27,12 +28,11 @@ void setCommand(Client* client) {
     int64_t now = utils::getNowInMilliseconds();
     expire = now + std::stoll(cmd->getArgs()[2]);
   }
-  const db::RedisObj* val =
-      db::RedisObj::createStringRedisObj(cmd->getArgs()[1]);
+  const db::RedisObj* val = db::RedisObj::createRedisStrObj(cmd->getArgs()[1]);
   addReplyToClient(client, reply::fromInt64(db->setKey(key, val, expire)));
 }
 
-void getCommand(Client* client) {
+void getCommand(Client* const client) {
   printf("get command called\n");
   const db::RedisDb* db = client->getDb();
   const RedisCommand* cmd = client->getCmd();
@@ -45,17 +45,17 @@ void getCommand(Client* client) {
     return;
   }
   const std::string& key = cmd->getArgs()[0];
-  const db::RedisObj* val = db->lookupKey(key);
-  if (!val) {
+  const db::RedisObj* val_obj = db->lookupKey(key);
+  if (!val_obj) {
     addReplyToClient(client, reply::fromInt64(db::dbErr));
     return;
   }
-  const std::string& val_str = std::get<std::string>(val->getVal());
-  addReplyToClient(client, reply::fromBulkString(val_str));
-  val->decrRefCount();
+  const std::string& val = val_obj->getString();
+  addReplyToClient(client, reply::fromBulkString(val));
+  val_obj->decrRefCount();
 }
 
-void delCommand(Client* client) {
+void delCommand(Client* const client) {
   printf("delete command called\n");
   const db::RedisDb* db = client->getDb();
   const RedisCommand* cmd = client->getCmd();

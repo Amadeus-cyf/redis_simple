@@ -157,7 +157,7 @@ DictStatus Dict<K, V>::add(K&& key, V&& val) {
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(const K& key) {
   DictEntry* existing;
-  const DictEntry* new_entry = _addRaw(key, &existing);
+  DictEntry* new_entry = _addRaw(key, &existing);
   return new_entry ? new_entry : existing;
 }
 

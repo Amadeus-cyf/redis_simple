@@ -2,32 +2,44 @@
 
 #include <memory>
 #include <string>
+#include <variant>
+
+#include "server/zset/z_set.h"
 
 namespace redis_simple {
 namespace db {
-enum class ObjType {
-  objString = 1,
-  objSignedInt = 2,
-  objPtr = 3,
-};
-
-enum class ObjEncoding {
-  objEncodingString = 1,
-};
-
-using Val = std::variant<std::string, int64_t>;
-
 class RedisObj {
+ private:
+  using DataType = std::variant<std::string, const z_set::ZSet*>;
+
  public:
-  static RedisObj* createStringRedisObj(const std::string& val) {
-    return createRedisObj(ObjType::objString, val);
+  enum class ObjEncoding {
+    objEncodingString = 1,
+    objEncodingZSet = 2,
+  };
+  static RedisObj* createRedisStrObj(const std::string& val) {
+    return createRedisObj(ObjEncoding::objEncodingString, val);
   }
-  static RedisObj* createRedisObj(ObjType type,
-                                  std::variant<std::string, int64_t> val) {
-    return new RedisObj(type, val);
+  static RedisObj* createRedisZSetObj(const z_set::ZSet* const zset) {
+    return createRedisObj(ObjEncoding::objEncodingZSet, zset);
   }
-  ObjType getType() const { return type; }
-  const Val& getVal() const { return val; }
+  static RedisObj* createRedisObj(const ObjEncoding encoding,
+                                  const DataType& val) {
+    return new RedisObj(encoding, val);
+  }
+  const std::string& getString() const {
+    if (encoding != ObjEncoding::objEncodingString) {
+      throw std::invalid_argument("value type is not string");
+    }
+    return std::get<std::string>(getVal());
+  }
+  const z_set::ZSet* const getZSet() const {
+    if (encoding != ObjEncoding::objEncodingZSet) {
+      throw std::invalid_argument("value type is not zset");
+    }
+    return std::get<const z_set::ZSet*>(getVal());
+  }
+  ObjEncoding getEncoding() const { return encoding; }
   void incrRefCount() const { ++refcount; }
   void decrRefCount() const {
     if (refcount == 1) {
@@ -39,10 +51,11 @@ class RedisObj {
   }
 
  private:
-  explicit RedisObj(ObjType type, std::variant<std::string, int64_t> val)
-      : type(type), val(val), refcount(1){};
-  ObjType type;
-  Val val;
+  explicit RedisObj(const ObjEncoding encoding, const DataType& val)
+      : encoding(encoding), val(val), refcount(1){};
+  const DataType& getVal() const { return val; }
+  ObjEncoding encoding;
+  DataType val;
   mutable int refcount;
 };
 }  // namespace db

@@ -19,7 +19,7 @@ enum SetKeyFlags {
 
 class RedisDb {
  public:
-  static std::unique_ptr<RedisDb> initDb();
+  static std::unique_ptr<RedisDb> init();
   const RedisObj* lookupKey(const std::string& key) const;
   DBStatus setKey(const std::string& key, const RedisObj* const val,
                   const int64_t expire) const;

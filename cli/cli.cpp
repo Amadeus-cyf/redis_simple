@@ -109,6 +109,9 @@ int main() {
     const std::string& cmd2 = "GET key\r\n";
     cli.addCommand(cmd2, cmd2.size());
 
+    const std::string& cmd3 = "ZADD key1 ele1 1.0\r\n";
+    cli.addCommand(cmd3, cmd3.size());
+
     // const std::string& r1 = cli.getReply();
     // printf("receive resp %s\n", r1.c_str());
     // const std::string& r2 = cli.getReply();
@@ -135,6 +138,17 @@ int main() {
             .thenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
-    printf("after processed 2, %s\n", applied_str2.c_str());
+    printf("after processed 4, %s\n", applied_str2.c_str());
+
+    auto r5 = cli.getReplyAsync();
+    const std::string& applied_str3 =
+        r5.thenApplyAsync([](const std::string& reply) {
+            printf("receive resp 3: %s end\n", reply.c_str());
+            return reply;
+          })
+            .thenApplyAsync(
+                [](const std::string& reply) { return reply + "_processed"; })
+            .get();
+    printf("after processed 5, %s\n", applied_str3.c_str());
   }
 }

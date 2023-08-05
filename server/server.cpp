@@ -11,7 +11,7 @@
 namespace redis_simple {
 std::unique_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::initEventLoop();
 
-Server::Server() : db(db::RedisDb::initDb()) {}
+Server::Server() : db(db::RedisDb::init()) {}
 
 Server* Server::get() {
   static std::unique_ptr<Server> server;

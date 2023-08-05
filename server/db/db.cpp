@@ -5,7 +5,7 @@
 
 namespace redis_simple {
 namespace db {
-std::unique_ptr<RedisDb> RedisDb::initDb() {
+std::unique_ptr<RedisDb> RedisDb::init() {
   return std::unique_ptr<RedisDb>(new RedisDb());
 }
 
@@ -14,7 +14,7 @@ RedisDb::RedisDb()
       expires(in_memory::Dict<std::string, int64_t>::init()),
       expire_cursor(0) {
   auto hash = [](const std::string& key) {
-    std::hash<Val> h;
+    std::hash<std::string> h;
     return h(key);
   };
   auto key_compare = [](const std::string& k1, const std::string& k2) {

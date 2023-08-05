@@ -1,15 +1,18 @@
+#include "server/redis_cmd/redis_cmd.h"
+
 #include "server/client.h"
 
 namespace redis_simple {
-const t_cmd::RedisCmdProc RedisCommand::default_proc = [](Client* c) {
-  printf("command processed: %s\n", c->getCmd()->toString().c_str());
-  c->addReply("PONG");
-  c->sendReply();
-};
+const RedisCommand::RedisCmdProc RedisCommand::default_proc =
+    [](Client* const c) {
+      printf("command processed: %s\n", c->getCmd()->toString().c_str());
+      c->addReply("PONG");
+      c->sendReply();
+    };
 
 RedisCommand::RedisCommand(const std::string& cmd_name,
                            const std::vector<std::string>& cmd_args,
-                           t_cmd::RedisCmdProc proc)
+                           RedisCmdProc proc)
     : name(cmd_name), args(cmd_args), cmd_proc(proc) {}
 
 std::string RedisCommand::toString() const {
@@ -21,7 +24,7 @@ std::string RedisCommand::toString() const {
   return cmd;
 }
 
-int RedisCommand::exec(Client* c) const {
+int RedisCommand::exec(Client* const c) const {
   if (!cmd_proc) {
     printf("no proc, call default proc\n");
     default_proc(c);

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "server.h"
+#include "server/t_cmd.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple {

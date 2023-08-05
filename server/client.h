@@ -4,9 +4,10 @@
 
 #include "memory/dynamic_buffer.h"
 #include "memory/reply_buffer.h"
-#include "networking/networking.h"
 #include "server/connection/connection.h"
 #include "server/db/db.h"
+#include "server/networking/networking.h"
+#include "server/redis_cmd/redis_cmd.h"
 
 namespace redis_simple {
 enum ClientType {
