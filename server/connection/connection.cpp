@@ -56,20 +56,18 @@ StatusCode Connection::accept(std::string* remote_ip, int* remote_port) {
     printf("socket not created\n");
     return StatusCode::c_err;
   }
-
   int s = tcp::tcpAccept(fd, remote_ip, remote_port);
   if (s < 0) {
     return StatusCode::c_err;
   }
+  if (state != ConnState::connStateAccepting) {
+    return StatusCode::c_err;
+  }
+  state = ConnState::connStateConnected;
   fd = s;
   tcp::nonBlock(fd);
   if (accept_handler) {
     accept_handler->handle(this);
-  }
-  if (state == ConnState::connStateAccepting) {
-    state = ConnState::connStateConnected;
-  } else {
-    state = ConnState::connStateError;
   }
   printf("conn state accept %d\n", state);
   return StatusCode::c_ok;

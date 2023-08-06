@@ -43,7 +43,10 @@ class RedisObj {
   void incrRefCount() const { ++refcount; }
   void decrRefCount() const {
     if (refcount == 1) {
-      // TODO: free memory based on object type
+      // free memory based on object type
+      if (encoding == ObjEncoding::objEncodingZSet) {
+        delete std::get<const z_set::ZSet*>(val);
+      }
       delete this;
     } else {
       --refcount;

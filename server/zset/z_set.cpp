@@ -2,6 +2,14 @@
 
 namespace redis_simple {
 namespace z_set {
+ZSet::ZSet()
+    : dict(in_memory::Dict<std::string, double>::init()),
+      skiplist(std::make_unique<in_memory::Skiplist<const SkiplistEntry*,
+                                                    Comparator, Destructor>>(
+          in_memory::Skiplist<const SkiplistEntry*, Comparator,
+                              Destructor>::InitSkiplistLevel,
+          Comparator(), Destructor())){};
+
 void ZSet::addOrUpdate(const std::string& key, const double score) const {
   in_memory::Dict<std::string, double>::DictEntry* de = dict->addOrFind(key);
   de->val = score;

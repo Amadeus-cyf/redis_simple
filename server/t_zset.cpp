@@ -42,6 +42,7 @@ void zaddCommand(Client* const client) {
     obj = db::RedisObj::createRedisZSetObj(z_set::ZSet::init());
     if (db->setKey(key, obj, 0) == db::DBStatus::dbErr) {
       addReplyToClient(client, reply::fromInt64(-1));
+      return;
     }
   }
   const z_set::ZSet* const zset = obj->getZSet();
