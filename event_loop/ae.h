@@ -56,6 +56,7 @@ AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent<T>* fe) {
   }
   int mask = 0;
   if (fileEvents[fd] == nullptr) {
+    max_fd = std::max(max_fd, fd);
     printf("add new event\n");
     fileEvents[fd] = fe;
     mask = fe->getMask();

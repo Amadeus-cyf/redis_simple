@@ -15,7 +15,9 @@
 namespace redis_simple {
 namespace ae {
 AeEventLoop::AeEventLoop(AeKqueue* kq)
-    : fileEvents(std::vector<BaseAeFileEvent*>(EventsSize)), aeApiState(kq) {}
+    : fileEvents(std::vector<BaseAeFileEvent*>(EventsSize)),
+      aeApiState(kq),
+      max_fd(-1) {}
 
 std::unique_ptr<AeEventLoop> AeEventLoop::initEventLoop() {
   AeKqueue* kq = AeKqueue::aeApiCreate(EventsSize);
@@ -78,6 +80,9 @@ void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) {
 }
 
 void AeEventLoop::aeProcessEvents() {
+  if (max_fd == -1) {
+    return;
+  }
   struct timespec tspec;
   tspec.tv_sec = 1;
   tspec.tv_nsec = 0;
