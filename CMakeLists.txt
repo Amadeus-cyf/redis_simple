@@ -23,6 +23,7 @@ target_sources(redis_simple
     "server/db/db.h"
     "server/db/db.cpp"
     "server/db/redis_obj.h"
+    "server/db/redis_obj.cpp"
     "server/zset/z_set.h"
     "server/zset/z_set.cpp"
     "server/conn_handler/conn_handler.h"
