@@ -16,7 +16,10 @@ struct ZSetArgs {
   double score;
 };
 
-int parseArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
+int parseZAddArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
+  if (!cmd) {
+    return -1;
+  }
   const std::vector<std::string>& args = cmd->getArgs();
   if (args.size() < 3) {
     printf("invalid number args\n");
@@ -35,8 +38,23 @@ int parseArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
   return 0;
 }
 
-int genericZadd(const db::RedisDb* db, const ZSetArgs* args) {
-  if (!db) {
+int parseZRemArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
+  if (!cmd) {
+    return -1;
+  }
+  const std::vector<std::string>& args = cmd->getArgs();
+  if (args.size() < 2) {
+    printf("invalid number args\n");
+    return -1;
+  }
+  const std::string& key = args[0];
+  const std::string& ele = args[1];
+  zset_args->key = key, zset_args->ele = ele;
+  return 0;
+}
+
+int genericZAdd(const db::RedisDb* db, const ZSetArgs* args) {
+  if (!db || !args) {
     return -1;
   }
   const db::RedisObj* obj = db->lookupKey(args->key);
@@ -50,25 +68,63 @@ int genericZadd(const db::RedisDb* db, const ZSetArgs* args) {
       return -1;
     }
   }
-  const z_set::ZSet* const zset = obj->getZSet();
-  zset->addOrUpdate(args->ele, args->score);
+  try {
+    const z_set::ZSet* const zset = obj->getZSet();
+    zset->addOrUpdate(args->ele, args->score);
+  } catch (const std::exception& e) {
+    printf("catch exception %s", e.what());
+    return -1;
+  }
   return 0;
+}
+
+int genericZRem(const db::RedisDb* db, const ZSetArgs* args) {
+  if (!db || !args) {
+    return -1;
+  }
+  const db::RedisObj* obj = db->lookupKey(args->key);
+  if (!obj) {
+    printf("key not found\n");
+    return -1;
+  }
+  if (obj && obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+    printf("incorrect value type\n");
+    return -1;
+  }
+  try {
+    const z_set::ZSet* const zset = obj->getZSet();
+    return zset->remove(args->ele) ? 0 : -1;
+  } catch (const std::exception& e) {
+    printf("catch exception %s", e.what());
+    return -1;
+  }
 }
 }  // namespace
 
-void zaddCommand(Client* const client) {
+void zAddCommand(Client* const client) {
   ZSetArgs args;
-  if (parseArgs(client->getCmd(), &args) < 0) {
+  if (parseZAddArgs(client->getCmd(), &args) < 0) {
     addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  if (genericZadd(client->getDb(), &args) < 0) {
+  if (genericZAdd(client->getDb(), &args) < 0) {
     addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
   addReplyToClient(client, reply::fromInt64(1));
 }
 
-void zdelCommand(Client* const client) {}
+void zRemCommand(Client* const client) {
+  ZSetArgs args;
+  if (parseZRemArgs(client->getCmd(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
+    return;
+  }
+  if (genericZRem(client->getDb(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
+    return;
+  }
+  addReplyToClient(client, reply::fromInt64(1));
+}
 }  // namespace t_cmd
 }  // namespace redis_simple

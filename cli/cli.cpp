@@ -151,4 +151,29 @@ int main() {
             .get();
     printf("after processed 5, %s\n", applied_str3.c_str());
   }
+
+  const std::string& cmd4 = "ZREM key1 ele1\r\n";
+  cli.addCommand(cmd4, cmd4.size());
+  auto r6 = cli.getReplyAsync();
+  const std::string& applied_str4 =
+      r6.thenApplyAsync([](const std::string& reply) {
+          printf("receive resp 4: %s end\n", reply.c_str());
+          return reply;
+        })
+          .thenApplyAsync(
+              [](const std::string& reply) { return reply + "_processed"; })
+          .get();
+  printf("after processed 6, %s\n", applied_str4.c_str());
+  cli.addCommand(cmd4, cmd4.size());
+
+  auto r7 = cli.getReplyAsync();
+  const std::string& applied_str5 =
+      r7.thenApplyAsync([](const std::string& reply) {
+          printf("receive resp 5: %s end\n", reply.c_str());
+          return reply;
+        })
+          .thenApplyAsync(
+              [](const std::string& reply) { return reply + "_processed"; })
+          .get();
+  printf("after processed 7, %s\n", applied_str5.c_str());
 }

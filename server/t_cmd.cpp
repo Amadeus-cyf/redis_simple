@@ -15,7 +15,8 @@ std::unordered_map<std::string, RedisCommand::RedisCmdProc>& getCmdMapping() {
   cmdMap["SET"] = setCommand;
   cmdMap["GET"] = getCommand;
   cmdMap["DEL"] = delCommand;
-  cmdMap["ZADD"] = zaddCommand;
+  cmdMap["ZADD"] = zAddCommand;
+  cmdMap["ZREM"] = zRemCommand;
   return cmdMap;
 }
 }  // namespace

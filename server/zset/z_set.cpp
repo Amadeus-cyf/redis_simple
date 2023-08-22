@@ -23,11 +23,14 @@ void ZSet::addOrUpdate(const std::string& key, const double score) const {
   }
 }
 
-bool ZSet::del(const std::string& key, const double score) const {
-  if (dict->del(key) == in_memory::DictStatus::dictErr) {
+bool ZSet::remove(const std::string& key) const {
+  const in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
+  if (!de) {
     return false;
   }
+  const double score = de->val;
   const SkiplistEntry se(key, score);
+  dict->del(key);
   return skiplist->del(&se);
 }
 }  // namespace z_set

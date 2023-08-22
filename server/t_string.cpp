@@ -9,66 +9,103 @@
 
 namespace redis_simple {
 namespace t_cmd {
-void setCommand(Client* const client) {
-  printf("set command called\n");
-  const db::RedisDb* db = client->getDb();
-  const RedisCommand* cmd = client->getCmd();
+namespace {
+struct StrArgs {
+  std::string key;
+  std::string val;
+  int64_t expire;
+};
+
+int parseSetArgs(const RedisCommand* cmd, StrArgs* str_args) {
   if (!cmd) {
     printf("no command\n");
-    return;
+    return -1;
   }
-  if (cmd->getArgs().size() < 2) {
+  const std::vector<std::string>& args = cmd->getArgs();
+  if (args.size() < 2) {
     printf("invalid args\n");
+    return -1;
+  }
+  str_args->key = args[0], str_args->val = args[1], str_args->expire = 0;
+  if (args.size() >= 3) {
+    int64_t now = utils::getNowInMilliseconds();
+    str_args->expire = now + std::stoll(args[2]);
+  }
+  return 0;
+}
+
+int parseGetDelArgs(const RedisCommand* cmd, StrArgs* str_args) {
+  if (!cmd) {
+    printf("no command\n");
+    return -1;
+  }
+  const std::vector<std::string>& args = cmd->getArgs();
+  if (args.empty()) {
+    printf("invalid args\n");
+    return -1;
+  }
+  str_args->key = args[0];
+  return 0;
+}
+
+int genericSet(const db::RedisDb* db, const StrArgs* args) {
+  const db::RedisObj* val = db::RedisObj::createRedisStrObj(args->val);
+  return db->setKey(args->key, val, args->expire, 0);
+}
+
+const db::RedisObj* genericGet(const db::RedisDb* db, const StrArgs* args) {
+  return db->lookupKey(args->key);
+}
+
+int genericDel(const db::RedisDb* db, const StrArgs* args) {
+  return db->delKey(args->key);
+}
+}  // namespace
+
+void setCommand(Client* const client) {
+  printf("set command called\n");
+  StrArgs args;
+  if (parseSetArgs(client->getCmd(), &args) < 0) {
     addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  const std::string& key = cmd->getArgs()[0];
-  int64_t expire = 0;
-  if (cmd->getArgs().size() >= 3) {
-    int64_t now = utils::getNowInMilliseconds();
-    expire = now + std::stoll(cmd->getArgs()[2]);
-  }
-  const db::RedisObj* val = db::RedisObj::createRedisStrObj(cmd->getArgs()[1]);
-  addReplyToClient(client, reply::fromInt64(db->setKey(key, val, expire)));
+  int r = genericSet(client->getDb(), &args);
+  addReplyToClient(client, reply::fromInt64(r));
 }
 
 void getCommand(Client* const client) {
   printf("get command called\n");
-  const db::RedisDb* db = client->getDb();
-  const RedisCommand* cmd = client->getCmd();
-  if (!cmd) {
-    printf("no command\n");
+  StrArgs args;
+  if (parseGetDelArgs(client->getCmd(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  if (cmd->getArgs().empty()) {
-    printf("invalid args\n");
+  const db::RedisObj* robj = genericGet(client->getDb(), &args);
+  if (!robj) {
+    addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  const std::string& key = cmd->getArgs()[0];
-  const db::RedisObj* val_obj = db->lookupKey(key);
-  if (!val_obj) {
-    addReplyToClient(client, reply::fromInt64(db::dbErr));
-    return;
+  try {
+    const std::string& s = robj->getString();
+    addReplyToClient(client, reply::fromBulkString(s));
+  } catch (const std::exception& e) {
+    printf("catch type exception %s", e.what());
+    addReplyToClient(client, reply::fromInt64(-1));
   }
-  const std::string& val = val_obj->getString();
-  addReplyToClient(client, reply::fromBulkString(val));
-  val_obj->decrRefCount();
 }
 
 void delCommand(Client* const client) {
   printf("delete command called\n");
-  const db::RedisDb* db = client->getDb();
-  const RedisCommand* cmd = client->getCmd();
-  if (!cmd) {
-    printf("no comman\n");
+  StrArgs args;
+  if (parseGetDelArgs(client->getCmd(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  if (cmd->getArgs().empty()) {
-    printf("invalid args\n");
+  if (genericDel(client->getDb(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  const std::string& key = cmd->getArgs()[0];
-  addReplyToClient(client, reply::fromInt64(db->delKey(key)));
+  addReplyToClient(client, reply::fromInt64(1));
 }
 }  // namespace t_cmd
 }  // namespace redis_simple
