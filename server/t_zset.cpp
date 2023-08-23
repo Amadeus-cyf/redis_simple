@@ -64,7 +64,9 @@ int genericZAdd(const db::RedisDb* db, const ZSetArgs* args) {
   }
   if (!obj) {
     obj = db::RedisObj::createRedisZSetObj(z_set::ZSet::init());
-    if (db->setKey(args->key, obj, 0) == db::DBStatus::dbErr) {
+    int r = db->setKey(args->key, obj, 0) == db::DBStatus::dbErr;
+    obj->decrRefCount();
+    if (r < 0) {
       return -1;
     }
   }

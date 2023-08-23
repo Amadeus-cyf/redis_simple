@@ -50,7 +50,9 @@ int parseGetDelArgs(const RedisCommand* cmd, StrArgs* str_args) {
 
 int genericSet(const db::RedisDb* db, const StrArgs* args) {
   const db::RedisObj* val = db::RedisObj::createRedisStrObj(args->val);
-  return db->setKey(args->key, val, args->expire, 0);
+  int r = db->setKey(args->key, val, args->expire, 0);
+  val->decrRefCount();
+  return r;
 }
 
 const db::RedisObj* genericGet(const db::RedisDb* db, const StrArgs* args) {
@@ -69,8 +71,11 @@ void setCommand(Client* const client) {
     addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
-  int r = genericSet(client->getDb(), &args);
-  addReplyToClient(client, reply::fromInt64(r));
+  if (genericSet(client->getDb(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
+    return;
+  }
+  addReplyToClient(client, reply::fromInt64(1));
 }
 
 void getCommand(Client* const client) {
