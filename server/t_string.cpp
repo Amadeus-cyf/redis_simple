@@ -56,7 +56,15 @@ int genericSet(const db::RedisDb* db, const StrArgs* args) {
 }
 
 const db::RedisObj* genericGet(const db::RedisDb* db, const StrArgs* args) {
-  return db->lookupKey(args->key);
+  if (!db || !args) {
+    return nullptr;
+  }
+  const db::RedisObj* obj = db->lookupKey(args->key);
+  if (obj &&
+      obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingString) {
+    return nullptr;
+  }
+  return obj;
 }
 
 int genericDel(const db::RedisDb* db, const StrArgs* args) {
