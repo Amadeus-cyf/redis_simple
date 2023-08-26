@@ -12,11 +12,10 @@ std::unordered_map<std::string, RedisCommand::RedisCmdProc>& getCmdMapping() {
   if (cmdMap.size() > 0) {
     return cmdMap;
   }
-  cmdMap["SET"] = setCommand;
-  cmdMap["GET"] = getCommand;
-  cmdMap["DEL"] = delCommand;
-  cmdMap["ZADD"] = zAddCommand;
-  cmdMap["ZREM"] = zRemCommand;
+  cmdMap = {
+      {"SET", setCommand},   {"GET", getCommand},   {"DEL", delCommand},
+      {"ZADD", zAddCommand}, {"ZREM", zRemCommand}, {"ZRANK", zRankCommand},
+  };
   return cmdMap;
 }
 }  // namespace

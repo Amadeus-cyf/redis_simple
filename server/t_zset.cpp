@@ -38,13 +38,13 @@ int parseZAddArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
   return 0;
 }
 
-int parseZRemArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
+int parseZRemZRankArgs(const RedisCommand* cmd, ZSetArgs* zset_args) {
   if (!cmd) {
     return -1;
   }
   const std::vector<std::string>& args = cmd->getArgs();
   if (args.size() < 2) {
-    printf("invalid number args\n");
+    printf("invalid number of args\n");
     return -1;
   }
   const std::string& key = args[0];
@@ -101,6 +101,28 @@ int genericZRem(const db::RedisDb* db, const ZSetArgs* args) {
     return -1;
   }
 }
+
+int genericZRank(const db::RedisDb* db, const ZSetArgs* args) {
+  if (!db || !args) {
+    return -1;
+  }
+  const db::RedisObj* obj = db->lookupKey(args->key);
+  if (!obj) {
+    printf("key not found\n");
+    return -1;
+  }
+  if (obj && obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+    printf("incorrect value type\n");
+    return -1;
+  }
+  try {
+    const z_set::ZSet* const zset = obj->getZSet();
+    return zset->getRank(args->ele);
+  } catch (const std::exception& e) {
+    printf("catch exception %s", e.what());
+    return -1;
+  }
+}
 }  // namespace
 
 void zAddCommand(Client* const client) {
@@ -118,7 +140,7 @@ void zAddCommand(Client* const client) {
 
 void zRemCommand(Client* const client) {
   ZSetArgs args;
-  if (parseZRemArgs(client->getCmd(), &args) < 0) {
+  if (parseZRemZRankArgs(client->getCmd(), &args) < 0) {
     addReplyToClient(client, reply::fromInt64(-1));
     return;
   }
@@ -127,6 +149,20 @@ void zRemCommand(Client* const client) {
     return;
   }
   addReplyToClient(client, reply::fromInt64(1));
+}
+
+void zRankCommand(Client* const client) {
+  ZSetArgs args;
+  if (parseZRemZRankArgs(client->getCmd(), &args) < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
+    return;
+  }
+  int rank = genericZRank(client->getDb(), &args);
+  if (rank < 0) {
+    addReplyToClient(client, reply::fromInt64(-1));
+    return;
+  }
+  addReplyToClient(client, reply::fromInt64(rank));
 }
 }  // namespace t_cmd
 }  // namespace redis_simple

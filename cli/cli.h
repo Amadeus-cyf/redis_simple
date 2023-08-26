@@ -19,7 +19,7 @@ class RedisCli {
  public:
   RedisCli();
   CliStatus connect(const std::string& ip, const int port);
-  void addCommand(const std::string& cmd, const size_t len);
+  void addCommand(const std::string& cmd);
   std::string getReply();
   CompletableFuture<std::string> getReplyAsync();
   ~RedisCli() { close(socket_fd); }

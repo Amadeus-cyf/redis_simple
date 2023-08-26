@@ -13,6 +13,7 @@ class ZSet {
   static ZSet* init() { return new ZSet(); }
   void addOrUpdate(const std::string& key, const double score) const;
   bool remove(const std::string& key) const;
+  int getRank(const std::string& key) const;
 
  private:
   struct SkiplistEntry {
