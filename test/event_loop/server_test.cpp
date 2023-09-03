@@ -4,80 +4,55 @@
 #include <string>
 
 #include "event_loop/ae.h"
-#include "server/conn_handler/conn_handler.h"
-#include "server/connection/connection.h"
-#include "server/networking/networking.h"
+#include "tcp/tcp.h"
 
 namespace redis_simple {
-void acceptHandler(connection::Connection* conn);
-void readHandler(connection::Connection* conn);
-
-struct ConnAcceptHandler : public connection::ConnHandler {
-  void handle(connection::Connection* conn) { acceptHandler(conn); }
-};
-
-struct ConnReadHandler : public connection::ConnHandler {
-  void handle(connection::Connection* conn) { readHandler(conn); }
-};
-
-void readHandler(connection::Connection* conn) {
-  printf("read from %d\n", conn->getFd());
-  std::string buffer;
-
-  // ssize_t n = conn->connSyncRead(buffer, 1000000);
-  // printf("read %zu bytes\n", n);
-  // printf("read content: %s\n",  string(buffer));
-
-  // string res = handler->syncReceiveResponse(conn);
-  std::string res = networking::syncReceiveRespline(conn);
-  printf("receive resp: %s\n", res.c_str());
-
-  buffer = "";
-  res = networking::syncReceiveRespline(conn);
-
+ae::AeEventStatus readProc(ae::AeEventLoop* el, int fd, int* client_data,
+                           int mask) {
+  printf("read data from %d", fd);
+  std::string res;
+  char buffer[1024];
+  while (read(fd, buffer, 1024) != EOF) {
+    res.append(buffer);
+  }
   printf("receive resp after newline: %s\n", res.c_str());
+  return ae::AeEventStatus::aeEventOK;
 }
 
-void acceptHandler(connection::Connection* conn) {
+ae::AeEventStatus acceptProc(ae::AeEventLoop* el, int fd, int* client_data,
+                             int mask) {
   std::string ip;
   int port = 0;
-
-  int fd = conn->getFd();
-  conn->accept(&ip, &port);
-
+  int remote_fd = tcp::tcpAccept(fd, &ip, &port);
+  if (remote_fd < 0) {
+    printf("accept failed\n");
+    return ae::AeEventStatus::aeEventErr;
+  }
   printf("accept %s:%d\n", ip.c_str(), port);
-
-  // conn->getEventLoop()->aeDeleteFileEvent(fd, AeFlags::aeReadable);
-  // close(fd);
-  std::unique_ptr<ConnReadHandler> handler =
-      std::unique_ptr<ConnReadHandler>(new ConnReadHandler());
-  conn->setReadHandler(std::move(handler));
+  ae::AeFileEvent<int>* fe = ae::AeFileEvent<int>::create(
+      readProc, nullptr, client_data, ae::AeFlags::aeReadable);
+  el->aeCreateFileEvent(remote_fd, fe);
+  return ae::AeEventStatus::aeEventOK;
 }
 
 void run() {
   std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
-  connection::Connection* conn =
-      new connection::Connection({.fd = -1, .loop = el.get()});
-  if (conn->listen("localhost", 8081) == connection::StatusCode::c_err) {
-    printf("listen failed\n");
+  int fd = tcp::tcpCreateSocket(AF_INET, true);
+  if (fd < 0) {
+    printf("failed to create socket\n");
     return;
   }
-
-  std::string ip;
-  int port = 0;
-  if (conn->accept(&ip, &port) == connection::StatusCode::c_err) {
-    printf("accept failed\n");
+  printf("create socket fd %d\n", fd);
+  if (tcp::tcpBindAndListen(fd, "localhost", 8081) ==
+      tcp::TCPStatusCode::tcpError) {
+    printf("failed to listen to %s:%d", "localhost", 8081);
     return;
   }
-
-  std::unique_ptr<ConnAcceptHandler> handler =
-      std::unique_ptr<ConnAcceptHandler>(new ConnAcceptHandler());
-
-  printf("set read hander\n");
-  conn->setReadHandler(std::move(handler));
-
+  int client_data = 10000;
+  ae::AeFileEvent<int>* fe = ae::AeFileEvent<int>::create(
+      acceptProc, nullptr, &client_data, ae::AeFlags::aeReadable);
+  el->aeCreateFileEvent(fd, fe);
   el->aeMain();
-
   return;
 }
 }  // namespace redis_simple

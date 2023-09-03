@@ -7,6 +7,7 @@
 #include "server/conn_handler/conn_handler.h"
 #include "server/connection/connection.h"
 #include "server/networking/networking.h"
+#include "server/redis_cmd/redis_cmd.h"
 
 namespace redis_simple {
 void writeHandler(connection::Connection* conn);

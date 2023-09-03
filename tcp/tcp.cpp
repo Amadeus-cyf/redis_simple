@@ -12,6 +12,37 @@
 namespace redis_simple {
 namespace tcp {
 namespace {
+int tcpBind(const int socket_fd, const std::string& ip, const int port) {
+  struct addrinfo hints, *info = nullptr;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hints, &info) <
+      0) {
+    return TCPStatusCode::tcpError;
+  }
+  int r = TCPStatusCode::tcpError;
+  for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
+    if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
+      continue;
+    }
+    printf("bind success\n");
+    r = TCPStatusCode::tcpOK;
+    break;
+  }
+  freeaddrinfo(info);
+  return r;
+}
+
+int tcpSetReuseAddr(int socket_fd) {
+  int yes = 1;
+  if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
+      -1) {
+    return TCPStatusCode::tcpError;
+  }
+  return tcpOK;
+}
+
 int tcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
   int socket_fd = socket(domain, type, protocol);
   if (socket_fd < 0) {
@@ -110,28 +141,6 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
   return socket_fd != -1 ? socket_fd : TCPStatusCode::tcpError;
 }
 
-int tcpBind(const int socket_fd, const std::string& ip, const int port) {
-  struct addrinfo hints, *info = nullptr;
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hints, &info) <
-      0) {
-    return TCPStatusCode::tcpError;
-  }
-  int r = TCPStatusCode::tcpError;
-  for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
-    if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
-      continue;
-    }
-    printf("bind success\n");
-    r = TCPStatusCode::tcpOK;
-    break;
-  }
-  freeaddrinfo(info);
-  return r;
-}
-
 int tcpAccept(const int socket_fd, std::string* const ip, int* const port) {
   sockaddr_storage sa;
   socklen_t len = sizeof(sa);
@@ -153,7 +162,8 @@ int tcpAccept(const int socket_fd, std::string* const ip, int* const port) {
   return remote_fd;
 }
 
-int tcpListen(const int socket_fd, const std::string& ip, const int port) {
+int tcpBindAndListen(const int socket_fd, const std::string& ip,
+                     const int port) {
   if (tcpBind(socket_fd, ip, port) < 0) {
     return TCPStatusCode::tcpError;
   }
@@ -162,15 +172,6 @@ int tcpListen(const int socket_fd, const std::string& ip, const int port) {
     return TCPStatusCode::tcpError;
   }
   return TCPStatusCode::tcpOK;
-}
-
-int tcpSetReuseAddr(int socket_fd) {
-  int yes = 1;
-  if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
-      -1) {
-    return TCPStatusCode::tcpError;
-  }
-  return tcpOK;
 }
 
 int nonBlock(const int socket_fd) { return setBlock(socket_fd, false); }

@@ -44,7 +44,7 @@ StatusCode Connection::listen(const std::string& ip, int port) {
     printf("create socket failed\n");
     return StatusCode::c_err;
   }
-  if (tcp::tcpListen(s, ip, port) == tcp::TCPStatusCode::tcpError) {
+  if (tcp::tcpBindAndListen(s, ip, port) == tcp::TCPStatusCode::tcpError) {
     return StatusCode::c_err;
   }
   fd = s;
@@ -65,7 +65,6 @@ StatusCode Connection::accept(std::string* remote_ip, int* remote_port) {
   }
   state = ConnState::connStateConnected;
   fd = s;
-  tcp::nonBlock(fd);
   if (accept_handler) {
     accept_handler->handle(this);
   }

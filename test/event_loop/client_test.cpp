@@ -4,44 +4,36 @@
 #include <string>
 
 #include "event_loop/ae.h"
-#include "server/conn_handler/conn_handler.h"
-#include "server/connection/connection.h"
-#include "server/networking/networking.h"
+#include "tcp/tcp.h"
 
 namespace redis_simple {
-void writeHandler(connection::Connection* conn);
-
-struct ConnWriteHandler : public connection::ConnHandler {
-  void handle(connection::Connection* conn) { writeHandler(conn); }
-};
-
-void writeHandler(connection::Connection* conn) {
-  printf("write to %d\n", conn->getFd());
-
-  // const char* content = "test write\n";
-  // ssize_t n = conn->connSyncWrite(content, 12, 1000000);
-  std::vector<std::string> args{"1", "2"};
-  const RedisCommand& cmd = redis_simple::RedisCommand("Test newline\n", args);
-  networking::sendCommand(conn, &cmd);
-  printf("write handler called\n");
+static int i = 0;
+ae::AeEventStatus writeProc(ae::AeEventLoop* el, int fd, int* client_data,
+                            int mask) {
+  printf("write to %d\n", fd);
+  const std::string& s = "hello world\n";
+  ssize_t written = write(fd, s.c_str(), s.size());
+  printf("write %zu\n", written);
+  ++i;
+  if (i == 100) {
+    el->aeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
+  }
+  return ae::AeEventStatus::aeEventOK;
 }
 
 void run() {
   std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
-  connection::Connection* conn =
-      new connection::Connection({.fd = -1, .loop = el.get()});
-  connection::StatusCode r =
-      conn->connect("localhost", 8081, "localhost", 8080);
-  printf("conn result %d\n", r);
-  if (r == connection::StatusCode::c_err) {
+  int fd = tcp::tcpConnect("localhost", 8081, false, "localhost", 8080);
+  printf("conn result %d\n", fd);
+  if (fd == -1) {
     printf("connection failed\n");
     return;
   }
 
-  std::unique_ptr<ConnWriteHandler> handler =
-      std::unique_ptr<ConnWriteHandler>(new ConnWriteHandler());
-  conn->setWriteHandler(std::move(handler));
-
+  int data = 10000;
+  ae::AeFileEvent<int>* fe = ae::AeFileEvent<int>::create(
+      nullptr, writeProc, &data, ae::AeFlags::aeWritable);
+  el->aeCreateFileEvent(fd, fe);
   el->aeMain();
 }
 }  // namespace redis_simple

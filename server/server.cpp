@@ -50,5 +50,3 @@ int Server::serverCron(long long id, void* clientData) {
   return 1;
 }
 }  // namespace redis_simple
-
-int main() { redis_simple::Server::get()->run("localhost", 8081); }

@@ -7,7 +7,7 @@
 namespace redis_simple {
 void run() {
   int s = tcp::tcpCreateSocket(AF_INET, false);
-  printf("listen result: %d\n", tcp::tcpListen(s, "localhost", 8081));
+  printf("listen result: %d\n", tcp::tcpBindAndListen(s, "localhost", 8081));
 
   struct sockaddr_in remote;
   socklen_t len = sizeof(remote);
