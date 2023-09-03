@@ -190,6 +190,9 @@ target_sources(mock_event_loop_client
     "tcp/tcp.cpp"
 )
 
+redis_simple_add_source(mock_server "test/server/server_test.cpp")
+redis_simple_add_source(mock_client "test/server/client_test.cpp")
+
 add_subdirectory("third_party/benchmark")
 
 add_executable(memory_benchmark "")
@@ -212,6 +215,3 @@ target_link_libraries(
   memory_benchmark
   benchmark::benchmark
 )
-
-redis_simple_add_source(mock_server "test/server/server_test.cpp")
-redis_simple_add_source(mock_client "test/server/client_test.cpp")
