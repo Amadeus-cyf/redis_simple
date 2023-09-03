@@ -95,10 +95,10 @@ target_sources(memory_test
     "memory/reply_buffer.h"
     "memory/reply_buffer.cpp"
     "memory/skiplist.h"
-    "test/memory/dict_test.cpp"
-    "test/memory/dynamic_buffer_test.cpp"
-    "test/memory/reply_buffer_test.cpp"
-    "test/memory/skiplist_test.cpp"
+    "memory/dict_test.cpp"
+    "memory/dynamic_buffer_test.cpp"
+    "memory/reply_buffer_test.cpp"
+    "memory/skiplist_test.cpp"
 )
 
 add_executable(reply_test "")
@@ -106,7 +106,7 @@ target_sources(reply_test
   PRIVATE
     "server/reply/reply.h"
     "server/reply/reply.cpp"
-    "test/reply/reply_test.cpp"
+    "server/reply/reply_test.cpp"
 )
 
 add_executable(resp_parser_test "")
@@ -114,7 +114,7 @@ target_sources(resp_parser_test
 PRIVATE
   "cli/resp_parser.h"
   "cli/resp_parser.cpp"
-  "test/cli/resp_parser_test.cpp"
+  "cli/resp_parser_test.cpp"
 )
 
 target_link_libraries(
