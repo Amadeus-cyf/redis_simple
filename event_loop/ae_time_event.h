@@ -21,8 +21,11 @@ class AeTimeEvent {
   time_t getWhen() { return when; }
   time_t getWhen() const { return when; }
   virtual bool hasTimeFinalizeProc() = 0;
+  virtual bool hasTimeFinalizeProc() const = 0;
   virtual int callTimeProc() = 0;
+  virtual int callTimeProc() const = 0;
   virtual int callTimeFinalizeProc() = 0;
+  virtual int callTimeFinalizeProc() const = 0;
   virtual ~AeTimeEvent() = default;
 
  private:

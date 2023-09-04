@@ -18,7 +18,7 @@ cd build && ./redis_simple_cli
 ```
 
 ### Running Tests
-#### Unit Tests
+### Unit Tests
 ```sh
 cd build && ./memory_test && ./reply_tset && ./resp_parser_test
 ```
