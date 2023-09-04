@@ -4,7 +4,8 @@
 #include <sys/socket.h>
 
 #include "db/db.h"
-#include "event_loop/ae_file_event.h"
+#include "event_loop/ae_file_event_impl.h"
+#include "event_loop/ae_time_event_impl.h"
 #include "expire.h"
 #include "networking/networking.h"
 
@@ -29,16 +30,17 @@ void Server::run(const std::string& ip, const int& port) {
   }
   fd = conn.getFd();
   acceptConnHandler();
-  ae::aeTimeProc time_proc = [](long long id, void* clientData) {
+  ae::AeTimeEventImpl<Server>::aeTimeProc time_proc = [](long long id,
+                                                         Server* clientData) {
     return get()->serverCron(id, clientData);
   };
   el->aeCreateTimeEvent(
-      ae::AeTimeEvent::createAeTimeEvent(time_proc, nullptr, nullptr));
+      ae::AeTimeEventImpl<Server>::create(time_proc, nullptr, this));
   el->aeMain();
 }
 
 void Server::acceptConnHandler() {
-  ae::AeFileEvent<Server>* fe = ae::AeFileEvent<Server>::create(
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<Server>::create(
       networking::acceptHandler, nullptr, this, ae::aeReadable);
   if (el->aeCreateFileEvent(fd, fe) < 0) {
     printf("error in adding client creation file event");

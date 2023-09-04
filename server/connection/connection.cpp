@@ -4,6 +4,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include "event_loop/ae_file_event_impl.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple {
@@ -29,7 +30,7 @@ StatusCode Connection::connect(const std::string& remote_ip, int remote_port,
   }
   fd = s;
   state = ConnState::connStateConnecting;
-  ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
+  ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
       nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
   if (el->aeCreateFileEvent(fd, e) < 0) {
     printf("adding connection socket event handler error");
@@ -76,11 +77,9 @@ void Connection::setReadHandler(std::unique_ptr<ConnHandler> rHandler) {
   if (!rHandler) {
     unsetReadHandler();
   } else {
-    ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
+    ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
         connSocketEventHandler, nullptr, this, ae::AeFlags::aeReadable);
-
     el->aeCreateFileEvent(fd, e);
-
     read_handler = std::move(rHandler);
     flags |= ae::AeFlags::aeReadable;
   }
@@ -96,9 +95,8 @@ void Connection::setWriteHandler(std::unique_ptr<ConnHandler> wHandler) {
   if (!wHandler) {
     unsetWriteHandler();
   } else {
-    ae::AeFileEvent<Connection>* e = ae::AeFileEvent<Connection>::create(
+    ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
         nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
-
     el->aeCreateFileEvent(fd, e);
     write_handler = std::move(wHandler);
     flags |= ae::AeFlags::aeWritable;

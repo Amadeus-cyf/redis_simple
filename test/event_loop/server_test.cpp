@@ -4,6 +4,7 @@
 #include <string>
 
 #include "event_loop/ae.h"
+#include "event_loop/ae_file_event_impl.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple {
@@ -29,7 +30,7 @@ ae::AeEventStatus acceptProc(ae::AeEventLoop* el, int fd, int* client_data,
     return ae::AeEventStatus::aeEventErr;
   }
   printf("accept %s:%d\n", ip.c_str(), port);
-  ae::AeFileEvent<int>* fe = ae::AeFileEvent<int>::create(
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::create(
       readProc, nullptr, client_data, ae::AeFlags::aeReadable);
   el->aeCreateFileEvent(remote_fd, fe);
   return ae::AeEventStatus::aeEventOK;
@@ -49,7 +50,7 @@ void run() {
     return;
   }
   int client_data = 10000;
-  ae::AeFileEvent<int>* fe = ae::AeFileEvent<int>::create(
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::create(
       acceptProc, nullptr, &client_data, ae::AeFlags::aeReadable);
   el->aeCreateFileEvent(fd, fe);
   el->aeMain();

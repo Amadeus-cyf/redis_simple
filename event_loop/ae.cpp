@@ -15,7 +15,7 @@
 namespace redis_simple {
 namespace ae {
 AeEventLoop::AeEventLoop(AeKqueue* kq)
-    : fileEvents(std::vector<BaseAeFileEvent*>(EventsSize)),
+    : fileEvents(std::vector<AeFileEvent*>(EventsSize)),
       aeApiState(kq),
       max_fd(-1) {}
 
@@ -46,6 +46,26 @@ int AeEventLoop::aeWait(int fd, int mask, long timeout) const {
   return r;
 }
 
+AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent* fe) {
+  printf("create events for fd = %d, mask = %d\n", fd, fe->getMask());
+  if (fe == nullptr) {
+    return ae_err;
+  }
+  if (fd < 0 || fd >= EventsSize) {
+    throw("file descriptor out of range");
+  }
+  int mask = fe->getMask();
+  if (fileEvents[fd] == nullptr) {
+    printf("add new event\n");
+    max_fd = std::max(max_fd, fd);
+  } else {
+    fe->merge(fileEvents[fd]);
+    delete fileEvents[fd];
+  }
+  fileEvents[fd] = fe;
+  return aeApiState->aeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
+}
+
 AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) {
   if (aeApiState->aeApiDelEvent(fd, mask) < 0) {
     printf(
@@ -57,7 +77,7 @@ AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) {
   }
   printf("delete file event success for file descriptor = %d, mask = %d\n", fd,
          mask);
-  BaseAeFileEvent* fe = fileEvents[fd];
+  AeFileEvent* fe = fileEvents[fd];
   if (fe->getMask() == mask) {
     fileEvents[fd] = nullptr;
     delete fe;
@@ -89,7 +109,7 @@ void AeEventLoop::aeProcessEvents() {
   const std::unordered_map<int, int>& fdToMask = aeApiState->aeApiPoll(&tspec);
   for (const auto& it : fdToMask) {
     int fd = it.first, mask = it.second;
-    BaseAeFileEvent* fe = fileEvents[fd];
+    AeFileEvent* fe = fileEvents[fd];
     int inverted = fe->getMask() & AeFlags::aeBarrier;
     bool fired = false;
     if (!inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
@@ -125,14 +145,14 @@ void AeEventLoop::processTimeEvents() const {
         next->setPrev(prev);
       }
       if (te->hasTimeFinalizeProc()) {
-        te->getTimeFinalizeProc()(te->getClientData());
+        te->callTimeFinalizeProc();
       }
       delete te;
       te = next;
     } else {
       int64_t now = utils::getNowInMilliseconds();
       if (te->getWhen() <= now) {
-        int ret = te->getTimeProc()(id, te->getClientData());
+        int ret = te->callTimeProc();
         if (ret == AeFlags::aeNoMore) {
           te->setId(AeFlags::aeDeleteEventId);
         } else {

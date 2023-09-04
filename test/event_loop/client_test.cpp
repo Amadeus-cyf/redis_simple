@@ -4,6 +4,7 @@
 #include <string>
 
 #include "event_loop/ae.h"
+#include "event_loop/ae_file_event_impl.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple {
@@ -31,7 +32,7 @@ void run() {
   }
 
   int data = 10000;
-  ae::AeFileEvent<int>* fe = ae::AeFileEvent<int>::create(
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::create(
       nullptr, writeProc, &data, ae::AeFlags::aeWritable);
   el->aeCreateFileEvent(fd, fe);
   el->aeMain();
