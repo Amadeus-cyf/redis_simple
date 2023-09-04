@@ -97,6 +97,8 @@ int setCLOEXEC(int fd) {
 }
 }  // namespace
 
+static constexpr const int backlog = 3;
+
 int tcpCreateSocket(int domain, bool non_block) {
   return tcpGenericCreateSocket(domain, SOCK_STREAM, 0, non_block);
 }

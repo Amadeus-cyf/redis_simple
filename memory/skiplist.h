@@ -20,25 +20,8 @@ class Skiplist {
   class SkiplistNode;
 
  public:
+  class Iterator;
   static constexpr const int InitSkiplistLevel = 2;
-  class Iterator {
-   public:
-    explicit Iterator(const Skiplist* skiplist);
-    explicit Iterator(const Skiplist* skiplist, const SkiplistNode* node);
-    Iterator(const Iterator& it);
-    void seekToFirst();
-    void seekToLast();
-    Iterator& operator=(const Iterator& it);
-    void operator--();
-    void operator++();
-    bool operator==(const Iterator& it);
-    bool operator!=(const Iterator& it);
-    const Key& operator*();
-
-   private:
-    const SkiplistNode* node;
-    const Skiplist* skiplist;
-  };
   Skiplist();
   explicit Skiplist(const size_t level);
   explicit Skiplist(const size_t level, const Comparator& compare);
@@ -89,6 +72,27 @@ class Skiplist {
   const Destructor dtr;
   size_t level;
   size_t _size;
+};
+
+/* Iterator */
+template <typename Key, typename Comparator, typename Destructor>
+class Skiplist<Key, Comparator, Destructor>::Iterator {
+ public:
+  explicit Iterator(const Skiplist* skiplist);
+  explicit Iterator(const Skiplist* skiplist, const SkiplistNode* node);
+  Iterator(const Iterator& it);
+  void seekToFirst();
+  void seekToLast();
+  Iterator& operator=(const Iterator& it);
+  void operator--();
+  void operator++();
+  bool operator==(const Iterator& it);
+  bool operator!=(const Iterator& it);
+  const Key& operator*();
+
+ private:
+  const SkiplistNode* node;
+  const Skiplist* skiplist;
 };
 
 /* SkiplistLevel */
