@@ -4,9 +4,15 @@
 
 namespace redis_simple {
 namespace in_memory {
-DynamicBuffer* buffer = new DynamicBuffer();
+class DynamicBufferTest : public testing::Test {
+ protected:
+  static void SetUpTestSuite() { buffer = new DynamicBuffer(); }
+  static DynamicBuffer* buffer;
+};
 
-TEST(DynamicBufferTest, Write) {
+DynamicBuffer* DynamicBufferTest::buffer = nullptr;
+
+TEST_F(DynamicBufferTest, Write) {
   char buf[4096];
   char c = 'a';
   for (int i = 0; i < 4096; ++i) {
@@ -23,7 +29,7 @@ TEST(DynamicBufferTest, Write) {
   ASSERT_EQ(buffer->getProcessedOffset(), 0);
 }
 
-TEST(DynamicBufferTest, ProcessInline) {
+TEST_F(DynamicBufferTest, ProcessInline) {
   const std::string& s = buffer->processInlineBuffer();
   ASSERT_EQ(s.length(), 1023);
   ASSERT_EQ(s, std::string(1023, 'a'));
@@ -48,14 +54,14 @@ TEST(DynamicBufferTest, ProcessInline) {
   ASSERT_EQ(s2, std::string(1023, 'c'));
 }
 
-TEST(DynamicBufferTest, TrimProcessed) {
+TEST_F(DynamicBufferTest, TrimProcessed) {
   buffer->trimProcessedBuffer();
   ASSERT_EQ(buffer->getLen(), 4096);
   ASSERT_EQ(buffer->getRead(), 1024);
   ASSERT_EQ(buffer->getProcessedOffset(), 0);
 }
 
-TEST(DynamicBufferTest, Resize) {
+TEST_F(DynamicBufferTest, Resize) {
   char buf[8192];
   for (int i = 0; i < 8192; ++i) {
     buf[i] = (i + 1) % 1024 == 0 ? '\n' : 'c';

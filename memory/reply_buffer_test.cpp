@@ -7,16 +7,22 @@
 
 namespace redis_simple {
 namespace in_memory {
-ReplyBuffer* buf = new ReplyBuffer();
+class ReplyBufferTest : public testing::Test {
+ protected:
+  static void SetUpTestSuite() { buf = new ReplyBuffer(); }
+  static ReplyBuffer* buf;
+};
 
-TEST(ReplyBufferTest, AddToBuf) {
+ReplyBuffer* ReplyBufferTest::buf = nullptr;
+
+TEST_F(ReplyBufferTest, AddToBuf) {
   std::string s(2000, 'a');
   size_t r = buf->addReplyToBufferOrList(s.c_str(), 2000);
   ASSERT_EQ(r, 2000);
   ASSERT_EQ(buf->getBufPos(), 2000);
 }
 
-TEST(ReplyBufferTest, AddToReplyList) {
+TEST_F(ReplyBufferTest, AddToReplyList) {
   std::string s1(4096, 'b');
   size_t r = buf->addReplyToBufferOrList(s1.c_str(), 4096);
   ASSERT_EQ(r, 4096);
@@ -39,7 +45,7 @@ TEST(ReplyBufferTest, AddToReplyList) {
   }
 }
 
-TEST(ReplyBufferTest, TrimProcessedBuffer) {
+TEST_F(ReplyBufferTest, TrimProcessedBuffer) {
   buf->writeProcessed(8000);
   ASSERT_EQ(buf->getBufPos(), 0);
   ASSERT_EQ(buf->getSentLen(), 8000 - 2000 - 4096);
@@ -51,7 +57,7 @@ TEST(ReplyBufferTest, TrimProcessedBuffer) {
   }
 }
 
-TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
+TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   BufNode* tail = buf->getReplyTail();
 
   tail->used /= 3;

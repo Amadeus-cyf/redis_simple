@@ -91,8 +91,8 @@ target_sources(redis_simple_cli
 
 add_subdirectory("third_party/googletest")
 
-add_executable(memory_test "") 
-target_sources(memory_test
+add_executable(redis_simple_tests "") 
+target_sources(redis_simple_tests
   PRIVATE
     "utils/string_utils.h"
     "utils/string_utils.cpp"
@@ -106,44 +106,22 @@ target_sources(memory_test
     "memory/dynamic_buffer_test.cpp"
     "memory/reply_buffer_test.cpp"
     "memory/skiplist_test.cpp"
-)
-
-add_executable(reply_test "")
-target_sources(reply_test
-  PRIVATE
     "server/reply/reply.h"
     "server/reply/reply.cpp"
     "server/reply/reply_test.cpp"
-)
-
-add_executable(resp_parser_test "")
-target_sources(resp_parser_test
-PRIVATE
-  "cli/resp_parser.h"
-  "cli/resp_parser.cpp"
-  "cli/resp_parser_test.cpp"
+    "cli/resp_parser.h"
+    "cli/resp_parser.cpp"
+    "cli/resp_parser_test.cpp"
 )
 
 target_link_libraries(
-  memory_test
-  GTest::gtest_main
-)
-
-target_link_libraries(
-  reply_test
-  GTest::gtest_main
-)
-
-target_link_libraries(
-  resp_parser_test
+  redis_simple_tests
   GTest::gtest_main
 )
 
 include(GoogleTest)
 gtest_discover_tests(
-  memory_test
-  reply_test
-  resp_parser_test
+  redis_simple_tests
 )
 
 add_executable(mock_tcp_server "")

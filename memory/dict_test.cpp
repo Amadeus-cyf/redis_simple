@@ -6,16 +6,23 @@
 
 namespace redis_simple {
 namespace in_memory {
-std::unique_ptr<Dict<std::string, std::string>> dict_str;
-std::unique_ptr<Dict<int, int>> dict_int;
+class DictStrTest : public testing::Test {
+ protected:
+  static void SetUpTestSuite() {
+    dict_str = Dict<std::string, std::string>::init();
+  }
+  static std::unique_ptr<Dict<std::string, std::string>> dict_str;
+};
 
-TEST(DictStrTest, Init) {
+std::unique_ptr<Dict<std::string, std::string>> DictStrTest::dict_str = nullptr;
+
+TEST_F(DictStrTest, Init) {
   dict_str = Dict<std::string, std::string>::init();
   ASSERT_TRUE(dict_str);
   ASSERT_EQ(dict_str->size(), 0);
 }
 
-TEST(DictStrTest, Insert) {
+TEST_F(DictStrTest, Insert) {
   DictStatus status = dict_str->add("key", "val");
   ASSERT_EQ(status, DictStatus::dictOK);
   ASSERT_EQ(dict_str->size(), 1);
@@ -27,7 +34,7 @@ TEST(DictStrTest, Insert) {
   ASSERT_EQ(dict_str->size(), 1);
 }
 
-TEST(DictStrTest, Update) {
+TEST_F(DictStrTest, Update) {
   DictStatus status = dict_str->replace("key", "val_update");
   ASSERT_EQ(status, DictStatus::dictOK);
   ASSERT_EQ(dict_str->size(), 1);
@@ -39,7 +46,7 @@ TEST(DictStrTest, Update) {
   ASSERT_EQ(dict_str->size(), 1);
 }
 
-TEST(DictStrTest, Delete) {
+TEST_F(DictStrTest, Delete) {
   DictStatus status = dict_str->del("key");
   ASSERT_EQ(status, DictStatus::dictOK);
   ASSERT_EQ(dict_str->size(), 0);
@@ -50,7 +57,7 @@ TEST(DictStrTest, Delete) {
   ASSERT_EQ(dict_str->size(), 0);
 }
 
-TEST(DictStrTest, Unlink) {
+TEST_F(DictStrTest, Unlink) {
   DictStatus status = dict_str->add("key", "val");
   ASSERT_EQ(status, DictStatus::dictOK);
   ASSERT_EQ(dict_str->size(), 1);
@@ -62,14 +69,21 @@ TEST(DictStrTest, Unlink) {
   ASSERT_EQ(dict_str->size(), 0);
 }
 
-TEST(DictIntTest, Init) {
-  dict_int = Dict<int, int>::init();
+class DictIntTest : public testing::Test {
+ protected:
+  static void SetUpTestSuite() { dict_int = Dict<int, int>::init(); }
+  static std::unique_ptr<Dict<int, int>> dict_int;
+};
+
+std::unique_ptr<Dict<int, int>> DictIntTest::dict_int = nullptr;
+
+TEST_F(DictIntTest, Init) {
   dict_int->getType()->hashFunction = [](const int i) { return i; };
   ASSERT_TRUE(dict_int);
   ASSERT_EQ(dict_int->size(), 0);
 }
 
-TEST(DictIntTest, BatchInsert) {
+TEST_F(DictIntTest, BatchInsert) {
   for (int i = 0; i < 100; ++i) {
     dict_int->add(i, i);
   }
@@ -79,7 +93,7 @@ TEST(DictIntTest, BatchInsert) {
   ASSERT_EQ(entry->val, 96);
 }
 
-TEST(DictIntTest, Clear) {
+TEST_F(DictIntTest, Clear) {
   dict_int->clear();
   ASSERT_EQ(dict_int->size(), 0);
 
