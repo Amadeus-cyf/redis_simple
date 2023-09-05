@@ -9,15 +9,15 @@ class AeTimeEvent {
   long long getId() { return id; }
   long long getId() const { return id; }
   void setId(long long tid) { id = tid; }
-  void setNext(AeTimeEvent* next) { this->next = next; }
+  void setNext(AeTimeEvent* _next) { next = _next; }
   void delNext() { next = nullptr; }
   AeTimeEvent* getNext() { return next; }
   AeTimeEvent* getNext() const { return next; }
-  void setPrev(AeTimeEvent* prev) { this->prev = prev; }
+  void setPrev(AeTimeEvent* _prev) { prev = _prev; }
   void delPrev() { prev = nullptr; }
   AeTimeEvent* getPrev() { return prev; }
   AeTimeEvent* getPrev() const { return prev; }
-  void setWhen(time_t w) { when = w; }
+  void setWhen(time_t _when) { when = _when; }
   time_t getWhen() { return when; }
   time_t getWhen() const { return when; }
   virtual bool hasTimeFinalizeProc() = 0;

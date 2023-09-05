@@ -21,7 +21,9 @@ class AeTimeEventImpl : public AeTimeEvent {
   bool hasTimeFinalizeProc() override { return finalize_proc != nullptr; }
   bool hasTimeFinalizeProc() const override { return finalize_proc != nullptr; }
   int callTimeFinalizeProc() override { return finalize_proc(client_data); }
-  int callTimeFinalizeProc() const override { return finalize_proc(client_data); }
+  int callTimeFinalizeProc() const override {
+    return finalize_proc(client_data);
+  }
   void setTimeProc(aeTimeProc proc) { time_proc = proc; }
   aeTimeFinalizeProc getTimeFinalizeProc() { return finalize_proc; }
   void setTimeFinalizeProc(aeTimeFinalizeProc proc) { finalize_proc = proc; }

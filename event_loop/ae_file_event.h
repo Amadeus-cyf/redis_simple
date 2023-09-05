@@ -9,7 +9,7 @@ class AeFileEvent {
   AeFileEvent(int mask) : mask(mask) {}
   int getMask() { return mask; }
   int getMask() const { return mask; }
-  void setMask(int m) { mask |= m; }
+  void setMask(int _mask) { mask |= _mask; }
   virtual void callReadProc(AeEventLoop* el, int fd) = 0;
   virtual void callReadProc(AeEventLoop* el, int fd) const = 0;
   virtual void callWriteProc(AeEventLoop* el, int fd) = 0;
