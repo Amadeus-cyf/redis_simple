@@ -10,11 +10,12 @@
 namespace redis_simple {
 ae::AeEventStatus readProc(ae::AeEventLoop* el, int fd, int* client_data,
                            int mask) {
-  printf("read data from %d", fd);
+  printf("read data from fd %d\n", fd);
   std::string res;
   char buffer[1024];
-  while (read(fd, buffer, 1024) != EOF) {
-    res.append(buffer);
+  ssize_t r = 0;
+  while ((r = read(fd, buffer, 1024)) != EOF) {
+    res.append(buffer, r);
   }
   printf("receive resp after newline: %s\n", res.c_str());
   return ae::AeEventStatus::aeEventOK;

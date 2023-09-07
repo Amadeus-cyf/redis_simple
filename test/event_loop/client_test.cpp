@@ -24,7 +24,7 @@ ae::AeEventStatus writeProc(ae::AeEventLoop* el, int fd, int* client_data,
 
 void run() {
   std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
-  int fd = tcp::tcpConnect("localhost", 8081, false, "localhost", 8080);
+  int fd = tcp::tcpConnect("localhost", 8081, true, "localhost", 8080);
   printf("conn result %d\n", fd);
   if (fd == -1) {
     printf("connection failed\n");

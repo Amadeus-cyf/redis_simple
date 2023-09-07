@@ -17,7 +17,6 @@ void run() {
   int* remote_port = &a;
 
   printf("accept result: %d\n", tcp::tcpAccept(s, &remote_ip, remote_port));
-
   printf("accept connection from %s:%d\n", remote_ip.c_str(), *remote_port);
 }
 }  // namespace redis_simple

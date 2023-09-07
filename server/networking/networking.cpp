@@ -57,12 +57,13 @@ ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
     printf("invalid connection state\n");
     return ae::AeEventStatus::aeEventErr;
   }
+  // create client based on the connection
   printf("accept connection from %s:%d with fd = %d\n", dest_ip.c_str(),
          dest_port, conn->getFd());
   printf("start create client\n");
   Client* client = Client::create(conn);
   conn->setPrivateData(client);
-  // set read handler for client conn
+  // install the read handler for the client connection
   conn->setReadHandler(connection::ConnHandler::create(
       connection::ConnHandlerType::readQueryFromClient));
   server->addClient(client);

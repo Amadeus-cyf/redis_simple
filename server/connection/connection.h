@@ -47,8 +47,8 @@ class Connection {
   int getFd() { return fd; }
   ConnState getState() { return state; }
   ConnState getState() const { return state; }
-  void setState(ConnState state) { this->state = state; }
-  void setPrivateData(void* data) { private_data = data; }
+  void setState(ConnState _state) { state = _state; }
+  void setPrivateData(void* _private_data) { private_data = _private_data; }
   void* getPrivateData() { return private_data; }
   void* getPrivateData() const { return private_data; }
   ssize_t connRead(const char* buf, size_t readlen);

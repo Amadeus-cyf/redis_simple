@@ -64,8 +64,7 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::getMemvec() {
     mem_vec.push_back({buf + sent_len, bufpos - sent_len});
   }
   size_t offset = bufpos > 0 ? 0 : sent_len;
-  BufNode* n = reply;
-  BufNode* prev = nullptr;
+  BufNode* n = reply, * prev = nullptr;
   while (n) {
     if (n->used == 0) {
       reply_bytes -= n->len;
@@ -113,9 +112,7 @@ void ReplyBuffer::_writevProcessed(size_t nwritten) {
       sent_len += nwritten;
     }
   }
-
   printf("nwritten after processing main buffer %zu\n", nwritten);
-  nwritten = std::min(nwritten, reply_bytes);
   while (nwritten > 0) {
     if (nwritten < reply->used) {
       sent_len = nwritten;

@@ -243,11 +243,7 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
   r = 0;
   char buffer[1];
   while ((r = read(fd, buffer, 1)) != EOF) {
-    if (r == 0) {
-      break;
-    }
-    if (buffer[0] == '\n') {
-      buffer[0] = '\0';
+    if (r == 0 || buffer[0] == '\n') {
       break;
     }
     s.push_back(buffer[0]);

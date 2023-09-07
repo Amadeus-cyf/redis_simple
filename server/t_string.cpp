@@ -1,7 +1,6 @@
 #include "t_string.h"
 
 #include "server/client.h"
-#include "server/networking/handler/write_client.h"
 #include "server/redis_cmd/redis_cmd.h"
 #include "server/reply/reply.h"
 #include "server/t_cmd.h"

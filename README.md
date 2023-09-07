@@ -48,7 +48,7 @@ cd build && ./mock_tcp_server
 cd build && ./mock_tcp_client
 ```
 
-#### Running Benchmark
+### Running Benchmark
 ```sh
 cd build && ./memory_benchmark
 ```
