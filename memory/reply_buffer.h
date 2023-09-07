@@ -12,6 +12,7 @@ class ReplyBuffer {
   const char* getBuf() { return buf; };
   size_t getSentLen() { return sent_len; };
   size_t getReplyLen() { return reply_len; };
+  size_t getReplyBytes() { return reply_bytes; }
   void setSentLen(size_t sentlen) { sent_len = sentlen; };
   size_t getBufPos() { return bufpos; };
   BufNode* getReplyHead() { return reply; }

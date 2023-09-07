@@ -112,7 +112,8 @@ void ReplyBuffer::_writevProcessed(size_t nwritten) {
       sent_len += nwritten;
     }
   }
-  printf("nwritten after processing main buffer %zu\n", nwritten);
+  printf("nwritten after processing main buffer %zu %zu\n", nwritten,
+         reply_bytes);
   while (nwritten > 0) {
     if (nwritten < reply->used) {
       sent_len = nwritten;

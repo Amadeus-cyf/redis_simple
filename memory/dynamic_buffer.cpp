@@ -25,10 +25,8 @@ void DynamicBuffer::trimProcessedBuffer() {
 }
 
 std::string DynamicBuffer::processInlineBuffer() {
-  printf("process input inline %zu %zu\n", processed_offset, nread);
   char* c = strchr(buf + processed_offset, '\n');
   if (!c) {
-    printf("no newline found\n");
     return "";
   }
   int offset = 1;
