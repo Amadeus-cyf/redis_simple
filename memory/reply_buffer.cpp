@@ -64,7 +64,7 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::getMemvec() {
     mem_vec.push_back({buf + sent_len, bufpos - sent_len});
   }
   size_t offset = bufpos > 0 ? 0 : sent_len;
-  BufNode* n = reply, * prev = nullptr;
+  BufNode *n = reply, *prev = nullptr;
   while (n) {
     if (n->used == 0) {
       reply_bytes -= n->len;
