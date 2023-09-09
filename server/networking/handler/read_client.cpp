@@ -20,24 +20,14 @@ void ReadFromClientHandler::handle(connection::Connection* conn) {
 void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
   printf("read query from client\n");
   Client* c = static_cast<Client*>(conn->getPrivateData());
-
   if (!c) {
     printf("invalid client\n");
     return;
   }
-
   ssize_t nread = c->readQuery();
-  if (nread < 0) {
-    if (conn->getState() == connection::ConnState::connStateConnected) {
-      return;
-    } else {
-      // TODO: delete client
-      printf("free client\n");
-    }
-  } else if (nread == 0) {
+  if (nread <= 0) {
     return;
   }
-
   if (c->processInputBuffer() == ClientStatus::clientErr) {
     printf("process query buffer failed\n");
   }

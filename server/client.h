@@ -36,6 +36,8 @@ class Client {
   bool hasPendingReplies() { return !(buf->isEmpty()); }
   ClientStatus processInputBuffer();
   ClientStatus processCommand();
+  void free() { conn->connClose(); }
+  void free() const { conn->connClose(); }
 
  private:
   explicit Client(connection::Connection* connection);

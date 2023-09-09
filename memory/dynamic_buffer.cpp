@@ -10,6 +10,9 @@ DynamicBuffer::DynamicBuffer()
     : buf(new char[4096]), nread(0), processed_offset(0), len(4096){};
 
 void DynamicBuffer::writeToBuffer(const char* buffer, size_t n) {
+  if (n == 0) {
+    return;
+  }
   if (len - nread < n) {
     resize(n + nread);
   }

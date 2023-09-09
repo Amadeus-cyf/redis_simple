@@ -16,6 +16,9 @@ class Server {
   db::RedisDb* getDb() { return db.get(); }
   void addClient(Client* c) { clients.push_back(c); }
   const std::vector<Client*>& getClients() { return clients; }
+  ~Server() {
+    for (const Client* c : clients) c->free();
+  }
 
  private:
   Server();

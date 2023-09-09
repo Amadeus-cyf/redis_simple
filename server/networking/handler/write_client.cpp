@@ -33,17 +33,8 @@ ssize_t WriteToClientHandler::writeToClient(Client* c) {
   ssize_t nwritten = 0;
   if (c->getFlags() & ClientType::clientSlave) {
     // TODO: send repl block to slave
-  } else {
-    nwritten = c->sendReply();
-    if (nwritten <= 0) {
-      if (c->getConn()->getState() !=
-          connection::ConnState::connStateConnected) {
-        printf("free client\n");
-      }
-      return -1;
-    }
   }
-  return nwritten;
+  return c->sendReply();
 }
 }  // namespace
 

@@ -9,11 +9,11 @@ namespace in_memory {
 class ReplyBuffer {
  public:
   ReplyBuffer();
-  const char* getBuf() { return buf; };
+  const char* getUnsentBuffer() { return buf + sent_len; }
+  size_t getUnsentBufferLength() { return bufpos - sent_len; }
   size_t getSentLen() { return sent_len; };
   size_t getReplyLen() { return reply_len; };
   size_t getReplyBytes() { return reply_bytes; }
-  void setSentLen(size_t sentlen) { sent_len = sentlen; };
   size_t getBufPos() { return bufpos; };
   BufNode* getReplyHead() { return reply; }
   BufNode* getReplyTail() { return reply_tail; }

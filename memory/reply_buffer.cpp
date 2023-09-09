@@ -6,6 +6,9 @@ ReplyBuffer::ReplyBuffer()
     : buf_usable_size(4096), buf(new char[4096]), sent_len(0), bufpos(0) {}
 
 size_t ReplyBuffer::addReplyToBufferOrList(const char* s, size_t len) {
+  if (len == 0) {
+    return 0;
+  }
   size_t reply = addReplyToBuffer(s, len);
   // printf("add reply %zu %zu\n", len, reply);
   len -= reply;

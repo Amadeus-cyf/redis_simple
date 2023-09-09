@@ -68,8 +68,8 @@ class Connection {
       const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
   ssize_t connSyncWrite(const char* buffer, size_t len, long timeout);
   ssize_t connSyncWrite(const char* buffer, size_t len, long timeout) const;
-  void free() { close(fd); }
-  ~Connection() { free(); }
+  void connClose() { close(fd); }
+  ~Connection() { connClose(); }
 
  private:
   int fd;
