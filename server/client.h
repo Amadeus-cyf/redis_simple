@@ -10,10 +10,6 @@
 #include "server/redis_cmd/redis_cmd.h"
 
 namespace redis_simple {
-enum ClientType {
-  clientSlave = 1,
-};
-
 enum class ClientStatus {
   clientOK = 0,
   clientErr = -1,

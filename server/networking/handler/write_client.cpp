@@ -22,18 +22,14 @@ void WriteToClientHandler::handle(connection::Connection* conn) {
 void WriteToClientHandler::sendReplyToClient(connection::Connection* conn) {
   Client* c = static_cast<Client*>(conn->getPrivateData());
   printf("write reply called %d\n", c->hasPendingReplies());
-  while (c->hasPendingReplies() && writeToClient(c) > 0)
-    ;
+  while (c->hasPendingReplies() && writeToClient(c) > 0) {
+  }
   if (!c->hasPendingReplies()) {
     conn->unsetWriteHandler();
   }
 }
 
 ssize_t WriteToClientHandler::writeToClient(Client* c) {
-  ssize_t nwritten = 0;
-  if (c->getFlags() & ClientType::clientSlave) {
-    // TODO: send repl block to slave
-  }
   return c->sendReply();
 }
 }  // namespace
