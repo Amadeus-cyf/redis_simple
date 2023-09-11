@@ -5,7 +5,7 @@
 #include "server/client.h"
 #include "server/reply/reply.h"
 #include "server/t_cmd.h"
-#include "server/zset/z_set.h"
+#include "server/zset/zset.h"
 
 namespace redis_simple {
 namespace t_cmd {
@@ -63,7 +63,7 @@ int genericZAdd(const db::RedisDb* db, const ZSetArgs* args) {
     return -1;
   }
   if (!obj) {
-    obj = db::RedisObj::createRedisZSetObj(z_set::ZSet::init());
+    obj = db::RedisObj::createRedisZSetObj(zset::ZSet::init());
     int r = db->setKey(args->key, obj, 0) == db::DBStatus::dbErr;
     obj->decrRefCount();
     if (r < 0) {
@@ -71,7 +71,7 @@ int genericZAdd(const db::RedisDb* db, const ZSetArgs* args) {
     }
   }
   try {
-    const z_set::ZSet* const zset = obj->getZSet();
+    const zset::ZSet* const zset = obj->getZSet();
     zset->addOrUpdate(args->ele, args->score);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
@@ -94,7 +94,7 @@ int genericZRem(const db::RedisDb* db, const ZSetArgs* args) {
     return -1;
   }
   try {
-    const z_set::ZSet* const zset = obj->getZSet();
+    const zset::ZSet* const zset = obj->getZSet();
     return zset->remove(args->ele) ? 0 : -1;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
@@ -116,7 +116,7 @@ int genericZRank(const db::RedisDb* db, const ZSetArgs* args) {
     return -1;
   }
   try {
-    const z_set::ZSet* const zset = obj->getZSet();
+    const zset::ZSet* const zset = obj->getZSet();
     return zset->getRank(args->ele);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());

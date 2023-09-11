@@ -9,18 +9,18 @@ const std::string& RedisObj::getString() const {
   return std::get<std::string>(this->val);
 }
 
-const z_set::ZSet* const RedisObj::getZSet() const {
+const zset::ZSet* const RedisObj::getZSet() const {
   if (encoding != ObjEncoding::objEncodingZSet) {
     throw std::invalid_argument("value type is not zset");
   }
-  return std::get<const z_set::ZSet*>(this->val);
+  return std::get<const zset::ZSet*>(this->val);
 }
 
 void RedisObj::decrRefCount() const {
   if (refcount == 1) {
     // free memory based on object type
     if (encoding == ObjEncoding::objEncodingZSet) {
-      delete std::get<const z_set::ZSet*>(val);
+      delete std::get<const zset::ZSet*>(val);
     }
     delete this;
   } else {

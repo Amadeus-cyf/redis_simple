@@ -1,7 +1,7 @@
-#include "z_set.h"
+#include "zset.h"
 
 namespace redis_simple {
-namespace z_set {
+namespace zset {
 ZSet::ZSet()
     : dict(in_memory::Dict<std::string, double>::init()),
       skiplist(std::make_unique<in_memory::Skiplist<const SkiplistEntry*,
@@ -42,5 +42,5 @@ int ZSet::getRank(const std::string& key) const {
   const SkiplistEntry se(key, score);
   return skiplist->getRankofElement(&se);
 }
-}  // namespace z_set
+}  // namespace zset
 }  // namespace redis_simple
