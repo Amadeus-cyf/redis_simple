@@ -6,11 +6,6 @@
 
 namespace redis_simple {
 namespace in_memory {
-enum class DictStatus {
-  dictOK = 0,
-  dictErr = -1,
-};
-
 template <typename K, typename V>
 class Dict {
  public:
@@ -23,14 +18,14 @@ class Dict {
   size_t size() { return ht_used[0] + ht_used[1]; }
   DictEntry* find(const K& key);
   DictEntry* find(K&& key);
-  DictStatus add(const K& key, const V& val);
-  DictStatus add(K&& key, V&& val);
+  bool add(const K& key, const V& val);
+  bool add(K&& key, V&& val);
   DictEntry* addOrFind(const K& key);
   DictEntry* addOrFind(K&& key, V&& val);
-  DictStatus replace(const K& key, const V& val);
-  DictStatus replace(K&& key, V&& val);
-  DictStatus del(const K& key);
-  DictStatus del(K&& key);
+  void replace(const K& key, const V& val);
+  void replace(K&& key, V&& val);
+  bool del(const K& key);
+  bool del(K&& key);
   DictEntry* unlink(const K& key);
   DictEntry* unlink(K&& key);
   int scan(int cursor, dictScanFunc callback);
@@ -58,7 +53,7 @@ class Dict {
   DictEntry* _addRaw(const K& key, DictEntry** existing);
   DictEntry* _unlink(const K& key);
   void _dictExpandIfNeeded();
-  DictStatus _dictExpand(size_t size);
+  bool _dictExpand(size_t size);
   void _dictRehashStep();
   bool _dictRehash(int n);
   void _dictClear(int i);
@@ -95,7 +90,7 @@ struct Dict<K, V>::DictType {
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::init() {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
-  if (dict->_dictExpand(HTInitSize) == DictStatus::dictErr) {
+  if (!dict->_dictExpand(HTInitSize)) {
     return nullptr;
   }
   dict->getType()->hashFunction = [](const K& key) {
@@ -109,7 +104,7 @@ template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::init(
     const typename Dict<K, V>::DictType* type) {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
-  if (dict->_dictExpand(HTInitSize) == DictStatus::dictErr) {
+  if (!dict->_dictExpand(HTInitSize)) {
     return nullptr;
   }
   dict->getType() = type;
@@ -140,17 +135,17 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::find(K&& key) {
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::add(const K& key, const V& val) {
+bool Dict<K, V>::add(const K& key, const V& val) {
   DictEntry* entry = _addRaw(key, nullptr);
   if (!entry) {
-    return DictStatus::dictErr;
+    return false;
   }
   setVal(entry, val);
-  return DictStatus::dictOK;
+  return true;
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::add(K&& key, V&& val) {
+bool Dict<K, V>::add(K&& key, V&& val) {
   return add(key, val);
 }
 
@@ -167,7 +162,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(K&& key, V&& val) {
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::replace(const K& key, const V& val) {
+void Dict<K, V>::replace(const K& key, const V& val) {
   DictEntry* existing;
   DictEntry* entry = _addRaw(key, &existing);
   if (entry) {
@@ -177,24 +172,22 @@ DictStatus Dict<K, V>::replace(const K& key, const V& val) {
     setVal(existing, val);
     freeVal(&auxentry);
   }
-  return DictStatus::dictOK;
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::replace(K&& key, V&& val) {
-  return replace(key, val);
+void Dict<K, V>::replace(K&& key, V&& val) {
+  replace(key, val);
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::del(const K& key) {
+bool Dict<K, V>::del(const K& key) {
   DictEntry* de = _unlink(key);
-  DictStatus ds = de ? DictStatus::dictOK : DictStatus::dictErr;
   freeUnlinkedEntry(de);
-  return ds;
+  return de;
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::del(K&& key) {
+bool Dict<K, V>::del(K&& key) {
   return del(key);
 }
 
@@ -393,32 +386,32 @@ void Dict<K, V>::_dictExpandIfNeeded() {
 }
 
 template <typename K, typename V>
-DictStatus Dict<K, V>::_dictExpand(size_t size) {
+bool Dict<K, V>::_dictExpand(size_t size) {
   if (isRehashing() || size < ht_used[0]) {
-    return DictStatus::dictErr;
+    return false;
   }
   int new_exp = nextExp(size);
   if (new_exp <= ht_size_exp[0]) {
-    return DictStatus::dictErr;
+    return false;
   }
   size_t new_size = htSize(new_exp);
   printf("dict expand to %zu %d\n", new_size, new_exp);
   if (new_size < size ||
       new_size * sizeof(DictEntry*) < size * sizeof(DictEntry*)) {
-    return DictStatus::dictErr;
+    return false;
   }
   if (ht_size_exp[0] < 0) {
     ht_size_exp[0] = new_exp;
     ht[0].resize(new_size);
     ht_used[0] = 0;
     rehash_idx = -1;
-    return DictStatus::dictOK;
+    return true;
   }
   ht_size_exp[1] = new_exp;
   ht[1].resize(new_size);
   ht_used[1] = 0;
   rehash_idx = 0;
-  return DictStatus::dictOK;
+  return true;
 }
 
 template <typename K, typename V>

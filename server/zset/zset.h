@@ -31,12 +31,9 @@ class ZSet {
  private:
   struct Comparator {
     int operator()(const SkiplistEntry* s1, const SkiplistEntry* s2) const {
-      return s1->score < s2->score
-                 ? -1
-                 : (s1->score > s2->score
-                        ? 1
-                        : (s1->key < s2->key ? -1
-                                             : (s1->key > s2->key ? 1 : 0)));
+      if (s1->score < s2->score) return -1;
+      if (s1->score > s2->score) return 1;
+      return s1->key.compare(s2->key);
     }
   };
 

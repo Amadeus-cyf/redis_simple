@@ -23,8 +23,8 @@ TEST_F(DictStrTest, Init) {
 }
 
 TEST_F(DictStrTest, Insert) {
-  DictStatus status = dict_str->add("key", "val");
-  ASSERT_EQ(status, DictStatus::dictOK);
+  bool status = dict_str->add("key", "val");
+  ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->size(), 1);
 
   const Dict<std::string, std::string>::DictEntry* entry =
@@ -35,8 +35,7 @@ TEST_F(DictStrTest, Insert) {
 }
 
 TEST_F(DictStrTest, Update) {
-  DictStatus status = dict_str->replace("key", "val_update");
-  ASSERT_EQ(status, DictStatus::dictOK);
+  dict_str->replace("key", "val_update");
   ASSERT_EQ(dict_str->size(), 1);
 
   const Dict<std::string, std::string>::DictEntry* entry =
@@ -47,8 +46,8 @@ TEST_F(DictStrTest, Update) {
 }
 
 TEST_F(DictStrTest, Delete) {
-  DictStatus status = dict_str->del("key");
-  ASSERT_EQ(status, DictStatus::dictOK);
+  bool status = dict_str->del("key");
+  ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->size(), 0);
 
   const Dict<std::string, std::string>::DictEntry* entry =
@@ -58,8 +57,8 @@ TEST_F(DictStrTest, Delete) {
 }
 
 TEST_F(DictStrTest, Unlink) {
-  DictStatus status = dict_str->add("key", "val");
-  ASSERT_EQ(status, DictStatus::dictOK);
+  bool status = dict_str->add("key", "val");
+  ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->size(), 1);
 
   Dict<std::string, std::string>::DictEntry* de = dict_str->unlink("key");

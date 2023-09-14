@@ -49,8 +49,8 @@ const RedisObj* RedisDb::lookupKey(const std::string& key) const {
     printf("look up key: key expired\n");
     /* if key is already expired, delete the key and return nullptr */
     val = nullptr;
-    assert(dict->del(key) == in_memory::DictStatus::dictOK);
-    assert(expires->del(key) == in_memory::DictStatus::dictOK);
+    assert(dict->del(key));
+    assert(expires->del(key));
   }
   return val;
 }
@@ -62,15 +62,12 @@ DBStatus RedisDb::setKey(const std::string& key, const RedisObj* const val,
 
 DBStatus RedisDb::setKey(const std::string& key, const RedisObj* const val,
                          const int64_t expire, int flags) const {
-  if (dict->replace(key, const_cast<RedisObj*>(val)) !=
-      in_memory::DictStatus::dictOK) {
-    return DBStatus::dbErr;
-  }
+  dict->replace(key, const_cast<RedisObj*>(val));
   if (!(flags & SetKeyFlags::setKeyKeepTTL)) {
     expires->del(key);
   }
   if (expire > 0) {
-    assert(expires->add(key, expire) == in_memory::DictStatus::dictOK);
+    assert(expires->add(key, expire));
     printf("add expire %lu\n", expires->size());
   }
   val->incrRefCount();
@@ -78,8 +75,7 @@ DBStatus RedisDb::setKey(const std::string& key, const RedisObj* const val,
 }
 
 DBStatus RedisDb::delKey(const std::string& key) const {
-  in_memory::DictStatus status = dict->del(key);
-  if (status == in_memory::DictStatus::dictErr) {
+  if (!dict->del(key)) {
     return DBStatus::dbErr;
   }
   if (expires->size() > 0) {

@@ -35,7 +35,9 @@ class Skiplist {
   bool update(const Key& key, const Key& new_key);
   const Key& getElementByRank(int rank);
   ssize_t getRankofElement(const Key& key);
+  /* get all elements between [start, end] */
   std::vector<Key> getElementsByRange(int start, int end);
+  /* get all elements between [start, end] in the reverse order */
   std::vector<Key> getElementsByRevRange(int start, int end);
   std::vector<Key> getElementsGt(const Key& start);
   std::vector<Key> getElementsGte(const Key& start);

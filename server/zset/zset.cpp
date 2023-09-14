@@ -11,15 +11,21 @@ ZSet::ZSet()
           Comparator(), Destructor())){};
 
 void ZSet::addOrUpdate(const std::string& key, const double score) const {
-  in_memory::Dict<std::string, double>::DictEntry* de = dict->addOrFind(key);
-  de->val = score;
-  const SkiplistEntry* se = new SkiplistEntry(key, score);
-  const SkiplistEntry* inserted = skiplist->insert(se);
-  if (inserted != se) {
-    /* If the element already exists in the skiplist, update the score */
-    inserted->score = se->score;
-    delete se;
+  in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
+  if (de) {
+    printf("update %s %f\n", key.c_str(), de->val);
+    if (de->val == score) return;
+    const SkiplistEntry old(key, de->val), *se = new SkiplistEntry(key, score);
+    bool r = skiplist->update(&old, se);
+    assert(r);
+  } else {
+    printf("insert %s %f\n", key.c_str(), score);
+    de = dict->addOrFind(key);
+    const SkiplistEntry* se = new SkiplistEntry(key, score);
+    const SkiplistEntry* inserted = skiplist->insert(se);
+    assert(inserted);
   }
+  de->val = score;
 }
 
 bool ZSet::remove(const std::string& key) const {
@@ -29,7 +35,7 @@ bool ZSet::remove(const std::string& key) const {
   }
   const double score = de->val;
   const SkiplistEntry se(key, score);
-  dict->del(key);
+  assert(dict->del(key));
   return skiplist->del(&se);
 }
 
