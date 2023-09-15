@@ -35,6 +35,7 @@ ssize_t WriteToClientHandler::writeToClient(Client* c) {
   if (nwritten == 0 && r < 0) {
     if (c->getConn()->getState() != connection::ConnState::connStateConnected) {
       c->free();
+      return -1;
     }
   }
   if (!c->hasPendingReplies()) {

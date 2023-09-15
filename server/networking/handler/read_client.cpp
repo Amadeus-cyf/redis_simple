@@ -26,7 +26,8 @@ void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
   }
   ssize_t nread = c->readQuery();
   if (nread <= 0) {
-    if (conn->getState() != connection::ConnState::connStateConnected) {
+    if (nread == 0 ||
+        conn->getState() != connection::ConnState::connStateConnected) {
       c->free();
     }
     return;
