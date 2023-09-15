@@ -72,6 +72,9 @@ class Connection {
   ~Connection() { connClose(); }
 
  private:
+  static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
+                                                  Connection* client_data,
+                                                  int mask);
   int fd;
   int flags;
   ae::AeEventLoop* el;
@@ -79,9 +82,6 @@ class Connection {
   std::unique_ptr<ConnHandler> read_handler;
   std::unique_ptr<ConnHandler> write_handler;
   std::unique_ptr<ConnHandler> accept_handler;
-  static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
-                                                  Connection* client_data,
-                                                  int mask);
   void* private_data;
 };
 }  // namespace connection

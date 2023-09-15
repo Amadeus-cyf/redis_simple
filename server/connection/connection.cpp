@@ -150,22 +150,15 @@ ssize_t Connection::connRead(const char* buffer, size_t readlen) {
 
 ssize_t Connection::connRead(const char* buffer, size_t readlen) const {
   ssize_t nread = 0;
-  int r = 0;
-  while (nread < readlen &&
-         (r = read(fd, (char*)buffer + nread, 1024)) != EOF) {
-    if (!r) {
-      break;
-    }
-    nread += r;
-  }
+  int r = read(fd, (char*)buffer, readlen);
   if (r < 0 && errno != EAGAIN) {
-    state = ConnState::connStateError;
-    return -1;
-  }
-  if (nread == 0) {
+    if (errno != EINTR && state == ConnState::connStateConnected) {
+      state = ConnState::connStateError;
+    }
+  } else if (r == 0) {
     state = ConnState::connStateClosed;
   }
-  return nread;
+  return r;
 }
 
 ssize_t Connection::connRead(std::string& s) {
@@ -182,14 +175,15 @@ ssize_t Connection::connRead(std::string& s) const {
     }
     s.append(buffer, r);
   }
-  if (r < 0 && errno != EAGAIN) {
-    state = ConnState::connStateError;
+  if (s.empty() && r < 0 && errno != EAGAIN) {
+    if (errno != EINTR && state == ConnState::connStateConnected) {
+      state = ConnState::connStateError;
+    }
     return -1;
-  }
-  if (s.size() == 0) {
+  } else if (s.empty() && r == 0) {
     state = ConnState::connStateClosed;
   }
-  return s.length();
+  return s.size();
 }
 
 ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
@@ -263,19 +257,15 @@ ssize_t Connection::connWrite(const char* buffer, size_t len) {
 }
 
 ssize_t Connection::connWrite(const char* buffer, size_t len) const {
-  ssize_t written = 0;
-  while (written < len) {
-    ssize_t n = write(fd, buffer + written, len - written);
-    if (n < 0) {
-      if (errno != EINTR && state == ConnState::connStateConnected) {
-        state = ConnState::connStateError;
-      }
-      printf("write failed\n");
-      return n;
+  ssize_t n = write(fd, buffer, len);
+  if (n < 0 && errno != EAGAIN) {
+    if (errno != EINTR && state == ConnState::connStateConnected) {
+      state = ConnState::connStateError;
     }
-    written += n;
+    printf("write failed\n");
+    return n;
   }
-  return written;
+  return n;
 }
 
 ssize_t Connection::connSyncWrite(const char* buffer, size_t len,

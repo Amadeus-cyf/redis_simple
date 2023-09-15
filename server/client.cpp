@@ -20,9 +20,6 @@ ssize_t Client::readQuery() {
   ssize_t nread = conn->connRead(buf, 4096);
   printf("nread %zd, buf %s end\n", nread, buf);
   if (nread < 0) {
-    if (conn->getState() != connection::ConnState::connStateConnected) {
-      free();
-    }
     return nread;
   }
   query_buf->writeToBuffer(buf, nread);
@@ -39,9 +36,6 @@ ssize_t Client::_sendReply() {
   ssize_t nwritten =
       conn->connWrite(buf->getUnsentBuffer(), buf->getUnsentBufferLength());
   if (nwritten < 0) {
-    if (conn->getState() != connection::ConnState::connStateConnected) {
-      free();
-    }
     return -1;
   }
   printf("sent reply %zu\n", nwritten);
@@ -54,9 +48,6 @@ ssize_t Client::_sendvReply() {
   std::vector<std::pair<char*, size_t>> memToWrite = buf->getMemvec();
   ssize_t nwritten = conn->connWritev(memToWrite);
   if (nwritten < 0) {
-    if (conn->getState() != connection::ConnState::connStateConnected) {
-      free();
-    }
     return -1;
   }
   printf("_sendvReply: %zu\n", nwritten);

@@ -22,15 +22,25 @@ void WriteToClientHandler::handle(connection::Connection* conn) {
 void WriteToClientHandler::sendReplyToClient(connection::Connection* conn) {
   Client* c = static_cast<Client*>(conn->getPrivateData());
   printf("write reply called %d\n", c->hasPendingReplies());
-  while (c->hasPendingReplies() && writeToClient(c) > 0) {
-  }
-  if (!c->hasPendingReplies()) {
-    conn->unsetWriteHandler();
-  }
+  writeToClient(c);
 }
 
 ssize_t WriteToClientHandler::writeToClient(Client* c) {
-  return c->sendReply();
+  ssize_t nwritten = 0, r = 0;
+  while (c->hasPendingReplies()) {
+    r = c->sendReply();
+    if (r < 0) break;
+    nwritten += r;
+  }
+  if (nwritten == 0 && r < 0) {
+    if (c->getConn()->getState() != connection::ConnState::connStateConnected) {
+      c->free();
+    }
+  }
+  if (!c->hasPendingReplies()) {
+    c->getConn()->unsetWriteHandler();
+  }
+  return nwritten;
 }
 }  // namespace
 
