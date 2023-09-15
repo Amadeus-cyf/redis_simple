@@ -302,7 +302,7 @@ ssize_t Connection::connWritev(
     len += mem_blocks[i].second;
   }
   ssize_t n = writev(fd, vec, mem_blocks.size());
-  if (n < 0) {
+  if (n < 0 && errno != EAGAIN) {
     if (errno != EINTR && state == ConnState::connStateConnected) {
       state = ConnState::connStateError;
     }
