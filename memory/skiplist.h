@@ -466,6 +466,8 @@ bool Skiplist<Key, Comparator, Destructor>::update(const Key& key,
     /* if in the key's position is not changed, update the key directly */
     SkiplistNode* next = update[0]->getNext(0);
     next->key = new_key;
+    /* delete the old key */
+    dtr(key);
   } else {
     /* otherwise, delete the original node and insert a new one */
     deleteNode(key, update);

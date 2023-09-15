@@ -31,8 +31,8 @@ ssize_t Client::sendReply() {
 }
 
 ssize_t Client::_sendReply() {
-  printf("_sendReply\n");
-  printf("%s %zu\n", buf->getUnsentBuffer(), buf->getUnsentBufferLength());
+  printf("_sendReply %s %zu\n", buf->getUnsentBuffer(),
+         buf->getUnsentBufferLength());
   ssize_t nwritten =
       conn->connWrite(buf->getUnsentBuffer(), buf->getUnsentBufferLength());
   if (nwritten < 0) {

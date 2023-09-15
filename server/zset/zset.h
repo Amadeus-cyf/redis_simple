@@ -38,7 +38,11 @@ class ZSet {
   };
 
   struct Destructor {
-    void operator()(const SkiplistEntry* se) const { delete se; }
+    void operator()(const SkiplistEntry* se) const {
+      printf("delete %s %f\n", se->key.c_str(), se->score);
+      delete se;
+      se = nullptr;
+    }
   };
 
   explicit ZSet();

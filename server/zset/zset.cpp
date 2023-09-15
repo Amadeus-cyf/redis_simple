@@ -13,7 +13,7 @@ ZSet::ZSet()
 void ZSet::addOrUpdate(const std::string& key, const double score) const {
   in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
   if (de) {
-    printf("update %s %f\n", key.c_str(), de->val);
+    printf("update %s's val from %f to %f\n", key.c_str(), de->val, score);
     if (de->val == score) return;
     const SkiplistEntry old(key, de->val), *se = new SkiplistEntry(key, score);
     bool r = skiplist->update(&old, se);
