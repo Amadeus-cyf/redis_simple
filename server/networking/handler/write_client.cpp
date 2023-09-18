@@ -29,10 +29,10 @@ ssize_t WriteToClientHandler::writeToClient(Client* c) {
   ssize_t nwritten = 0, r = 0;
   while (c->hasPendingReplies()) {
     r = c->sendReply();
-    if (r < 0) break;
+    if (r <= 0) break;
     nwritten += r;
   }
-  if (nwritten == 0 && r < 0) {
+  if (r == -1) {
     if (c->getConn()->getState() != connection::ConnState::connStateConnected) {
       c->free();
       return -1;

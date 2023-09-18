@@ -38,7 +38,7 @@ ssize_t Client::_sendReply() {
   if (nwritten < 0) {
     return -1;
   }
-  printf("sent reply %zu\n", nwritten);
+  printf("_sendReply: %zu\n", nwritten);
   buf->writeProcessed(nwritten);
   return nwritten;
 }

@@ -25,7 +25,7 @@ int AeKqueue::aeApiAddEvent(int fd, int mask) const {
   struct kevent ke;
   if (mask & AeFlags::aeReadable) {
     printf("kqueue add read event\n");
-    EV_SET(&ke, fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+    EV_SET(&ke, fd, EVFILT_READ, EV_ADD, 0, 0, nullptr);
     if (kevent(kqueue_fd, &ke, 1, nullptr, 0, nullptr) < 0) {
       printf("kevent add read event failed with errno: %d\n", errno);
       return -1;
@@ -33,7 +33,7 @@ int AeKqueue::aeApiAddEvent(int fd, int mask) const {
   }
   if (mask & AeFlags::aeWritable) {
     printf("kqueue add write event\n");
-    EV_SET(&ke, fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, 0, 0, nullptr);
+    EV_SET(&ke, fd, EVFILT_WRITE, EV_ADD, 0, 0, nullptr);
     if (kevent(kqueue_fd, &ke, 1, nullptr, 0, nullptr) < 0) {
       printf("kevent add write event failed with errno: %d\n", errno);
       return -1;
@@ -82,7 +82,7 @@ std::unordered_map<int, int> AeKqueue::aeApiPoll(struct timespec* tspec) const {
       fdToMaskMap[events[i].ident] |= AeFlags::aeWritable;
     }
     if (events[i].flags & EV_EOF) {
-      aeApiDelEvent(events[i].ident, AeFlags::aeReadable | AeFlags::aeWritable);
+      aeApiDelEvent(events[i].ident, AeFlags::aeReadable);
     }
   }
   return fdToMaskMap;
