@@ -43,7 +43,7 @@ void Server::acceptConnHandler() {
   ae::AeFileEvent* fe = ae::AeFileEventImpl<Server>::create(
       networking::acceptHandler, nullptr, this, ae::aeReadable);
   if (el->aeCreateFileEvent(fd, fe) < 0) {
-    printf("error in adding client creation file event");
+    printf("error in adding client creation file event\n");
   }
 }
 

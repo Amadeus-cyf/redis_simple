@@ -45,7 +45,7 @@ ssize_t Client::_sendReply() {
 
 ssize_t Client::_sendvReply() {
   printf("_sendvReply\n");
-  std::vector<std::pair<char*, size_t>> memToWrite = buf->getMemvec();
+  const std::vector<std::pair<char*, size_t>>& memToWrite = buf->getMemvec();
   ssize_t nwritten = conn->connWritev(memToWrite);
   if (nwritten < 0) {
     return -1;

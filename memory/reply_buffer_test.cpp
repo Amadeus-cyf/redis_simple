@@ -38,7 +38,7 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(buf->getBufPos(), 4096);
   ASSERT_EQ(buf->getReplyLen(), 3);
 
-  const std::vector<std::pair<char*, size_t>> mem_vec = buf->getMemvec();
+  const std::vector<std::pair<char*, size_t>>& mem_vec = buf->getMemvec();
 
   for (const auto& p : mem_vec) {
     printf("%c %zu\n", p.first[0], p.second);
@@ -51,7 +51,7 @@ TEST_F(ReplyBufferTest, TrimProcessedBuffer) {
   ASSERT_EQ(buf->getSentLen(), 8000 - 2000 - 4096);
   ASSERT_EQ(buf->getReplyLen(), 2);
 
-  std::vector<std::pair<char*, size_t>> mem_vec = buf->getMemvec();
+  const std::vector<std::pair<char*, size_t>>& mem_vec = buf->getMemvec();
   for (const auto& p : mem_vec) {
     printf("%c %zu\n", p.first[0], p.second);
   }
@@ -69,7 +69,7 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   ASSERT_EQ(buf->getBufPos(), 0);
   ASSERT_EQ(buf->getReplyLen(), 3);
 
-  std::vector<std::pair<char*, size_t>> mem_vec_2 = buf->getMemvec();
+  const std::vector<std::pair<char*, size_t>>& mem_vec_2 = buf->getMemvec();
   for (const auto& p : mem_vec_2) {
     printf("%c %c %zu\n", p.first[0], p.first[p.second - 1], p.second);
   }
