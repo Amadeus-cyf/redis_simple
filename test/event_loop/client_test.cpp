@@ -16,7 +16,7 @@ ae::AeEventStatus writeProc(ae::AeEventLoop* el, int fd, int* client_data,
   ssize_t written = write(fd, s.c_str(), s.size());
   printf("write %zu\n", written);
   ++i;
-  if (i == 100) {
+  if (i == 10) {
     el->aeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
   }
   return ae::AeEventStatus::aeEventOK;

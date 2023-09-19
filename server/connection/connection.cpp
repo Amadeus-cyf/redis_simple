@@ -167,13 +167,13 @@ ssize_t Connection::connRead(std::string& s) {
 
 ssize_t Connection::connRead(std::string& s) const {
   char buffer[1024];
-  int r = 0;
-  int nread = 0;
+  int r = 0, nread = 0;
   while ((r = read(fd, buffer + nread, 1024)) != EOF) {
     if (r == 0) {
       break;
     }
     s.append(buffer, r);
+    nread += r;
   }
   if (s.empty() && r < 0 && errno != EAGAIN) {
     if (errno != EINTR && state == ConnState::connStateConnected) {
@@ -243,10 +243,11 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
     s.push_back(buffer[0]);
   }
   if (r < 0 && errno != EAGAIN) {
-    state = ConnState::connStateError;
+    if (errno != EINTR && state == ConnState::connStateConnected) {
+      state = ConnState::connStateError;
+    }
     return -1;
-  }
-  if (s.size() == 0) {
+  } else if (s.empty() && r == 0) {
     state = ConnState::connStateClosed;
   }
   return s.size();

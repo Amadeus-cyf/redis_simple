@@ -12,17 +12,17 @@ ZSet::ZSet()
 
 void ZSet::addOrUpdate(const std::string& key, const double score) const {
   in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
-  const ZSetEntry* se = new ZSetEntry(key, score);
+  const ZSetEntry* ze = new ZSetEntry(key, score);
   if (de) {
     printf("update %s's val from %f to %f\n", key.c_str(), de->val, score);
     if (de->val == score) return;
     const ZSetEntry old(key, de->val);
-    bool r = skiplist->update(&old, se);
+    bool r = skiplist->update(&old, ze);
     assert(r);
   } else {
     printf("insert %s %f\n", key.c_str(), score);
     de = dict->addOrFind(key);
-    const ZSetEntry* inserted = skiplist->insert(se);
+    const ZSetEntry* inserted = skiplist->insert(ze);
     assert(inserted);
   }
   de->val = score;
@@ -34,9 +34,9 @@ bool ZSet::remove(const std::string& key) const {
     return false;
   }
   const double score = de->val;
-  const ZSetEntry se(key, score);
+  const ZSetEntry ze(key, score);
   assert(dict->del(key));
-  return skiplist->del(&se);
+  return skiplist->del(&ze);
 }
 
 int ZSet::getRank(const std::string& key) const {
@@ -45,8 +45,8 @@ int ZSet::getRank(const std::string& key) const {
     return -1;
   }
   const double score = de->val;
-  const ZSetEntry se(key, score);
-  return skiplist->getRankofElement(&se);
+  const ZSetEntry ze(key, score);
+  return skiplist->getRankofElement(&ze);
 }
 }  // namespace zset
 }  // namespace redis_simple

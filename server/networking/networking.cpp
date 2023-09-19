@@ -6,36 +6,21 @@
 
 namespace redis_simple {
 namespace networking {
-static const std::string& ErrorRecvResp = "+error";
-bool sendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
-  return sendStringInline(conn, cmd->toString());
+namespace {
+bool sendString(const connection::Connection* conn, const std::string& cmd) {
+  ssize_t ret = conn->connSyncWrite(cmd.c_str(), cmd.length(), 1 * 1000);
+  return ret == cmd.size();
 }
 
 bool sendStringInline(const connection::Connection* conn, std::string s) {
   s.push_back('\n');
   return sendString(conn, s);
 }
+}  // namespace
 
-bool sendString(const connection::Connection* conn, const std::string& cmd) {
-  ssize_t ret = conn->connSyncWrite(cmd.c_str(), cmd.length(), 1 * 1000);
-  return ret == cmd.size();
-}
-
-std::string syncReceiveResponse(const connection::Connection* conn) {
-  return syncReceiveResponse(conn, 1 * 1000);
-}
-
-std::string syncReceiveResponse(const connection::Connection* conn,
-                                long timeout) {
-  std::string reply;
-  ssize_t r = conn->connSyncRead(reply, timeout);
-  return r < 0 ? ErrorRecvResp : reply;
-}
-
-std::string syncReceiveRespline(const connection::Connection* conn) {
-  std::string reply;
-  ssize_t r = conn->connSyncReadline(reply, 1 * 1000);
-  return r < 0 ? ErrorRecvResp : reply;
+static const std::string& ErrorRecvResp = "+error";
+bool sendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
+  return sendStringInline(conn, cmd->toString());
 }
 
 ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
