@@ -61,8 +61,8 @@ class Skiplist {
   bool eq(const Key& k1, const Key& k2);
   void deleteNode(const Key& key, SkiplistNode* prev[MaxSkiplistLevel]);
   const SkiplistNode* getElement(size_t rank);
-  std::vector<Key> getElements(size_t rank, size_t len);
-  std::vector<Key> getElementsRev(size_t rank, size_t len);
+  std::vector<Key> getElements(size_t start, size_t end);
+  std::vector<Key> getElementsRev(size_t start, size_t end);
   std::vector<Key> getElementsGt(const Key& start, bool eq);
   std::vector<Key> getElementsLt(const Key& end, bool eq);
   const SkiplistNode* getFirstElementGt(const Key& key, bool eq);
