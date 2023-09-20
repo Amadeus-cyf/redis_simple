@@ -246,11 +246,10 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
     if (errno != EINTR && state == ConnState::connStateConnected) {
       state = ConnState::connStateError;
     }
-    return -1;
   } else if (s.empty() && r == 0) {
     state = ConnState::connStateClosed;
   }
-  return s.size();
+  return r < 0 ? r : s.size();
 }
 
 ssize_t Connection::connWrite(const char* buffer, size_t len) {
@@ -264,7 +263,6 @@ ssize_t Connection::connWrite(const char* buffer, size_t len) const {
       state = ConnState::connStateError;
     }
     printf("write failed\n");
-    return n;
   }
   return n;
 }

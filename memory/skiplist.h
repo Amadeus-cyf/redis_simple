@@ -374,7 +374,6 @@ const Key& Skiplist<Key, Comparator, Destructor>::insert(const Key& key) {
   }
 
   SkiplistNode* node = SkiplistNode::createSkiplistNode(key, level, dtr);
-
   /*
    * insert the key and update span
    */
@@ -393,7 +392,6 @@ const Key& Skiplist<Key, Comparator, Destructor>::insert(const Key& key) {
       n->setSpan(i, update[i]->getSpan(i) + 1);
     }
   }
-
   /* for level 0, update backward pointer since it's a double linked list */
   node->setPrev(update[0]);
   if (node->getNext(0)) {
@@ -407,18 +405,15 @@ const Key& Skiplist<Key, Comparator, Destructor>::insert(const Key& key) {
 template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::contains(const Key& key) {
   const SkiplistNode* n = head;
-
   for (int i = level - 1; i >= 0; --i) {
     while (n->getNext(i) && lt(n->getNext(i)->key, key)) {
       n = n->getNext(i);
     }
-
     const SkiplistNode* next = n->getNext(i);
     if (next && eq(next->key, key)) {
       return true;
     }
   }
-
   return false;
 }
 
@@ -481,15 +476,13 @@ const Key& Skiplist<Key, Comparator, Destructor>::getElementByRank(int rank) {
   if (rank < 0) {
     rank += _size;
   }
-
   if (rank < 0) {
     throw std::out_of_range("skiplist index out of bound");
   }
-
   const SkiplistNode* node = getElement(rank);
-
-  if (!node) throw std::out_of_range("skiplist index out of bound");
-
+  if (!node) {
+    throw std::out_of_range("skiplist index out of bound");
+  }
   return node->key;
 }
 
@@ -498,7 +491,6 @@ ssize_t Skiplist<Key, Comparator, Destructor>::getRankofElement(
     const Key& key) {
   size_t rank = 0;
   const SkiplistNode* node = head;
-
   for (int i = level - 1; i >= 0; --i) {
     while (node->getNext(i) && lt(node->getNext(i)->key, key)) {
       rank += node->getSpan(i);
@@ -508,7 +500,6 @@ ssize_t Skiplist<Key, Comparator, Destructor>::getRankofElement(
       return rank + node->getSpan(i) - 1;
     }
   }
-
   return -1;
 }
 
@@ -571,13 +562,11 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsInRange(
   if (gte(start, end)) return {};
 
   const SkiplistNode* ns = getFirstElementGt(start, true);
-
   std::vector<Key> keys;
   while (ns && lt(ns->key, end)) {
     keys.push_back(ns->key);
     ns = ns->getNext(0);
   }
-
   return keys;
 }
 
@@ -585,13 +574,11 @@ template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsGt(
     const Key& start, bool eq) {
   const SkiplistNode* ns = getFirstElementGt(start, eq);
-
   std::vector<Key> keys;
   while (ns) {
     keys.push_back(ns->key);
     ns = ns->getNext(0);
   }
-
   return keys;
 }
 
@@ -599,15 +586,15 @@ template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsLt(
     const Key& start, bool eq) {
   const SkiplistNode* ns = getLastElementLt(start, eq);
-  if (ns == head) return {};
-
+  if (ns == head) {
+    return {};
+  }
   std::vector<Key> keys;
   const SkiplistNode* n = head->getNext(0);
   while (n != ns->getNext(0)) {
     keys.push_back(n->key);
     n = n->getNext(0);
   }
-
   return keys;
 }
 
@@ -642,9 +629,9 @@ Skiplist<Key, Comparator, Destructor>::getLastElementLt(const Key& key,
 template <typename Key, typename Comparator, typename Destructor>
 const Key& Skiplist<Key, Comparator, Destructor>::operator[](size_t i) {
   const SkiplistNode* node = getElement(i);
-
-  if (node == nullptr) throw std::out_of_range("skiplist index out of bound");
-
+  if (node == nullptr) {
+    throw std::out_of_range("skiplist index out of bound");
+  }
   return node->key;
 }
 
@@ -678,7 +665,6 @@ template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::deleteNode(
     const Key& key, SkiplistNode* update[MaxSkiplistLevel]) {
   SkiplistNode* node_to_delete = update[0]->getNext(0);
-
   for (int i = level - 1; i >= 0; --i) {
     const SkiplistNode* next = update[i]->getNext(i);
     if (next && eq(next->key, key)) {
@@ -689,12 +675,10 @@ void Skiplist<Key, Comparator, Destructor>::deleteNode(
       update[i]->setSpan(i, update[i]->getSpan(i) - 1);
     }
   }
-
   /* for level 0, update backward pointer since it's a double linked list */
   if (update[0]->getNext(0)) {
     update[0]->getNext(0)->setPrev(update[0]);
   }
-
   delete node_to_delete;
   --_size;
 }
@@ -702,11 +686,11 @@ void Skiplist<Key, Comparator, Destructor>::deleteNode(
 template <typename Key, typename Comparator, typename Destructor>
 const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
 Skiplist<Key, Comparator, Destructor>::getElement(size_t rank) {
-  if (rank >= _size) return nullptr;
-
+  if (rank >= _size) {
+    return nullptr;
+  }
   size_t span = 0;
   const SkiplistNode* node = head;
-
   for (int i = level - 1; i >= 0; --i) {
     while (node->getNext(i) && (span + node->getSpan(i) < rank + 1)) {
       span += node->getSpan(i);
@@ -717,18 +701,19 @@ Skiplist<Key, Comparator, Destructor>::getElement(size_t rank) {
       return node->getNext(i);
     }
   }
-
   return nullptr;
 }
 
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElements(
     size_t start, size_t end) {
-  if (start > end) return {};
-
+  if (start > end) {
+    return {};
+  }
   const SkiplistNode* node = getElement(start);
-  if (node == nullptr) return {};
-
+  if (node == nullptr) {
+    return {};
+  }
   std::vector<Key> keys;
   while (node && start <= end) {
     keys.push_back(node->key);
@@ -741,11 +726,13 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElements(
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsRev(
     size_t start, size_t end) {
-  if (start > end) return {};
-
+  if (start > end) {
+    return {};
+  }
   const SkiplistNode* node = getElement(_size - 1 - start);
-  if (node == nullptr) return {};
-
+  if (node == nullptr) {
+    return {};
+  }
   std::vector<Key> keys;
   while (node != head && start <= end) {
     keys.push_back(node->key);
@@ -759,14 +746,12 @@ template <typename Key, typename Comparator, typename Destructor>
 const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
 Skiplist<Key, Comparator, Destructor>::findLast() const {
   const SkiplistNode* node = head;
-
   int l = level;
   while (--l >= 0) {
     while (node->getNext(l)) {
       node = node->getNext(l);
     }
   }
-
   return node;
 }
 
