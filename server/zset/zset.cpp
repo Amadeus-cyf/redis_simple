@@ -19,13 +19,13 @@ void ZSet::addOrUpdate(const std::string& key, const double score) const {
     const ZSetEntry old(key, de->val);
     bool r = skiplist->update(&old, ze);
     assert(r);
+    de->val = score;
   } else {
     printf("insert %s %f\n", key.c_str(), score);
-    de = dict->addOrFind(key);
+    assert(dict->add(key, score));
     const ZSetEntry* inserted = skiplist->insert(ze);
     assert(inserted);
   }
-  de->val = score;
 }
 
 bool ZSet::remove(const std::string& key) const {

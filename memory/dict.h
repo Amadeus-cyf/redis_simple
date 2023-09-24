@@ -21,7 +21,7 @@ class Dict {
   bool add(const K& key, const V& val);
   bool add(K&& key, V&& val);
   DictEntry* addOrFind(const K& key);
-  DictEntry* addOrFind(K&& key, V&& val);
+  DictEntry* addOrFind(K&& key);
   void replace(const K& key, const V& val);
   void replace(K&& key, V&& val);
   bool del(const K& key);
@@ -157,8 +157,8 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(const K& key) {
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(K&& key, V&& val) {
-  return addOrFind(key, val);
+typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(K&& key) {
+  return addOrFind(key);
 }
 
 template <typename K, typename V>
