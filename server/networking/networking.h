@@ -1,10 +1,10 @@
 #pragma once
 
 #include "event_loop/ae.h"
+#include "server/networking/redis_cmd.h"
 
 namespace redis_simple {
 class Server;
-class RedisCommand;
 
 namespace connection {
 class Connection;

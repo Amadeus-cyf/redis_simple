@@ -1,7 +1,7 @@
 #include "networking.h"
 
 #include "server/client.h"
-#include "server/redis_cmd/redis_cmd.h"
+#include "server/networking/redis_cmd.h"
 #include "server/server.h"
 
 namespace redis_simple {
@@ -18,6 +18,7 @@ bool sendStringInline(const connection::Connection* conn, std::string s) {
 }
 }  // namespace
 
+/* for testing */
 static const std::string& ErrorRecvResp = "+error";
 bool sendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return sendStringInline(conn, cmd->toString());

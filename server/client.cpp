@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "server.h"
-#include "server/t_cmd.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple {
@@ -50,7 +49,6 @@ ssize_t Client::_sendvReply() {
   if (nwritten < 0) {
     return -1;
   }
-  printf("_sendvReply: %zu\n", nwritten);
   buf->writeProcessed(nwritten);
   return nwritten;
 }
@@ -62,9 +60,7 @@ ClientStatus Client::processInputBuffer() {
     if (processInlineBuffer() == ClientStatus::clientErr) {
       break;
     }
-    if (processCommand() == ClientStatus::clientErr) {
-      return ClientStatus::clientErr;
-    }
+    processCommand();
   }
   printf("trim processed query buffer\n");
   query_buf->trimProcessedBuffer();
@@ -87,17 +83,21 @@ ClientStatus Client::processInlineBuffer() {
   std::string name = std::move(args[0]);
   utils::touppercase(name);
   args.erase(args.begin());
-  setCmd(new RedisCommand(name, args, t_cmd::getRedisCmdProc(name)));
+  const command::Command* cmd = command::Command::create(name);
+  if (!cmd) {
+    printf("command not found\n");
+    return ClientStatus::clientErr;
+  }
+  setCmd(cmd);
+  setArgs(args);
   return ClientStatus::clientOK;
 }
 
-ClientStatus Client::processCommand() {
-  printf("process command: %s\n", cmd->toString().c_str());
+void Client::processCommand() {
+  printf("process command: %s\n", cmd->getName().c_str());
   ClientStatus status;
   if (cmd) {
-    status =
-        cmd->exec(this) == 0 ? ClientStatus::clientOK : ClientStatus::clientErr;
+    cmd->exec(this);
   }
-  return status;
 }
 }  // namespace redis_simple

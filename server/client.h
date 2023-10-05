@@ -4,10 +4,10 @@
 
 #include "memory/dynamic_buffer.h"
 #include "memory/reply_buffer.h"
+#include "server/commands/command.h"
 #include "server/connection/connection.h"
 #include "server/db/db.h"
 #include "server/networking/networking.h"
-#include "server/redis_cmd/redis_cmd.h"
 
 namespace redis_simple {
 enum class ClientStatus {
@@ -21,7 +21,6 @@ class Client {
     return new Client(connection);
   }
   int getFlags() { return flags; }
-  RedisCommand* getCmd() { return cmd.get(); }
   connection::Connection* getConn() { return conn.get(); }
   const db::RedisDb* getDb() { return db; }
   ssize_t readQuery();
@@ -31,19 +30,26 @@ class Client {
   }
   bool hasPendingReplies() { return !(buf->isEmpty()); }
   ClientStatus processInputBuffer();
-  ClientStatus processCommand();
   void free() { conn->connClose(); }
   void free() const { conn->connClose(); }
+  const std::vector<std::string>& getArgs() { return args; }
 
  private:
   explicit Client(connection::Connection* connection);
   ClientStatus processInlineBuffer();
-  void setCmd(RedisCommand* command) { cmd.reset(command); }
+  void processCommand();
+  void setCmd(const command::Command* command) {
+    cmd.reset(const_cast<command::Command*>(command));
+  }
+  void setArgs(const std::vector<std::string>& _args) { args = _args; }
   ssize_t _sendReply();
   ssize_t _sendvReply();
   const db::RedisDb* db;
   int flags;
-  std::unique_ptr<RedisCommand> cmd;
+  std::unique_ptr<const command::Command> cmd;
+  /* current command args*/
+  std::vector<std::string> args;
+  /* connection */
   std::unique_ptr<connection::Connection> conn;
   /* in memory buffer used to store incoming query */
   std::unique_ptr<in_memory::DynamicBuffer> query_buf;

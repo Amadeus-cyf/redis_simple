@@ -7,7 +7,7 @@
 #include "server/conn_handler/conn_handler.h"
 #include "server/connection/connection.h"
 #include "server/networking/networking.h"
-#include "server/redis_cmd/redis_cmd.h"
+#include "server/networking/redis_cmd.h"
 
 namespace redis_simple {
 void writeHandler(connection::Connection* conn);
@@ -30,9 +30,12 @@ void writeHandler(connection::Connection* conn) {
   }
 
   std::vector<std::string> args{"key", "val", "2000"};
-  const RedisCommand& setCmd = RedisCommand("SET", args);
-  const RedisCommand& getCmd = RedisCommand("GET", {"key"});
-  const RedisCommand& delCmd = RedisCommand("DEL", {"key"});
+  const networking::RedisCommand& setCmd =
+      networking::RedisCommand("SET", args);
+  const networking::RedisCommand& getCmd =
+      networking::RedisCommand("GET", {"key"});
+  const networking::RedisCommand& delCmd =
+      networking::RedisCommand("DEL", {"key"});
 
   networking::sendCommand(conn, &setCmd);
   networking::sendCommand(conn, &getCmd);
@@ -46,7 +49,6 @@ void writeHandler(connection::Connection* conn) {
   std::unique_ptr<ConnReadHandler> rhandler =
       std::make_unique<ConnReadHandler>();
   conn->setReadHandler(std::move(rhandler));
-
   printf("write handler called\n");
 }
 
