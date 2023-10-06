@@ -6,6 +6,14 @@
 #include "utils/string_utils.h"
 
 namespace redis_simple {
+namespace {
+std::string getCmdName(const std::vector<std::string>& args) {
+  std::string name = std::move(args[0]);
+  utils::touppercase(name);
+  return name;
+}
+}  // namespace
+
 Client::Client(connection::Connection* connection)
     : conn(connection),
       db(Server::get()->getDb()),
@@ -37,7 +45,6 @@ ssize_t Client::_sendReply() {
   if (nwritten < 0) {
     return -1;
   }
-  printf("_sendReply: %zu\n", nwritten);
   buf->writeProcessed(nwritten);
   return nwritten;
 }
@@ -62,7 +69,6 @@ ClientStatus Client::processInputBuffer() {
     }
     processCommand();
   }
-  printf("trim processed query buffer\n");
   query_buf->trimProcessedBuffer();
   return ClientStatus::clientOK;
 }
@@ -77,11 +83,7 @@ ClientStatus Client::processInlineBuffer() {
   if (args.size() == 0) {
     return ClientStatus::clientErr;
   }
-  for (int i = 0; i < args.size(); i++) {
-    printf("%s\n", args[i].c_str());
-  }
-  std::string name = std::move(args[0]);
-  utils::touppercase(name);
+  const std::string& name = getCmdName(args);
   args.erase(args.begin());
   const command::Command* cmd = command::Command::create(name);
   if (!cmd) {
@@ -95,7 +97,6 @@ ClientStatus Client::processInlineBuffer() {
 
 void Client::processCommand() {
   printf("process command: %s\n", cmd->getName().c_str());
-  ClientStatus status;
   if (cmd) {
     cmd->exec(this);
   }

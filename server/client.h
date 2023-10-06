@@ -38,9 +38,7 @@ class Client {
   explicit Client(connection::Connection* connection);
   ClientStatus processInlineBuffer();
   void processCommand();
-  void setCmd(const command::Command* command) {
-    cmd.reset(const_cast<command::Command*>(command));
-  }
+  void setCmd(const command::Command* command) { cmd.reset(command); }
   void setArgs(const std::vector<std::string>& _args) { args = _args; }
   ssize_t _sendReply();
   ssize_t _sendvReply();
