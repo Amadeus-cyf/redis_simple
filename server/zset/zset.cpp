@@ -48,5 +48,25 @@ int ZSet::getRank(const std::string& key) const {
   const ZSetEntry ze(key, score);
   return skiplist->getRankofElement(&ze);
 }
+
+std::vector<const ZSet::ZSetEntry*> ZSet::rangeByIndex(
+    const RangeByIndexSpec* spec) const {
+  in_memory::Skiplist<const ZSetEntry*, Comparator,
+                      Destructor>::SkiplistRangeByIndexSpec skiplist_spec = {
+      .min = spec->min,
+      .max = spec->max,
+      .minex = spec->minex,
+      .maxex = spec->maxex};
+  if (spec->option) {
+    const in_memory::Skiplist<const ZSetEntry*, Comparator,
+                              Destructor>::SkiplistRangeOption& opt = {
+        .limit = spec->option->limit,
+        .offset = spec->option->offset,
+    };
+    skiplist_spec.option = &opt;
+  }
+  return skiplist->rangeByIndex(&skiplist_spec);
+}
+
 }  // namespace zset
 }  // namespace redis_simple

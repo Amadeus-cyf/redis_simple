@@ -10,6 +10,21 @@ namespace redis_simple {
 namespace zset {
 class ZSet {
  public:
+  struct RangeOption {
+    int limit, offset, count;
+  };
+  struct RangeByIndexSpec {
+    int min, max;
+    /* are min or max exclusive? */
+    bool minex, maxex;
+    RangeOption* option;
+  };
+  struct RangeByKeySpec {
+    std::string &min, &max;
+    /* are min or max exclusive? */
+    bool minex, maxex;
+    RangeOption* option;
+  };
   struct ZSetEntry {
     ZSetEntry(const std::string& key, const double score)
         : key(key), score(score){};
@@ -20,12 +35,10 @@ class ZSet {
   void addOrUpdate(const std::string& key, const double score) const;
   bool remove(const std::string& key) const;
   int getRank(const std::string& key) const;
-  std::vector<const ZSetEntry*> range(int start, int end) const {
-    return skiplist->getElementsByRange(start, end);
-  }
-  std::vector<const ZSetEntry*> revrange(int start, int end) const {
-    return skiplist->getElementsByRevRange(start, end);
-  }
+  std::vector<const ZSetEntry*> rangeByIndex(
+      const RangeByIndexSpec* spec) const;
+  std::vector<const ZSetEntry*> revrangeByIndex(
+      const RangeByIndexSpec* spec) const;
   size_t size() const { return skiplist->size(); }
 
  private:

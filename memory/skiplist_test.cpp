@@ -21,10 +21,10 @@ void scanSkiplist(const Skiplist<std::string>* skiplist);
 Skiplist<std::string>* SkiplistTest::skiplist;
 
 TEST_F(SkiplistTest, Insertion) {
-  ASSERT_EQ("key1", skiplist->insert("key1"));
-  ASSERT_EQ("key2", skiplist->insert("key2"));
-  ASSERT_EQ("key0", skiplist->insert("key0"));
-  ASSERT_EQ("key1", skiplist->insert("key1"));
+  ASSERT_EQ(skiplist->insert("key1"), "key1");
+  ASSERT_EQ(skiplist->insert("key2"), "key2");
+  ASSERT_EQ(skiplist->insert("key0"), "key0");
+  ASSERT_EQ(skiplist->insert("key1"), "key1");
   ASSERT_EQ(skiplist->size(), 3);
 
   ASSERT_TRUE(skiplist->contains("key1"));
@@ -105,104 +105,6 @@ TEST_F(SkiplistTest, GetRankofElement) {
 
   ssize_t r3 = skiplist->getRankofElement("key_not_exist");
   ASSERT_EQ(r3, -1);
-}
-
-TEST_F(SkiplistTest, GetElementsByRange) {
-  const std::vector<std::string>& k1 = skiplist->getElementsByRange(0, 3);
-  ASSERT_EQ(k1.size(), 4);
-  ASSERT_EQ(k1[0], "key0");
-  ASSERT_EQ(k1[3], "key5");
-
-  const std::vector<std::string>& k2 = skiplist->getElementsByRange(1, 1);
-  ASSERT_EQ(k2.size(), 1);
-  ASSERT_EQ(k2[0], "key2");
-
-  const std::vector<std::string>& k3 = skiplist->getElementsByRange(3, 0);
-  ASSERT_EQ(k3.size(), 0);
-
-  const std::vector<std::string>& k4 = skiplist->getElementsByRange(3, INT_MAX);
-  ASSERT_EQ(k4.size(), 1);
-  ASSERT_EQ(k4[0], "key5");
-
-  const std::vector<std::string>& k5 = skiplist->getElementsByRange(-1, 1);
-  ASSERT_EQ(k5.size(), 0);
-
-  const std::vector<std::string>& k6 = skiplist->getElementsByRange(-2, 3);
-  ASSERT_EQ(k6.size(), 2);
-  ASSERT_EQ(k6[0], "key4");
-  ASSERT_EQ(k6[1], "key5");
-
-  const std::vector<std::string>& k7 =
-      skiplist->getElementsByRange(-2, INT_MAX);
-  ASSERT_EQ(k7.size(), 2);
-  ASSERT_EQ(k7[0], "key4");
-  ASSERT_EQ(k7[1], "key5");
-
-  const std::vector<std::string>& k8 = skiplist->getElementsByRange(-3, -2);
-  ASSERT_EQ(k8.size(), 2);
-  ASSERT_EQ(k8[0], "key2");
-  ASSERT_EQ(k8[1], "key4");
-
-  const std::vector<std::string>& k9 = skiplist->getElementsByRange(INT_MAX, 1);
-  ASSERT_EQ(k9.size(), 0);
-
-  const std::vector<std::string>& k10 =
-      skiplist->getElementsByRange(INT_MIN, 1);
-  ASSERT_EQ(k10.size(), 0);
-
-  const std::vector<std::string>& k11 = skiplist->getElementsByRange(-2, -3);
-  ASSERT_EQ(k11.size(), 0);
-}
-
-TEST_F(SkiplistTest, GetElementsByRevRange) {
-  const std::vector<std::string>& k1 = skiplist->getElementsByRevRange(0, 3);
-  ASSERT_EQ(k1.size(), 4);
-  ASSERT_EQ(k1[0], "key5");
-  ASSERT_EQ(k1[1], "key4");
-  ASSERT_EQ(k1[2], "key2");
-  ASSERT_EQ(k1[3], "key0");
-
-  const std::vector<std::string>& k2 = skiplist->getElementsByRevRange(1, 1);
-  ASSERT_EQ(k2.size(), 1);
-  ASSERT_EQ(k2[0], "key4");
-
-  const std::vector<std::string>& k3 =
-      skiplist->getElementsByRevRange(0, INT_MAX);
-  ASSERT_EQ(k3.size(), 4);
-  ASSERT_EQ(k3[0], "key5");
-  ASSERT_EQ(k3[1], "key4");
-  ASSERT_EQ(k3[2], "key2");
-  ASSERT_EQ(k3[3], "key0");
-
-  const std::vector<std::string>& k4 = skiplist->getElementsByRevRange(-3, -1);
-  ASSERT_EQ(k4.size(), 3);
-  ASSERT_EQ(k4[0], "key4");
-  ASSERT_EQ(k4[1], "key2");
-  ASSERT_EQ(k4[2], "key0");
-
-  const std::vector<std::string>& k5 = skiplist->getElementsByRevRange(-3, -4);
-  ASSERT_EQ(k5.size(), 0);
-
-  const std::vector<std::string>& k6 =
-      skiplist->getElementsByRevRange(-4, INT_MAX);
-  ASSERT_EQ(k6.size(), 4);
-  ASSERT_EQ(k6[0], "key5");
-  ASSERT_EQ(k6[1], "key4");
-  ASSERT_EQ(k6[2], "key2");
-  ASSERT_EQ(k6[3], "key0");
-
-  const std::vector<std::string>& k7 = skiplist->getElementsByRevRange(0, 1);
-  ASSERT_EQ(k7.size(), 2);
-  ASSERT_EQ(k7[0], "key5");
-  ASSERT_EQ(k7[1], "key4");
-
-  const std::vector<std::string>& k8 =
-      skiplist->getElementsByRevRange(INT_MAX, 1);
-  ASSERT_EQ(k8.size(), 0);
-
-  const std::vector<std::string>& k9 =
-      skiplist->getElementsByRevRange(INT_MIN, 1);
-  ASSERT_EQ(k9.size(), 0);
 }
 
 TEST_F(SkiplistTest, GetElementsGt) {
@@ -287,58 +189,6 @@ TEST_F(SkiplistTest, GetElementsLte) {
   ASSERT_EQ(k4.size(), 0);
 }
 
-TEST_F(SkiplistTest, GetElementsInRange) {
-  const std::vector<std::string>& k0 =
-      skiplist->getElementsInRange("key0", "key6");
-  ASSERT_EQ(k0.size(), 4);
-  ASSERT_EQ(k0[0], "key0");
-  ASSERT_EQ(k0[3], "key5");
-
-  const std::vector<std::string>& k1 =
-      skiplist->getElementsInRange("key0", "key5");
-  ASSERT_EQ(k1.size(), 3);
-  ASSERT_EQ(k1[0], "key0");
-  ASSERT_EQ(k1[2], "key4");
-
-  const std::vector<std::string>& k2 =
-      skiplist->getElementsInRange("key0", "key3");
-  ASSERT_EQ(k2.size(), 2);
-  ASSERT_EQ(k2[0], "key0");
-  ASSERT_EQ(k2[1], "key2");
-
-  const std::vector<std::string>& k3 =
-      skiplist->getElementsInRange("key0", "key2");
-  ASSERT_EQ(k3.size(), 1);
-  ASSERT_EQ(k3[0], "key0");
-
-  const std::vector<std::string>& k4 =
-      skiplist->getElementsInRange("key0", "key1");
-  ASSERT_EQ(k4.size(), 1);
-  ASSERT_EQ(k4[0], "key0");
-
-  const std::vector<std::string>& k5 =
-      skiplist->getElementsInRange("key0", "key0");
-  ASSERT_EQ(k5.size(), 0);
-
-  const std::vector<std::string>& k6 =
-      skiplist->getElementsInRange("abc", "xyz");
-  ASSERT_EQ(k6.size(), 4);
-  ASSERT_EQ(k6[0], "key0");
-  ASSERT_EQ(k6[3], "key5");
-
-  const std::vector<std::string>& k7 =
-      skiplist->getElementsInRange("abc", "aed");
-  ASSERT_EQ(k7.size(), 0);
-
-  const std::vector<std::string>& k8 =
-      skiplist->getElementsInRange("wxy", "xyz");
-  ASSERT_EQ(k8.size(), 0);
-
-  const std::vector<std::string>& k9 =
-      skiplist->getElementsInRange("key5", "key0");
-  ASSERT_EQ(k9.size(), 0);
-}
-
 TEST_F(SkiplistTest, ArrayAccess) {
   ASSERT_EQ((*skiplist)[0], "key0");
   ASSERT_EQ((*skiplist)[1], "key2");
@@ -350,6 +200,69 @@ TEST_F(SkiplistTest, ArrayAccess) {
   ASSERT_THROW((*skiplist)[-1], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MAX], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);
+}
+
+TEST_F(SkiplistTest, RangeByIndex) {
+  /* base */
+  Skiplist<std::string>::SkiplistRangeByIndexSpec spec1 = {
+      .min = 0, .max = 3, .minex = false, .maxex = false, .option = nullptr};
+  const std::vector<std::string>& k1 = skiplist->rangeByIndex(&spec1);
+  ASSERT_EQ(k1.size(), 4);
+  ASSERT_EQ(k1[0], "key0");
+  ASSERT_EQ(k1[1], "key2");
+  ASSERT_EQ(k1[2], "key4");
+  ASSERT_EQ(k1[3], "key5");
+
+  /* min exclusive */
+  Skiplist<std::string>::SkiplistRangeByIndexSpec spec2 = {
+      .min = 1, .max = 3, .minex = true, .maxex = false, .option = nullptr};
+  const std::vector<std::string>& k2 = skiplist->rangeByIndex(&spec2);
+  ASSERT_EQ(k2.size(), 2);
+  ASSERT_EQ(k2[0], "key4");
+  ASSERT_EQ(k2[1], "key5");
+
+  /* max exclusive */
+  Skiplist<std::string>::SkiplistRangeByIndexSpec spec3 = {
+      .min = 1, .max = 3, .minex = false, .maxex = true, .option = nullptr};
+  const std::vector<std::string>& k3 = skiplist->rangeByIndex(&spec3);
+  ASSERT_EQ(k3.size(), 2);
+  ASSERT_EQ(k3[0], "key2");
+  ASSERT_EQ(k3[1], "key4");
+
+  /* with limit */
+  const Skiplist<std::string>::SkiplistRangeOption& opt1 =
+      Skiplist<std::string>::SkiplistRangeOption{
+          .limit = 2,
+          .offset = 0,
+      };
+  Skiplist<std::string>::SkiplistRangeByIndexSpec spec4 = {
+      .min = 1,
+      .max = 3,
+      .minex = false,
+      .maxex = false,
+      .option = &opt1,
+  };
+  const std::vector<std::string> k4 = skiplist->rangeByIndex(&spec4);
+  ASSERT_EQ(k4.size(), 2);
+  ASSERT_EQ(k4[0], "key2");
+  ASSERT_EQ(k4[1], "key4");
+
+  /* with offset */
+  const Skiplist<std::string>::SkiplistRangeOption& opt2 =
+      Skiplist<std::string>::SkiplistRangeOption{
+          .limit = -1,
+          .offset = 2,
+      };
+  Skiplist<std::string>::SkiplistRangeByIndexSpec spec5 = {
+      .min = 1,
+      .max = 3,
+      .minex = false,
+      .maxex = false,
+      .option = &opt2,
+  };
+  const std::vector<std::string>& k5 = skiplist->rangeByIndex(&spec5);
+  ASSERT_EQ(k5.size(), 1);
+  ASSERT_EQ(k5[0], "key5");
 }
 
 TEST_F(SkiplistTest, Iteration) {
@@ -404,10 +317,10 @@ class CustomSkiplistTest : public testing::Test {
 Skiplist<std::string, Comparator>* CustomSkiplistTest::skiplist;
 
 TEST_F(CustomSkiplistTest, Insertion) {
-  ASSERT_EQ("key1", skiplist->insert("key1"));
-  ASSERT_EQ("key2", skiplist->insert("key2"));
-  ASSERT_EQ("key0", skiplist->insert("key0"));
-  ASSERT_EQ("key1", skiplist->insert("key1"));
+  ASSERT_EQ(skiplist->insert("key1"), "key1");
+  ASSERT_EQ(skiplist->insert("key2"), "key2");
+  ASSERT_EQ(skiplist->insert("key0"), "key0");
+  ASSERT_EQ(skiplist->insert("key1"), "key1");
   ASSERT_EQ(skiplist->size(), 3);
 
   ASSERT_TRUE(skiplist->contains("key1"));
@@ -426,14 +339,6 @@ TEST_F(CustomSkiplistTest, ArrayAccess) {
   ASSERT_THROW((*skiplist)[-1], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MAX], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);
-}
-
-TEST_F(CustomSkiplistTest, GetElementsInRange) {
-  const std::vector<std::string>& ks =
-      skiplist->getElementsInRange("key2", "key0");
-  ASSERT_EQ(ks.size(), 2);
-  ASSERT_EQ(ks[0], "key2");
-  ASSERT_EQ(ks[1], "key1");
 }
 }  // namespace in_memory
 }  // namespace redis_simple

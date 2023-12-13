@@ -20,6 +20,21 @@ class Skiplist {
   class SkiplistNode;
 
  public:
+  struct SkiplistRangeOption {
+    int limit, offset;
+  };
+  struct SkiplistRangeByIndexSpec {
+    mutable int min, max;
+    /* are min or max exclusive? */
+    bool minex, maxex;
+    const SkiplistRangeOption* option;
+  };
+  struct SkiplistRangeByKeySpec {
+    int min, max;
+    /* are min or max exclusive? */
+    bool minex, maxex;
+    const SkiplistRangeOption* option;
+  };
   class Iterator;
   static constexpr const int InitSkiplistLevel = 2;
   Skiplist();
@@ -35,15 +50,16 @@ class Skiplist {
   bool update(const Key& key, const Key& new_key);
   const Key& getElementByRank(int rank);
   ssize_t getRankofElement(const Key& key);
-  /* get all elements between [start, end] */
-  std::vector<Key> getElementsByRange(int start, int end);
-  /* get all elements between [start, end] in the reverse order */
-  std::vector<Key> getElementsByRevRange(int start, int end);
+  std::vector<Key> rangeByIndex(const SkiplistRangeByIndexSpec* spec);
+  int rangeByIndexCount(const SkiplistRangeByIndexSpec* spec);
+  std::vector<Key> revRangeByIndex(const SkiplistRangeByIndexSpec* spec);
+  int revRangeByIndexCount(const SkiplistRangeByIndexSpec* spec);
   std::vector<Key> getElementsGt(const Key& start);
   std::vector<Key> getElementsGte(const Key& start);
   std::vector<Key> getElementsLt(const Key& end);
   std::vector<Key> getElementsLte(const Key& end);
-  std::vector<Key> getElementsInRange(const Key& start, const Key& end);
+  std::vector<Key> rangeByKey(const Key& start, const Key& end);
+  std::vector<Key> revRangeByKey(const Key& start, const Key& end);
   const Key& operator[](size_t i);
   size_t size() { return _size; }
   void clear();
@@ -61,8 +77,15 @@ class Skiplist {
   bool eq(const Key& k1, const Key& k2);
   void deleteNode(const Key& key, SkiplistNode* prev[MaxSkiplistLevel]);
   const SkiplistNode* getElement(size_t rank);
-  std::vector<Key> getElements(size_t start, size_t end);
-  std::vector<Key> getElementsRev(size_t start, size_t end);
+  bool rebaseAndValidateRangeIndexSpec(const SkiplistRangeByIndexSpec* spec);
+  const SkiplistNode* getMinNodeByRangeIndexSpec(
+      const SkiplistRangeByIndexSpec* spec);
+  const SkiplistNode* getRevMinNodeByRangeIndexSpec(
+      const SkiplistRangeByIndexSpec* spec);
+  std::vector<Key> _rangeByIndex(const SkiplistRangeByIndexSpec* spec);
+  size_t _rangeByIndexCount(const SkiplistRangeByIndexSpec* spec);
+  std::vector<Key> _revRangeByIndex(const SkiplistRangeByIndexSpec* spec);
+  size_t _revRangeByIndexCount(const SkiplistRangeByIndexSpec* spec);
   std::vector<Key> getElementsGt(const Key& start, bool eq);
   std::vector<Key> getElementsLt(const Key& end, bool eq);
   const SkiplistNode* getFirstElementGt(const Key& key, bool eq);
@@ -504,29 +527,17 @@ ssize_t Skiplist<Key, Comparator, Destructor>::getRankofElement(
 }
 
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsByRange(
-    int start, int end) {
-  if (start < 0) {
-    start += _size;
-  }
-  if (end < 0) {
-    end += _size;
-  }
-  if (start < 0 || end < 0) return {};
-  return getElements(start, end);
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::rangeByIndex(
+    const SkiplistRangeByIndexSpec* spec) {
+  return rebaseAndValidateRangeIndexSpec(spec) ? _rangeByIndex(spec)
+                                               : std::vector<Key>();
 }
 
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsByRevRange(
-    int start, int end) {
-  if (start < 0) {
-    start += _size;
-  }
-  if (end < 0) {
-    end += _size;
-  }
-  if (start < 0 || end < 0) return {};
-  return getElementsRev(start, end);
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::revRangeByIndex(
+    const SkiplistRangeByIndexSpec* spec) {
+  return rebaseAndValidateRangeIndexSpec(spec) ? _revRangeByIndex(spec)
+                                               : std::vector<Key>();
 }
 
 template <typename Key, typename Comparator, typename Destructor>
@@ -554,10 +565,10 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsLte(
 }
 
 /*
- * return all keys within the range [start, end)
+ * return all keys within the range [start, end) in ascending order
  */
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsInRange(
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::rangeByKey(
     const Key& start, const Key& end) {
   if (gte(start, end)) return {};
 
@@ -566,6 +577,23 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsInRange(
   while (ns && lt(ns->key, end)) {
     keys.push_back(ns->key);
     ns = ns->getNext(0);
+  }
+  return keys;
+}
+
+/*
+ * return all keys within the range [start, end] in descending order
+ */
+template <typename Key, typename Comparator, typename Destructor>
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::revRangeByKey(
+    const Key& start, const Key& end) {
+  if (gte(start, end)) return {};
+
+  const SkiplistNode* ns = getLastElementLt(end, false);
+  std::vector<Key> keys;
+  while (ns && gte(ns->key, start)) {
+    keys.push_back(ns->key);
+    ns = ns->getPrev();
   }
   return keys;
 }
@@ -705,41 +733,182 @@ Skiplist<Key, Comparator, Destructor>::getElement(size_t rank) {
 }
 
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElements(
-    size_t start, size_t end) {
-  if (start > end) {
-    return {};
+bool Skiplist<Key, Comparator, Destructor>::rebaseAndValidateRangeIndexSpec(
+    const SkiplistRangeByIndexSpec* spec) {
+  if (spec->min < 0) {
+    spec->min += _size;
   }
-  const SkiplistNode* node = getElement(start);
-  if (node == nullptr) {
+  if (spec->max < 0) {
+    spec->max += _size;
+  }
+  if (spec->min < 0 || spec->max < 0 ||
+      ((spec->minex || spec->maxex) && spec->min >= spec->max) ||
+      ((!spec->minex && !spec->maxex) && spec->min > spec->max)) {
+    return false;
+  }
+  return true;
+}
+
+template <typename Key, typename Comparator, typename Destructor>
+const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
+Skiplist<Key, Comparator, Destructor>::getMinNodeByRangeIndexSpec(
+    const SkiplistRangeByIndexSpec* spec) {
+  const SkiplistNode* node = getElement(spec->min);
+  /* if min index is excluded, start at the next node */
+  if (node && spec->minex) {
+    node = node->getNext(0);
+  }
+  return node;
+}
+
+template <typename Key, typename Comparator, typename Destructor>
+const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
+Skiplist<Key, Comparator, Destructor>::getRevMinNodeByRangeIndexSpec(
+    const SkiplistRangeByIndexSpec* spec) {
+  const SkiplistNode* node = getElement(_size - 1 - spec->min);
+  /* if min index is excluded, start at the previous node */
+  if (node && spec->minex) {
+    node = node->getPrev();
+  }
+  return node;
+}
+
+/*
+ * Get elements in range by index. The function assumes the spec are valid with
+ * non-negative min and max value. Should call rebaseAndValidateRangeIndexSpec
+ * before calling this function.
+ */
+template <typename Key, typename Comparator, typename Destructor>
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::_rangeByIndex(
+    const SkiplistRangeByIndexSpec* spec) {
+  const SkiplistNode* node = getMinNodeByRangeIndexSpec(spec);
+  if (!node) {
     return {};
   }
   std::vector<Key> keys;
+  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
+      end = spec->max + (spec->maxex ? -1 : 0);
+  const int limit = spec->option ? spec->option->limit : -1,
+            offset = spec->option ? spec->option->offset : 0;
   while (node && start <= end) {
-    keys.push_back(node->key);
+    /* return the keys if the number reach the limit, only works when the limit
+     * is set to a non-negative value */
+    if (limit >= 0 && keys.size() >= limit) {
+      return keys;
+    }
+    const SkiplistNode* n = node;
     node = node->getNext(0);
     ++start;
+    /* skip the key if the current index is less than the specified offset */
+    if (i++ < offset) {
+      continue;
+    }
+    keys.push_back(n->key);
   }
   return keys;
 }
 
+/*
+ * Get elements in range by index in count. The function assumes the spec are
+ * valid with non-negative min and max value. Should call
+ * rebaseAndValidateRangeIndexSpec before calling this function.
+ */
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::getElementsRev(
-    size_t start, size_t end) {
-  if (start > end) {
+size_t Skiplist<Key, Comparator, Destructor>::_rangeByIndexCount(
+    const SkiplistRangeByIndexSpec* spec) {
+  const SkiplistNode* node = getMinNodeByRangeIndexSpec(spec);
+  if (!node) {
     return {};
   }
-  const SkiplistNode* node = getElement(_size - 1 - start);
-  if (node == nullptr) {
+  size_t num = 0;
+  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
+      end = spec->max + (spec->maxex ? -1 : 0);
+  const int limit = spec->option ? spec->option->limit : -1,
+            offset = spec->option ? spec->option->offset : 0;
+  while (node && start <= end) {
+    /* return the keys if the number reach the limit, only works when the limit
+     * is set to a non-negative value */
+    if (limit >= 0 && num >= limit) {
+      return num;
+    }
+    node = node->getNext(0);
+    ++start;
+    /* skip the key if the current index is less than the specified offset */
+    if (i++ < offset) {
+      continue;
+    }
+    ++num;
+  }
+  return num;
+}
+
+/*
+ * Get elements in reverse range by index. The function assumes the spec are
+ * valid with non-negative min and max value. Should call
+ * rebaseAndValidateRangeIndexSpec before calling this function.
+ */
+template <typename Key, typename Comparator, typename Destructor>
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::_revRangeByIndex(
+    const SkiplistRangeByIndexSpec* spec) {
+  const SkiplistNode* node = getRevMinNodeByRangeIndexSpec(spec);
+  if (!node) {
     return {};
   }
   std::vector<Key> keys;
-  while (node != head && start <= end) {
-    keys.push_back(node->key);
+  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
+      end = spec->max + (spec->maxex ? -1 : 0);
+  const int limit = spec->option ? spec->option->limit : -1,
+            offset = spec->option ? spec->option->offset : 0;
+  while (node && start <= end) {
+    /* return the keys if the number reach the limit, only works when the limit
+     * is set to a non-negative value */
+    if (limit >= 0 && keys.size() >= limit) {
+      return keys;
+    }
+    const SkiplistNode* n = node;
     node = node->getPrev();
     ++start;
+    /* skip the key if the current index is less than the specified offset */
+    if (i++ < offset) {
+      continue;
+    }
+    keys.push_back(n->key);
   }
   return keys;
+}
+
+/*
+ * Get elements in range by index in count. The function assumes the spec are
+ * valid with non-negative min and max value. Should call
+ * rebaseAndValidateRangeIndexSpec before calling this function.
+ */
+template <typename Key, typename Comparator, typename Destructor>
+size_t Skiplist<Key, Comparator, Destructor>::_revRangeByIndexCount(
+    const SkiplistRangeByIndexSpec* spec) {
+  const SkiplistNode* node = getMinNodeByRangeIndexSpec(spec);
+  if (!node) {
+    return {};
+  }
+  size_t num = 0;
+  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
+      end = spec->max + (spec->maxex ? -1 : 0);
+  const int limit = spec->option ? spec->option->limit : -1,
+            offset = spec->option ? spec->option->offset : 0;
+  while (node && start <= end) {
+    /* return the keys if the number reach the limit, only works when the limit
+     * is set to a non-negative value */
+    if (limit >= 0 && num >= limit) {
+      return num;
+    }
+    node = node->getPrev();
+    ++start;
+    /* skip the key if the current index is less than the specified offset */
+    if (i++ < offset) {
+      continue;
+    }
+    ++num;
+  }
+  return num;
 }
 
 template <typename Key, typename Comparator, typename Destructor>
