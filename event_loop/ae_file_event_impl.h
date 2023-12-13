@@ -15,17 +15,17 @@ class AeFileEventImpl : public AeFileEvent {
                              T* client_data, int mask) {
     return new AeFileEventImpl(rfile_proc, wfile_proc, client_data, mask);
   }
-  void callReadProc(AeEventLoop* el, int fd) override {
-    rfile_proc(el, fd, client_data, getMask());
+  void callReadProc(AeEventLoop* el, int fd, int mask) override {
+    rfile_proc(el, fd, client_data, mask);
   }
-  void callReadProc(AeEventLoop* el, int fd) const override {
-    rfile_proc(el, fd, client_data, getMask());
+  void callReadProc(AeEventLoop* el, int fd, int mask) const override {
+    rfile_proc(el, fd, client_data, mask);
   }
-  void callWriteProc(AeEventLoop* el, int fd) override {
-    wfile_proc(el, fd, client_data, getMask());
+  void callWriteProc(AeEventLoop* el, int fd, int mask) override {
+    wfile_proc(el, fd, client_data, mask);
   }
-  void callWriteProc(AeEventLoop* el, int fd) const override {
-    wfile_proc(el, fd, client_data, getMask());
+  void callWriteProc(AeEventLoop* el, int fd, int mask) const override {
+    wfile_proc(el, fd, client_data, mask);
   }
   void merge(const AeFileEvent* fe) override;
   aeFileProc getRFileProc() { return rfile_proc; }

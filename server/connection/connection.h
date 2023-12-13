@@ -41,6 +41,7 @@ class Connection {
   bool hasReadHandler() { return read_handler != nullptr; }
   bool hasReadHandler() const { return read_handler != nullptr; }
   void setWriteHandler(std::unique_ptr<ConnHandler> handler);
+  void setWriteHandler(std::unique_ptr<ConnHandler> handler, bool barrier);
   void unsetWriteHandler();
   bool hasWriteHandler() { return write_handler != nullptr; }
   bool hasWriteHandler() const { return write_handler != nullptr; }
@@ -72,6 +73,7 @@ class Connection {
   ~Connection() { connClose(); }
 
  private:
+  static constexpr int connFlagWriteBarrier = 1;
   static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);

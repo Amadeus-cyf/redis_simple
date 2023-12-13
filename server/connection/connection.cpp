@@ -91,16 +91,26 @@ void Connection::unsetReadHandler() {
   flags &= ~ae::AeFlags::aeReadable;
 }
 
-void Connection::setWriteHandler(std::unique_ptr<ConnHandler> wHandler) {
-  if (!wHandler) {
+void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler) {
+  if (!handler) {
     unsetWriteHandler();
   } else {
     ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
         nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
     el->aeCreateFileEvent(fd, e);
-    write_handler = std::move(wHandler);
+    write_handler = std::move(handler);
     flags |= ae::AeFlags::aeWritable;
   }
+}
+
+void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler,
+                                 bool barrier) {
+  if (barrier) {
+    flags |= connFlagWriteBarrier;
+  } else {
+    flags &= ~connFlagWriteBarrier;
+  }
+  setWriteHandler(move(handler));
 }
 
 void Connection::unsetWriteHandler() {
@@ -131,7 +141,7 @@ ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
     }
   }
 
-  int invert = conn->flags & ae::AeFlags::aeBarrier;
+  int invert = conn->flags & connFlagWriteBarrier;
   if (!invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler) {
     conn->read_handler->handle(conn);
   }
