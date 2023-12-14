@@ -9,24 +9,26 @@
 
 namespace redis_simple {
 namespace command {
-const Command* Command::create(const std::string& name) {
+const std::unordered_map<std::string, std::shared_ptr<const Command>>
+    Command::cmdmap = {
+        {"GET",
+         std::make_shared<const t_string::GetCommand>(t_string::GetCommand())},
+        {"SET",
+         std::make_shared<const t_string::SetCommand>(t_string::SetCommand())},
+        {"DEL", std::make_shared<const t_string::DeleteCommand>(
+                    t_string::DeleteCommand())},
+        {"ZADD",
+         std::make_shared<const t_zset::ZAddCommand>(t_zset::ZAddCommand())},
+        {"ZREM",
+         std::make_shared<const t_zset::ZRemCommand>(t_zset::ZRemCommand())},
+        {"ZRANK",
+         std::make_shared<const t_zset::ZRankCommand>(t_zset::ZRankCommand())},
+};
+
+std::weak_ptr<const Command> Command::create(const std::string& name) {
   std::string upper_name;
   std::transform(name.begin(), name.end(), upper_name.begin(), toupper);
-  if (name == "GET") {
-    return new t_string::GetCommand();
-  } else if (name == "SET") {
-    return new t_string::SetCommand();
-  } else if (name == "DEL") {
-    return new t_string::DeleteCommand();
-  } else if (name == "ZADD") {
-    return new t_zset::ZAddCommand();
-  } else if (name == "ZREM") {
-    return new t_zset::ZRemCommand();
-  } else if (name == "ZRANK") {
-    return new t_zset::ZRankCommand();
-  } else {
-    return nullptr;
-  }
+  return cmdmap.at(name);
 }
 }  // namespace command
 }  // namespace redis_simple

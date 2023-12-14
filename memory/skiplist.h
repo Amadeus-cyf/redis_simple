@@ -534,10 +534,23 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::rangeByIndex(
 }
 
 template <typename Key, typename Comparator, typename Destructor>
+int Skiplist<Key, Comparator, Destructor>::rangeByIndexCount(
+    const SkiplistRangeByIndexSpec* spec) {
+  return rebaseAndValidateRangeIndexSpec(spec) ? _rangeByIndexCount(spec) : -1;
+}
+
+template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::revRangeByIndex(
     const SkiplistRangeByIndexSpec* spec) {
   return rebaseAndValidateRangeIndexSpec(spec) ? _revRangeByIndex(spec)
                                                : std::vector<Key>();
+}
+
+template <typename Key, typename Comparator, typename Destructor>
+int Skiplist<Key, Comparator, Destructor>::revRangeByIndexCount(
+    const SkiplistRangeByIndexSpec* spec) {
+  return rebaseAndValidateRangeIndexSpec(spec) ? _revRangeByIndexCount(spec)
+                                               : -1;
 }
 
 template <typename Key, typename Comparator, typename Destructor>
@@ -799,11 +812,11 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::_rangeByIndex(
     const SkiplistNode* n = node;
     node = node->getNext(0);
     ++start;
-    /* skip the key if the current index is less than the specified offset */
-    if (i++ < offset) {
-      continue;
+    /* add the key if the current index is larger of equal to the specified
+     * offset */
+    if (i++ >= offset) {
+      keys.push_back(n->key);
     }
-    keys.push_back(n->key);
   }
   return keys;
 }
@@ -833,11 +846,11 @@ size_t Skiplist<Key, Comparator, Destructor>::_rangeByIndexCount(
     }
     node = node->getNext(0);
     ++start;
-    /* skip the key if the current index is less than the specified offset */
-    if (i++ < offset) {
-      continue;
+    /* count the key if the current index is larger of equal to the specified
+     * offset */
+    if (i++ >= offset) {
+      ++num;
     }
-    ++num;
   }
   return num;
 }
@@ -868,11 +881,11 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::_revRangeByIndex(
     const SkiplistNode* n = node;
     node = node->getPrev();
     ++start;
-    /* skip the key if the current index is less than the specified offset */
-    if (i++ < offset) {
-      continue;
+    /* add the key if the current index is larger of equal to the specified
+     * offset */
+    if (i++ >= offset) {
+      keys.push_back(n->key);
     }
-    keys.push_back(n->key);
   }
   return keys;
 }
@@ -902,11 +915,11 @@ size_t Skiplist<Key, Comparator, Destructor>::_revRangeByIndexCount(
     }
     node = node->getPrev();
     ++start;
-    /* skip the key if the current index is less than the specified offset */
-    if (i++ < offset) {
-      continue;
+    /* count the key if the current index is larger of equal to the specified
+     * offset */
+    if (i++ >= offset) {
+      ++num;
     }
-    ++num;
   }
   return num;
 }

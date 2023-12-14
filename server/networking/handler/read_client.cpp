@@ -28,6 +28,7 @@ void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
   if (nread <= 0) {
     if (nread == 0 ||
         conn->getState() != connection::ConnState::connStateConnected) {
+      printf("client free\n");
       c->free();
     }
     return;

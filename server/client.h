@@ -37,14 +37,14 @@ class Client {
  private:
   explicit Client(connection::Connection* connection);
   ClientStatus processInlineBuffer();
-  void processCommand();
-  void setCmd(const command::Command* command) { cmd.reset(command); }
+  ClientStatus processCommand();
+  void setCmd(std::weak_ptr<const command::Command> command) { cmd = command; }
   void setArgs(const std::vector<std::string>& _args) { args = _args; }
   ssize_t _sendReply();
   ssize_t _sendvReply();
   const db::RedisDb* db;
   int flags;
-  std::unique_ptr<const command::Command> cmd;
+  std::weak_ptr<const command::Command> cmd;
   /* current command args*/
   std::vector<std::string> args;
   /* connection */

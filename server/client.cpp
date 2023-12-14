@@ -67,7 +67,9 @@ ClientStatus Client::processInputBuffer() {
     if (processInlineBuffer() == ClientStatus::clientErr) {
       break;
     }
-    processCommand();
+    if (processCommand() == ClientStatus::clientErr) {
+      return ClientStatus::clientErr;
+    }
   }
   query_buf->trimProcessedBuffer();
   return ClientStatus::clientOK;
@@ -85,20 +87,30 @@ ClientStatus Client::processInlineBuffer() {
   }
   const std::string& name = getCmdName(args);
   args.erase(args.begin());
-  const command::Command* cmd = command::Command::create(name);
-  if (!cmd) {
-    printf("command not found\n");
+  std::weak_ptr<const command::Command> cmdptr = command::Command::create(name);
+  if (std::shared_ptr<const command::Command> cmd = cmdptr.lock()) {
+    if (!cmd) {
+      printf("command not found\n");
+      return ClientStatus::clientErr;
+    }
+  } else {
+    printf("command resource expired");
     return ClientStatus::clientErr;
   }
-  setCmd(cmd);
+  setCmd(cmdptr);
   setArgs(args);
   return ClientStatus::clientOK;
 }
 
-void Client::processCommand() {
-  printf("process command: %s\n", cmd->getName().c_str());
-  if (cmd) {
-    cmd->exec(this);
+ClientStatus Client::processCommand() {
+  if (std::shared_ptr<const command::Command> command = cmd.lock()) {
+    printf("process command: %s\n", command->getName().c_str());
+    if (command) {
+      command->exec(this);
+    }
+    return ClientStatus::clientOK;
+  } else {
+    return ClientStatus::clientErr;
   }
 }
 }  // namespace redis_simple

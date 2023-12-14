@@ -81,9 +81,6 @@ std::unordered_map<int, int> AeKqueue::aeApiPoll(struct timespec* tspec) const {
       printf("kqueue: poll write\n");
       fdToMaskMap[events[i].ident] |= AeFlags::aeWritable;
     }
-    if (events[i].flags & EV_EOF) {
-      aeApiDelEvent(events[i].ident, AeFlags::aeReadable);
-    }
   }
   return fdToMaskMap;
 }

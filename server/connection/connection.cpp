@@ -91,7 +91,17 @@ void Connection::unsetReadHandler() {
   flags &= ~ae::AeFlags::aeReadable;
 }
 
-void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler) {
+void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler,
+                                 bool barrier) {
+  if (barrier) {
+    flags |= connFlagWriteBarrier;
+  } else {
+    flags &= ~connFlagWriteBarrier;
+  }
+  _setWriteHandler(std::move(handler));
+}
+
+void Connection::_setWriteHandler(std::unique_ptr<ConnHandler> handler) {
   if (!handler) {
     unsetWriteHandler();
   } else {
@@ -101,16 +111,6 @@ void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler) {
     write_handler = std::move(handler);
     flags |= ae::AeFlags::aeWritable;
   }
-}
-
-void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler,
-                                 bool barrier) {
-  if (barrier) {
-    flags |= connFlagWriteBarrier;
-  } else {
-    flags &= ~connFlagWriteBarrier;
-  }
-  setWriteHandler(move(handler));
 }
 
 void Connection::unsetWriteHandler() {
