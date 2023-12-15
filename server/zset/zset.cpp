@@ -46,7 +46,7 @@ int ZSet::getRank(const std::string& key) const {
   }
   const double score = de->val;
   const ZSetEntry ze(key, score);
-  return skiplist->getRankofElement(&ze);
+  return skiplist->getRankofKey(&ze);
 }
 
 std::vector<const ZSet::ZSetEntry*> ZSet::rangeByIndex(
