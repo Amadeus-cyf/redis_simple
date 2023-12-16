@@ -89,7 +89,7 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::getMemvec() {
 }
 
 void ReplyBuffer::clearBuf() {
-  memset(buf, bufpos, '\0');
+  memset(buf, '\0', bufpos);
   bufpos = 0;
   sent_len = 0;
 }

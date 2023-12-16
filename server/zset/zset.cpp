@@ -52,7 +52,7 @@ int ZSet::getRank(const std::string& key) const {
 std::vector<const ZSet::ZSetEntry*> ZSet::rangeByIndex(
     const RangeByIndexSpec* spec) const {
   in_memory::Skiplist<const ZSetEntry*, Comparator,
-                      Destructor>::SkiplistRangeByIndexSpec skiplist_spec = {
+                      Destructor>::SkiplistRangeByRankSpec skiplist_spec = {
       .min = spec->min,
       .max = spec->max,
       .minex = spec->minex,
@@ -65,7 +65,7 @@ std::vector<const ZSet::ZSetEntry*> ZSet::rangeByIndex(
     };
     skiplist_spec.option = &opt;
   }
-  return skiplist->rangeByIndex(&skiplist_spec);
+  return skiplist->rangeByRank(&skiplist_spec);
 }
 
 }  // namespace zset

@@ -16,14 +16,22 @@ class SkiplistTest : public testing::Test {
   static Skiplist<std::string>* skiplist;
 };
 
-struct RangeByIndexSpecTestCase {
-  const Skiplist<std::string>::SkiplistRangeByIndexSpec spec;
+struct RangeByRankSpecTestCase {
+  const Skiplist<std::string>::SkiplistRangeByRankSpec spec;
   const std::vector<std::string> keys;
   const std::vector<std::string> revkeys;
   const int count;
 };
 
-const std::vector<RangeByIndexSpecTestCase> rangeByIndexSpecTestCases();
+struct RangeByKeySpecTestCase {
+  const Skiplist<std::string>::SkiplistRangeByKeySpec spec;
+  const std::vector<std::string> keys;
+  const std::vector<std::string> revkeys;
+  const int count;
+};
+
+const std::vector<const RangeByRankSpecTestCase> rangeByRankSpecTestCases();
+const std::vector<const RangeByKeySpecTestCase> rangeByKeySpecTestCases();
 void scanSkiplist(const Skiplist<std::string>* skiplist);
 
 Skiplist<std::string>* SkiplistTest::skiplist;
@@ -210,40 +218,55 @@ TEST_F(SkiplistTest, ArrayAccess) {
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);
 }
 
-TEST_F(SkiplistTest, RangeByIndex) {
-  const std::vector<RangeByIndexSpecTestCase>& tests =
-      rangeByIndexSpecTestCases();
-  for (const RangeByIndexSpecTestCase& test : tests) {
-    const std::vector<std::string>& keys = skiplist->rangeByIndex(&test.spec);
-    ASSERT_EQ(keys.size(), test.keys.size());
-    for (int i = 0; i < keys.size(); ++i) {
-      ASSERT_EQ(keys[i], test.keys[i]);
+TEST_F(SkiplistTest, RangeByRank) {
+  const std::vector<const RangeByRankSpecTestCase>& tests =
+      rangeByRankSpecTestCases();
+  for (const RangeByRankSpecTestCase& test : tests) {
+    ASSERT_EQ(skiplist->rangeByRank(&test.spec), test.keys);
+  }
+}
+
+TEST_F(SkiplistTest, rangeCount) {
+  const std::vector<const RangeByRankSpecTestCase>& tests =
+      rangeByRankSpecTestCases();
+  for (const RangeByRankSpecTestCase& test : tests) {
+    ASSERT_EQ(skiplist->rangeCount(&test.spec), test.count);
+  }
+}
+
+TEST_F(SkiplistTest, RevRangeByRank) {
+  const std::vector<const RangeByRankSpecTestCase>& tests =
+      rangeByRankSpecTestCases();
+  for (const RangeByRankSpecTestCase& test : tests) {
+    ASSERT_EQ(skiplist->revRangeByRank(&test.spec), test.revkeys);
+  }
+}
+
+TEST_F(SkiplistTest, RangeByKey) {
+  const std::vector<const RangeByKeySpecTestCase>& tests =
+      rangeByKeySpecTestCases();
+  for (const RangeByKeySpecTestCase& test : tests) {
+    const std::vector<const RangeByKeySpecTestCase>& tests =
+        rangeByKeySpecTestCases();
+    for (const RangeByKeySpecTestCase& test : tests) {
+      ASSERT_EQ(skiplist->rangeByKey(&test.spec), test.keys);
     }
   }
 }
 
-TEST_F(SkiplistTest, RangeByIndexCount) {
-  const std::vector<RangeByIndexSpecTestCase>& tests =
-      rangeByIndexSpecTestCases();
-  for (const RangeByIndexSpecTestCase& test : tests) {
-    int count = skiplist->rangeByIndexCount(&test.spec);
-    ASSERT_EQ(count, test.count);
-  }
-}
-
-TEST_F(SkiplistTest, RevRangeByIndex) {
-  const std::vector<RangeByIndexSpecTestCase>& tests =
-      rangeByIndexSpecTestCases();
-  for (const RangeByIndexSpecTestCase& test : tests) {
-    const std::vector<std::string>& revkeys =
-        skiplist->revRangeByIndex(&test.spec);
-    for (int i = 0; i < revkeys.size(); ++i) {
-      ASSERT_EQ(revkeys[i], test.revkeys[i]);
+TEST_F(SkiplistTest, RevRangeByKey) {
+  const std::vector<const RangeByKeySpecTestCase>& tests =
+      rangeByKeySpecTestCases();
+  for (const RangeByKeySpecTestCase& test : tests) {
+    const std::vector<const RangeByKeySpecTestCase>& tests =
+        rangeByKeySpecTestCases();
+    for (const RangeByKeySpecTestCase& test : tests) {
+      ASSERT_EQ(skiplist->revRangeByKey(&test.spec), test.revkeys);
     }
   }
 }
 
-const std::vector<RangeByIndexSpecTestCase> rangeByIndexSpecTestCases() {
+const std::vector<const RangeByRankSpecTestCase> rangeByRankSpecTestCases() {
   static auto opt1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistRangeOption>(
           new Skiplist<std::string>::SkiplistRangeOption({
@@ -346,6 +369,20 @@ const std::vector<RangeByIndexSpecTestCase> rangeByIndexSpecTestCases() {
           .count = 2,
       },
       {
+          /* offset out of range */
+          .spec =
+              {
+                  .min = 0,
+                  .max = 4,
+                  .minex = false,
+                  .maxex = false,
+                  .option = opt4.get(),
+              },
+          .keys = {},
+          .revkeys = {},
+          .count = 0,
+      },
+      {
           /* invalid spec, non-exclusive, min > max */
           .spec =
               {
@@ -374,7 +411,7 @@ const std::vector<RangeByIndexSpecTestCase> rangeByIndexSpecTestCases() {
           .count = -1,
       },
       {
-          /* max exclusive, min == max */
+          /* invalid spec, max exclusive, min == max */
           .spec =
               {
                   .min = 1,
@@ -387,12 +424,120 @@ const std::vector<RangeByIndexSpecTestCase> rangeByIndexSpecTestCases() {
           .revkeys = {},
           .count = -1,
       },
+  };
+}
+
+const std::vector<const RangeByKeySpecTestCase> rangeByKeySpecTestCases() {
+  static auto opt1 =
+      std::unique_ptr<Skiplist<std::string>::SkiplistRangeOption>(
+          new Skiplist<std::string>::SkiplistRangeOption({
+              .limit = -1,
+              .offset = 0,
+          }));
+  static auto opt2 =
+      std::unique_ptr<Skiplist<std::string>::SkiplistRangeOption>(
+          new Skiplist<std::string>::SkiplistRangeOption({
+              .limit = 2,
+              .offset = 0,
+          }));
+  static auto opt3 =
+      std::unique_ptr<Skiplist<std::string>::SkiplistRangeOption>(
+          new Skiplist<std::string>::SkiplistRangeOption({
+              .limit = 3,
+              .offset = 2,
+          }));
+  static auto opt4 =
+      std::unique_ptr<Skiplist<std::string>::SkiplistRangeOption>(
+          new Skiplist<std::string>::SkiplistRangeOption({
+              .limit = -1,
+              .offset = 10,
+          }));
+
+  return {
+      {
+          /* base */
+          .spec =
+              {
+                  .min = "a",
+                  .max = "zzzzzzzz",
+                  .minex = false,
+                  .maxex = false,
+                  .option = nullptr,
+              },
+          .keys = {"key0", "key2", "key4", "key5"},
+          .revkeys = {"key5", "key4", "key2", "key0"},
+          .count = 4,
+      },
+      {
+          /* min exclusive */
+          .spec = {.min = "key2",
+                   .max = "key5",
+                   .minex = true,
+                   .maxex = false,
+                   .option = nullptr},
+          .keys = {"key4", "key5"},
+          .revkeys = {"key5", "key4"},
+          .count = 2,
+      },
+      {
+          /* max exclusive */
+          .spec = {.min = "key2",
+                   .max = "key5",
+                   .minex = false,
+                   .maxex = true,
+                   .option = nullptr},
+          .keys = {"key2", "key4"},
+          .revkeys = {"key4", "key2"},
+          .count = 2,
+      },
+      {
+          /* limit = -1, return all keys in the range */
+          .spec =
+              {
+                  .min = "key2",
+                  .max = "key5",
+                  .minex = false,
+                  .maxex = false,
+                  .option = opt1.get(),
+              },
+          .keys = {"key2", "key4", "key5"},
+          .revkeys = {"key5", "key4", "key2"},
+          .count = 3,
+      },
+      {
+          /* with limit */
+          .spec =
+              {
+                  .min = "a",
+                  .max = "zzzzzzz",
+                  .minex = false,
+                  .maxex = false,
+                  .option = opt2.get(),
+              },
+          .keys = {"key0", "key2"},
+          .revkeys = {"key5", "key4"},
+          .count = 2,
+      },
+      {
+          /* with offset */
+          .spec =
+              {
+                  .min = "a",
+                  .max = "zzzzzzz",
+                  .minex = false,
+                  .maxex = false,
+                  .option = opt3.get(),
+              },
+          .keys = {"key4", "key5"},
+          .revkeys = {"key2", "key0"},
+          .count = 2,
+      },
       {
           /* offset out of range */
           .spec =
               {
-                  .min = 0,
-                  .max = 4,
+                  .min = "a",
+                  .max = "zzzzzzz",
                   .minex = false,
                   .maxex = false,
                   .option = opt4.get(),
@@ -400,6 +545,34 @@ const std::vector<RangeByIndexSpecTestCase> rangeByIndexSpecTestCases() {
           .keys = {},
           .revkeys = {},
           .count = 0,
+      },
+      {
+          /* invalid spec, non-exclusive, min > max */
+          .spec =
+              {
+                  .min = "zzzzzzz",
+                  .max = "a",
+                  .minex = false,
+                  .maxex = false,
+                  .option = nullptr,
+              },
+          .keys = {},
+          .revkeys = {},
+          .count = -1,
+      },
+      {
+          /* invalid spec, max exclusive, min == max */
+          .spec =
+              {
+                  .min = "key0",
+                  .max = "key0",
+                  .minex = false,
+                  .maxex = true,
+                  .option = nullptr,
+              },
+          .keys = {},
+          .revkeys = {},
+          .count = -1,
       },
   };
 }
