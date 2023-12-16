@@ -9,7 +9,7 @@
 
 namespace redis_simple {
 namespace command {
-const std::unordered_map<std::string, std::shared_ptr<const Command>>
+const std::unordered_map<std::string, std::shared_ptr<const Command>>&
     Command::cmdmap = {
         {"GET",
          std::make_shared<const t_string::GetCommand>(t_string::GetCommand())},

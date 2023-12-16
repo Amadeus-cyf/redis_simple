@@ -17,9 +17,9 @@ class Command {
   virtual ~Command() = default;
 
  private:
-  static const std::unordered_map<std::string, std::shared_ptr<const Command>>
+  static const std::unordered_map<std::string, std::shared_ptr<const Command>>&
       cmdmap;
-  std::string name;
+  const std::string& name;
 };
 }  // namespace command
 }  // namespace redis_simple

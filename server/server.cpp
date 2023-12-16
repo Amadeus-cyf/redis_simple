@@ -31,8 +31,8 @@ void Server::run(const std::string& ip, const int& port) {
   fd = conn.getFd();
   acceptConnHandler();
   ae::AeTimeEventImpl<Server>::aeTimeProc time_proc = [](long long id,
-                                                         Server* clientData) {
-    return get()->serverCron(id, clientData);
+                                                         Server* server) {
+    return get()->serverCron(id, server);
   };
   el->aeCreateTimeEvent(
       ae::AeTimeEventImpl<Server>::create(time_proc, nullptr, this));

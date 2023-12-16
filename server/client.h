@@ -44,6 +44,7 @@ class Client {
   ssize_t _sendvReply();
   const db::RedisDb* db;
   int flags;
+  /* current command */
   std::weak_ptr<const command::Command> cmd;
   /* current command args*/
   std::vector<std::string> args;

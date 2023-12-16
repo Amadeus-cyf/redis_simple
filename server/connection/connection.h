@@ -73,12 +73,15 @@ class Connection {
   ~Connection() { connClose(); }
 
  private:
+  /* if this flag is set, then write handler will be called before the read
+   * handler */
   static constexpr int connFlagWriteBarrier = 1;
   static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
   void _setWriteHandler(std::unique_ptr<ConnHandler> handler);
   int fd;
+  /* flags used to judge connFlagWriteBarrier is set */
   int flags;
   ae::AeEventLoop* el;
   mutable ConnState state;
