@@ -17,47 +17,47 @@ Connection::Connection(const Context& ctx)
       write_handler(nullptr),
       accept_handler(nullptr) {}
 
-StatusCode Connection::connect(const std::string& remote_ip, int remote_port,
+StatusCode Connection::Connect(const std::string& remote_ip, int remote_port,
                                const std::string& local_ip, int local_port) {
   if (!el) {
     return StatusCode::c_err;
   }
   std::optional<std::string> opt_ip = std::make_optional<std::string>(local_ip);
   std::optional<int> opt_port = std::make_optional<int>(local_port);
-  int s = tcp::tcpConnect(remote_ip, remote_port, true, opt_ip, opt_port);
+  int s = tcp::TCP_Connect(remote_ip, remote_port, true, opt_ip, opt_port);
   if (s == -1) {
     return StatusCode::c_err;
   }
   fd = s;
   state = ConnState::connStateConnecting;
-  ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
-      nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
-  if (el->aeCreateFileEvent(fd, e) < 0) {
+  ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::Create(
+      nullptr, ConnSocketEventHandler, this, ae::AeFlags::aeWritable);
+  if (el->AeCreateFileEvent(fd, e) < 0) {
     printf("adding connection socket event handler error");
     return StatusCode::c_err;
   }
   return StatusCode::c_ok;
 }
 
-StatusCode Connection::listen(const std::string& ip, int port) {
-  int s = tcp::tcpCreateSocket(AF_INET, true);
+StatusCode Connection::Listen(const std::string& ip, int port) {
+  int s = tcp::TCP_CreateSocket(AF_INET, true);
   if (s < 0) {
     printf("create socket failed\n");
     return StatusCode::c_err;
   }
-  if (tcp::tcpBindAndListen(s, ip, port) == tcp::TCPStatusCode::tcpError) {
+  if (tcp::TCP_BindAndListen(s, ip, port) == tcp::TCPStatusCode::tcpError) {
     return StatusCode::c_err;
   }
   fd = s;
   return StatusCode::c_ok;
 }
 
-StatusCode Connection::accept(std::string* remote_ip, int* remote_port) {
+StatusCode Connection::Accept(std::string* remote_ip, int* remote_port) {
   if (fd < 0) {
     printf("socket not created\n");
     return StatusCode::c_err;
   }
-  int s = tcp::tcpAccept(fd, remote_ip, remote_port);
+  int s = tcp::TCP_Accept(fd, remote_ip, remote_port);
   if (s < 0) {
     return StatusCode::c_err;
   }
@@ -67,31 +67,31 @@ StatusCode Connection::accept(std::string* remote_ip, int* remote_port) {
   state = ConnState::connStateConnected;
   fd = s;
   if (accept_handler) {
-    accept_handler->handle(this);
+    accept_handler->Handle(this);
   }
   printf("conn state accept %d\n", state);
   return StatusCode::c_ok;
 }
 
-void Connection::setReadHandler(std::unique_ptr<ConnHandler> rHandler) {
+void Connection::SetReadHandler(std::unique_ptr<ConnHandler> rHandler) {
   if (!rHandler) {
-    unsetReadHandler();
+    UnsetReadHandler();
   } else {
-    ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
-        connSocketEventHandler, nullptr, this, ae::AeFlags::aeReadable);
-    el->aeCreateFileEvent(fd, e);
+    ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::Create(
+        ConnSocketEventHandler, nullptr, this, ae::AeFlags::aeReadable);
+    el->AeCreateFileEvent(fd, e);
     read_handler = std::move(rHandler);
     flags |= ae::AeFlags::aeReadable;
   }
 }
 
-void Connection::unsetReadHandler() {
+void Connection::UnsetReadHandler() {
   read_handler = nullptr;
-  el->aeDeleteFileEvent(fd, ae::AeFlags::aeReadable);
+  el->AeDeleteFileEvent(fd, ae::AeFlags::aeReadable);
   flags &= ~ae::AeFlags::aeReadable;
 }
 
-void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler,
+void Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
                                  bool barrier) {
   if (barrier) {
     flags |= connFlagWriteBarrier;
@@ -103,23 +103,23 @@ void Connection::setWriteHandler(std::unique_ptr<ConnHandler> handler,
 
 void Connection::_setWriteHandler(std::unique_ptr<ConnHandler> handler) {
   if (!handler) {
-    unsetWriteHandler();
+    UnsetWriteHandler();
   } else {
-    ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::create(
-        nullptr, connSocketEventHandler, this, ae::AeFlags::aeWritable);
-    el->aeCreateFileEvent(fd, e);
+    ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::Create(
+        nullptr, ConnSocketEventHandler, this, ae::AeFlags::aeWritable);
+    el->AeCreateFileEvent(fd, e);
     write_handler = std::move(handler);
     flags |= ae::AeFlags::aeWritable;
   }
 }
 
-void Connection::unsetWriteHandler() {
+void Connection::UnsetWriteHandler() {
   write_handler = nullptr;
-  el->aeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
+  el->AeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
   flags &= ~ae::AeFlags::aeWritable;
 }
 
-ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
+ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
                                                      int fd, Connection* conn,
                                                      int mask) {
   printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
@@ -128,37 +128,37 @@ ae::AeEventStatus Connection::connSocketEventHandler(ae::AeEventLoop* el,
     return ae::AeEventStatus::aeEventErr;
   }
 
-  printf("state: %d\n", conn->getState());
-  if (conn->getState() == ConnState::connStateConnecting &&
+  printf("state: %d\n", conn->State());
+  if (conn->State() == ConnState::connStateConnecting &&
       (mask & ae::AeFlags::aeWritable)) {
-    if (tcp::isSocketError(fd)) {
+    if (tcp::IsSocketError(fd)) {
       printf("socker error\n");
-      conn->setState(ConnState::connStateError);
+      conn->SetState(ConnState::connStateError);
       return ae::AeEventStatus::aeEventErr;
     } else {
       printf("connection state set to connected\n");
-      conn->setState(ConnState::connStateConnected);
+      conn->SetState(ConnState::connStateConnected);
     }
   }
 
   int invert = conn->flags & connFlagWriteBarrier;
   if (!invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler) {
-    conn->read_handler->handle(conn);
+    conn->read_handler->Handle(conn);
   }
   if ((mask & ae::AeFlags::aeWritable) && conn->write_handler) {
-    conn->write_handler->handle(conn);
+    conn->write_handler->Handle(conn);
   }
   if (invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler) {
-    conn->read_handler->handle(conn);
+    conn->read_handler->Handle(conn);
   }
   return ae::AeEventStatus::aeEventOK;
 }
 
-ssize_t Connection::connRead(const char* buffer, size_t readlen) {
-  return std::as_const(*this).connRead(buffer, readlen);
+ssize_t Connection::Read(const char* buffer, size_t readlen) {
+  return std::as_const(*this).Read(buffer, readlen);
 }
 
-ssize_t Connection::connRead(const char* buffer, size_t readlen) const {
+ssize_t Connection::Read(const char* buffer, size_t readlen) const {
   ssize_t nread = 0;
   int r = read(fd, (char*)buffer, readlen);
   if (r < 0 && errno != EAGAIN) {
@@ -171,11 +171,11 @@ ssize_t Connection::connRead(const char* buffer, size_t readlen) const {
   return r;
 }
 
-ssize_t Connection::connRead(std::string& s) {
-  return std::as_const(*this).connRead(s);
+ssize_t Connection::Read(std::string& s) {
+  return std::as_const(*this).Read(s);
 }
 
-ssize_t Connection::connRead(std::string& s) const {
+ssize_t Connection::Read(std::string& s) const {
   char buffer[1024];
   int r = 0, nread = 0;
   while ((r = read(fd, buffer + nread, 1024)) != EOF) {
@@ -196,14 +196,13 @@ ssize_t Connection::connRead(std::string& s) const {
   return s.size();
 }
 
-ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
-                                 long timeout) {
-  return std::as_const(*this).connSyncRead(buffer, readlen, timeout);
+ssize_t Connection::SyncRead(const char* buffer, size_t readlen, long timeout) {
+  return std::as_const(*this).SyncRead(buffer, readlen, timeout);
 }
 
-ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
-                                 long timeout) const {
-  int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
+ssize_t Connection::SyncRead(const char* buffer, size_t readlen,
+                             long timeout) const {
+  int r = el->AeWait(fd, ae::AeFlags::aeReadable, timeout);
   if (r < 0) {
     printf("conn sync read failed for connection %d\n", fd);
     return -1;
@@ -211,15 +210,15 @@ ssize_t Connection::connSyncRead(const char* buffer, size_t readlen,
     printf("aeWait timeout\n");
     return 0;
   }
-  return connRead(buffer, readlen);
+  return Read(buffer, readlen);
 }
 
-ssize_t Connection::connSyncRead(std::string& s, long timeout) {
-  return std::as_const(*this).connSyncRead(s, timeout);
+ssize_t Connection::SyncRead(std::string& s, long timeout) {
+  return std::as_const(*this).SyncRead(s, timeout);
 }
 
-ssize_t Connection::connSyncRead(std::string& s, long timeout) const {
-  int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
+ssize_t Connection::SyncRead(std::string& s, long timeout) const {
+  int r = el->AeWait(fd, ae::AeFlags::aeReadable, timeout);
   if (r < 0) {
     printf("conn sync read string failed for connection %d\n", fd);
     return -1;
@@ -228,15 +227,15 @@ ssize_t Connection::connSyncRead(std::string& s, long timeout) const {
     return 0;
   }
   printf("Conn start read sync\n");
-  return connRead(s);
+  return Read(s);
 }
 
-ssize_t Connection::connSyncReadline(std::string& s, long timeout) {
-  return std::as_const(*this).connSyncReadline(s, timeout);
+ssize_t Connection::SyncReadline(std::string& s, long timeout) {
+  return std::as_const(*this).SyncReadline(s, timeout);
 }
 
-ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
-  int r = el->aeWait(fd, ae::AeFlags::aeReadable, timeout);
+ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
+  int r = el->AeWait(fd, ae::AeFlags::aeReadable, timeout);
   if (r < 0) {
     printf("conn sync readline failed for connection %d\n", fd);
     return -1;
@@ -262,11 +261,11 @@ ssize_t Connection::connSyncReadline(std::string& s, long timeout) const {
   return r < 0 ? r : s.size();
 }
 
-ssize_t Connection::connWrite(const char* buffer, size_t len) {
-  return std::as_const(*this).connWrite(buffer, len);
+ssize_t Connection::Write(const char* buffer, size_t len) {
+  return std::as_const(*this).Write(buffer, len);
 }
 
-ssize_t Connection::connWrite(const char* buffer, size_t len) const {
+ssize_t Connection::Write(const char* buffer, size_t len) const {
   ssize_t n = write(fd, buffer, len);
   if (n < 0 && errno != EAGAIN) {
     if (errno != EINTR && state == ConnState::connStateConnected) {
@@ -277,14 +276,13 @@ ssize_t Connection::connWrite(const char* buffer, size_t len) const {
   return n;
 }
 
-ssize_t Connection::connSyncWrite(const char* buffer, size_t len,
-                                  long timeout) {
-  return std::as_const(*this).connSyncWrite(buffer, len, timeout);
+ssize_t Connection::SyncWrite(const char* buffer, size_t len, long timeout) {
+  return std::as_const(*this).SyncWrite(buffer, len, timeout);
 }
 
-ssize_t Connection::connSyncWrite(const char* buffer, size_t len,
-                                  long timeout) const {
-  int r = el->aeWait(fd, ae::AeFlags::aeWritable, timeout);
+ssize_t Connection::SyncWrite(const char* buffer, size_t len,
+                              long timeout) const {
+  int r = el->AeWait(fd, ae::AeFlags::aeWritable, timeout);
   if (r < 0) {
     printf("conn sync write failed for connection fd %d\n", fd);
     return -1;
@@ -293,15 +291,15 @@ ssize_t Connection::connSyncWrite(const char* buffer, size_t len,
     return 0;
   }
   printf("Conn start write sync %s\n", buffer);
-  return connWrite(buffer, len);
+  return Write(buffer, len);
 }
 
-ssize_t Connection::connWritev(
+ssize_t Connection::Writev(
     const std::vector<std::pair<char*, size_t>>& mem_blocks) {
-  return std::as_const(*this).connWritev(mem_blocks);
+  return std::as_const(*this).Writev(mem_blocks);
 }
 
-ssize_t Connection::connWritev(
+ssize_t Connection::Writev(
     const std::vector<std::pair<char*, size_t>>& mem_blocks) const {
   iovec vec[mem_blocks.size()];
   ssize_t len = 0, written = 0;

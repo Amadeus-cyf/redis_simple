@@ -7,19 +7,19 @@ namespace networking {
 namespace {
 class ReadFromClientHandler : public connection::ConnHandler {
  public:
-  void handle(connection::Connection* conn) override;
+  void Handle(connection::Connection* conn) override;
 
  private:
-  void readQueryFromClient(connection::Connection* conn);
+  void ReadQueryFromClient(connection::Connection* conn);
 };
 
-void ReadFromClientHandler::handle(connection::Connection* conn) {
-  readQueryFromClient(conn);
+void ReadFromClientHandler::Handle(connection::Connection* conn) {
+  ReadQueryFromClient(conn);
 }
 
-void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
+void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
   printf("read query from client\n");
-  Client* c = static_cast<Client*>(conn->getPrivateData());
+  Client* c = static_cast<Client*>(conn->PrivateData());
   if (!c) {
     printf("invalid client\n");
     return;
@@ -27,7 +27,7 @@ void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
   ssize_t nread = c->readQuery();
   if (nread <= 0) {
     if (nread == 0 ||
-        conn->getState() != connection::ConnState::connStateConnected) {
+        conn->State() != connection::ConnState::connStateConnected) {
       printf("client free\n");
       c->free();
     }
@@ -36,9 +36,9 @@ void ReadFromClientHandler::readQueryFromClient(connection::Connection* conn) {
   if (c->processInputBuffer() == ClientStatus::clientErr) {
     printf("process query buffer failed\n");
   }
-  if (c->hasPendingReplies() && !c->getConn()->hasWriteHandler()) {
+  if (c->hasPendingReplies() && !c->getConn()->HasWriteHandler()) {
     printf("client has pending replies, install write handler\n");
-    c->getConn()->setWriteHandler(connection::ConnHandler::create(
+    c->getConn()->SetWriteHandler(connection::ConnHandler::Create(
         connection::ConnHandlerType::writeReplyToClient));
   }
 }

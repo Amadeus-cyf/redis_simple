@@ -6,7 +6,7 @@ namespace redis_simple {
 namespace in_memory {
 class BufNode {
  public:
-  static BufNode* create(const size_t len) {
+  static BufNode* Create(const size_t len) {
     return new BufNode(std::max(len, static_cast<size_t>(1024)));
   }
   ~BufNode() {

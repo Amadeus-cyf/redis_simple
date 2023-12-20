@@ -10,11 +10,11 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
-std::shared_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::initEventLoop();
+std::shared_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::InitEventLoop();
 
-Server::Server() : db(db::RedisDb::init()) {}
+Server::Server() : db(db::RedisDb::Init()) {}
 
-Server* Server::get() {
+Server* Server::Get() {
   static std::unique_ptr<Server> server;
   if (!server) {
     server = std::unique_ptr<Server>(new Server());
@@ -22,33 +22,33 @@ Server* Server::get() {
   return server.get();
 }
 
-void Server::run(const std::string& ip, const int& port) {
+void Server::Run(const std::string& ip, const int& port) {
   const connection::Context& ctx = {.fd = -1, .loop = el.get()};
   connection::Connection conn(ctx);
-  if (conn.listen(ip, port) == connection::StatusCode::c_err) {
+  if (conn.Listen(ip, port) == connection::StatusCode::c_err) {
     return;
   }
-  fd = conn.getFd();
-  acceptConnHandler();
+  fd = conn.Fd();
+  AcceptConnHandler();
   ae::AeTimeEventImpl<Server>::aeTimeProc time_proc = [](long long id,
                                                          Server* server) {
-    return get()->serverCron(id, server);
+    return Get()->ServerCron(id, server);
   };
-  el->aeCreateTimeEvent(
-      ae::AeTimeEventImpl<Server>::create(time_proc, nullptr, this));
-  el->aeMain();
+  el->AeCreateTimeEvent(
+      ae::AeTimeEventImpl<Server>::Create(time_proc, nullptr, this));
+  el->AeMain();
 }
 
-void Server::acceptConnHandler() {
-  ae::AeFileEvent* fe = ae::AeFileEventImpl<Server>::create(
-      networking::acceptHandler, nullptr, this, ae::aeReadable);
-  if (el->aeCreateFileEvent(fd, fe) < 0) {
+void Server::AcceptConnHandler() {
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<Server>::Create(
+      networking::AcceptHandler, nullptr, this, ae::aeReadable);
+  if (el->AeCreateFileEvent(fd, fe) < 0) {
     printf("error in adding client creation file event\n");
   }
 }
 
-int Server::serverCron(long long id, void* clientData) {
-  activeExpireCycle();
+int Server::ServerCron(long long id, void* clientData) {
+  ActiveExpireCycle();
   return 1;
 }
 }  // namespace redis_simple

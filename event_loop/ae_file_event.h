@@ -7,20 +7,20 @@ class AeEventLoop;
 class AeFileEvent {
  public:
   AeFileEvent(int mask) : mask(mask) {}
-  int getMask() { return mask; }
-  int getMask() const { return mask; }
-  void setMask(int _mask) { mask |= _mask; }
-  virtual void callReadProc(AeEventLoop* el, int fd, int mask) = 0;
-  virtual void callReadProc(AeEventLoop* el, int fd, int mask) const = 0;
-  virtual void callWriteProc(AeEventLoop* el, int fd, int mask) = 0;
-  virtual void callWriteProc(AeEventLoop* el, int fd, int mask) const = 0;
-  virtual bool hasRFileProc() = 0;
-  virtual bool hasRFileProc() const = 0;
-  virtual bool hasWFileProc() = 0;
-  virtual bool hasWFileProc() const = 0;
-  virtual bool isRWProcDiff() = 0;
-  virtual bool isRWProcDiff() const = 0;
-  virtual void merge(const AeFileEvent* fe) = 0;
+  int GetMask() { return mask; }
+  int GetMask() const { return mask; }
+  void SetMask(int _mask) { mask |= _mask; }
+  virtual void CallReadProc(AeEventLoop* el, int fd, int mask) = 0;
+  virtual void CallReadProc(AeEventLoop* el, int fd, int mask) const = 0;
+  virtual void CallWriteProc(AeEventLoop* el, int fd, int mask) = 0;
+  virtual void CallWriteProc(AeEventLoop* el, int fd, int mask) const = 0;
+  virtual bool HasRFileProc() = 0;
+  virtual bool HasRFileProc() const = 0;
+  virtual bool HasWFileProc() = 0;
+  virtual bool HasWFileProc() const = 0;
+  virtual bool IsRWProcDiff() = 0;
+  virtual bool IsRWProcDiff() const = 0;
+  virtual void Merge(const AeFileEvent* fe) = 0;
   virtual ~AeFileEvent() = default;
 
  private:

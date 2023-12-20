@@ -15,24 +15,24 @@ const std::string& flagLimit = "LIMIT";
 const std::string& flagReverse = "REV";
 const std::string& flagWithScores = "WITHSCORES";
 
-bool flaggedByScore(const std::vector<std::string>& args);
-std::unique_ptr<const zset::ZSet::RangeByRankSpec> parseRangeByRankSpec(
+bool FlaggedByScore(const std::vector<std::string>& args);
+std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeByRankSpec(
     const std::vector<std::string>& args);
-int parseRange(const std::string& start, const std::string& end,
+int ParseRange(const std::string& start, const std::string& end,
                zset::ZSet::RangeByRankSpec* spec);
-int parseRangeTerm(const std::string& term, long* dst);
-std::unique_ptr<const zset::ZSet::RangeByScoreSpec> parseRangeByScoreSpec(
+int ParseRangeTerm(const std::string& term, long* dst);
+std::unique_ptr<const zset::ZSet::RangeByScoreSpec> ParseRangeByScoreSpec(
     const std::vector<std::string>& args);
-int parseScoreRange(const std::string& start, const std::string& end,
+int ParseScoreRange(const std::string& start, const std::string& end,
                     zset::ZSet::RangeByScoreSpec* spec);
-int parseScoreTerm(const std::string& term, double* dst);
-int parseLimitOffsetAndCount(const std::vector<std::string>& args, long* offset,
+int ParseScoreTerm(const std::string& term, double* dst);
+int ParseLimitOffsetAndCount(const std::vector<std::string>& args, long* offset,
                              long* count);
-bool isReverse(const std::vector<std::string>& args);
-const db::RedisObj* getRedisObj(std::shared_ptr<const db::RedisDb> db,
+bool IsReverse(const std::vector<std::string>& args);
+const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                 const std::string& key);
 
-bool flaggedByScore(const std::vector<std::string>& args) {
+bool FlaggedByScore(const std::vector<std::string>& args) {
   /* start searching at the 3rd index(0-based). Rankes before are key, start and
    * end offsets */
   for (int i = 3; i < args.size(); ++i) {
@@ -45,7 +45,7 @@ bool flaggedByScore(const std::vector<std::string>& args) {
   return false;
 }
 
-std::unique_ptr<const zset::ZSet::RangeByRankSpec> parseRangeByRankSpec(
+std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeByRankSpec(
     const std::vector<std::string>& args) {
   if (args.size() < 3) {
     return nullptr;
@@ -53,23 +53,23 @@ std::unique_ptr<const zset::ZSet::RangeByRankSpec> parseRangeByRankSpec(
   const std::string &start = args[2], &end = args[3];
   zset::ZSet::RangeByRankSpec* spec = new zset::ZSet::RangeByRankSpec();
   /* parse range */
-  if (parseRange(start, end, spec) < 0) {
+  if (ParseRange(start, end, spec) < 0) {
     return nullptr;
   }
   spec->limit = std::make_unique<zset::ZSet::LimitSpec>();
   /* parse limit */
-  parseLimitOffsetAndCount(args, &(spec->limit->offset), &(spec->limit->count));
+  ParseLimitOffsetAndCount(args, &(spec->limit->offset), &(spec->limit->count));
   /* parse reverse */
-  spec->reverse = isReverse(args);
+  spec->reverse = IsReverse(args);
   return std::unique_ptr<const zset::ZSet::RangeByRankSpec>(spec);
 }
 
-int parseRange(const std::string& start, const std::string& end,
+int ParseRange(const std::string& start, const std::string& end,
                zset::ZSet::RangeByRankSpec* spec) {
-  if (parseRangeTerm(start, &(spec->min)) < 0) {
+  if (ParseRangeTerm(start, &(spec->min)) < 0) {
     return -1;
   }
-  if (parseRangeTerm(end, &(spec->max)) < 0) {
+  if (ParseRangeTerm(end, &(spec->max)) < 0) {
     return -1;
   }
   if (start[0] == '(') {
@@ -81,7 +81,7 @@ int parseRange(const std::string& start, const std::string& end,
   return 0;
 }
 
-int parseRangeTerm(const std::string& term, long* dst) {
+int ParseRangeTerm(const std::string& term, long* dst) {
   if (term == "+inf") {
     *dst = std::numeric_limits<long>::infinity();
   } else if (term == "-inf") {
@@ -102,7 +102,7 @@ int parseRangeTerm(const std::string& term, long* dst) {
   return 0;
 }
 
-std::unique_ptr<const zset::ZSet::RangeByScoreSpec> parseRangeByScoreSpec(
+std::unique_ptr<const zset::ZSet::RangeByScoreSpec> ParseRangeByScoreSpec(
     const std::vector<std::string>& args) {
   if (args.size() < 3) {
     return nullptr;
@@ -110,23 +110,23 @@ std::unique_ptr<const zset::ZSet::RangeByScoreSpec> parseRangeByScoreSpec(
   const std::string &start = args[2], &end = args[3];
   zset::ZSet::RangeByScoreSpec* spec = new zset::ZSet::RangeByScoreSpec();
   /* parse score range */
-  if (parseScoreRange(start, end, spec) < 0) {
+  if (ParseScoreRange(start, end, spec) < 0) {
     return nullptr;
   }
   spec->limit = std::make_unique<zset::ZSet::LimitSpec>();
   /* parse limit */
-  parseLimitOffsetAndCount(args, &(spec->limit->offset), &(spec->limit->count));
+  ParseLimitOffsetAndCount(args, &(spec->limit->offset), &(spec->limit->count));
   /* parse reverse */
-  spec->reverse = isReverse(args);
+  spec->reverse = IsReverse(args);
   return std::unique_ptr<const zset::ZSet::RangeByScoreSpec>(spec);
 }
 
-int parseScoreRange(const std::string& start, const std::string& end,
+int ParseScoreRange(const std::string& start, const std::string& end,
                     zset::ZSet::RangeByScoreSpec* spec) {
-  if (parseScoreTerm(start, &(spec->min)) < 0) {
+  if (ParseScoreTerm(start, &(spec->min)) < 0) {
     return -1;
   }
-  if (parseScoreTerm(end, &(spec->max)) < 0) {
+  if (ParseScoreTerm(end, &(spec->max)) < 0) {
     return -1;
   }
   if (start[0] == '(') {
@@ -138,7 +138,7 @@ int parseScoreRange(const std::string& start, const std::string& end,
   return 0;
 }
 
-int parseScoreTerm(const std::string& term, double* dst) {
+int ParseScoreTerm(const std::string& term, double* dst) {
   if (term == "+inf") {
     *dst = std::numeric_limits<double>::infinity();
   } else if (term == "-inf") {
@@ -159,7 +159,7 @@ int parseScoreTerm(const std::string& term, double* dst) {
   return 0;
 }
 
-int parseLimitOffsetAndCount(const std::vector<std::string>& args, long* offset,
+int ParseLimitOffsetAndCount(const std::vector<std::string>& args, long* offset,
                              long* count) {
   /* start searching at the 3rd index(0-based). Rankes before are key, start,
    * end offsets */
@@ -189,7 +189,7 @@ int parseLimitOffsetAndCount(const std::vector<std::string>& args, long* offset,
   return 0;
 }
 
-bool isReverse(const std::vector<std::string>& args) {
+bool IsReverse(const std::vector<std::string>& args) {
   /* start searching at the 3rd index(0-based). Rankes before are key, start,
    * end offsets */
   for (int i = 3; i < args.size(); ++i) {
@@ -202,14 +202,14 @@ bool isReverse(const std::vector<std::string>& args) {
   return false;
 }
 
-const db::RedisObj* getRedisObj(std::shared_ptr<const db::RedisDb> db,
+const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                 const std::string& key) {
-  const db::RedisObj* obj = db->lookupKey(key);
+  const db::RedisObj* obj = db->LookupKey(key);
   if (!obj) {
     printf("key not found\n");
     return nullptr;
   }
-  if (obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     printf("incorrect value type\n");
     return nullptr;
   }
@@ -217,32 +217,32 @@ const db::RedisObj* getRedisObj(std::shared_ptr<const db::RedisDb> db,
 }
 }  // namespace
 
-void ZRangeCommand::exec(Client* const client) const {
+void ZRangeCommand::Exec(Client* const client) const {
   const std::vector<std::string>& args = client->getArgs();
   std::vector<const zset::ZSet::ZSetEntry*> result;
-  if (flaggedByScore(args)) {
+  if (FlaggedByScore(args)) {
   } else {
-    genericRangeByRankSpec(client, args, &result);
+    GenericRangeByRankSpec(client, args, &result);
   }
 }
 
-int ZRangeCommand::genericRangeByRankSpec(
+int ZRangeCommand::GenericRangeByRankSpec(
     Client* const client, const std::vector<std::string>& args,
     std::vector<const zset::ZSet::ZSetEntry*>* result) const {
   std::unique_ptr<const zset::ZSet::RangeByRankSpec> spec =
-      parseRangeByRankSpec(args);
+      ParseRangeByRankSpec(args);
   if (!spec) {
     printf("invalid arguments for zrange\n");
     return -1;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
     const std::string& key = args[0];
-    const db::RedisObj* obj = getRedisObj(db, key);
+    const db::RedisObj* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
     }
     try {
-      const zset::ZSet* const zset = obj->getZSet();
+      const zset::ZSet* const zset = obj->ZSet();
       *result = zset->rangeByRank(spec.get());
     } catch (const std::exception& e) {
       printf("catch exception %s", e.what());
@@ -255,23 +255,23 @@ int ZRangeCommand::genericRangeByRankSpec(
   return 0;
 }
 
-int ZRangeCommand::genericRangeByScoreSpec(
+int ZRangeCommand::GenericRangeByScoreSpec(
     Client* const client, const std::vector<std::string>& args,
     std::vector<const zset::ZSet::ZSetEntry*>* result) const {
   std::unique_ptr<const zset::ZSet::RangeByScoreSpec> spec =
-      parseRangeByScoreSpec(args);
+      ParseRangeByScoreSpec(args);
   if (!spec) {
     printf("invalid arguments for zrange\n");
     return -1;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
     const std::string& key = args[0];
-    const db::RedisObj* obj = getRedisObj(db, key);
+    const db::RedisObj* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
     }
     try {
-      const zset::ZSet* const zset = obj->getZSet();
+      const zset::ZSet* const zset = obj->ZSet();
       *result = zset->rangeByScore(spec.get());
     } catch (const std::exception& e) {
       printf("catch exception %s", e.what());

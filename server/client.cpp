@@ -9,14 +9,14 @@ namespace redis_simple {
 namespace {
 std::string getCmdName(const std::vector<std::string>& args) {
   std::string name = std::move(args[0]);
-  utils::touppercase(name);
+  utils::ToUppercase(name);
   return name;
 }
 }  // namespace
 
 Client::Client(connection::Connection* connection)
     : conn(connection),
-      db(Server::get()->getDb()),
+      db(Server::Get()->DB()),
       cmd(),
       buf(std::make_unique<in_memory::ReplyBuffer>()),
       query_buf(std::make_unique<in_memory::DynamicBuffer>()) {}
@@ -24,46 +24,45 @@ Client::Client(connection::Connection* connection)
 ssize_t Client::readQuery() {
   char buf[4096];
   memset(buf, 0, sizeof buf);
-  ssize_t nread = conn->connRead(buf, 4096);
+  ssize_t nread = conn->Read(buf, 4096);
   printf("nread %zd, buf %s end\n", nread, buf);
   if (nread < 0) {
     return nread;
   }
-  query_buf->writeToBuffer(buf, nread);
+  query_buf->WriteToBuffer(buf, nread);
   return nread;
 }
 
 ssize_t Client::sendReply() {
-  return buf->getReplyHead() ? _sendvReply() : _sendReply();
+  return buf->ReplyHead() ? _sendvReply() : _sendReply();
 }
 
 ssize_t Client::_sendReply() {
-  printf("_sendReply %s %zu\n", buf->getUnsentBuffer(),
-         buf->getUnsentBufferLength());
+  printf("_sendReply %s %zu\n", buf->UnsentBuffer(), buf->UnsentBufferLength());
   ssize_t nwritten =
-      conn->connWrite(buf->getUnsentBuffer(), buf->getUnsentBufferLength());
+      conn->Write(buf->UnsentBuffer(), buf->UnsentBufferLength());
   if (nwritten < 0) {
     return -1;
   }
-  buf->writeProcessed(nwritten);
+  buf->WriteProcessed(nwritten);
   return nwritten;
 }
 
 ssize_t Client::_sendvReply() {
   printf("_sendvReply\n");
-  const std::vector<std::pair<char*, size_t>>& memToWrite = buf->getMemvec();
-  ssize_t nwritten = conn->connWritev(memToWrite);
+  const std::vector<std::pair<char*, size_t>>& memToWrite = buf->Memvec();
+  ssize_t nwritten = conn->Writev(memToWrite);
   if (nwritten < 0) {
     return -1;
   }
-  buf->writeProcessed(nwritten);
+  buf->WriteProcessed(nwritten);
   return nwritten;
 }
 
 ClientStatus Client::processInputBuffer() {
-  while (query_buf->getProcessedOffset() < query_buf->getRead()) {
-    printf("process loop %zu %zu\n", query_buf->getProcessedOffset(),
-           query_buf->getRead());
+  while (query_buf->ProcessedOffset() < query_buf->NRead()) {
+    printf("process loop %zu %zu\n", query_buf->ProcessedOffset(),
+           query_buf->NRead());
     if (processInlineBuffer() == ClientStatus::clientErr) {
       break;
     }
@@ -71,23 +70,23 @@ ClientStatus Client::processInputBuffer() {
       return ClientStatus::clientErr;
     }
   }
-  query_buf->trimProcessedBuffer();
+  query_buf->TrimProcessedBuffer();
   return ClientStatus::clientOK;
 }
 
 ClientStatus Client::processInlineBuffer() {
-  const std::string& cmdstr = query_buf->processInlineBuffer();
+  const std::string& cmdstr = query_buf->ProcessInlineBuffer();
   if (cmdstr.length() == 0) {
     return ClientStatus::clientErr;
   }
   printf("cmd str %s\n", cmdstr.c_str());
-  std::vector<std::string> args = utils::split(cmdstr, " ");
+  std::vector<std::string> args = utils::Split(cmdstr, " ");
   if (args.size() == 0) {
     return ClientStatus::clientErr;
   }
   const std::string& name = getCmdName(args);
   args.erase(args.begin());
-  std::weak_ptr<const command::Command> cmdptr = command::Command::create(name);
+  std::weak_ptr<const command::Command> cmdptr = command::Command::Create(name);
   if (std::shared_ptr<const command::Command> cmd = cmdptr.lock()) {
     if (!cmd) {
       printf("command not found\n");
@@ -104,9 +103,9 @@ ClientStatus Client::processInlineBuffer() {
 
 ClientStatus Client::processCommand() {
   if (std::shared_ptr<const command::Command> command = cmd.lock()) {
-    printf("process command: %s\n", command->getName().c_str());
+    printf("process command: %s\n", command->Name().c_str());
     if (command) {
-      command->exec(this);
+      command->Exec(this);
     }
     return ClientStatus::clientOK;
   } else {

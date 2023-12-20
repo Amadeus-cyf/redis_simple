@@ -5,7 +5,7 @@
 
 namespace redis_simple {
 namespace connection {
-std::unique_ptr<ConnHandler> ConnHandler::create(const ConnHandlerType flag) {
+std::unique_ptr<ConnHandler> ConnHandler::Create(const ConnHandlerType flag) {
   switch (flag) {
     case ConnHandlerType::readQueryFromClient:
       return networking::NewReadFromClientHandler();

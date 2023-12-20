@@ -5,7 +5,7 @@
 namespace redis_simple {
 namespace zset {
 ZSet::ZSet()
-    : dict(in_memory::Dict<std::string, double>::init()),
+    : dict(in_memory::Dict<std::string, double>::Init()),
       skiplist(std::make_unique<
                in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>(
           in_memory::Skiplist<const ZSetEntry*, Comparator,
@@ -13,19 +13,19 @@ ZSet::ZSet()
           Comparator(), Destructor())){};
 
 void ZSet::addOrUpdate(const std::string& key, const double score) const {
-  in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
+  in_memory::Dict<std::string, double>::DictEntry* de = dict->Find(key);
   const ZSetEntry* ze = new ZSetEntry(key, score);
   if (de) {
     printf("update %s's val from %f to %f\n", key.c_str(), de->val, score);
     if (de->val == score) return;
     const ZSetEntry old(key, de->val);
-    bool r = skiplist->update(&old, ze);
+    bool r = skiplist->Update(&old, ze);
     assert(r);
     de->val = score;
   } else {
     printf("insert %s %f\n", key.c_str(), score);
-    assert(dict->add(key, score));
-    const ZSetEntry* inserted = skiplist->insert(ze);
+    assert(dict->Add(key, score));
+    const ZSetEntry* inserted = skiplist->Insert(ze);
     assert(inserted);
   }
   min_key = std::min(min_key, key);
@@ -33,32 +33,32 @@ void ZSet::addOrUpdate(const std::string& key, const double score) const {
 }
 
 bool ZSet::remove(const std::string& key) const {
-  const in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
+  const in_memory::Dict<std::string, double>::DictEntry* de = dict->Find(key);
   if (!de) {
     return false;
   }
   const double score = de->val;
   const ZSetEntry ze(key, score);
-  assert(dict->del(key));
-  return skiplist->del(&ze);
+  assert(dict->Delete(key));
+  return skiplist->Delete(&ze);
 }
 
 int ZSet::getRank(const std::string& key) const {
-  const in_memory::Dict<std::string, double>::DictEntry* de = dict->find(key);
+  const in_memory::Dict<std::string, double>::DictEntry* de = dict->Find(key);
   if (!de) {
     return -1;
   }
   const double score = de->val;
   const ZSetEntry ze(key, score);
-  return skiplist->getRankofKey(&ze);
+  return skiplist->GetRankofKey(&ze);
 }
 
 std::vector<const ZSet::ZSetEntry*> ZSet::rangeByRank(
     const RangeByRankSpec* spec) const {
   const auto* skiplist_spec = toSkiplistRangeByRankSpec(spec);
   const std::vector<const ZSet::ZSetEntry*>& keys =
-      spec->reverse ? skiplist->revRangeByRank(skiplist_spec)
-                    : skiplist->rangeByRank(skiplist_spec);
+      spec->reverse ? skiplist->RevRangeByRank(skiplist_spec)
+                    : skiplist->RangeByRank(skiplist_spec);
   freeSkiplistRangeByRankSpec(skiplist_spec);
   return keys;
 }
@@ -67,8 +67,8 @@ std::vector<const ZSet::ZSetEntry*> ZSet::rangeByScore(
     const RangeByScoreSpec* spec) const {
   const auto* skiplist_spec = toSkiplistRangeByKeySpec(spec);
   const std::vector<const ZSet::ZSetEntry*>& keys =
-      spec->reverse ? skiplist->revRangeByKey(skiplist_spec)
-                    : skiplist->rangeByKey(skiplist_spec);
+      spec->reverse ? skiplist->RevRangeByKey(skiplist_spec)
+                    : skiplist->RangeByKey(skiplist_spec);
   freeSkiplistRangeByKeySpec(skiplist_spec);
   return keys;
 }

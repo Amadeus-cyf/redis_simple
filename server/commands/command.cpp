@@ -25,7 +25,7 @@ const std::unordered_map<std::string, std::shared_ptr<const Command>>&
          std::make_shared<const t_zset::ZRankCommand>(t_zset::ZRankCommand())},
 };
 
-std::weak_ptr<const Command> Command::create(const std::string& name) {
+std::weak_ptr<const Command> Command::Create(const std::string& name) {
   std::string upper_name;
   std::transform(name.begin(), name.end(), upper_name.begin(), toupper);
   return cmdmap.at(name);

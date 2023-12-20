@@ -18,16 +18,16 @@ enum CliStatus {
 class RedisCli {
  public:
   RedisCli();
-  CliStatus connect(const std::string& ip, const int port);
-  void addCommand(const std::string& cmd);
+  CliStatus Connect(const std::string& ip, const int port);
+  void AddCommand(const std::string& cmd);
   std::string getReply();
-  CompletableFuture<std::string> getReplyAsync();
+  CompletableFuture<std::string> GetReplyAsync();
   ~RedisCli() { close(socket_fd); }
 
  private:
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
-  bool processReply(std::string& reply);
+  bool ProcessReply(std::string& reply);
   int socket_fd;
   std::string cli_ip;
   int cli_port;

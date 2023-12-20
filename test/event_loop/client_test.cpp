@@ -17,14 +17,14 @@ ae::AeEventStatus writeProc(ae::AeEventLoop* el, int fd, int* client_data,
   printf("write %zu\n", written);
   ++i;
   if (i == 10) {
-    el->aeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
+    el->AeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
   }
   return ae::AeEventStatus::aeEventOK;
 }
 
 void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
-  int fd = tcp::tcpConnect("localhost", 8081, true, "localhost", 8080);
+  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::InitEventLoop();
+  int fd = tcp::TCP_Connect("localhost", 8081, true, "localhost", 8080);
   printf("conn result %d\n", fd);
   if (fd == -1) {
     printf("connection failed\n");
@@ -32,10 +32,10 @@ void run() {
   }
 
   int data = 10000;
-  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::create(
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::Create(
       nullptr, writeProc, &data, ae::AeFlags::aeWritable);
-  el->aeCreateFileEvent(fd, fe);
-  el->aeMain();
+  el->AeCreateFileEvent(fd, fe);
+  el->AeMain();
 }
 }  // namespace redis_simple
 

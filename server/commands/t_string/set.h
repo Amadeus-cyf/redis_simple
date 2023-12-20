@@ -10,11 +10,11 @@ namespace t_string {
 class SetCommand : public Command {
  public:
   SetCommand() : Command("SET"){};
-  void exec(Client* const client) const override;
+  void Exec(Client* const client) const override;
 
  private:
-  int parseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
-  int genericSet(std::shared_ptr<const db::RedisDb> db,
+  int ParseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
+  int GenericSet(std::shared_ptr<const db::RedisDb> db,
                  const StrArgs* args) const;
 };
 }  // namespace t_string

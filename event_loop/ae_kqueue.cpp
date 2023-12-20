@@ -12,7 +12,7 @@ namespace redis_simple {
 namespace ae {
 AeKqueue::AeKqueue(int fd, int nevents) : kqueue_fd(fd), nevents(nevents) {}
 
-AeKqueue* AeKqueue::aeApiCreate(int nevents) {
+AeKqueue* AeKqueue::AeApiCreate(int nevents) {
   int kqueue_fd = kqueue();
   if (kqueue_fd < 0) {
     return nullptr;
@@ -20,7 +20,7 @@ AeKqueue* AeKqueue::aeApiCreate(int nevents) {
   return new AeKqueue(kqueue_fd, nevents);
 }
 
-int AeKqueue::aeApiAddEvent(int fd, int mask) const {
+int AeKqueue::AeApiAddEvent(int fd, int mask) const {
   printf("add api event for fd = %d, mask = %d\n", fd, mask);
   struct kevent ke;
   if (mask & AeFlags::aeReadable) {
@@ -43,7 +43,7 @@ int AeKqueue::aeApiAddEvent(int fd, int mask) const {
   return 0;
 }
 
-int AeKqueue::aeApiDelEvent(int fd, int mask) const {
+int AeKqueue::AeApiDelEvent(int fd, int mask) const {
   struct kevent ke;
   if (mask & AeFlags::aeReadable) {
     EV_SET(&ke, fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -62,7 +62,7 @@ int AeKqueue::aeApiDelEvent(int fd, int mask) const {
   return 0;
 }
 
-std::unordered_map<int, int> AeKqueue::aeApiPoll(struct timespec* tspec) const {
+std::unordered_map<int, int> AeKqueue::AeApiPoll(struct timespec* tspec) const {
   struct kevent events[nevents];
   std::unordered_map<int, int> fdToMaskMap;
   int retval = kevent(kqueue_fd, nullptr, 0, events, nevents, tspec);

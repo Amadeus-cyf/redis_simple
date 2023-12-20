@@ -12,8 +12,8 @@ class CompletableFuture {
       : future(std::move(future)){};
   CompletableFuture(const CompletableFuture&) = delete;
   CompletableFuture& operator=(const CompletableFuture&) = delete;
-  CompletableFuture thenApply(callback cb);
-  CompletableFuture thenApplyAsync(callback cb);
+  CompletableFuture ThenApply(callback cb);
+  CompletableFuture ThenApplyAsync(callback cb);
   T get();
 
  private:
@@ -21,7 +21,7 @@ class CompletableFuture {
 };
 
 template <typename T>
-CompletableFuture<T> CompletableFuture<T>::thenApply(callback cb) {
+CompletableFuture<T> CompletableFuture<T>::ThenApply(callback cb) {
   future.wait();
   std::promise<T> promise;
   promise.set_value(cb(future.get()));
@@ -29,7 +29,7 @@ CompletableFuture<T> CompletableFuture<T>::thenApply(callback cb) {
 }
 
 template <typename T>
-CompletableFuture<T> CompletableFuture<T>::thenApplyAsync(callback cb) {
+CompletableFuture<T> CompletableFuture<T>::ThenApplyAsync(callback cb) {
   return CompletableFuture(std::async(std::launch::async, [=]() {
     future.wait();
     return cb(future.get());

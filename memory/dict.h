@@ -13,44 +13,44 @@ class Dict {
   struct DictEntry;
   struct DictType;
   using dictScanFunc = void (*)(const DictEntry*);
-  static std::unique_ptr<Dict<K, V>> init();
-  static std::unique_ptr<Dict<K, V>> init(const DictType* type);
-  DictType* getType() { return type; }
-  size_t size() { return ht_used[0] + ht_used[1]; }
-  DictEntry* find(const K& key);
-  DictEntry* find(K&& key);
-  bool add(const K& key, const V& val);
-  bool add(K&& key, V&& val);
-  DictEntry* addOrFind(const K& key);
-  DictEntry* addOrFind(K&& key);
-  void replace(const K& key, const V& val);
-  void replace(K&& key, V&& val);
-  bool del(const K& key);
-  bool del(K&& key);
-  DictEntry* unlink(const K& key);
-  DictEntry* unlink(K&& key);
-  int scan(int cursor, dictScanFunc callback);
-  void clear();
+  static std::unique_ptr<Dict<K, V>> Init();
+  static std::unique_ptr<Dict<K, V>> Init(const DictType* type);
+  DictType* GetType() { return type; }
+  size_t Size() { return ht_used[0] + ht_used[1]; }
+  DictEntry* Find(const K& key);
+  DictEntry* Find(K&& key);
+  bool Add(const K& key, const V& val);
+  bool Add(K&& key, V&& val);
+  DictEntry* AddOrFind(const K& key);
+  DictEntry* AddOrFind(K&& key);
+  void Replace(const K& key, const V& val);
+  void Replace(K&& key, V&& val);
+  bool Delete(const K& key);
+  bool Delete(K&& key);
+  DictEntry* Unlink(const K& key);
+  DictEntry* Unlink(K&& key);
+  int Scan(int cursor, dictScanFunc callback);
+  void Clear();
   ~Dict();
 
  private:
   Dict();
-  size_t htSize(int exp) { return exp < 0 ? 0 : 1 << exp; }
-  bool isRehashing() { return rehash_idx >= 0; }
-  void pauseRehashing() { ++pause_rehash; }
-  void resumeRehashing() {
+  size_t HtSize(int exp) { return exp < 0 ? 0 : 1 << exp; }
+  bool IsRehashing() { return rehash_idx >= 0; }
+  void PauseRehashing() { ++pause_rehash; }
+  void ResumeRehashing() {
     if (pause_rehash > 0) --pause_rehash;
   }
   unsigned int _htMask(int i);
   unsigned int _keyHashIndex(const K& key, int i);
-  unsigned int nextExp(int val);
-  bool isEqual(const K& key1, const K& key2);
-  void setKey(DictEntry* entry, const K& key);
-  void setVal(DictEntry* entry, const V& val);
-  void freeKey(DictEntry* entry);
-  void freeVal(DictEntry* entry);
-  void freeUnlinkedEntry(DictEntry* entry);
-  unsigned int keyIndex(const K& key, DictEntry** existing);
+  unsigned int NextExp(int val);
+  bool IsEqual(const K& key1, const K& key2);
+  void SetKey(DictEntry* entry, const K& key);
+  void SetVal(DictEntry* entry, const V& val);
+  void FreeKey(DictEntry* entry);
+  void FreeVal(DictEntry* entry);
+  void FreeUnlinkedEntry(DictEntry* entry);
+  unsigned int KeyIndex(const K& key, DictEntry** existing);
   DictEntry* _addRaw(const K& key, DictEntry** existing);
   DictEntry* _unlink(const K& key);
   void _dictExpandIfNeeded();
@@ -89,12 +89,12 @@ struct Dict<K, V>::DictType {
 };
 
 template <typename K, typename V>
-std::unique_ptr<Dict<K, V>> Dict<K, V>::init() {
+std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
   if (!dict->_dictExpand(HTInitSize)) {
     return nullptr;
   }
-  dict->getType()->hashFunction = [](const K& key) {
+  dict->GetType()->hashFunction = [](const K& key) {
     std::hash<K> h;
     return h(key);
   };
@@ -102,28 +102,28 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::init() {
 }
 
 template <typename K, typename V>
-std::unique_ptr<Dict<K, V>> Dict<K, V>::init(
+std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
     const typename Dict<K, V>::DictType* type) {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
   if (!dict->_dictExpand(HTInitSize)) {
     return nullptr;
   }
-  dict->getType() = type;
+  dict->GetType() = type;
   return dict;
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::find(const K& key) {
+typename Dict<K, V>::DictEntry* Dict<K, V>::Find(const K& key) {
   for (int i = 0; i < ht.size(); ++i) {
     int idx = _keyHashIndex(key, i);
     DictEntry* entry = ht[i][idx];
     while (entry) {
-      if (isEqual(key, entry->key)) {
+      if (IsEqual(key, entry->key)) {
         return entry;
       }
       entry = entry->next;
     }
-    if (!isRehashing()) {
+    if (!IsRehashing()) {
       break;
     }
   }
@@ -131,80 +131,80 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::find(const K& key) {
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::find(K&& key) {
-  return find(key);
+typename Dict<K, V>::DictEntry* Dict<K, V>::Find(K&& key) {
+  return Find(key);
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::add(const K& key, const V& val) {
+bool Dict<K, V>::Add(const K& key, const V& val) {
   DictEntry* entry = _addRaw(key, nullptr);
   if (!entry) {
     return false;
   }
-  setVal(entry, val);
+  SetVal(entry, val);
   return true;
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::add(K&& key, V&& val) {
-  return add(key, val);
+bool Dict<K, V>::Add(K&& key, V&& val) {
+  return Add(key, val);
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(const K& key) {
+typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(const K& key) {
   DictEntry* existing;
   DictEntry* new_entry = _addRaw(key, &existing);
   return new_entry ? new_entry : existing;
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::addOrFind(K&& key) {
-  return addOrFind(key);
+typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(K&& key) {
+  return AddOrFind(key);
 }
 
 template <typename K, typename V>
-void Dict<K, V>::replace(const K& key, const V& val) {
+void Dict<K, V>::Replace(const K& key, const V& val) {
   DictEntry* existing;
   DictEntry* entry = _addRaw(key, &existing);
   if (entry) {
-    setVal(entry, val);
+    SetVal(entry, val);
   } else {
     DictEntry auxentry = *existing;
-    setVal(existing, val);
-    freeVal(&auxentry);
+    SetVal(existing, val);
+    FreeVal(&auxentry);
   }
 }
 
 template <typename K, typename V>
-void Dict<K, V>::replace(K&& key, V&& val) {
-  replace(key, val);
+void Dict<K, V>::Replace(K&& key, V&& val) {
+  Replace(key, val);
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::del(const K& key) {
+bool Dict<K, V>::Delete(const K& key) {
   DictEntry* de = _unlink(key);
-  freeUnlinkedEntry(de);
+  FreeUnlinkedEntry(de);
   return de;
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::del(K&& key) {
-  return del(key);
+bool Dict<K, V>::Delete(K&& key) {
+  return Delete(key);
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::unlink(const K& key) {
+typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
   return _unlink(key);
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::unlink(K&& key) {
-  return unlink(key);
+typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(K&& key) {
+  return Unlink(key);
 }
 
 template <typename K, typename V>
-int Dict<K, V>::scan(int cursor, dictScanFunc callback) {
-  pauseRehashing();
+int Dict<K, V>::Scan(int cursor, dictScanFunc callback) {
+  PauseRehashing();
   if (cursor < ht[0].size()) {
     const DictEntry* de = ht[0][cursor];
     while (de) {
@@ -213,7 +213,7 @@ int Dict<K, V>::scan(int cursor, dictScanFunc callback) {
       de = next;
     }
   }
-  if (isRehashing() && cursor < ht[1].size()) {
+  if (IsRehashing() && cursor < ht[1].size()) {
     const DictEntry* de = ht[1][cursor];
     while (de) {
       const DictEntry* next = de->next;
@@ -224,12 +224,12 @@ int Dict<K, V>::scan(int cursor, dictScanFunc callback) {
   if (cursor >= std::max(ht[0].size(), ht[1].size())) {
     cursor = -1;
   }
-  resumeRehashing();
+  ResumeRehashing();
   return ++cursor;
 }
 
 template <typename K, typename V>
-void Dict<K, V>::clear() {
+void Dict<K, V>::Clear() {
   _dictClear(0);
   _dictClear(1);
   rehash_idx = -1;
@@ -238,7 +238,7 @@ void Dict<K, V>::clear() {
 
 template <typename K, typename V>
 Dict<K, V>::~Dict() {
-  clear();
+  Clear();
   delete type;
   type = nullptr;
 }
@@ -262,7 +262,7 @@ unsigned int Dict<K, V>::_keyHashIndex(const K& key, int i) {
 }
 
 template <typename K, typename V>
-unsigned int Dict<K, V>::nextExp(int val) {
+unsigned int Dict<K, V>::NextExp(int val) {
   if (val < 0) return HTInitExp;
 
   int i = 1;
@@ -271,46 +271,46 @@ unsigned int Dict<K, V>::nextExp(int val) {
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::isEqual(const K& key1, const K& key2) {
+bool Dict<K, V>::IsEqual(const K& key1, const K& key2) {
   return key1 == key2 || (type->keyCompare && !(type->keyCompare(key1, key2)));
 }
 
 template <typename K, typename V>
-void Dict<K, V>::setKey(DictEntry* entry, const K& key) {
+void Dict<K, V>::SetKey(DictEntry* entry, const K& key) {
   entry->key = type->keyDup ? type->keyDup(key) : key;
 }
 
 template <typename K, typename V>
-void Dict<K, V>::setVal(DictEntry* entry, const V& val) {
+void Dict<K, V>::SetVal(DictEntry* entry, const V& val) {
   entry->val = type->valDup ? type->valDup(val) : val;
 }
 
 template <typename K, typename V>
-void Dict<K, V>::freeKey(DictEntry* entry) {
+void Dict<K, V>::FreeKey(DictEntry* entry) {
   if (type->keyDestructor) {
     type->keyDestructor(entry->key);
   }
 }
 
 template <typename K, typename V>
-void Dict<K, V>::freeVal(DictEntry* entry) {
+void Dict<K, V>::FreeVal(DictEntry* entry) {
   if (type->valDestructor) {
     type->valDestructor(entry->val);
   }
 }
 
 template <typename K, typename V>
-void Dict<K, V>::freeUnlinkedEntry(DictEntry* entry) {
+void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
   if (entry) {
-    freeKey(entry);
-    freeVal(entry);
+    FreeKey(entry);
+    FreeVal(entry);
     delete entry;
     entry = nullptr;
   }
 }
 
 template <typename K, typename V>
-unsigned int Dict<K, V>::keyIndex(const K& key,
+unsigned int Dict<K, V>::KeyIndex(const K& key,
                                   Dict<K, V>::DictEntry** existing) {
   if (existing) {
     *existing = nullptr;
@@ -321,7 +321,7 @@ unsigned int Dict<K, V>::keyIndex(const K& key,
     idx = _keyHashIndex(key, i);
     DictEntry* entry = ht[i][idx];
     while (entry) {
-      if (isEqual(entry->key, key)) {
+      if (IsEqual(entry->key, key)) {
         if (existing) {
           *existing = entry;
           return -1;
@@ -329,7 +329,7 @@ unsigned int Dict<K, V>::keyIndex(const K& key,
       }
       entry = entry->next;
     }
-    if (!isRehashing()) {
+    if (!IsRehashing()) {
       break;
     }
   }
@@ -340,13 +340,13 @@ template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::_addRaw(
     const K& key, Dict<K, V>::DictEntry** existing) {
   _dictRehashStep();
-  int idx = keyIndex(key, existing);
+  int idx = KeyIndex(key, existing);
   if (idx < 0) {
     return nullptr;
   }
-  int i = isRehashing() ? 1 : 0;
+  int i = IsRehashing() ? 1 : 0;
   DictEntry* de = new DictEntry();
-  setKey(de, key);
+  SetKey(de, key);
   de->next = ht[i][idx];
   ht[i][idx] = de;
   ++ht_used[i];
@@ -360,7 +360,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::_unlink(const K& key) {
     int idx = _keyHashIndex(key, i);
     DictEntry *entry = ht[i][idx], *prev = nullptr;
     while (entry) {
-      if (isEqual(key, entry->key)) {
+      if (IsEqual(key, entry->key)) {
         if (prev) {
           prev->next = entry->next;
         } else {
@@ -372,7 +372,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::_unlink(const K& key) {
       }
       prev = entry, entry = entry->next;
     }
-    if (!isRehashing()) {
+    if (!IsRehashing()) {
       break;
     }
   }
@@ -381,21 +381,21 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::_unlink(const K& key) {
 
 template <typename K, typename V>
 void Dict<K, V>::_dictExpandIfNeeded() {
-  if ((double)ht_used[0] / htSize(ht_size_exp[0]) >= DictForceResizeRatio) {
+  if ((double)ht_used[0] / HtSize(ht_size_exp[0]) >= DictForceResizeRatio) {
     _dictExpand(ht_used[0] + 1);
   }
 }
 
 template <typename K, typename V>
 bool Dict<K, V>::_dictExpand(size_t size) {
-  if (isRehashing() || size < ht_used[0]) {
+  if (IsRehashing() || size < ht_used[0]) {
     return false;
   }
-  int new_exp = nextExp(size);
+  int new_exp = NextExp(size);
   if (new_exp <= ht_size_exp[0]) {
     return false;
   }
-  size_t new_size = htSize(new_exp);
+  size_t new_size = HtSize(new_exp);
   printf("dict expand to %zu %d\n", new_size, new_exp);
   if (new_size < size ||
       new_size * sizeof(DictEntry*) < size * sizeof(DictEntry*)) {
@@ -426,11 +426,11 @@ void Dict<K, V>::_dictRehashStep() {
  * completed and vice versa */
 template <typename K, typename V>
 bool Dict<K, V>::_dictRehash(int n) {
-  if (!isRehashing()) {
+  if (!IsRehashing()) {
     return false;
   }
   int empty_visit = n * 10;
-  int dict_size = htSize(ht_size_exp[0]);
+  int dict_size = HtSize(ht_size_exp[0]);
   while (n > 0 && rehash_idx < dict_size && ht_used[0] && empty_visit) {
     DictEntry* de = ht[0][rehash_idx];
     if (!de) {
@@ -467,7 +467,7 @@ void Dict<K, V>::_dictClear(int i) {
     while (de) {
       DictEntry* next = de->next;
       de->next = nullptr;
-      freeUnlinkedEntry(de);
+      FreeUnlinkedEntry(de);
       de = next;
       --ht_used[i];
     }

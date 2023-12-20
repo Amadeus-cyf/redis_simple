@@ -9,7 +9,7 @@ namespace in_memory {
 class DictStrTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
-    dict_str = Dict<std::string, std::string>::init();
+    dict_str = Dict<std::string, std::string>::Init();
   }
   static std::unique_ptr<Dict<std::string, std::string>> dict_str;
 };
@@ -17,86 +17,86 @@ class DictStrTest : public testing::Test {
 std::unique_ptr<Dict<std::string, std::string>> DictStrTest::dict_str = nullptr;
 
 TEST_F(DictStrTest, Init) {
-  dict_str = Dict<std::string, std::string>::init();
+  dict_str = Dict<std::string, std::string>::Init();
   ASSERT_TRUE(dict_str);
-  ASSERT_EQ(dict_str->size(), 0);
+  ASSERT_EQ(dict_str->Size(), 0);
 }
 
 TEST_F(DictStrTest, Insert) {
-  bool status = dict_str->add("key", "val");
+  bool status = dict_str->Add("key", "val");
   ASSERT_TRUE(status);
-  ASSERT_EQ(dict_str->size(), 1);
+  ASSERT_EQ(dict_str->Size(), 1);
 
   const Dict<std::string, std::string>::DictEntry* entry =
-      dict_str->find("key");
+      dict_str->Find("key");
   ASSERT_TRUE(entry);
   ASSERT_EQ(entry->val, "val");
-  ASSERT_EQ(dict_str->size(), 1);
+  ASSERT_EQ(dict_str->Size(), 1);
 }
 
 TEST_F(DictStrTest, Update) {
-  dict_str->replace("key", "val_update");
-  ASSERT_EQ(dict_str->size(), 1);
+  dict_str->Replace("key", "val_update");
+  ASSERT_EQ(dict_str->Size(), 1);
 
   const Dict<std::string, std::string>::DictEntry* entry =
-      dict_str->find("key");
+      dict_str->Find("key");
   ASSERT_TRUE(entry);
   ASSERT_EQ(entry->val, "val_update");
-  ASSERT_EQ(dict_str->size(), 1);
+  ASSERT_EQ(dict_str->Size(), 1);
 }
 
 TEST_F(DictStrTest, Delete) {
-  bool status = dict_str->del("key");
+  bool status = dict_str->Delete("key");
   ASSERT_TRUE(status);
-  ASSERT_EQ(dict_str->size(), 0);
+  ASSERT_EQ(dict_str->Size(), 0);
 
   const Dict<std::string, std::string>::DictEntry* entry =
-      dict_str->find("key");
+      dict_str->Find("key");
   ASSERT_FALSE(entry);
-  ASSERT_EQ(dict_str->size(), 0);
+  ASSERT_EQ(dict_str->Size(), 0);
 }
 
 TEST_F(DictStrTest, Unlink) {
-  bool status = dict_str->add("key", "val");
+  bool status = dict_str->Add("key", "val");
   ASSERT_TRUE(status);
-  ASSERT_EQ(dict_str->size(), 1);
+  ASSERT_EQ(dict_str->Size(), 1);
 
-  Dict<std::string, std::string>::DictEntry* de = dict_str->unlink("key");
+  Dict<std::string, std::string>::DictEntry* de = dict_str->Unlink("key");
   ASSERT_TRUE(de);
   ASSERT_EQ(de->key, "key");
   ASSERT_EQ(de->val, "val");
-  ASSERT_EQ(dict_str->size(), 0);
+  ASSERT_EQ(dict_str->Size(), 0);
 }
 
 class DictIntTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { dict_int = Dict<int, int>::init(); }
+  static void SetUpTestSuite() { dict_int = Dict<int, int>::Init(); }
   static std::unique_ptr<Dict<int, int>> dict_int;
 };
 
 std::unique_ptr<Dict<int, int>> DictIntTest::dict_int = nullptr;
 
 TEST_F(DictIntTest, Init) {
-  dict_int->getType()->hashFunction = [](const int i) { return i; };
+  dict_int->GetType()->hashFunction = [](const int i) { return i; };
   ASSERT_TRUE(dict_int);
-  ASSERT_EQ(dict_int->size(), 0);
+  ASSERT_EQ(dict_int->Size(), 0);
 }
 
 TEST_F(DictIntTest, BatchInsert) {
   for (int i = 0; i < 100; ++i) {
-    dict_int->add(i, i);
+    dict_int->Add(i, i);
   }
-  ASSERT_EQ(dict_int->size(), 100);
-  const Dict<int, int>::DictEntry* entry = dict_int->find(96);
+  ASSERT_EQ(dict_int->Size(), 100);
+  const Dict<int, int>::DictEntry* entry = dict_int->Find(96);
   ASSERT_TRUE(entry);
   ASSERT_EQ(entry->val, 96);
 }
 
 TEST_F(DictIntTest, Clear) {
-  dict_int->clear();
-  ASSERT_EQ(dict_int->size(), 0);
+  dict_int->Clear();
+  ASSERT_EQ(dict_int->Size(), 0);
 
-  const Dict<int, int>::DictEntry* entry = dict_int->find(96);
+  const Dict<int, int>::DictEntry* entry = dict_int->Find(96);
   ASSERT_FALSE(entry);
 }
 }  // namespace in_memory

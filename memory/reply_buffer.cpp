@@ -5,21 +5,21 @@ namespace in_memory {
 ReplyBuffer::ReplyBuffer()
     : buf_usable_size(4096), buf(new char[4096]), sent_len(0), bufpos(0) {}
 
-size_t ReplyBuffer::addReplyToBufferOrList(const char* s, size_t len) {
+size_t ReplyBuffer::AddReplyToBufferOrList(const char* s, size_t len) {
   if (len == 0) {
     return 0;
   }
-  size_t reply = addReplyToBuffer(s, len);
+  size_t reply = AddReplyToBuffer(s, len);
   // printf("add reply %zu %zu\n", len, reply);
   len -= reply;
   size_t appended = 0;
   if (len) {
-    appended = addReplyProtoToList(s + reply, len);
+    appended = AddReplyProtoToList(s + reply, len);
   }
   return reply + appended;
 }
 
-size_t ReplyBuffer::addReplyToBuffer(const char* s, size_t len) {
+size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
   if (reply_len > 0) {
     return 0;
   }
@@ -30,10 +30,10 @@ size_t ReplyBuffer::addReplyToBuffer(const char* s, size_t len) {
   return added_reply;
 }
 
-size_t ReplyBuffer::addReplyProtoToList(const char* c, size_t len) {
+size_t ReplyBuffer::AddReplyProtoToList(const char* c, size_t len) {
   // printf("add reply to list %zu\n", len);
   if (!reply) {
-    reply = BufNode::create(len);
+    reply = BufNode::Create(len);
     memcpy(reply->buf, c, len);
     reply->used = len;
     reply_bytes += reply->len;
@@ -50,7 +50,7 @@ size_t ReplyBuffer::addReplyProtoToList(const char* c, size_t len) {
   len -= copy, c += copy;
 
   if (len) {
-    BufNode* new_node = BufNode::create(len);
+    BufNode* new_node = BufNode::Create(len);
     memcpy(new_node->buf, c, len);
     new_node->used += len;
     ++reply_len;
@@ -61,7 +61,7 @@ size_t ReplyBuffer::addReplyProtoToList(const char* c, size_t len) {
   return len + copy;
 }
 
-std::vector<std::pair<char*, size_t>> ReplyBuffer::getMemvec() {
+std::vector<std::pair<char*, size_t>> ReplyBuffer::Memvec() {
   std::vector<std::pair<char*, size_t>> mem_vec;
   if (bufpos > 0) {
     mem_vec.push_back({buf + sent_len, bufpos - sent_len});
@@ -88,20 +88,20 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::getMemvec() {
   return mem_vec;
 }
 
-void ReplyBuffer::clearBuf() {
+void ReplyBuffer::ClearBuf() {
   memset(buf, '\0', bufpos);
   bufpos = 0;
   sent_len = 0;
 }
 
-void ReplyBuffer::writeProcessed(size_t nwritten) {
+void ReplyBuffer::WriteProcessed(size_t nwritten) {
   reply ? _writevProcessed(nwritten) : _writeProcessed(nwritten);
 }
 
 void ReplyBuffer::_writeProcessed(size_t nwritten) {
   sent_len += nwritten;
   if (sent_len >= bufpos) {
-    clearBuf();
+    ClearBuf();
   }
 }
 
@@ -110,7 +110,7 @@ void ReplyBuffer::_writevProcessed(size_t nwritten) {
   if (bufpos > 0) {
     nwritten -= (bufpos - sent_len);
     if (nwritten >= 0) {
-      clearBuf();
+      ClearBuf();
     } else {
       sent_len += nwritten;
     }

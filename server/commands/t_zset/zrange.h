@@ -10,16 +10,16 @@ namespace t_zset {
 class ZRangeCommand : public Command {
  public:
   ZRangeCommand() : Command("ZRANGE"){};
-  void exec(Client* const client) const override;
+  void Exec(Client* const client) const override;
 
  private:
   static const std::string& flagByScore;
   static const std::string& flagLimit;
   static const std::string& flagWithScores;
-  int genericRangeByRankSpec(
+  int GenericRangeByRankSpec(
       Client* const client, const std::vector<std::string>& args,
       std::vector<const zset::ZSet::ZSetEntry*>* result) const;
-  int genericRangeByScoreSpec(
+  int GenericRangeByScoreSpec(
       Client* const client, const std::vector<std::string>& args,
       std::vector<const zset::ZSet::ZSetEntry*>* result) const;
 };

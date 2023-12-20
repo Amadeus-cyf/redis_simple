@@ -6,25 +6,25 @@
 namespace redis_simple {
 namespace command {
 namespace t_zset {
-void ZAddCommand::exec(Client* const client) const {
+void ZAddCommand::Exec(Client* const client) const {
   ZSetArgs args;
-  if (parseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->getArgs(), &args) < 0) {
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    if (genericZAdd(db, &args) < 0) {
-      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+    if (GenericZAdd(db, &args) < 0) {
+      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
-int ZAddCommand::parseArgs(const std::vector<std::string>& args,
+int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
                            ZSetArgs* zset_args) const {
   if (args.size() < 3) {
     printf("invalid number args\n");
@@ -43,26 +43,26 @@ int ZAddCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZAddCommand::genericZAdd(std::shared_ptr<const db::RedisDb> db,
+int ZAddCommand::GenericZAdd(std::shared_ptr<const db::RedisDb> db,
                              const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
   }
-  const db::RedisObj* obj = db->lookupKey(args->key);
-  if (obj && obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  const db::RedisObj* obj = db->LookupKey(args->key);
+  if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     printf("incorrect value type\n");
     return -1;
   }
   if (!obj) {
-    obj = db::RedisObj::createRedisZSetObj(zset::ZSet::init());
-    int r = db->setKey(args->key, obj, 0) == db::DBStatus::dbErr;
-    obj->decrRefCount();
+    obj = db::RedisObj::CreateZSet(zset::ZSet::init());
+    int r = db->SetKey(args->key, obj, 0) == db::DBStatus::dbErr;
+    obj->DecrRefCount();
     if (r < 0) {
       return -1;
     }
   }
   try {
-    const zset::ZSet* const zset = obj->getZSet();
+    const zset::ZSet* const zset = obj->ZSet();
     zset->addOrUpdate(args->ele, args->score);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());

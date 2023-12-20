@@ -42,7 +42,7 @@ class ZSet {
   std::vector<const ZSetEntry*> rangeByRank(const RangeByRankSpec* spec) const;
   std::vector<const ZSetEntry*> rangeByScore(
       const RangeByScoreSpec* spec) const;
-  size_t size() const { return skiplist->size(); }
+  size_t size() const { return skiplist->Size(); }
 
  private:
   struct Comparator {

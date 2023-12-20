@@ -32,51 +32,50 @@ struct Context {
 class Connection {
  public:
   explicit Connection(const Context& ctx);
-  StatusCode connect(const std::string& remote_ip, int remote_port,
+  StatusCode Connect(const std::string& remote_ip, int remote_port,
                      const std::string& local_ip, int local_port);
-  StatusCode listen(const std::string& ip, int port);
-  StatusCode accept(std::string* remote_ip, int* remote_port);
-  void setReadHandler(std::unique_ptr<ConnHandler> handler);
-  void unsetReadHandler();
-  bool hasReadHandler() { return read_handler != nullptr; }
-  bool hasReadHandler() const { return read_handler != nullptr; }
-  void setWriteHandler(std::unique_ptr<ConnHandler> handler,
+  StatusCode Listen(const std::string& ip, int port);
+  StatusCode Accept(std::string* remote_ip, int* remote_port);
+  void SetReadHandler(std::unique_ptr<ConnHandler> handler);
+  void UnsetReadHandler();
+  bool HasReadHandler() { return read_handler != nullptr; }
+  bool HasReadHandler() const { return read_handler != nullptr; }
+  void SetWriteHandler(std::unique_ptr<ConnHandler> handler,
                        bool barrier = false);
-  void unsetWriteHandler();
-  bool hasWriteHandler() { return write_handler != nullptr; }
-  bool hasWriteHandler() const { return write_handler != nullptr; }
-  int getFd() { return fd; }
-  ConnState getState() { return state; }
-  ConnState getState() const { return state; }
-  void setState(ConnState _state) { state = _state; }
-  void setPrivateData(void* _private_data) { private_data = _private_data; }
-  void* getPrivateData() { return private_data; }
-  void* getPrivateData() const { return private_data; }
-  ssize_t connRead(const char* buf, size_t readlen);
-  ssize_t connRead(const char* buf, size_t readlen) const;
-  ssize_t connRead(std::string& s);
-  ssize_t connRead(std::string& s) const;
-  ssize_t connSyncReadline(std::string& s, long timeout);
-  ssize_t connSyncReadline(std::string& s, long timeout) const;
-  ssize_t connSyncRead(const char* buffer, size_t readlen, long timeout);
-  ssize_t connSyncRead(const char* buffer, size_t readlen, long timeout) const;
-  ssize_t connSyncRead(std::string& s, long timeout);
-  ssize_t connSyncRead(std::string& s, long timeout) const;
-  ssize_t connWrite(const char* buffer, size_t len);
-  ssize_t connWrite(const char* buffer, size_t len) const;
-  ssize_t connWritev(const std::vector<std::pair<char*, size_t>>& mem_blocks);
-  ssize_t connWritev(
-      const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
-  ssize_t connSyncWrite(const char* buffer, size_t len, long timeout);
-  ssize_t connSyncWrite(const char* buffer, size_t len, long timeout) const;
-  void connClose() { close(fd); }
-  ~Connection() { connClose(); }
+  void UnsetWriteHandler();
+  bool HasWriteHandler() { return write_handler != nullptr; }
+  bool HasWriteHandler() const { return write_handler != nullptr; }
+  int Fd() { return fd; }
+  ConnState State() { return state; }
+  ConnState State() const { return state; }
+  void SetState(ConnState _state) { state = _state; }
+  void SetPrivateData(void* _private_data) { private_data = _private_data; }
+  void* PrivateData() { return private_data; }
+  void* PrivateData() const { return private_data; }
+  ssize_t Read(const char* buf, size_t readlen);
+  ssize_t Read(const char* buf, size_t readlen) const;
+  ssize_t Read(std::string& s);
+  ssize_t Read(std::string& s) const;
+  ssize_t SyncReadline(std::string& s, long timeout);
+  ssize_t SyncReadline(std::string& s, long timeout) const;
+  ssize_t SyncRead(const char* buffer, size_t readlen, long timeout);
+  ssize_t SyncRead(const char* buffer, size_t readlen, long timeout) const;
+  ssize_t SyncRead(std::string& s, long timeout);
+  ssize_t SyncRead(std::string& s, long timeout) const;
+  ssize_t Write(const char* buffer, size_t len);
+  ssize_t Write(const char* buffer, size_t len) const;
+  ssize_t Writev(const std::vector<std::pair<char*, size_t>>& mem_blocks);
+  ssize_t Writev(const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
+  ssize_t SyncWrite(const char* buffer, size_t len, long timeout);
+  ssize_t SyncWrite(const char* buffer, size_t len, long timeout) const;
+  void Close() { close(fd); }
+  ~Connection() { Close(); }
 
  private:
   /* if this flag is set, then write handler will be called before the read
    * handler */
   static constexpr int connFlagWriteBarrier = 1;
-  static ae::AeEventStatus connSocketEventHandler(ae::AeEventLoop* el, int fd,
+  static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
   void _setWriteHandler(std::unique_ptr<ConnHandler> handler);

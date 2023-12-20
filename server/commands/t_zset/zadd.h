@@ -10,12 +10,12 @@ namespace t_zset {
 class ZAddCommand : public Command {
  public:
   ZAddCommand() : Command("ZADD"){};
-  void exec(Client* const client) const override;
+  void Exec(Client* const client) const override;
 
  private:
-  int parseArgs(const std::vector<std::string>& args,
+  int ParseArgs(const std::vector<std::string>& args,
                 ZSetArgs* zset_args) const;
-  int genericZAdd(std::shared_ptr<const db::RedisDb> db,
+  int GenericZAdd(std::shared_ptr<const db::RedisDb> db,
                   const ZSetArgs* args) const;
 };
 }  // namespace t_zset

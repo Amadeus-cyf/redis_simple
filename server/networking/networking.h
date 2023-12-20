@@ -11,8 +11,8 @@ class Connection;
 }
 
 namespace networking {
-bool sendCommand(const connection::Connection* conn, const RedisCommand* cmd);
-ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
+bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd);
+ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
                                 int mask);
 }  // namespace networking
 }  // namespace redis_simple

@@ -19,18 +19,18 @@ AeEventLoop::AeEventLoop(AeKqueue* kq)
       aeApiState(kq),
       max_fd(-1) {}
 
-std::unique_ptr<AeEventLoop> AeEventLoop::initEventLoop() {
-  AeKqueue* kq = AeKqueue::aeApiCreate(EventsSize);
+std::unique_ptr<AeEventLoop> AeEventLoop::InitEventLoop() {
+  AeKqueue* kq = AeKqueue::AeApiCreate(EventsSize);
   return std::unique_ptr<AeEventLoop>(new AeEventLoop(kq));
 }
 
-void AeEventLoop::aeMain() {
+void AeEventLoop::AeMain() {
   while (true) {
-    aeProcessEvents();
+    AeProcessEvents();
   }
 }
 
-int AeEventLoop::aeWait(int fd, int mask, long timeout) const {
+int AeEventLoop::AeWait(int fd, int mask, long timeout) const {
   int nfds = 1;
   struct pollfd pfds[1];
   pfds[0].fd = fd;
@@ -46,28 +46,28 @@ int AeEventLoop::aeWait(int fd, int mask, long timeout) const {
   return r;
 }
 
-AeStatus AeEventLoop::aeCreateFileEvent(int fd, AeFileEvent* fe) {
-  printf("create events for fd = %d, mask = %d\n", fd, fe->getMask());
+AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
+  printf("create events for fd = %d, mask = %d\n", fd, fe->GetMask());
   if (fe == nullptr) {
     return ae_err;
   }
   if (fd < 0 || fd >= EventsSize) {
     throw("file descriptor out of range");
   }
-  int mask = fe->getMask();
+  int mask = fe->GetMask();
   if (fileEvents[fd] == nullptr) {
     printf("add new event\n");
     max_fd = std::max(max_fd, fd);
   } else {
-    fe->merge(fileEvents[fd]);
+    fe->Merge(fileEvents[fd]);
     delete fileEvents[fd];
   }
   fileEvents[fd] = fe;
-  return aeApiState->aeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
+  return aeApiState->AeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
 }
 
-AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) {
-  if (aeApiState->aeApiDelEvent(fd, mask) < 0) {
+AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
+  if (aeApiState->AeApiDelEvent(fd, mask) < 0) {
     printf(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
@@ -78,88 +78,88 @@ AeStatus AeEventLoop::aeDeleteFileEvent(int fd, int mask) {
   printf("delete file event success for file descriptor = %d, mask = %d\n", fd,
          mask);
   AeFileEvent* fe = fileEvents[fd];
-  if (fe->getMask() == mask) {
+  if (fe->GetMask() == mask) {
     fileEvents[fd] = nullptr;
     delete fe;
     fe = nullptr;
   } else {
-    int m = fe->getMask();
+    int m = fe->GetMask();
     m &= ~mask;
-    fe->setMask(m);
+    fe->SetMask(m);
   }
   return ae_ok;
 }
 
-void AeEventLoop::aeCreateTimeEvent(AeTimeEvent* te) {
+void AeEventLoop::AeCreateTimeEvent(AeTimeEvent* te) {
   if (!timeEventHead) {
     timeEventHead = te;
     return;
   }
-  te->setNext(te);
+  te->SetNext(te);
   timeEventHead = te;
 }
 
-void AeEventLoop::aeProcessEvents() {
+void AeEventLoop::AeProcessEvents() {
   if (max_fd == -1) {
     return;
   }
   struct timespec tspec;
   tspec.tv_sec = 1;
   tspec.tv_nsec = 0;
-  const std::unordered_map<int, int>& fdToMask = aeApiState->aeApiPoll(&tspec);
+  const std::unordered_map<int, int>& fdToMask = aeApiState->AeApiPoll(&tspec);
   for (const auto& it : fdToMask) {
     int fd = it.first, mask = it.second;
     AeFileEvent* fe = fileEvents[fd];
-    int inverted = fe->getMask() & AeFlags::aeBarrier;
+    int inverted = fe->GetMask() & AeFlags::aeBarrier;
     bool fired = false;
-    if (!inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
-        fe->hasRFileProc()) {
-      fe->callReadProc(this, fd, mask);
+    if (!inverted && (mask & fe->GetMask() & AeFlags::aeReadable) &&
+        fe->HasRFileProc()) {
+      fe->CallReadProc(this, fd, mask);
       fired = true;
     }
-    if ((mask & fe->getMask() & AeFlags::aeWritable) && fe->hasWFileProc() &&
-        (!fired || fe->isRWProcDiff())) {
-      fe->callWriteProc(this, fd, mask);
+    if ((mask & fe->GetMask() & AeFlags::aeWritable) && fe->HasWFileProc() &&
+        (!fired || fe->IsRWProcDiff())) {
+      fe->CallWriteProc(this, fd, mask);
       fired = true;
     }
-    if (inverted && (mask & fe->getMask() & AeFlags::aeReadable) &&
-        fe->hasRFileProc() && (!fired || fe->isRWProcDiff())) {
-      fe->callReadProc(this, fd, mask);
+    if (inverted && (mask & fe->GetMask() & AeFlags::aeReadable) &&
+        fe->HasRFileProc() && (!fired || fe->IsRWProcDiff())) {
+      fe->CallReadProc(this, fd, mask);
     }
   }
-  processTimeEvents();
+  ProcessTimeEvents();
 }
 
-void AeEventLoop::processTimeEvents() const {
+void AeEventLoop::ProcessTimeEvents() const {
   AeTimeEvent* te = timeEventHead;
   while (te) {
-    long long id = te->getId();
+    long long id = te->Id();
     if (id == AeFlags::aeDeleteEventId) {
-      AeTimeEvent *prev = te->getPrev(), *next = te->getNext();
+      AeTimeEvent *prev = te->Prev(), *next = te->Next();
       if (prev != nullptr) {
-        prev->setNext(next);
+        prev->SetNext(next);
       } else {
         timeEventHead = next;
       }
       if (next != nullptr) {
-        next->setPrev(prev);
+        next->SetPrev(prev);
       }
-      if (te->hasTimeFinalizeProc()) {
-        te->callTimeFinalizeProc();
+      if (te->HasTimeFinalizeProc()) {
+        te->CallTimeFinalizeProc();
       }
       delete te;
       te = next;
     } else {
-      int64_t now = utils::getNowInMilliseconds();
-      if (te->getWhen() <= now) {
-        int ret = te->callTimeProc();
+      int64_t now = utils::GetNowInMilliseconds();
+      if (te->When() <= now) {
+        int ret = te->CallTimeProc();
         if (ret == AeFlags::aeNoMore) {
-          te->setId(AeFlags::aeDeleteEventId);
+          te->SetId(AeFlags::aeDeleteEventId);
         } else {
-          te->setWhen(now + ret * 1000);
+          te->SetWhen(now + ret * 1000);
         }
       }
-      te = te->getNext();
+      te = te->Next();
     }
   }
 }

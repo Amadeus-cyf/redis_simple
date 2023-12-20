@@ -50,48 +50,48 @@ RedisCli::RedisCli()
     : query_buf(std::make_unique<in_memory::DynamicBuffer>()),
       reply_buf(std::make_unique<in_memory::DynamicBuffer>()){};
 
-CliStatus RedisCli::connect(const std::string& ip, const int port) {
-  socket_fd = tcp::tcpConnect(ip, port);
+CliStatus RedisCli::Connect(const std::string& ip, const int port) {
+  socket_fd = tcp::TCP_Connect(ip, port);
   if (socket_fd < 0) {
     return CliStatus::cliErr;
   }
   return CliStatus::cliOK;
 }
 
-void RedisCli::addCommand(const std::string& cmd) {
-  query_buf->writeToBuffer(cmd.c_str(), cmd.size());
+void RedisCli::AddCommand(const std::string& cmd) {
+  query_buf->WriteToBuffer(cmd.c_str(), cmd.size());
 }
 
 std::string RedisCli::getReply() {
   std::string reply;
-  if (reply_buf && !reply_buf->isEmpty() && processReply(reply)) {
+  if (reply_buf && !reply_buf->Empty() && ProcessReply(reply)) {
     return reply;
   }
-  if (!query_buf->isEmpty()) {
-    if (writeToSocket(socket_fd, query_buf->getBufInString()) < 0) {
+  if (!query_buf->Empty()) {
+    if (writeToSocket(socket_fd, query_buf->GetBufInString()) < 0) {
       return ErrResp;
     }
-    query_buf->clear();
+    query_buf->Clear();
     const std::string& replies = readFromSocket(socket_fd);
-    reply_buf->writeToBuffer(replies.c_str(), replies.size());
-    if (processReply(reply)) {
+    reply_buf->WriteToBuffer(replies.c_str(), replies.size());
+    if (ProcessReply(reply)) {
       return reply;
     }
   }
   return NoReplyResp;
 }
 
-CompletableFuture<std::string> RedisCli::getReplyAsync() {
+CompletableFuture<std::string> RedisCli::GetReplyAsync() {
   std::future<std::string> future =
       std::async(std::launch::async, [&]() { return getReply(); });
   return CompletableFuture<std::string>(std::move(future));
 }
 
-bool RedisCli::processReply(std::string& reply) {
-  ssize_t processed = resp_parser::parse(reply_buf->getBufInString(), reply);
+bool RedisCli::ProcessReply(std::string& reply) {
+  ssize_t processed = resp_parser::Parse(reply_buf->GetBufInString(), reply);
   if (processed > 0) {
-    reply_buf->incrProcessedOffset(processed);
-    reply_buf->trimProcessedBuffer();
+    reply_buf->IncrProcessedOffset(processed);
+    reply_buf->TrimProcessedBuffer();
     return true;
   }
   return false;
@@ -101,25 +101,25 @@ bool RedisCli::processReply(std::string& reply) {
 
 int main() {
   redis_simple::cli::RedisCli cli;
-  cli.connect("localhost", 8081);
+  cli.Connect("localhost", 8081);
   int i = 0;
   while (i++ < 1000) {
     const std::string& cmd1 = "SET key val\r\n";
-    cli.addCommand(cmd1);
+    cli.AddCommand(cmd1);
     const std::string& cmd2 = "GET key\r\n";
-    cli.addCommand(cmd2);
+    cli.AddCommand(cmd2);
 
     const std::string& cmd3 = "ZADD key1 ele1 1.0\r\n";
     const std::string& cmd4 = "ZADD key1 ele2 1.0\r\n";
-    cli.addCommand(cmd3);
-    cli.addCommand(cmd4);
+    cli.AddCommand(cmd3);
+    cli.AddCommand(cmd4);
 
     const std::string& cmd5 = "ZRANK key1 ele1\r\n";
     const std::string& cmd6 = "ZRANK key1 ele2\r\n";
     const std::string& cmd7 = "ZRANK key1 ele3\r\n";
-    cli.addCommand(cmd5);
-    cli.addCommand(cmd6);
-    cli.addCommand(cmd7);
+    cli.AddCommand(cmd5);
+    cli.AddCommand(cmd6);
+    cli.AddCommand(cmd7);
 
     // const std::string& r1 = cli.getReply();
     // printf("receive resp %s\n", r1.c_str());
@@ -127,120 +127,120 @@ int main() {
     // printf("receive resp %s\n", r2.c_str());
     // printf("test\n");
 
-    auto r3 = cli.getReplyAsync();
+    auto r3 = cli.GetReplyAsync();
     const std::string& applied_str1 =
-        r3.thenApply([](const std::string& reply) {
+        r3.ThenApply([](const std::string& reply) {
             printf("receive resp 1: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApply(
+            .ThenApply(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 1, %s\n", applied_str1.c_str());
 
-    auto r4 = cli.getReplyAsync();
+    auto r4 = cli.GetReplyAsync();
     const std::string& applied_str2 =
-        r4.thenApplyAsync([](const std::string& reply) {
+        r4.ThenApplyAsync([](const std::string& reply) {
             printf("receive resp 2: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApplyAsync(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 2, %s\n", applied_str2.c_str());
 
-    auto r5 = cli.getReplyAsync();
+    auto r5 = cli.GetReplyAsync();
     const std::string& applied_str3 =
-        r5.thenApplyAsync([](const std::string& reply) {
+        r5.ThenApplyAsync([](const std::string& reply) {
             printf("receive resp 3: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApplyAsync(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 3, %s\n", applied_str3.c_str());
 
-    auto r6 = cli.getReplyAsync();
+    auto r6 = cli.GetReplyAsync();
     const std::string& applied_str4 =
-        r6.thenApplyAsync([](const std::string& reply) {
+        r6.ThenApplyAsync([](const std::string& reply) {
             printf("receive resp 4: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApplyAsync(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 4, %s\n", applied_str4.c_str());
 
-    auto r7 = cli.getReplyAsync();
+    auto r7 = cli.GetReplyAsync();
     const std::string& applied_str5 =
-        r7.thenApplyAsync([](const std::string& reply) {
+        r7.ThenApplyAsync([](const std::string& reply) {
             printf("receive resp 5: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApplyAsync(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 5, %s\n", applied_str5.c_str());
 
-    auto r8 = cli.getReplyAsync();
+    auto r8 = cli.GetReplyAsync();
     const std::string& applied_str6 =
-        r8.thenApplyAsync([](const std::string& reply) {
+        r8.ThenApplyAsync([](const std::string& reply) {
             printf("receive resp 6: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApplyAsync(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 6, %s\n", applied_str6.c_str());
 
-    auto r9 = cli.getReplyAsync();
+    auto r9 = cli.GetReplyAsync();
     const std::string& applied_str7 =
-        r9.thenApplyAsync([](const std::string& reply) {
+        r9.ThenApplyAsync([](const std::string& reply) {
             printf("receive resp 7: %s end\n", reply.c_str());
             return reply;
           })
-            .thenApplyAsync(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
             .get();
     printf("after processed 7, %s\n", applied_str7.c_str());
   }
 
   const std::string& cmd1 = "ZREM key1 ele1\r\n";
-  cli.addCommand(cmd1);
-  cli.addCommand(cmd1);
+  cli.AddCommand(cmd1);
+  cli.AddCommand(cmd1);
   const std::string& cmd2 = "ZRANK key1 ele1\r\n";
-  cli.addCommand(cmd2);
+  cli.AddCommand(cmd2);
 
-  auto r6 = cli.getReplyAsync();
+  auto r6 = cli.GetReplyAsync();
   const std::string& applied_str4 =
-      r6.thenApplyAsync([](const std::string& reply) {
+      r6.ThenApplyAsync([](const std::string& reply) {
           printf("receive resp 4: %s end\n", reply.c_str());
           return reply;
         })
-          .thenApplyAsync(
+          .ThenApplyAsync(
               [](const std::string& reply) { return reply + "_processed"; })
           .get();
   printf("after processed 6, %s\n", applied_str4.c_str());
-  cli.addCommand(cmd1);
+  cli.AddCommand(cmd1);
 
-  auto r7 = cli.getReplyAsync();
+  auto r7 = cli.GetReplyAsync();
   const std::string& applied_str5 =
-      r7.thenApplyAsync([](const std::string& reply) {
+      r7.ThenApplyAsync([](const std::string& reply) {
           printf("receive resp 5: %s end\n", reply.c_str());
           return reply;
         })
-          .thenApplyAsync(
+          .ThenApplyAsync(
               [](const std::string& reply) { return reply + "_processed"; })
           .get();
   printf("after processed 7, %s\n", applied_str5.c_str());
 
-  auto r8 = cli.getReplyAsync();
+  auto r8 = cli.GetReplyAsync();
   const std::string& applied_str6 =
-      r8.thenApplyAsync([](const std::string& reply) {
+      r8.ThenApplyAsync([](const std::string& reply) {
           printf("receive resp 6: %s end\n", reply.c_str());
           return reply;
         })
-          .thenApplyAsync(
+          .ThenApplyAsync(
               [](const std::string& reply) { return reply + "_processed"; })
           .get();
   printf("after processed 8, %s\n", applied_str6.c_str());

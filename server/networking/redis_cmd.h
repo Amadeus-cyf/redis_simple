@@ -13,9 +13,9 @@ class RedisCommand {
   explicit RedisCommand(
       const std::string& name,
       const std::vector<std::string>& args = std::vector<std::string>{});
-  const std::string& getName() const { return name; }
-  const std::vector<std::string>& getArgs() const { return args; }
-  std::string toString() const;
+  const std::string& Name() const { return name; }
+  const std::vector<std::string>& Args() const { return args; }
+  std::string String() const;
 
  private:
   const std::string name;

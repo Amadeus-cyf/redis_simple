@@ -10,8 +10,8 @@ enum ReplyStatus {
 };
 
 extern const std::string& CRLF;
-std::string fromString(const std::string& s);
-std::string fromBulkString(const std::string& s);
-std::string fromInt64(const int64_t ll);
+std::string FromString(const std::string& s);
+std::string FromBulkString(const std::string& s);
+std::string FromInt64(const int64_t ll);
 }  // namespace reply
 }  // namespace redis_simple

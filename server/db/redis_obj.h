@@ -18,21 +18,20 @@ class RedisObj {
     objEncodingZSet = 2,
   };
 
-  static RedisObj* createRedisStrObj(const std::string& val) {
-    return createRedisObj(ObjEncoding::objEncodingString, val);
+  static RedisObj* CreateString(const std::string& val) {
+    return Create(ObjEncoding::objEncodingString, val);
   }
-  static RedisObj* createRedisZSetObj(const zset::ZSet* const zset) {
-    return createRedisObj(ObjEncoding::objEncodingZSet, zset);
+  static RedisObj* CreateZSet(const zset::ZSet* const zset) {
+    return Create(ObjEncoding::objEncodingZSet, zset);
   }
-  static RedisObj* createRedisObj(const ObjEncoding encoding,
-                                  const DataType& val) {
+  static RedisObj* Create(const ObjEncoding encoding, const DataType& val) {
     return new RedisObj(encoding, val);
   }
-  const std::string& getString() const;
-  const zset::ZSet* const getZSet() const;
-  ObjEncoding getEncoding() const { return encoding; }
-  void incrRefCount() const { ++refcount; }
-  void decrRefCount() const;
+  const std::string& String() const;
+  const zset::ZSet* const ZSet() const;
+  ObjEncoding Encoding() const { return encoding; }
+  void IncrRefCount() const { ++refcount; }
+  void DecrRefCount() const;
 
  private:
   explicit RedisObj(const ObjEncoding encoding, const DataType& val)

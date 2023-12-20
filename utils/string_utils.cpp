@@ -2,7 +2,7 @@
 
 namespace redis_simple {
 namespace utils {
-std::vector<std::string> split(std::string s, std::string delimiter) {
+std::vector<std::string> Split(std::string s, std::string delimiter) {
   std::vector<std::string> res;
   auto start = 0, end = -1;
   while ((end = s.find(delimiter, start)) != std::string::npos) {
@@ -15,7 +15,7 @@ std::vector<std::string> split(std::string s, std::string delimiter) {
   return res;
 }
 
-void shiftCStr(char* s, size_t len, size_t offset) {
+void ShiftCStr(char* s, size_t len, size_t offset) {
   if (offset <= 0) {
     return;
   }
@@ -26,7 +26,7 @@ void shiftCStr(char* s, size_t len, size_t offset) {
   memmove(s, s + offset, len - offset);
 }
 
-void touppercase(std::string& s) {
+void ToUppercase(std::string& s) {
   std::transform(s.begin(), s.end(), s.begin(), toupper);
 }
 }  // namespace utils

@@ -8,7 +8,7 @@ RedisCommand::RedisCommand(const std::string& cmd_name,
                            const std::vector<std::string>& cmd_args)
     : name(cmd_name), args(cmd_args) {}
 
-std::string RedisCommand::toString() const {
+std::string RedisCommand::String() const {
   std::string cmd = name;
   for (const std::string& arg : args) {
     cmd.push_back(' ');

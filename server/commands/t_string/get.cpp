@@ -6,33 +6,33 @@
 namespace redis_simple {
 namespace command {
 namespace t_string {
-void GetCommand::exec(Client* const client) const {
+void GetCommand::Exec(Client* const client) const {
   printf("get command called\n");
   StrArgs args;
-  if (parseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->getArgs(), &args) < 0) {
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    const db::RedisObj* robj = genericGet(db, &args);
+    const db::RedisObj* robj = GenericGet(db, &args);
     if (!robj) {
-      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
     try {
-      const std::string& s = robj->getString();
-      client->addReply(reply::fromBulkString(s));
+      const std::string& s = robj->String();
+      client->addReply(reply::FromBulkString(s));
     } catch (const std::exception& e) {
       printf("catch type exception %s", e.what());
-      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     }
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
-int GetCommand::parseArgs(const std::vector<std::string>& args,
+int GetCommand::ParseArgs(const std::vector<std::string>& args,
                           StrArgs* str_args) const {
   if (args.empty()) {
     printf("invalid args\n");
@@ -42,14 +42,13 @@ int GetCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-const db::RedisObj* GetCommand::genericGet(
+const db::RedisObj* GetCommand::GenericGet(
     std::shared_ptr<const db::RedisDb> db, const StrArgs* args) const {
   if (!db || !args) {
     return nullptr;
   }
-  const db::RedisObj* obj = db->lookupKey(args->key);
-  if (obj &&
-      obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingString) {
+  const db::RedisObj* obj = db->LookupKey(args->key);
+  if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingString) {
     return nullptr;
   }
   return obj;

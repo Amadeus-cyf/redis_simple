@@ -8,7 +8,7 @@
 #include "tcp/tcp.h"
 
 namespace redis_simple {
-ae::AeEventStatus readProc(ae::AeEventLoop* el, int fd, int* client_data,
+ae::AeEventStatus ReadProc(ae::AeEventLoop* el, int fd, int* client_data,
                            int mask) {
   printf("read data from fd %d\n", fd);
   std::string res;
@@ -21,40 +21,40 @@ ae::AeEventStatus readProc(ae::AeEventLoop* el, int fd, int* client_data,
   return ae::AeEventStatus::aeEventOK;
 }
 
-ae::AeEventStatus acceptProc(ae::AeEventLoop* el, int fd, int* client_data,
+ae::AeEventStatus AcceptProc(ae::AeEventLoop* el, int fd, int* client_data,
                              int mask) {
   std::string ip;
   int port = 0;
-  int remote_fd = tcp::tcpAccept(fd, &ip, &port);
+  int remote_fd = tcp::TCP_Accept(fd, &ip, &port);
   if (remote_fd < 0) {
     printf("accept failed\n");
     return ae::AeEventStatus::aeEventErr;
   }
   printf("accept %s:%d\n", ip.c_str(), port);
-  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::create(
-      readProc, nullptr, client_data, ae::AeFlags::aeReadable);
-  el->aeCreateFileEvent(remote_fd, fe);
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::Create(
+      ReadProc, nullptr, client_data, ae::AeFlags::aeReadable);
+  el->AeCreateFileEvent(remote_fd, fe);
   return ae::AeEventStatus::aeEventOK;
 }
 
 void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
-  int fd = tcp::tcpCreateSocket(AF_INET, true);
+  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::InitEventLoop();
+  int fd = tcp::TCP_CreateSocket(AF_INET, true);
   if (fd < 0) {
     printf("failed to create socket\n");
     return;
   }
   printf("create socket fd %d\n", fd);
-  if (tcp::tcpBindAndListen(fd, "localhost", 8081) ==
+  if (tcp::TCP_BindAndListen(fd, "localhost", 8081) ==
       tcp::TCPStatusCode::tcpError) {
     printf("failed to listen to %s:%d", "localhost", 8081);
     return;
   }
   int client_data = 10000;
-  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::create(
-      acceptProc, nullptr, &client_data, ae::AeFlags::aeReadable);
-  el->aeCreateFileEvent(fd, fe);
-  el->aeMain();
+  ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::Create(
+      AcceptProc, nullptr, &client_data, ae::AeFlags::aeReadable);
+  el->AeCreateFileEvent(fd, fe);
+  el->AeMain();
   return;
 }
 }  // namespace redis_simple

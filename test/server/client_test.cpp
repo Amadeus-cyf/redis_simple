@@ -10,20 +10,20 @@
 #include "server/networking/redis_cmd.h"
 
 namespace redis_simple {
-void writeHandler(connection::Connection* conn);
-void readHandler(connection::Connection* conn);
+void HandleWrite(connection::Connection* conn);
+void HandleRead(connection::Connection* conn);
 
 int n = 0;
 struct ConnWriteHandler : public connection::ConnHandler {
-  void handle(connection::Connection* conn) { writeHandler(conn); }
+  void Handle(connection::Connection* conn) { HandleWrite(conn); }
 };
 
 struct ConnReadHandler : public connection::ConnHandler {
-  void handle(connection::Connection* conn) { readHandler(conn); }
+  void Handle(connection::Connection* conn) { HandleRead(conn); }
 };
 
-void writeHandler(connection::Connection* conn) {
-  if (conn->getState() != connection::ConnState::connStateConnected) {
+void HandleWrite(connection::Connection* conn) {
+  if (conn->State() != connection::ConnState::connStateConnected) {
     printf("invalid connection state\n");
     exit(-1);
     return;
@@ -37,38 +37,38 @@ void writeHandler(connection::Connection* conn) {
   const networking::RedisCommand& delCmd =
       networking::RedisCommand("DEL", {"key"});
 
-  networking::sendCommand(conn, &setCmd);
-  networking::sendCommand(conn, &getCmd);
-  networking::sendCommand(conn, &delCmd);
-  networking::sendCommand(conn, &delCmd);
+  networking::SendCommand(conn, &setCmd);
+  networking::SendCommand(conn, &getCmd);
+  networking::SendCommand(conn, &delCmd);
+  networking::SendCommand(conn, &delCmd);
 
   if (++n >= 1) {
-    conn->setWriteHandler(nullptr);
+    conn->SetWriteHandler(nullptr);
   }
 
   std::unique_ptr<ConnReadHandler> rhandler =
       std::make_unique<ConnReadHandler>();
-  conn->setReadHandler(std::move(rhandler));
+  conn->SetReadHandler(std::move(rhandler));
   printf("write handler called\n");
 }
 
-void readHandler(connection::Connection* conn) {
-  printf("read resp from %d\n", conn->getFd());
+void HandleRead(connection::Connection* conn) {
+  printf("read resp from %d\n", conn->Fd());
 
   std::string s;
-  int n = conn->connRead(s);
+  int n = conn->Read(s);
 
   printf("read %d\n", n);
   printf("receive response: %s\n", s.c_str());
-  conn->setReadHandler(nullptr);
+  conn->SetReadHandler(nullptr);
 }
 
-void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::initEventLoop();
+void Run() {
+  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::InitEventLoop();
   connection::Connection* conn =
       new connection::Connection({.fd = -1, .loop = el.get()});
   connection::StatusCode r =
-      conn->connect("localhost", 8081, "localhost", 8080);
+      conn->Connect("localhost", 8081, "localhost", 8080);
   printf("conn result %d\n", r);
   if (r == connection::StatusCode::c_err) {
     printf("connection failed\n");
@@ -77,10 +77,10 @@ void run() {
 
   std::unique_ptr<ConnWriteHandler> handler =
       std::make_unique<ConnWriteHandler>();
-  conn->setWriteHandler(std::move(handler));
+  conn->SetWriteHandler(std::move(handler));
 
-  el->aeMain();
+  el->AeMain();
 }
 }  // namespace redis_simple
 
-int main() { redis_simple::run(); }
+int main() { redis_simple::Run(); }

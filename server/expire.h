@@ -1,5 +1,5 @@
 #pragma once
 
 namespace redis_simple {
-void activeExpireCycle();
+void ActiveExpireCycle();
 }  // namespace redis_simple

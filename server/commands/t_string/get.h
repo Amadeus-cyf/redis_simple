@@ -10,11 +10,11 @@ namespace t_string {
 class GetCommand : public Command {
  public:
   GetCommand() : Command("GET"){};
-  void exec(Client* const client) const override;
+  void Exec(Client* const client) const override;
 
  private:
-  int parseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
-  const db::RedisObj* genericGet(std::shared_ptr<const db::RedisDb> db,
+  int ParseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
+  const db::RedisObj* GenericGet(std::shared_ptr<const db::RedisDb> db,
                                  const StrArgs* args) const;
 };
 }  // namespace t_string

@@ -4,10 +4,10 @@
 
 namespace redis_simple {
 std::unique_ptr<in_memory::Dict<std::string, std::string>> dict =
-    in_memory::Dict<std::string, std::string>::init();
+    in_memory::Dict<std::string, std::string>::Init();
 std::vector<std::string> keys;
 
-std::string randString(const int len) {
+std::string RandString(const int len) {
   static const char alphanum[] =
       "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -24,15 +24,15 @@ std::string randString(const int len) {
 
 static void DictAdd(benchmark::State& state) {
   for (auto _ : state) {
-    const std::string& key = randString(10);
+    const std::string& key = RandString(10);
     keys.push_back(key);
-    dict->add(key, randString(10));
+    dict->Add(key, RandString(10));
   }
 }
 
 static void DictFind(benchmark::State& state) {
   for (auto _ : state) {
-    dict->find(keys[rand() % keys.size()]);
+    dict->Find(keys[rand() % keys.size()]);
   }
 }
 
@@ -41,9 +41,9 @@ static void DictUpdate(benchmark::State& state) {
   for (auto _ : state) {
     exist = rand() % 2 == 1;
     if (exist) {
-      dict->replace(keys[rand() % keys.size()], randString(10));
+      dict->Replace(keys[rand() % keys.size()], RandString(10));
     } else {
-      dict->replace("non-existing key", "val");
+      dict->Replace("non-existing key", "val");
     }
   }
 }
@@ -53,9 +53,9 @@ static void DictDelete(benchmark::State& state) {
   for (auto _ : state) {
     exist = rand() % 2 == 1;
     if (exist) {
-      dict->del(keys[rand() % keys.size()]);
+      dict->Delete(keys[rand() % keys.size()]);
     } else {
-      dict->del("non-existing key");
+      dict->Delete("non-existing key");
     }
   }
 }

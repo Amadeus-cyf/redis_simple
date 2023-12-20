@@ -12,7 +12,7 @@
 namespace redis_simple {
 namespace tcp {
 namespace {
-int tcpBind(const int socket_fd, const std::string& ip, const int port) {
+int TCP_Bind(const int socket_fd, const std::string& ip, const int port) {
   struct addrinfo hints, *info = nullptr;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
@@ -34,7 +34,7 @@ int tcpBind(const int socket_fd, const std::string& ip, const int port) {
   return r;
 }
 
-int tcpSetReuseAddr(int socket_fd) {
+int TCP_SetReuseAddr(int socket_fd) {
   int yes = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
       -1) {
@@ -43,23 +43,24 @@ int tcpSetReuseAddr(int socket_fd) {
   return tcpOK;
 }
 
-int tcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
+int TCP_GenericCreateSocket(int domain, int type, int protocol,
+                            bool non_block) {
   int socket_fd = socket(domain, type, protocol);
   if (socket_fd < 0) {
     return TCPStatusCode::tcpError;
   }
-  if (tcpSetReuseAddr(socket_fd) < 0) {
+  if (TCP_SetReuseAddr(socket_fd) < 0) {
     close(socket_fd);
     return TCPStatusCode::tcpError;
   }
-  if (non_block && nonBlock(socket_fd) == TCPStatusCode::tcpError) {
+  if (non_block && NonBlock(socket_fd) == TCPStatusCode::tcpError) {
     close(socket_fd);
     return TCPStatusCode::tcpError;
   }
   return socket_fd;
 }
 
-int tcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
+int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   int s = -1;
   if ((s = accept(socket_fd, addr, len)) == -1) {
     return TCPStatusCode::tcpError;
@@ -67,26 +68,26 @@ int tcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   return s;
 }
 
-int setBlock(int fd, bool block) {
+int SetBlock(int fd, bool block) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) {
     return TCPStatusCode::tcpError;
   }
   if ((flags & O_NONBLOCK) == !block) {
-    return tcpOK;
+    return TCPStatusCode::tcpOK;
   }
   block ? flags &= ~O_NONBLOCK : flags |= O_NONBLOCK;
   return fcntl(fd, F_SETFL, flags) < 0 ? TCPStatusCode::tcpError
                                        : TCPStatusCode::tcpOK;
 }
 
-bool isNonBlock(int fd) {
+bool IsNonBlock(int fd) {
   int flags = fcntl(fd, F_GETFL);
 
   return flags & O_NONBLOCK;
 }
 
-int setCLOEXEC(int fd) {
+int SetCLOEXEC(int fd) {
   int flags = fcntl(fd, F_GETFL);
   if (flags & O_CLOEXEC) {
     return tcpOK;
@@ -99,13 +100,14 @@ int setCLOEXEC(int fd) {
 
 static constexpr const int backlog = 3;
 
-int tcpCreateSocket(int domain, bool non_block) {
-  return tcpGenericCreateSocket(domain, SOCK_STREAM, 0, non_block);
+int TCP_CreateSocket(int domain, bool non_block) {
+  return TCP_GenericCreateSocket(domain, SOCK_STREAM, 0, non_block);
 }
 
-int tcpConnect(const std::string& remote_ip, const int remote_port,
-               const bool non_block, const std::optional<std::string>& local_ip,
-               const std::optional<int>& local_port) {
+int TCP_Connect(const std::string& remote_ip, const int remote_port,
+                const bool non_block,
+                const std::optional<std::string>& local_ip,
+                const std::optional<int>& local_port) {
   struct addrinfo hints, *info;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
@@ -116,20 +118,20 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
   }
   int socket_fd = -1;
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
-    socket_fd = tcpGenericCreateSocket(p->ai_family, p->ai_socktype,
-                                       p->ai_protocol, non_block);
+    socket_fd = TCP_GenericCreateSocket(p->ai_family, p->ai_socktype,
+                                        p->ai_protocol, non_block);
     if (socket_fd < 0) {
       continue;
     }
     if (local_ip.has_value() && local_port.has_value() &&
-        tcpBind(socket_fd, local_ip.value(), local_port.value()) ==
+        TCP_Bind(socket_fd, local_ip.value(), local_port.value()) ==
             TCPStatusCode::tcpError) {
       close(socket_fd);
       socket_fd = -1;
       continue;
     }
     if (connect(socket_fd, p->ai_addr, p->ai_addrlen) == -1) {
-      if (!isNonBlock(socket_fd) || errno != EINPROGRESS) {
+      if (!IsNonBlock(socket_fd) || errno != EINPROGRESS) {
         perror("conn error");
         close(socket_fd);
         socket_fd = -1;
@@ -143,16 +145,16 @@ int tcpConnect(const std::string& remote_ip, const int remote_port,
   return socket_fd != -1 ? socket_fd : TCPStatusCode::tcpError;
 }
 
-int tcpAccept(const int socket_fd, std::string* const ip, int* const port) {
+int TCP_Accept(const int socket_fd, std::string* const ip, int* const port) {
   sockaddr_storage sa;
   socklen_t len = sizeof(sa);
   int remote_fd = -1;
   do {
     remote_fd =
-        tcpGenericAccept(socket_fd, reinterpret_cast<sockaddr*>(&sa), &len);
+        TCP_GenericAccept(socket_fd, reinterpret_cast<sockaddr*>(&sa), &len);
   } while (remote_fd == -1 && errno == EINTR);
-  if (nonBlock(remote_fd) == TCPStatusCode::tcpError ||
-      setCLOEXEC(remote_fd) == TCPStatusCode::tcpError) {
+  if (NonBlock(remote_fd) == TCPStatusCode::tcpError ||
+      SetCLOEXEC(remote_fd) == TCPStatusCode::tcpError) {
     close(remote_fd);
     return TCPStatusCode::tcpError;
   }
@@ -164,9 +166,9 @@ int tcpAccept(const int socket_fd, std::string* const ip, int* const port) {
   return remote_fd;
 }
 
-int tcpBindAndListen(const int socket_fd, const std::string& ip,
-                     const int port) {
-  if (tcpBind(socket_fd, ip, port) < 0) {
+int TCP_BindAndListen(const int socket_fd, const std::string& ip,
+                      const int port) {
+  if (TCP_Bind(socket_fd, ip, port) < 0) {
     return TCPStatusCode::tcpError;
   }
   if (listen(socket_fd, backlog) < 0) {
@@ -176,11 +178,11 @@ int tcpBindAndListen(const int socket_fd, const std::string& ip,
   return TCPStatusCode::tcpOK;
 }
 
-int nonBlock(const int socket_fd) { return setBlock(socket_fd, false); }
+int NonBlock(const int socket_fd) { return SetBlock(socket_fd, false); }
 
-int block(const int socket_fd) { return setBlock(socket_fd, true); }
+int Block(const int socket_fd) { return SetBlock(socket_fd, true); }
 
-bool isSocketError(const int fd) {
+bool IsSocketError(const int fd) {
   int sockerr = 0;
   socklen_t errlen;
   getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen);

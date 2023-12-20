@@ -26,12 +26,12 @@ class Client {
   ssize_t readQuery();
   ssize_t sendReply();
   size_t addReply(const std::string& s) {
-    return buf->addReplyToBufferOrList(s.c_str(), s.length());
+    return buf->AddReplyToBufferOrList(s.c_str(), s.length());
   }
-  bool hasPendingReplies() { return !(buf->isEmpty()); }
+  bool hasPendingReplies() { return !(buf->Empty()); }
   ClientStatus processInputBuffer();
-  void free() { conn->connClose(); }
-  void free() const { conn->connClose(); }
+  void free() { conn->Close(); }
+  void free() const { conn->Close(); }
   const std::vector<std::string>& getArgs() { return args; }
 
  private:

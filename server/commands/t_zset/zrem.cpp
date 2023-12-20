@@ -7,25 +7,25 @@
 namespace redis_simple {
 namespace command {
 namespace t_zset {
-void ZRemCommand::exec(Client* const client) const {
+void ZRemCommand::Exec(Client* const client) const {
   ZSetArgs args;
-  if (parseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->getArgs(), &args) < 0) {
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    if (genericZRem(db, &args) < 0) {
-      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+    if (GenericRemove(db, &args) < 0) {
+      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
-int ZRemCommand::parseArgs(const std::vector<std::string>& args,
+int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
                            ZSetArgs* zset_args) const {
   if (args.size() < 2) {
     printf("invalid number of args\n");
@@ -37,22 +37,22 @@ int ZRemCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRemCommand::genericZRem(std::shared_ptr<const db::RedisDb> db,
-                             const ZSetArgs* args) const {
+int ZRemCommand::GenericRemove(std::shared_ptr<const db::RedisDb> db,
+                               const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
   }
-  const db::RedisObj* obj = db->lookupKey(args->key);
+  const db::RedisObj* obj = db->LookupKey(args->key);
   if (!obj) {
     printf("key not found\n");
     return -1;
   }
-  if (obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     printf("incorrect value type\n");
     return -1;
   }
   try {
-    const zset::ZSet* const zset = obj->getZSet();
+    const zset::ZSet* const zset = obj->ZSet();
     return zset->remove(args->ele) ? 0 : -1;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());

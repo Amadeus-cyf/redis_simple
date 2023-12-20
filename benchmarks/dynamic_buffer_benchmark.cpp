@@ -6,24 +6,24 @@
 namespace redis_simple {
 in_memory::DynamicBuffer dynamicBuffer;
 
-static void init() {
+static void Init() {
   for (int i = 0; i < bufferSize; ++i) {
     buffer[i] = rand() % 1024 == 0 ? '\n' : rand() % 26 + 'a';
   }
 }
 
 static void DynamicBufferWrite(benchmark::State& state) {
-  init();
+  Init();
   for (auto _ : state) {
-    dynamicBuffer.writeToBuffer(buffer, bufferSize);
+    dynamicBuffer.WriteToBuffer(buffer, bufferSize);
   }
 }
 
 static void DynamicBufferProcessAndTrim(benchmark::State& state) {
   for (auto _ : state) {
-    const std::string& s = dynamicBuffer.processInlineBuffer();
+    const std::string& s = dynamicBuffer.ProcessInlineBuffer();
   }
-  dynamicBuffer.trimProcessedBuffer();
+  dynamicBuffer.TrimProcessedBuffer();
 }
 
 BENCHMARK(DynamicBufferWrite);

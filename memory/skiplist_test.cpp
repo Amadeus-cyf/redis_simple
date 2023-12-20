@@ -30,178 +30,183 @@ struct RangeByKeySpecTestCase {
   const int count;
 };
 
-const std::vector<const RangeByRankSpecTestCase> rangeByRankSpecTestCases();
-const std::vector<const RangeByKeySpecTestCase> rangeByKeySpecTestCases();
-void scanSkiplist(const Skiplist<std::string>* skiplist);
+const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases();
+const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases();
+void ScanSkiplist(const Skiplist<std::string>* skiplist);
 
 Skiplist<std::string>* SkiplistTest::skiplist;
 
 TEST_F(SkiplistTest, Insertion) {
-  ASSERT_EQ(skiplist->insert("key1"), "key1");
-  ASSERT_EQ(skiplist->insert("key2"), "key2");
-  ASSERT_EQ(skiplist->insert("key0"), "key0");
-  ASSERT_EQ(skiplist->insert("key1"), "key1");
-  ASSERT_EQ(skiplist->size(), 3);
+  ASSERT_EQ(skiplist->Insert("key1"), "key1");
+  ASSERT_EQ(skiplist->Insert("key2"), "key2");
+  ASSERT_EQ(skiplist->Insert("key0"), "key0");
+  ASSERT_EQ(skiplist->Insert("key1"), "key1");
+  ASSERT_EQ(skiplist->Size(), 3);
 
-  ASSERT_TRUE(skiplist->contains("key1"));
-  ASSERT_TRUE(skiplist->contains("key2"));
-  ASSERT_TRUE(skiplist->contains("key0"));
-  ASSERT_TRUE(!skiplist->contains("key_not_exist"));
+  ASSERT_TRUE(skiplist->Contains("key1"));
+  ASSERT_TRUE(skiplist->Contains("key2"));
+  ASSERT_TRUE(skiplist->Contains("key0"));
+  ASSERT_TRUE(!skiplist->Contains("key_not_exist"));
 }
 
 TEST_F(SkiplistTest, Deletion) {
-  ASSERT_TRUE(skiplist->del("key1"));
-  ASSERT_FALSE(skiplist->contains("key1"));
-  ASSERT_EQ(skiplist->size(), 2);
-  ASSERT_FALSE(skiplist->del("key1"));
-  ASSERT_EQ(skiplist->size(), 2);
+  ASSERT_TRUE(skiplist->Delete("key1"));
+  ASSERT_FALSE(skiplist->Contains("key1"));
+  ASSERT_EQ(skiplist->Size(), 2);
+  ASSERT_FALSE(skiplist->Delete("key1"));
+  ASSERT_EQ(skiplist->Size(), 2);
 
-  ASSERT_TRUE(skiplist->del("key2"));
-  ASSERT_FALSE(skiplist->contains("key2"));
-  ASSERT_EQ(skiplist->size(), 1);
-  ASSERT_FALSE(skiplist->del("key2"));
-  ASSERT_EQ(skiplist->size(), 1);
+  ASSERT_TRUE(skiplist->Delete("key2"));
+  ASSERT_FALSE(skiplist->Contains("key2"));
+  ASSERT_EQ(skiplist->Size(), 1);
+  ASSERT_FALSE(skiplist->Delete("key2"));
+  ASSERT_EQ(skiplist->Size(), 1);
 
-  ASSERT_FALSE(skiplist->del("key_not_exist"));
+  ASSERT_FALSE(skiplist->Delete("key_not_exist"));
 }
 
 TEST_F(SkiplistTest, Update) {
-  ASSERT_EQ("key1", skiplist->insert("key1"));
-  ASSERT_EQ("key2", skiplist->insert("key2"));
-  ASSERT_EQ("key3", skiplist->insert("key3"));
-  ASSERT_EQ(skiplist->size(), 4);
+  ASSERT_EQ("key1", skiplist->Insert("key1"));
+  ASSERT_EQ("key2", skiplist->Insert("key2"));
+  ASSERT_EQ("key3", skiplist->Insert("key3"));
+  ASSERT_EQ(skiplist->Size(), 4);
 
-  ASSERT_TRUE(skiplist->update("key3", "key5"));
-  ASSERT_EQ(skiplist->size(), 4);
-  ASSERT_FALSE(skiplist->contains("key3"));
-  ASSERT_TRUE(skiplist->contains("key5"));
+  ASSERT_TRUE(skiplist->Update("key3", "key5"));
+  ASSERT_EQ(skiplist->Size(), 4);
+  ASSERT_FALSE(skiplist->Contains("key3"));
+  ASSERT_TRUE(skiplist->Contains("key5"));
 
-  ASSERT_TRUE(skiplist->update("key1", "key4"));
+  ASSERT_TRUE(skiplist->Update("key1", "key4"));
 
-  ASSERT_EQ(skiplist->size(), 4);
-  ASSERT_FALSE(skiplist->contains("key1"));
-  ASSERT_TRUE(skiplist->contains("key4"));
+  ASSERT_EQ(skiplist->Size(), 4);
+  ASSERT_FALSE(skiplist->Contains("key1"));
+  ASSERT_TRUE(skiplist->Contains("key4"));
 
-  ASSERT_TRUE(!skiplist->update("key_not_exist", "key6"));
-  ASSERT_EQ(skiplist->size(), 4);
+  ASSERT_TRUE(!skiplist->Update("key_not_exist", "key6"));
+  ASSERT_EQ(skiplist->Size(), 4);
 }
 
 TEST_F(SkiplistTest, GetKeyByRank) {
-  const std::string& s0 = skiplist->getKeyByRank(0);
+  const std::string& s0 = skiplist->GetKeyByRank(0);
   ASSERT_EQ(s0, "key0");
 
-  const std::string& s1 = skiplist->getKeyByRank(1);
+  const std::string& s1 = skiplist->GetKeyByRank(1);
   ASSERT_EQ(s1, "key2");
 
-  const std::string& s2 = skiplist->getKeyByRank(-1);
+  const std::string& s2 = skiplist->GetKeyByRank(-1);
   ASSERT_EQ(s2, "key5");
 
-  const std::string& s3 = skiplist->getKeyByRank(-2);
+  const std::string& s3 = skiplist->GetKeyByRank(-2);
   ASSERT_EQ(s3, "key4");
 
-  const std::string& s4 = skiplist->getKeyByRank(-4);
+  const std::string& s4 = skiplist->GetKeyByRank(-4);
   ASSERT_EQ(s4, "key0");
 
-  ASSERT_THROW(skiplist->getKeyByRank(skiplist->size()), std::out_of_range);
-  ASSERT_THROW(skiplist->getKeyByRank(-skiplist->size() - 1),
+  ASSERT_THROW(skiplist->GetKeyByRank(skiplist->Size()), std::out_of_range);
+  ASSERT_THROW(skiplist->GetKeyByRank(-skiplist->Size() - 1),
                std::out_of_range);
-  ASSERT_THROW(skiplist->getKeyByRank(INT_MAX), std::out_of_range);
-  ASSERT_THROW(skiplist->getKeyByRank(INT_MIN), std::out_of_range);
+  ASSERT_THROW(skiplist->GetKeyByRank(INT_MAX), std::out_of_range);
+  ASSERT_THROW(skiplist->GetKeyByRank(INT_MIN), std::out_of_range);
 }
 
 TEST_F(SkiplistTest, GetRankofKey) {
-  ssize_t r0 = skiplist->getRankofKey("key0");
+  ssize_t r0 = skiplist->GetRankofKey("key0");
   ASSERT_EQ(r0, 0);
 
-  ssize_t r1 = skiplist->getRankofKey("key2");
+  ssize_t r1 = skiplist->GetRankofKey("key2");
   ASSERT_EQ(r1, 1);
 
-  ssize_t r2 = skiplist->getRankofKey("key5");
+  ssize_t r2 = skiplist->GetRankofKey("key5");
   ASSERT_EQ(r2, 3);
 
-  ssize_t r3 = skiplist->getRankofKey("key_not_exist");
+  ssize_t r3 = skiplist->GetRankofKey("key_not_exist");
   ASSERT_EQ(r3, -1);
 }
 
-TEST_F(SkiplistTest, getKeysGt) {
-  const std::vector<std::string>& k0 = skiplist->getKeysGt("key0");
+TEST_F(SkiplistTest, GetKeysGt) {
+  const std::vector<std::string>& k0 = skiplist->GetKeysGt("key0");
   ASSERT_EQ(k0.size(), 3);
   ASSERT_EQ(k0[0], "key2");
 
-  const std::vector<std::string>& k1 = skiplist->getKeysGt("key3");
+  const std::vector<std::string>& k1 = skiplist->GetKeysGt("key3");
   ASSERT_EQ(k1.size(), 2);
   ASSERT_EQ(k1[0], "key4");
 
-  const std::vector<std::string>& k2 = skiplist->getKeysGt("key6");
+  const std::vector<std::string>& k2 = skiplist->GetKeysGt("key6");
   ASSERT_EQ(k2.size(), 0);
 
-  const std::vector<std::string>& k3 = skiplist->getKeysGt("abc");
+  const std::vector<std::string>& k3 = skiplist->GetKeysGt("abc");
   ASSERT_EQ(k3.size(), 4);
   ASSERT_EQ(k3[0], "key0");
 }
 
-TEST_F(SkiplistTest, getKeysGte) {
-  const std::vector<std::string>& k0 = skiplist->getKeysGte("key0");
+TEST_F(SkiplistTest, GetKeysGte) {
+  const std::vector<std::string>& k0 = skiplist->GetKeysGte("key0");
   ASSERT_EQ(k0.size(), 4);
   ASSERT_EQ(k0[0], "key0");
 
-  const std::vector<std::string>& k1 = skiplist->getKeysGte("key3");
+  const std::vector<std::string>& k1 = skiplist->GetKeysGte("key3");
   ASSERT_EQ(k1.size(), 2);
   ASSERT_EQ(k1[0], "key4");
 
-  const std::vector<std::string>& k2 = skiplist->getKeysGte("key6");
+  const std::vector<std::string>& k2 = skiplist->GetKeysGte("key6");
   ASSERT_EQ(k2.size(), 0);
 
-  const std::vector<std::string>& k3 = skiplist->getKeysGte("key5");
+  const std::vector<std::string>& k3 = skiplist->GetKeysGte("key5");
   ASSERT_EQ(k3.size(), 1);
   ASSERT_EQ(k3[0], "key5");
 }
 
-TEST_F(SkiplistTest, getKeysLt) {
-  const std::vector<std::string>& k0 = skiplist->getKeysLt("key5");
+TEST_F(SkiplistTest, GetKeysLt) {
+  const std::vector<std::string>& k0 = skiplist->GetKeysLt("key5");
   ASSERT_EQ(k0.size(), 3);
   ASSERT_EQ(k0[0], "key0");
+  ASSERT_EQ(k0[1], "key2");
   ASSERT_EQ(k0[2], "key4");
 
-  const std::vector<std::string>& k1 = skiplist->getKeysLt("key3");
+  const std::vector<std::string>& k1 = skiplist->GetKeysLt("key3");
   ASSERT_EQ(k1.size(), 2);
   ASSERT_EQ(k1[0], "key0");
   ASSERT_EQ(k1[1], "key2");
 
-  const std::vector<std::string>& k2 = skiplist->getKeysLt("key2");
+  const std::vector<std::string>& k2 = skiplist->GetKeysLt("key2");
   ASSERT_EQ(k2.size(), 1);
   ASSERT_EQ(k2[0], "key0");
 
-  const std::vector<std::string>& k3 = skiplist->getKeysLt("key0");
+  const std::vector<std::string>& k3 = skiplist->GetKeysLt("key0");
   ASSERT_EQ(k3.size(), 0);
 
-  const std::vector<std::string>& k4 = skiplist->getKeysLt("key6");
+  const std::vector<std::string>& k4 = skiplist->GetKeysLt("key6");
   ASSERT_EQ(k4.size(), 4);
   ASSERT_EQ(k4[0], "key0");
+  ASSERT_EQ(k0[1], "key2");
+  ASSERT_EQ(k0[2], "key4");
   ASSERT_EQ(k4[3], "key5");
 }
 
-TEST_F(SkiplistTest, getKeysLte) {
-  const std::vector<std::string>& k0 = skiplist->getKeysLte("key5");
+TEST_F(SkiplistTest, GetKeysLte) {
+  const std::vector<std::string>& k0 = skiplist->GetKeysLte("key5");
   ASSERT_EQ(k0.size(), 4);
   ASSERT_EQ(k0[0], "key0");
+  ASSERT_EQ(k0[1], "key2");
+  ASSERT_EQ(k0[2], "key4");
   ASSERT_EQ(k0[3], "key5");
 
-  const std::vector<std::string>& k1 = skiplist->getKeysLte("key3");
+  const std::vector<std::string>& k1 = skiplist->GetKeysLte("key3");
   ASSERT_EQ(k1.size(), 2);
   ASSERT_EQ(k1[0], "key0");
   ASSERT_EQ(k1[1], "key2");
 
-  const std::vector<std::string>& k2 = skiplist->getKeysLte("key2");
+  const std::vector<std::string>& k2 = skiplist->GetKeysLte("key2");
   ASSERT_EQ(k2.size(), 2);
   ASSERT_EQ(k2[0], "key0");
   ASSERT_EQ(k2[1], "key2");
 
-  const std::vector<std::string>& k3 = skiplist->getKeysLte("key0");
+  const std::vector<std::string>& k3 = skiplist->GetKeysLte("key0");
   ASSERT_EQ(k3.size(), 1);
   ASSERT_EQ(k3[0], "key0");
 
-  const std::vector<std::string>& k4 = skiplist->getKeysLte("abc");
+  const std::vector<std::string>& k4 = skiplist->GetKeysLte("abc");
   ASSERT_EQ(k4.size(), 0);
 }
 
@@ -210,9 +215,9 @@ TEST_F(SkiplistTest, ArrayAccess) {
   ASSERT_EQ((*skiplist)[1], "key2");
   ASSERT_EQ((*skiplist)[2], "key4");
   ASSERT_EQ((*skiplist)[3], "key5");
-  ASSERT_EQ((*skiplist)[skiplist->size() - 1], "key5");
+  ASSERT_EQ((*skiplist)[skiplist->Size() - 1], "key5");
 
-  ASSERT_THROW((*skiplist)[skiplist->size()], std::out_of_range);
+  ASSERT_THROW((*skiplist)[skiplist->Size()], std::out_of_range);
   ASSERT_THROW((*skiplist)[-1], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MAX], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);
@@ -220,53 +225,53 @@ TEST_F(SkiplistTest, ArrayAccess) {
 
 TEST_F(SkiplistTest, RangeByRank) {
   const std::vector<const RangeByRankSpecTestCase>& tests =
-      rangeByRankSpecTestCases();
+      RangeByRankSpecTestCases();
   for (const RangeByRankSpecTestCase& test : tests) {
-    ASSERT_EQ(skiplist->rangeByRank(&test.spec), test.keys);
+    ASSERT_EQ(skiplist->RangeByRank(&test.spec), test.keys);
   }
 }
 
 TEST_F(SkiplistTest, RevRangeByRank) {
   const std::vector<const RangeByRankSpecTestCase>& tests =
-      rangeByRankSpecTestCases();
+      RangeByRankSpecTestCases();
   for (const RangeByRankSpecTestCase& test : tests) {
-    ASSERT_EQ(skiplist->revRangeByRank(&test.spec), test.revkeys);
+    ASSERT_EQ(skiplist->RevRangeByRank(&test.spec), test.revkeys);
   }
 }
 
 TEST_F(SkiplistTest, RangeByKey) {
   const std::vector<const RangeByKeySpecTestCase>& tests =
-      rangeByKeySpecTestCases();
+      RangeByKeySpecTestCases();
   for (const RangeByKeySpecTestCase& test : tests) {
     const std::vector<const RangeByKeySpecTestCase>& tests =
-        rangeByKeySpecTestCases();
+        RangeByKeySpecTestCases();
     for (const RangeByKeySpecTestCase& test : tests) {
-      ASSERT_EQ(skiplist->rangeByKey(&test.spec), test.keys);
+      ASSERT_EQ(skiplist->RangeByKey(&test.spec), test.keys);
     }
   }
 }
 
 TEST_F(SkiplistTest, RevRangeByKey) {
   const std::vector<const RangeByKeySpecTestCase>& tests =
-      rangeByKeySpecTestCases();
+      RangeByKeySpecTestCases();
   for (const RangeByKeySpecTestCase& test : tests) {
     const std::vector<const RangeByKeySpecTestCase>& tests =
-        rangeByKeySpecTestCases();
+        RangeByKeySpecTestCases();
     for (const RangeByKeySpecTestCase& test : tests) {
-      ASSERT_EQ(skiplist->revRangeByKey(&test.spec), test.revkeys);
+      ASSERT_EQ(skiplist->RevRangeByKey(&test.spec), test.revkeys);
     }
   }
 }
 
 TEST_F(SkiplistTest, Count) {
   const std::vector<const RangeByRankSpecTestCase>& tests =
-      rangeByRankSpecTestCases();
+      RangeByRankSpecTestCases();
   for (const RangeByRankSpecTestCase& test : tests) {
-    ASSERT_EQ(skiplist->count(&test.spec), test.count);
+    ASSERT_EQ(skiplist->Count(&test.spec), test.count);
   }
 }
 
-const std::vector<const RangeByRankSpecTestCase> rangeByRankSpecTestCases() {
+const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
           new Skiplist<std::string>::SkiplistLimitSpec({
@@ -427,7 +432,7 @@ const std::vector<const RangeByRankSpecTestCase> rangeByRankSpecTestCases() {
   };
 }
 
-const std::vector<const RangeByKeySpecTestCase> rangeByKeySpecTestCases() {
+const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
           new Skiplist<std::string>::SkiplistLimitSpec({
@@ -531,7 +536,7 @@ const std::vector<const RangeByKeySpecTestCase> rangeByKeySpecTestCases() {
 
 TEST_F(SkiplistTest, Iteration) {
   typename Skiplist<std::string>::Iterator it(skiplist);
-  it.seekToLast();
+  it.SeekToLast();
   ASSERT_EQ(*it, "key5");
 
   --it;
@@ -540,23 +545,23 @@ TEST_F(SkiplistTest, Iteration) {
   ++it;
   ASSERT_EQ(*it, "key5");
 
-  it.seekToFirst();
+  it.SeekToFirst();
   ASSERT_EQ(*it, "key0");
 
   ++it;
   ASSERT_EQ(*it, "key2");
 
-  scanSkiplist(skiplist);
+  ScanSkiplist(skiplist);
 }
 
-void scanSkiplist(const Skiplist<std::string>* skiplist) {
+void ScanSkiplist(const Skiplist<std::string>* skiplist) {
   printf("----start scanning skiplist----\n");
-  for (auto it = skiplist->begin(); it != skiplist->end(); ++it) {
+  for (auto it = skiplist->Begin(); it != skiplist->End(); ++it) {
     printf("%s\n", (*it).c_str());
   }
   printf("----end----\n");
 
-  skiplist->print();
+  skiplist->Print();
 }
 
 struct Comparator {
@@ -581,25 +586,25 @@ class CustomSkiplistTest : public testing::Test {
 Skiplist<std::string, Comparator>* CustomSkiplistTest::skiplist;
 
 TEST_F(CustomSkiplistTest, Insertion) {
-  ASSERT_EQ(skiplist->insert("key1"), "key1");
-  ASSERT_EQ(skiplist->insert("key2"), "key2");
-  ASSERT_EQ(skiplist->insert("key0"), "key0");
-  ASSERT_EQ(skiplist->insert("key1"), "key1");
-  ASSERT_EQ(skiplist->size(), 3);
+  ASSERT_EQ(skiplist->Insert("key1"), "key1");
+  ASSERT_EQ(skiplist->Insert("key2"), "key2");
+  ASSERT_EQ(skiplist->Insert("key0"), "key0");
+  ASSERT_EQ(skiplist->Insert("key1"), "key1");
+  ASSERT_EQ(skiplist->Size(), 3);
 
-  ASSERT_TRUE(skiplist->contains("key1"));
-  ASSERT_TRUE(skiplist->contains("key2"));
-  ASSERT_TRUE(skiplist->contains("key0"));
-  ASSERT_TRUE(!skiplist->contains("key_not_exist"));
+  ASSERT_TRUE(skiplist->Contains("key1"));
+  ASSERT_TRUE(skiplist->Contains("key2"));
+  ASSERT_TRUE(skiplist->Contains("key0"));
+  ASSERT_TRUE(!skiplist->Contains("key_not_exist"));
 }
 
 TEST_F(CustomSkiplistTest, ArrayAccess) {
   ASSERT_EQ((*skiplist)[0], "key2");
   ASSERT_EQ((*skiplist)[1], "key1");
   ASSERT_EQ((*skiplist)[2], "key0");
-  ASSERT_EQ((*skiplist)[skiplist->size() - 1], "key0");
+  ASSERT_EQ((*skiplist)[skiplist->Size() - 1], "key0");
 
-  ASSERT_THROW((*skiplist)[skiplist->size()], std::out_of_range);
+  ASSERT_THROW((*skiplist)[skiplist->Size()], std::out_of_range);
   ASSERT_THROW((*skiplist)[-1], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MAX], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);

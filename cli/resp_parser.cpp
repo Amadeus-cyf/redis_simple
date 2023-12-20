@@ -6,9 +6,9 @@ namespace resp_parser {
 static const std::string& Error = "error";
 namespace {
 struct Prefix {
-  static constexpr const char StringPrefix = '+';
-  static constexpr const char BulkStringPrefix = '$';
-  static constexpr const char Int64Prefix = ':';
+  static constexpr const char stringPrefix = '+';
+  static constexpr const char bulkStringPrefix = '$';
+  static constexpr const char int64Prefix = ':';
 };
 
 ssize_t findCRLF(const std::string& resp, int start) {
@@ -62,17 +62,17 @@ ssize_t parseInt64(const std::string& resp, std::string& reply) {
 }
 }  // namespace
 
-ssize_t parse(const std::string& resp, std::string& reply) {
+ssize_t Parse(const std::string& resp, std::string& reply) {
   if (resp.size() < 2 || resp[resp.size() - 2] != '\r' ||
       resp[resp.size() - 1] != '\n') {
     return -1;
   }
   switch (resp[0]) {
-    case Prefix::StringPrefix:
+    case Prefix::stringPrefix:
       return parseString(resp, reply);
-    case Prefix::BulkStringPrefix:
+    case Prefix::bulkStringPrefix:
       return parseBulkString(resp, reply);
-    case Prefix::Int64Prefix:
+    case Prefix::int64Prefix:
       return parseInt64(resp, reply);
     default:
       return -1;

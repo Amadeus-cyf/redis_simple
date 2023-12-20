@@ -9,10 +9,10 @@ namespace redis_simple {
 namespace ae {
 class AeKqueue {
  public:
-  static AeKqueue* aeApiCreate(int nevents);
-  int aeApiAddEvent(int fd, int mask) const;
-  int aeApiDelEvent(int fd, int mask) const;
-  std::unordered_map<int, int> aeApiPoll(struct timespec* tspec) const;
+  static AeKqueue* AeApiCreate(int nevents);
+  int AeApiAddEvent(int fd, int mask) const;
+  int AeApiDelEvent(int fd, int mask) const;
+  std::unordered_map<int, int> AeApiPoll(struct timespec* tspec) const;
   ~AeKqueue();
 
  private:

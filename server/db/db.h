@@ -19,22 +19,22 @@ enum SetKeyFlags {
 
 class RedisDb {
  public:
-  static std::unique_ptr<RedisDb> init();
-  const RedisObj* lookupKey(const std::string& key) const;
-  DBStatus setKey(const std::string& key, const RedisObj* const val,
+  static std::unique_ptr<RedisDb> Init();
+  const RedisObj* LookupKey(const std::string& key) const;
+  DBStatus SetKey(const std::string& key, const RedisObj* const val,
                   const int64_t expire) const;
-  DBStatus setKey(const std::string& key, const RedisObj* const val,
+  DBStatus SetKey(const std::string& key, const RedisObj* const val,
                   const int64_t expire, int flags) const;
-  DBStatus delKey(const std::string& key) const;
-  void scanExpires(
+  DBStatus DeleteKey(const std::string& key) const;
+  void ScanExpires(
       in_memory::Dict<std::string, int64_t>::dictScanFunc callback) const;
-  double getExpiredPercentage() const {
-    return dict->size() > 0 ? (double)expires->size() / dict->size() : 0.0;
+  double ExpiredPercentage() const {
+    return dict->Size() > 0 ? (double)expires->Size() / dict->Size() : 0.0;
   };
 
  private:
   RedisDb();
-  bool isKeyExpired(const std::string& key) const;
+  bool IsKeyExpired(const std::string& key) const;
   std::unique_ptr<in_memory::Dict<std::string, RedisObj*>> dict;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires;
   bool free_async;
