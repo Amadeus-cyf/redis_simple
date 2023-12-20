@@ -13,16 +13,21 @@ void GetCommand::exec(Client* const client) const {
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  const db::RedisObj* robj = genericGet(client->getDb(), &args);
-  if (!robj) {
-    client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
-    return;
-  }
-  try {
-    const std::string& s = robj->getString();
-    client->addReply(reply::fromBulkString(s));
-  } catch (const std::exception& e) {
-    printf("catch type exception %s", e.what());
+  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
+    const db::RedisObj* robj = genericGet(db, &args);
+    if (!robj) {
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      return;
+    }
+    try {
+      const std::string& s = robj->getString();
+      client->addReply(reply::fromBulkString(s));
+    } catch (const std::exception& e) {
+      printf("catch type exception %s", e.what());
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+    }
+  } else {
+    printf("db pointer expired\n");
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -37,8 +42,8 @@ int GetCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-const db::RedisObj* GetCommand::genericGet(const db::RedisDb* db,
-                                           const StrArgs* args) const {
+const db::RedisObj* GetCommand::genericGet(
+    std::shared_ptr<const db::RedisDb> db, const StrArgs* args) const {
   if (!db || !args) {
     return nullptr;
   }

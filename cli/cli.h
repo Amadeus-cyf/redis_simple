@@ -25,9 +25,9 @@ class RedisCli {
   ~RedisCli() { close(socket_fd); }
 
  private:
+  static const std::string& ErrResp;
+  static const std::string& NoReplyResp;
   bool processReply(std::string& reply);
-  static const std::string ErrResp;
-  static const std::string NoReplyResp;
   int socket_fd;
   std::string cli_ip;
   int cli_port;

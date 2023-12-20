@@ -1,5 +1,7 @@
 #include "zset.h"
 
+#include <cassert>
+
 namespace redis_simple {
 namespace zset {
 ZSet::ZSet()
@@ -26,6 +28,8 @@ void ZSet::addOrUpdate(const std::string& key, const double score) const {
     const ZSetEntry* inserted = skiplist->insert(ze);
     assert(inserted);
   }
+  min_key = std::min(min_key, key);
+  max_key = std::max(max_key, key);
 }
 
 bool ZSet::remove(const std::string& key) const {
@@ -49,24 +53,92 @@ int ZSet::getRank(const std::string& key) const {
   return skiplist->getRankofKey(&ze);
 }
 
-std::vector<const ZSet::ZSetEntry*> ZSet::rangeByIndex(
-    const RangeByIndexSpec* spec) const {
-  in_memory::Skiplist<const ZSetEntry*, Comparator,
-                      Destructor>::SkiplistRangeByRankSpec skiplist_spec = {
-      .min = spec->min,
-      .max = spec->max,
-      .minex = spec->minex,
-      .maxex = spec->maxex};
-  if (spec->option) {
-    const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                              Destructor>::SkiplistRangeOption& opt = {
-        .limit = spec->option->limit,
-        .offset = spec->option->offset,
-    };
-    skiplist_spec.option = &opt;
-  }
-  return skiplist->rangeByRank(&skiplist_spec);
+std::vector<const ZSet::ZSetEntry*> ZSet::rangeByRank(
+    const RangeByRankSpec* spec) const {
+  const auto* skiplist_spec = toSkiplistRangeByRankSpec(spec);
+  const std::vector<const ZSet::ZSetEntry*>& keys =
+      spec->reverse ? skiplist->revRangeByRank(skiplist_spec)
+                    : skiplist->rangeByRank(skiplist_spec);
+  freeSkiplistRangeByRankSpec(skiplist_spec);
+  return keys;
 }
 
+std::vector<const ZSet::ZSetEntry*> ZSet::rangeByScore(
+    const RangeByScoreSpec* spec) const {
+  const auto* skiplist_spec = toSkiplistRangeByKeySpec(spec);
+  const std::vector<const ZSet::ZSetEntry*>& keys =
+      spec->reverse ? skiplist->revRangeByKey(skiplist_spec)
+                    : skiplist->rangeByKey(skiplist_spec);
+  freeSkiplistRangeByKeySpec(skiplist_spec);
+  return keys;
+}
+
+const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
+                          ZSet::Destructor>::SkiplistRangeByRankSpec*
+ZSet::toSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
+  auto skiplist_spec =
+      new in_memory::Skiplist<const ZSetEntry*, Comparator,
+                              Destructor>::SkiplistRangeByRankSpec();
+  skiplist_spec->min = spec->min;
+  skiplist_spec->max = spec->max;
+  skiplist_spec->minex = spec->minex;
+  skiplist_spec->maxex = spec->maxex;
+  if (spec->limit) {
+    in_memory::Skiplist<const ZSetEntry*, Comparator,
+                        Destructor>::SkiplistLimitSpec* limit =
+        new in_memory::Skiplist<const ZSetEntry*, Comparator,
+                                Destructor>::SkiplistLimitSpec();
+    limit->offset = spec->limit->offset, limit->count = spec->limit->count,
+    skiplist_spec->limit = limit;
+  }
+  return skiplist_spec;
+}
+
+const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
+                          ZSet::Destructor>::SkiplistRangeByKeySpec*
+ZSet::toSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const {
+  in_memory::Skiplist<const ZSetEntry*, Comparator,
+                      Destructor>::SkiplistLimitSpec* limit = nullptr;
+  if (spec->limit) {
+    limit = new in_memory::Skiplist<const ZSetEntry*, Comparator,
+                                    Destructor>::SkiplistLimitSpec();
+    limit->offset = spec->limit->offset, limit->count = spec->limit->count;
+  }
+
+  /* if min score exclusive, set the zset entry key to be the max_key to exclude
+   * all keys with the same score */
+  const ZSetEntry* min_entry =
+      new ZSetEntry(spec->minex ? max_key : min_key, spec->min);
+  /* if max score exclusive, set the zset entry key to be the min_key to exclude
+   * all keys with the same score */
+  const ZSetEntry* max_entry =
+      new ZSetEntry(spec->maxex ? min_key : max_key, spec->max);
+  auto skiplist_spec =
+      new in_memory::Skiplist<const ZSetEntry*, Comparator,
+                              Destructor>::SkiplistRangeByKeySpec(min_entry,
+                                                                  spec->minex,
+                                                                  max_entry,
+                                                                  spec->maxex,
+                                                                  limit);
+  return skiplist_spec;
+}
+
+void ZSet::freeSkiplistRangeByRankSpec(
+    const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
+                              ZSet::Destructor>::SkiplistRangeByRankSpec*
+        skiplist_spec) const {
+  delete skiplist_spec->limit;
+  delete skiplist_spec;
+}
+
+void ZSet::freeSkiplistRangeByKeySpec(
+    const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
+                              ZSet::Destructor>::SkiplistRangeByKeySpec*
+        skiplist_spec) const {
+  delete skiplist_spec->limit;
+  delete skiplist_spec->min;
+  delete skiplist_spec->max;
+  delete skiplist_spec;
+}
 }  // namespace zset
 }  // namespace redis_simple

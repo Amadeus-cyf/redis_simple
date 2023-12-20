@@ -12,8 +12,8 @@ class Server {
  public:
   static Server* get();
   void run(const std::string& ip, const int& port);
-  ae::AeEventLoop* getEventLoop() { return el.get(); }
-  db::RedisDb* getDb() { return db.get(); }
+  std::weak_ptr<const ae::AeEventLoop> getEventLoop() { return el; }
+  std::weak_ptr<const db::RedisDb> getDb() { return db; }
   void addClient(Client* c) { clients.push_back(c); }
   const std::vector<Client*>& getClients() { return clients; }
   ~Server() {
@@ -25,9 +25,9 @@ class Server {
   void acceptConnHandler();
   int serverCron(long long id, void* clientData);
   int fd;
-  static std::unique_ptr<ae::AeEventLoop> el;
+  static std::shared_ptr<ae::AeEventLoop> el;
   int flags;
   std::vector<Client*> clients;
-  std::unique_ptr<db::RedisDb> db;
+  std::shared_ptr<db::RedisDb> db;
 };
 }  // namespace redis_simple

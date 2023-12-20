@@ -28,7 +28,7 @@ ae::AeEventStatus acceptHandler(ae::AeEventLoop* el, int fd, Server* server,
                                 int mask) {
   std::string dest_ip;
   int dest_port;
-  if (!server || !server->getEventLoop()) {
+  if (!server) {
     printf("invalid server / event loop\n");
     return ae::AeEventStatus::aeEventErr;
   }

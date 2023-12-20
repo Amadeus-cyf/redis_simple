@@ -14,11 +14,16 @@ void SetCommand::exec(Client* const client) const {
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (genericSet(client->getDb(), &args) < 0) {
+  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
+    if (genericSet(db, &args) < 0) {
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      return;
+    }
+    client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
+  } else {
+    printf("db pointer expired\n");
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
-    return;
   }
-  client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
 }
 
 int SetCommand::parseArgs(const std::vector<std::string>& args,
@@ -35,7 +40,8 @@ int SetCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SetCommand::genericSet(const db::RedisDb* db, const StrArgs* args) const {
+int SetCommand::genericSet(std::shared_ptr<const db::RedisDb> db,
+                           const StrArgs* args) const {
   const db::RedisObj* val = db::RedisObj::createRedisStrObj(args->val);
   int r = db->setKey(args->key, val, args->expire, 0);
   val->decrRefCount();

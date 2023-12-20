@@ -13,11 +13,16 @@ void DeleteCommand::exec(Client* const client) const {
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (genericDelete(client->getDb(), &args) < 0) {
+  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
+    if (genericDelete(db, &args) < 0) {
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      return;
+    }
+    client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
+  } else {
+    printf("db pointer expired\n");
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
-    return;
   }
-  client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
 }
 
 int DeleteCommand::parseArgs(const std::vector<std::string>& args,
@@ -30,7 +35,7 @@ int DeleteCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int DeleteCommand::genericDelete(const db::RedisDb* db,
+int DeleteCommand::genericDelete(std::shared_ptr<const db::RedisDb> db,
                                  const StrArgs* args) const {
   return db->delKey(args->key);
 }

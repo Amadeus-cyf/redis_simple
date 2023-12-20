@@ -1,5 +1,7 @@
 #include "expire.h"
 
+#include <cassert>
+
 #include "memory/dict.h"
 #include "server.h"
 #include "utils/time_utils.h"
@@ -11,23 +13,31 @@ void activeExpireCycle() {
         int64_t now = utils::getNowInMilliseconds();
         if (de->val < now) {
           printf("activeExpireCycle: key deleted %s\n", de->key.c_str());
-          assert(Server::get()->getDb()->delKey(de->key) == db::DBStatus::dbOK);
+          if (std::shared_ptr<const db::RedisDb> db =
+                  Server::get()->getDb().lock()) {
+            assert(db->delKey(de->key) == db::DBStatus::dbOK);
+          } else {
+            printf("db pointer expired\n");
+          }
         }
       };
-  const db::RedisDb* db = Server::get()->getDb();
-  int64_t start = utils::getNowInMilliseconds();
-  int iteration = 0;
-  bool timeout = false;
-  int64_t timelimit = 1000;
-  while (!timeout && db->getExpiredPercentage() > 0.5) {
-    db->scanExpires(expire_callback);
-    ++iteration;
-    if ((iteration & 0xf) == 0) {
-      int64_t now = utils::getNowInMilliseconds();
-      if (now - start >= timelimit) {
-        timeout = true;
+  if (std::shared_ptr<const db::RedisDb> db = Server::get()->getDb().lock()) {
+    int64_t start = utils::getNowInMilliseconds();
+    int iteration = 0;
+    bool timeout = false;
+    int64_t timelimit = 1000;
+    while (!timeout && db->getExpiredPercentage() > 0.5) {
+      db->scanExpires(expire_callback);
+      ++iteration;
+      if ((iteration & 0xf) == 0) {
+        int64_t now = utils::getNowInMilliseconds();
+        if (now - start >= timelimit) {
+          timeout = true;
+        }
       }
     }
+  } else {
+    printf("db pointer expired\n");
   }
 }
 }  // namespace redis_simple

@@ -13,11 +13,16 @@ void ZRemCommand::exec(Client* const client) const {
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (genericZRem(client->getDb(), &args) < 0) {
+  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
+    if (genericZRem(db, &args) < 0) {
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      return;
+    }
+    client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
+  } else {
+    printf("db pointer expired\n");
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
-    return;
   }
-  client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
 }
 
 int ZRemCommand::parseArgs(const std::vector<std::string>& args,
@@ -32,7 +37,7 @@ int ZRemCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRemCommand::genericZRem(const db::RedisDb* db,
+int ZRemCommand::genericZRem(std::shared_ptr<const db::RedisDb> db,
                              const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
@@ -42,7 +47,7 @@ int ZRemCommand::genericZRem(const db::RedisDb* db,
     printf("key not found\n");
     return -1;
   }
-  if (obj && obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     printf("incorrect value type\n");
     return -1;
   }

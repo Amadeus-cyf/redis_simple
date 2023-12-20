@@ -15,7 +15,8 @@ class ZAddCommand : public Command {
  private:
   int parseArgs(const std::vector<std::string>& args,
                 ZSetArgs* zset_args) const;
-  int genericZAdd(const db::RedisDb* db, const ZSetArgs* args) const;
+  int genericZAdd(std::shared_ptr<const db::RedisDb> db,
+                  const ZSetArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

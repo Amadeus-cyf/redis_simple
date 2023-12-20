@@ -32,6 +32,8 @@ PRIVATE
   "server/commands/t_zset/zrem.cpp"
   "server/commands/t_zset/zrank.h"
   "server/commands/t_zset/zrank.cpp"
+  "server/commands/t_zset/zrange.h"
+  "server/commands/t_zset/zrange.cpp"
   "server/db/db.h"
   "server/db/db.cpp"
   "server/db/redis_obj.h"

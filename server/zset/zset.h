@@ -10,20 +10,24 @@ namespace redis_simple {
 namespace zset {
 class ZSet {
  public:
-  struct RangeOption {
-    int limit, offset, count;
+  struct LimitSpec {
+    long offset, count;
   };
-  struct RangeByIndexSpec {
-    int min, max;
+  struct RangeByRankSpec {
+    long min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
-    RangeOption* option;
+    std::unique_ptr<LimitSpec> limit;
+    /* reverse order ? */
+    bool reverse;
   };
-  struct RangeByKeySpec {
-    std::string &min, &max;
+  struct RangeByScoreSpec {
+    double min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
-    RangeOption* option;
+    std::unique_ptr<LimitSpec> limit;
+    /* reverse order ? */
+    bool reverse;
   };
   struct ZSetEntry {
     ZSetEntry(const std::string& key, const double score)
@@ -35,10 +39,9 @@ class ZSet {
   void addOrUpdate(const std::string& key, const double score) const;
   bool remove(const std::string& key) const;
   int getRank(const std::string& key) const;
-  std::vector<const ZSetEntry*> rangeByIndex(
-      const RangeByIndexSpec* spec) const;
-  std::vector<const ZSetEntry*> revrangeByIndex(
-      const RangeByIndexSpec* spec) const;
+  std::vector<const ZSetEntry*> rangeByRank(const RangeByRankSpec* spec) const;
+  std::vector<const ZSetEntry*> rangeByScore(
+      const RangeByScoreSpec* spec) const;
   size_t size() const { return skiplist->size(); }
 
  private:
@@ -57,11 +60,25 @@ class ZSet {
       se = nullptr;
     }
   };
-
   explicit ZSet();
+  const in_memory::Skiplist<const ZSetEntry*, Comparator,
+                            Destructor>::SkiplistRangeByRankSpec*
+  toSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
+  const in_memory::Skiplist<const ZSetEntry*, Comparator,
+                            Destructor>::SkiplistRangeByKeySpec*
+  toSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
+  void freeSkiplistRangeByRankSpec(
+      const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
+                                ZSet::Destructor>::SkiplistRangeByRankSpec*
+          skiplist_spec) const;
+  void freeSkiplistRangeByKeySpec(
+      const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
+                                ZSet::Destructor>::SkiplistRangeByKeySpec*
+          skiplist_spec) const;
   std::unique_ptr<in_memory::Dict<std::string, double>> dict;
   std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
       skiplist;
+  mutable std::string max_key, min_key;
 };
 }  // namespace zset
 }  // namespace redis_simple

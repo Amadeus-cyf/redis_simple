@@ -1,5 +1,7 @@
 #include "db.h"
 
+#include <cassert>
+
 #include "server/server.h"
 #include "utils/time_utils.h"
 

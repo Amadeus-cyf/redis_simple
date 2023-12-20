@@ -43,8 +43,8 @@ ssize_t writeToSocket(int fd, const std::string& cmds) {
 }
 }  // namespace
 
-const std::string RedisCli::ErrResp = "error";
-const std::string RedisCli::NoReplyResp = "no_reply";
+const std::string& RedisCli::ErrResp = "error";
+const std::string& RedisCli::NoReplyResp = "no_reply";
 
 RedisCli::RedisCli()
     : query_buf(std::make_unique<in_memory::DynamicBuffer>()),

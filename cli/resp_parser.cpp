@@ -6,9 +6,9 @@ namespace resp_parser {
 static const std::string& Error = "error";
 namespace {
 struct Prefix {
-  static const char StringPrefix = '+';
-  static const char BulkStringPrefix = '$';
-  static const char Int64Prefix = ':';
+  static constexpr const char StringPrefix = '+';
+  static constexpr const char BulkStringPrefix = '$';
+  static constexpr const char Int64Prefix = ':';
 };
 
 ssize_t findCRLF(const std::string& resp, int start) {

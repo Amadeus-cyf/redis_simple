@@ -10,7 +10,7 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
-std::unique_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::initEventLoop();
+std::shared_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::initEventLoop();
 
 Server::Server() : db(db::RedisDb::init()) {}
 

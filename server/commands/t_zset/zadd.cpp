@@ -12,11 +12,16 @@ void ZAddCommand::exec(Client* const client) const {
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (genericZAdd(client->getDb(), &args) < 0) {
+  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
+    if (genericZAdd(db, &args) < 0) {
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      return;
+    }
+    client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
+  } else {
+    printf("db pointer expired\n");
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
-    return;
   }
-  client->addReply(reply::fromInt64(reply::ReplyStatus::replyOK));
 }
 
 int ZAddCommand::parseArgs(const std::vector<std::string>& args,
@@ -38,7 +43,7 @@ int ZAddCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZAddCommand::genericZAdd(const db::RedisDb* db,
+int ZAddCommand::genericZAdd(std::shared_ptr<const db::RedisDb> db,
                              const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;

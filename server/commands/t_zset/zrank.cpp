@@ -12,12 +12,17 @@ void ZRankCommand::exec(Client* const client) const {
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  int rank = genericZRank(client->getDb(), &args);
-  if (rank < 0) {
+  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
+    int rank = genericZRank(db, &args);
+    if (rank < 0) {
+      client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
+      return;
+    }
+    client->addReply(reply::fromInt64(rank));
+  } else {
+    printf("db pointer expired\n");
     client->addReply(reply::fromInt64(reply::ReplyStatus::replyErr));
-    return;
   }
-  client->addReply(reply::fromInt64(rank));
 }
 
 int ZRankCommand::parseArgs(const std::vector<std::string>& args,
@@ -32,7 +37,7 @@ int ZRankCommand::parseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRankCommand::genericZRank(const db::RedisDb* db,
+int ZRankCommand::genericZRank(std::shared_ptr<const db::RedisDb> db,
                                const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
@@ -42,7 +47,7 @@ int ZRankCommand::genericZRank(const db::RedisDb* db,
     printf("key not found\n");
     return -1;
   }
-  if (obj && obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->getEncoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     printf("incorrect value type\n");
     return -1;
   }
