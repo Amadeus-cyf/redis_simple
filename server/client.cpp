@@ -7,7 +7,7 @@
 
 namespace redis_simple {
 namespace {
-std::string getCmdName(const std::vector<std::string>& args) {
+static std::string getCmdName(const std::vector<std::string>& args) {
   std::string name = std::move(args[0]);
   utils::ToUppercase(name);
   return name;
@@ -15,67 +15,68 @@ std::string getCmdName(const std::vector<std::string>& args) {
 }  // namespace
 
 Client::Client(connection::Connection* connection)
-    : conn(connection),
-      db(Server::Get()->DB()),
-      cmd(),
-      buf(std::make_unique<in_memory::ReplyBuffer>()),
-      query_buf(std::make_unique<in_memory::DynamicBuffer>()) {}
+    : conn_(connection),
+      db_(Server::Get()->DB()),
+      cmd_(),
+      buf_(std::make_unique<in_memory::ReplyBuffer>()),
+      query_buf_(std::make_unique<in_memory::DynamicBuffer>()) {}
 
-ssize_t Client::readQuery() {
+ssize_t Client::ReadQuery() {
   char buf[4096];
   memset(buf, 0, sizeof buf);
-  ssize_t nread = conn->Read(buf, 4096);
+  ssize_t nread = conn_->Read(buf, 4096);
   printf("nread %zd, buf %s end\n", nread, buf);
   if (nread < 0) {
     return nread;
   }
-  query_buf->WriteToBuffer(buf, nread);
+  query_buf_->WriteToBuffer(buf, nread);
   return nread;
 }
 
-ssize_t Client::sendReply() {
-  return buf->ReplyHead() ? _sendvReply() : _sendReply();
+ssize_t Client::SendReply() {
+  return buf_->ReplyHead() ? SendListReply() : SendBufferReply();
 }
 
-ssize_t Client::_sendReply() {
-  printf("_sendReply %s %zu\n", buf->UnsentBuffer(), buf->UnsentBufferLength());
+ssize_t Client::SendBufferReply() {
+  printf("_sendReply %s %zu\n", buf_->UnsentBuffer(),
+         buf_->UnsentBufferLength());
   ssize_t nwritten =
-      conn->Write(buf->UnsentBuffer(), buf->UnsentBufferLength());
+      conn_->Write(buf_->UnsentBuffer(), buf_->UnsentBufferLength());
   if (nwritten < 0) {
     return -1;
   }
-  buf->WriteProcessed(nwritten);
+  buf_->ClearProcessed(nwritten);
   return nwritten;
 }
 
-ssize_t Client::_sendvReply() {
+ssize_t Client::SendListReply() {
   printf("_sendvReply\n");
-  const std::vector<std::pair<char*, size_t>>& memToWrite = buf->Memvec();
-  ssize_t nwritten = conn->Writev(memToWrite);
+  const std::vector<std::pair<char*, size_t>>& memToWrite = buf_->Memvec();
+  ssize_t nwritten = conn_->Writev(memToWrite);
   if (nwritten < 0) {
     return -1;
   }
-  buf->WriteProcessed(nwritten);
+  buf_->ClearProcessed(nwritten);
   return nwritten;
 }
 
-ClientStatus Client::processInputBuffer() {
-  while (query_buf->ProcessedOffset() < query_buf->NRead()) {
-    printf("process loop %zu %zu\n", query_buf->ProcessedOffset(),
-           query_buf->NRead());
-    if (processInlineBuffer() == ClientStatus::clientErr) {
+ClientStatus Client::ProcessInputBuffer() {
+  while (query_buf_->ProcessedOffset() < query_buf_->NRead()) {
+    printf("process loop %zu %zu\n", query_buf_->ProcessedOffset(),
+           query_buf_->NRead());
+    if (ProcessInlineBuffer() == ClientStatus::clientErr) {
       break;
     }
-    if (processCommand() == ClientStatus::clientErr) {
+    if (ProcessCommand() == ClientStatus::clientErr) {
       return ClientStatus::clientErr;
     }
   }
-  query_buf->TrimProcessedBuffer();
+  query_buf_->TrimProcessedBuffer();
   return ClientStatus::clientOK;
 }
 
-ClientStatus Client::processInlineBuffer() {
-  const std::string& cmdstr = query_buf->ProcessInlineBuffer();
+ClientStatus Client::ProcessInlineBuffer() {
+  const std::string& cmdstr = query_buf_->ProcessInlineBuffer();
   if (cmdstr.length() == 0) {
     return ClientStatus::clientErr;
   }
@@ -96,13 +97,13 @@ ClientStatus Client::processInlineBuffer() {
     printf("command resource expired");
     return ClientStatus::clientErr;
   }
-  setCmd(cmdptr);
-  setArgs(args);
+  SetCmd(cmdptr);
+  SetCmdArgs(args);
   return ClientStatus::clientOK;
 }
 
-ClientStatus Client::processCommand() {
-  if (std::shared_ptr<const command::Command> command = cmd.lock()) {
+ClientStatus Client::ProcessCommand() {
+  if (std::shared_ptr<const command::Command> command = cmd_.lock()) {
     printf("process command: %s\n", command->Name().c_str());
     if (command) {
       command->Exec(this);

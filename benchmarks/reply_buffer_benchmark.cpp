@@ -21,7 +21,7 @@ static void ReplyBufferAdd(benchmark::State& state) {
 
 static void ReplyBufferProcess(benchmark::State& state) {
   for (auto _ : state) {
-    replyBuffer.WriteProcessed(
+    replyBuffer.ClearProcessed(
         std::min((size_t)rand(), replyBuffer.ReplyBytes()));
   }
 }

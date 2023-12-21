@@ -38,7 +38,7 @@ ae::AeEventStatus AcceptProc(ae::AeEventLoop* el, int fd, int* client_data,
 }
 
 void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::InitEventLoop();
+  std::shared_ptr<ae::AeEventLoop> el(ae::AeEventLoop::InitEventLoop());
   int fd = tcp::TCP_CreateSocket(AF_INET, true);
   if (fd < 0) {
     printf("failed to create socket\n");

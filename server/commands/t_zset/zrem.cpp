@@ -9,19 +9,19 @@ namespace command {
 namespace t_zset {
 void ZRemCommand::Exec(Client* const client) const {
   ZSetArgs args;
-  if (ParseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    if (GenericRemove(db, &args) < 0) {
-      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+    if (ZRem(db, &args) < 0) {
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyOK));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
@@ -37,8 +37,8 @@ int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRemCommand::GenericRemove(std::shared_ptr<const db::RedisDb> db,
-                               const ZSetArgs* args) const {
+int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
+                      const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
   }
@@ -53,7 +53,7 @@ int ZRemCommand::GenericRemove(std::shared_ptr<const db::RedisDb> db,
   }
   try {
     const zset::ZSet* const zset = obj->ZSet();
-    return zset->remove(args->ele) ? 0 : -1;
+    return zset->Remove(args->ele) ? 0 : -1;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;

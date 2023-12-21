@@ -24,21 +24,21 @@ void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
     printf("invalid client\n");
     return;
   }
-  ssize_t nread = c->readQuery();
+  ssize_t nread = c->ReadQuery();
   if (nread <= 0) {
     if (nread == 0 ||
         conn->State() != connection::ConnState::connStateConnected) {
       printf("client free\n");
-      c->free();
+      c->Free();
     }
     return;
   }
-  if (c->processInputBuffer() == ClientStatus::clientErr) {
+  if (c->ProcessInputBuffer() == ClientStatus::clientErr) {
     printf("process query buffer failed\n");
   }
-  if (c->hasPendingReplies() && !c->getConn()->HasWriteHandler()) {
+  if (c->HasPendingReplies() && !c->Connection()->HasWriteHandler()) {
     printf("client has pending replies, install write handler\n");
-    c->getConn()->SetWriteHandler(connection::ConnHandler::Create(
+    c->Connection()->SetWriteHandler(connection::ConnHandler::Create(
         connection::ConnHandlerType::writeReplyToClient));
   }
 }

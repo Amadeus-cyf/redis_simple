@@ -21,25 +21,25 @@ void WriteToClientHandler::Handle(connection::Connection* conn) {
 
 void WriteToClientHandler::SendReplyToClient(connection::Connection* conn) {
   Client* c = static_cast<Client*>(conn->PrivateData());
-  printf("write reply called %d\n", c->hasPendingReplies());
+  printf("write reply called %d\n", c->HasPendingReplies());
   WriteToClient(c);
 }
 
 ssize_t WriteToClientHandler::WriteToClient(Client* c) {
   ssize_t nwritten = 0, r = 0;
-  while (c->hasPendingReplies()) {
-    r = c->sendReply();
+  while (c->HasPendingReplies()) {
+    r = c->SendReply();
     if (r <= 0) break;
     nwritten += r;
   }
   if (r == -1) {
-    if (c->getConn()->State() != connection::ConnState::connStateConnected) {
-      c->free();
+    if (c->Connection()->State() != connection::ConnState::connStateConnected) {
+      c->Free();
       return -1;
     }
   }
-  if (!c->hasPendingReplies()) {
-    c->getConn()->UnsetWriteHandler();
+  if (!c->HasPendingReplies()) {
+    c->Connection()->UnsetWriteHandler();
   }
   return nwritten;
 }

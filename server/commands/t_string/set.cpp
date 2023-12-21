@@ -10,19 +10,19 @@ namespace t_string {
 void SetCommand::Exec(Client* const client) const {
   printf("set command called\n");
   StrArgs args;
-  if (ParseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    if (GenericSet(db, &args) < 0) {
-      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+    if (Set(db, &args) < 0) {
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyOK));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
@@ -40,8 +40,8 @@ int SetCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SetCommand::GenericSet(std::shared_ptr<const db::RedisDb> db,
-                           const StrArgs* args) const {
+int SetCommand::Set(std::shared_ptr<const db::RedisDb> db,
+                    const StrArgs* args) const {
   const db::RedisObj* val = db::RedisObj::CreateString(args->val);
   int r = db->SetKey(args->key, val, args->expire, 0);
   val->DecrRefCount();

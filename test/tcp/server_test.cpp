@@ -5,7 +5,7 @@
 #include "tcp/tcp.h"
 
 namespace redis_simple {
-void run() {
+void Run() {
   int s = tcp::TCP_CreateSocket(AF_INET, false);
   printf("listen result: %d\n", tcp::TCP_BindAndListen(s, "localhost", 8081));
 
@@ -21,4 +21,4 @@ void run() {
 }
 }  // namespace redis_simple
 
-int main() { redis_simple::run(); }
+int main() { redis_simple::Run(); }

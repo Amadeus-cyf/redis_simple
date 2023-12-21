@@ -16,30 +16,34 @@ class AeTimeEventImpl : public AeTimeEvent {
     static long long gen_id = 0;
     return new AeTimeEventImpl(gen_id++, time_proc, finalize_proc, client_data);
   }
-  int CallTimeProc() override { return time_proc(Id(), client_data); }
-  int CallTimeProc() const override { return time_proc(Id(), client_data); }
-  bool HasTimeFinalizeProc() override { return finalize_proc != nullptr; }
-  bool HasTimeFinalizeProc() const override { return finalize_proc != nullptr; }
-  int CallTimeFinalizeProc() override { return finalize_proc(client_data); }
-  int CallTimeFinalizeProc() const override {
-    return finalize_proc(client_data);
+  int CallTimeProc() override { return time_proc_(Id(), client_data_); }
+  int CallTimeProc() const override { return time_proc_(Id(), client_data_); }
+  bool HasTimeFinalizeProc() override { return finalize_proc_ != nullptr; }
+  bool HasTimeFinalizeProc() const override {
+    return finalize_proc_ != nullptr;
   }
-  void SetTimeProc(aeTimeProc proc) { time_proc = proc; }
-  aeTimeFinalizeProc GetTimeFinalizeProc() { return finalize_proc; }
-  void SetTimeFinalizeProc(aeTimeFinalizeProc proc) { finalize_proc = proc; }
-  T* ClientData() { return client_data; }
-  void SetClientData(T* data) { client_data = data; }
+  int CallTimeFinalizeProc() override { return finalize_proc_(client_data_); }
+  int CallTimeFinalizeProc() const override {
+    return finalize_proc_(client_data_);
+  }
+  void SetTimeProc(aeTimeProc proc) { time_proc_ = proc; }
+  aeTimeFinalizeProc GetTimeFinalizeProc() { return finalize_proc_; }
+  void SetTimeFinalizeProc(aeTimeFinalizeProc finalize_proc) {
+    finalize_proc_ = finalize_proc;
+  }
+  T* ClientData() { return client_data_; }
+  void SetClientData(T* client_data) { client_data_ = client_data; }
 
  private:
   explicit AeTimeEventImpl(long long id, aeTimeProc time_proc,
                            aeTimeFinalizeProc finalize_proc, T* client_data)
       : AeTimeEvent(id),
-        time_proc(time_proc),
-        finalize_proc(finalize_proc),
-        client_data(client_data) {}
-  aeTimeProc time_proc;
-  aeTimeFinalizeProc finalize_proc;
-  T* client_data;
+        time_proc_(time_proc),
+        finalize_proc_(finalize_proc),
+        client_data_(client_data) {}
+  aeTimeProc time_proc_;
+  aeTimeFinalizeProc finalize_proc_;
+  T* client_data_;
 };
 }  // namespace ae
 }  // namespace redis_simple

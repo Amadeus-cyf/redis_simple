@@ -27,7 +27,7 @@ struct RangeByKeySpecTestCase {
   const Skiplist<std::string>::SkiplistRangeByKeySpec spec;
   const std::vector<std::string> keys;
   const std::vector<std::string> revkeys;
-  const int count;
+  const long count;
 };
 
 const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases();

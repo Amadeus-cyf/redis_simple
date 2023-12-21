@@ -29,16 +29,16 @@ class RedisObj {
   }
   const std::string& String() const;
   const zset::ZSet* const ZSet() const;
-  ObjEncoding Encoding() const { return encoding; }
-  void IncrRefCount() const { ++refcount; }
+  ObjEncoding Encoding() const { return encoding_; }
+  void IncrRefCount() const { ++refcount_; }
   void DecrRefCount() const;
 
  private:
   explicit RedisObj(const ObjEncoding encoding, const DataType& val)
-      : encoding(encoding), val(val), refcount(1){};
-  ObjEncoding encoding;
-  DataType val;
-  mutable int refcount;
+      : encoding_(encoding), val_(val), refcount_(1){};
+  ObjEncoding encoding_;
+  DataType val_;
+  mutable int refcount_;
 };
 }  // namespace db
 }  // namespace redis_simple

@@ -9,19 +9,19 @@ namespace t_string {
 void DeleteCommand::Exec(Client* const client) const {
   printf("delete command called\n");
   StrArgs args;
-  if (ParseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    if (GenericDelete(db, &args) < 0) {
-      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+    if (Delete(db, &args) < 0) {
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyOK));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
@@ -35,8 +35,8 @@ int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int DeleteCommand::GenericDelete(std::shared_ptr<const db::RedisDb> db,
-                                 const StrArgs* args) const {
+int DeleteCommand::Delete(std::shared_ptr<const db::RedisDb> db,
+                          const StrArgs* args) const {
   return db->DeleteKey(args->key);
 }
 }  // namespace t_string

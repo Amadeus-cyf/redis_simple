@@ -15,13 +15,13 @@
 namespace redis_simple {
 namespace ae {
 AeEventLoop::AeEventLoop(AeKqueue* kq)
-    : fileEvents(std::vector<AeFileEvent*>(EventsSize)),
-      aeApiState(kq),
-      max_fd(-1) {}
+    : file_events_(std::vector<AeFileEvent*>(eventSize)),
+      ae_api_state_(kq),
+      max_fd_(-1) {}
 
-std::unique_ptr<AeEventLoop> AeEventLoop::InitEventLoop() {
-  AeKqueue* kq = AeKqueue::AeApiCreate(EventsSize);
-  return std::unique_ptr<AeEventLoop>(new AeEventLoop(kq));
+AeEventLoop* AeEventLoop::InitEventLoop() {
+  AeKqueue* kq = AeKqueue::AeApiCreate(eventSize);
+  return new AeEventLoop(kq);
 }
 
 void AeEventLoop::AeMain() {
@@ -51,23 +51,23 @@ AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
   if (fe == nullptr) {
     return ae_err;
   }
-  if (fd < 0 || fd >= EventsSize) {
+  if (fd < 0 || fd >= eventSize) {
     throw("file descriptor out of range");
   }
   int mask = fe->GetMask();
-  if (fileEvents[fd] == nullptr) {
+  if (file_events_[fd] == nullptr) {
     printf("add new event\n");
-    max_fd = std::max(max_fd, fd);
+    max_fd_ = std::max(max_fd_, fd);
   } else {
-    fe->Merge(fileEvents[fd]);
-    delete fileEvents[fd];
+    fe->Merge(file_events_[fd]);
+    delete file_events_[fd];
   }
-  fileEvents[fd] = fe;
-  return aeApiState->AeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
+  file_events_[fd] = fe;
+  return ae_api_state_->AeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
 }
 
 AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
-  if (aeApiState->AeApiDelEvent(fd, mask) < 0) {
+  if (ae_api_state_->AeApiDelEvent(fd, mask) < 0) {
     printf(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
@@ -77,9 +77,9 @@ AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
   }
   printf("delete file event success for file descriptor = %d, mask = %d\n", fd,
          mask);
-  AeFileEvent* fe = fileEvents[fd];
+  AeFileEvent* fe = file_events_[fd];
   if (fe->GetMask() == mask) {
-    fileEvents[fd] = nullptr;
+    file_events_[fd] = nullptr;
     delete fe;
     fe = nullptr;
   } else {
@@ -91,25 +91,26 @@ AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
 }
 
 void AeEventLoop::AeCreateTimeEvent(AeTimeEvent* te) {
-  if (!timeEventHead) {
-    timeEventHead = te;
+  if (!time_event_head_) {
+    time_event_head_ = te;
     return;
   }
   te->SetNext(te);
-  timeEventHead = te;
+  time_event_head_ = te;
 }
 
 void AeEventLoop::AeProcessEvents() {
-  if (max_fd == -1) {
+  if (max_fd_ == -1) {
     return;
   }
   struct timespec tspec;
   tspec.tv_sec = 1;
   tspec.tv_nsec = 0;
-  const std::unordered_map<int, int>& fdToMask = aeApiState->AeApiPoll(&tspec);
+  const std::unordered_map<int, int>& fdToMask =
+      ae_api_state_->AeApiPoll(&tspec);
   for (const auto& it : fdToMask) {
     int fd = it.first, mask = it.second;
-    AeFileEvent* fe = fileEvents[fd];
+    AeFileEvent* fe = file_events_[fd];
     int inverted = fe->GetMask() & AeFlags::aeBarrier;
     bool fired = false;
     if (!inverted && (mask & fe->GetMask() & AeFlags::aeReadable) &&
@@ -131,7 +132,7 @@ void AeEventLoop::AeProcessEvents() {
 }
 
 void AeEventLoop::ProcessTimeEvents() const {
-  AeTimeEvent* te = timeEventHead;
+  AeTimeEvent* te = time_event_head_;
   while (te) {
     long long id = te->Id();
     if (id == AeFlags::aeDeleteEventId) {
@@ -139,7 +140,7 @@ void AeEventLoop::ProcessTimeEvents() const {
       if (prev != nullptr) {
         prev->SetNext(next);
       } else {
-        timeEventHead = next;
+        time_event_head_ = next;
       }
       if (next != nullptr) {
         next->SetPrev(prev);
@@ -165,11 +166,11 @@ void AeEventLoop::ProcessTimeEvents() const {
 }
 
 AeEventLoop::~AeEventLoop() {
-  delete aeApiState;
-  aeApiState = nullptr;
-  for (int i = 0; i < EventsSize; ++i) {
-    delete fileEvents[i];
-    fileEvents[i] = nullptr;
+  delete ae_api_state_;
+  ae_api_state_ = nullptr;
+  for (int i = 0; i < eventSize; ++i) {
+    delete file_events_[i];
+    file_events_[i] = nullptr;
   }
 }
 }  // namespace ae

@@ -11,7 +11,7 @@ struct Prefix {
   static constexpr const char int64Prefix = ':';
 };
 
-ssize_t findCRLF(const std::string& resp, int start) {
+static ssize_t findCRLF(const std::string& resp, int start) {
   while (start >= 0) {
     start = resp.find('\n', start);
     if (start < 0) break;
@@ -21,14 +21,14 @@ ssize_t findCRLF(const std::string& resp, int start) {
   return -1;
 }
 
-ssize_t parseString(const std::string& resp, std::string& reply) {
+static ssize_t parseString(const std::string& resp, std::string& reply) {
   int i = findCRLF(resp, 0);
   if (i < 0) return -1;
   reply = resp.substr(1, i - 2);
   return i + 1;
 }
 
-ssize_t parseBulkString(const std::string& resp, std::string& reply) {
+static ssize_t parseBulkString(const std::string& resp, std::string& reply) {
   int i = findCRLF(resp, 0);
   if (i < 0) return -1;
   int len = 0;
@@ -44,7 +44,7 @@ ssize_t parseBulkString(const std::string& resp, std::string& reply) {
   return j + 1;
 }
 
-ssize_t parseInt64(const std::string& resp, std::string& reply) {
+static size_t parseInt64(const std::string& resp, std::string& reply) {
   int i = findCRLF(resp, 0);
   if (i < 0) return -1;
   int sign = 1, j = 1, r = 0;

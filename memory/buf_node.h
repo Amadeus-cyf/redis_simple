@@ -10,32 +10,32 @@ class BufNode {
     return new BufNode(std::max(len, static_cast<size_t>(1024)));
   }
   ~BufNode() {
-    if (buf) {
-      delete[] buf;
-      buf = nullptr;
+    if (buf_) {
+      delete[] buf_;
+      buf_ = nullptr;
     }
-    if (next) {
-      next = nullptr;
+    if (next_) {
+      next_ = nullptr;
     }
   }
   /* buffer */
-  char* buf;
+  char* buf_;
   /* size already written with reply */
-  size_t used;
+  size_t used_;
   /* total buffer len */
-  size_t len;
+  size_t len_;
   /* pointer to next buffer */
-  BufNode* next;
+  BufNode* next_;
 
  private:
   static constexpr const size_t ProtoNodeSize = 1024;
-  explicit BufNode() : len(ProtoNodeSize), used(0), next(nullptr) {
-    buf = new char[ProtoNodeSize];
-    memset(buf, '\0', ProtoNodeSize);
+  explicit BufNode() : len_(ProtoNodeSize), used_(0), next_(nullptr) {
+    buf_ = new char[ProtoNodeSize];
+    memset(buf_, '\0', ProtoNodeSize);
   };
-  explicit BufNode(size_t len) : len(len), used(0), next(nullptr) {
-    buf = new char[len];
-    memset(buf, '\0', len);
+  explicit BufNode(size_t len) : len_(len), used_(0), next_(nullptr) {
+    buf_ = new char[len];
+    memset(buf_, '\0', len);
   }
 };
 }  // namespace in_memory

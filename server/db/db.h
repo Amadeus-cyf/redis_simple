@@ -29,16 +29,16 @@ class RedisDb {
   void ScanExpires(
       in_memory::Dict<std::string, int64_t>::dictScanFunc callback) const;
   double ExpiredPercentage() const {
-    return dict->Size() > 0 ? (double)expires->Size() / dict->Size() : 0.0;
+    return dict_->Size() > 0 ? (double)expires_->Size() / dict_->Size() : 0.0;
   };
 
  private:
   RedisDb();
   bool IsKeyExpired(const std::string& key) const;
-  std::unique_ptr<in_memory::Dict<std::string, RedisObj*>> dict;
-  std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires;
-  bool free_async;
-  mutable int expire_cursor;
+  std::unique_ptr<in_memory::Dict<std::string, RedisObj*>> dict_;
+  std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
+  bool free_async_;
+  mutable int expire_cursor_;
 };
 }  // namespace db
 }  // namespace redis_simple

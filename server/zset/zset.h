@@ -35,14 +35,14 @@ class ZSet {
     std::string key;
     mutable double score;
   };
-  static ZSet* init() { return new ZSet(); }
-  void addOrUpdate(const std::string& key, const double score) const;
-  bool remove(const std::string& key) const;
-  int getRank(const std::string& key) const;
-  std::vector<const ZSetEntry*> rangeByRank(const RangeByRankSpec* spec) const;
-  std::vector<const ZSetEntry*> rangeByScore(
+  static ZSet* Init() { return new ZSet(); }
+  void AddOrUpdate(const std::string& key, const double score) const;
+  bool Remove(const std::string& key) const;
+  int GetRankOfKey(const std::string& key) const;
+  std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec) const;
+  std::vector<const ZSetEntry*> RangeByScore(
       const RangeByScoreSpec* spec) const;
-  size_t size() const { return skiplist->Size(); }
+  size_t size() const { return skiplist_->Size(); }
 
  private:
   struct Comparator {
@@ -63,22 +63,22 @@ class ZSet {
   explicit ZSet();
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByRankSpec*
-  toSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
+  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByKeySpec*
-  toSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
-  void freeSkiplistRangeByRankSpec(
+  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
+  void FreeSkiplistRangeByRankSpec(
       const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                                 ZSet::Destructor>::SkiplistRangeByRankSpec*
           skiplist_spec) const;
-  void freeSkiplistRangeByKeySpec(
+  void FreeSkiplistRangeByKeySpec(
       const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                                 ZSet::Destructor>::SkiplistRangeByKeySpec*
           skiplist_spec) const;
-  std::unique_ptr<in_memory::Dict<std::string, double>> dict;
+  std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
   std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
-      skiplist;
-  mutable std::string max_key, min_key;
+      skiplist_;
+  mutable std::optional<std::string> max_key_, min_key_;
 };
 }  // namespace zset
 }  // namespace redis_simple

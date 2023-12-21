@@ -8,20 +8,20 @@ namespace command {
 namespace t_zset {
 void ZRankCommand::Exec(Client* const client) const {
   ZSetArgs args;
-  if (ParseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    int rank = GenericZRank(db, &args);
+  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+    int rank = ZRank(db, &args);
     if (rank < 0) {
-      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::FromInt64(rank));
+    client->AddReply(reply::FromInt64(rank));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
@@ -37,8 +37,8 @@ int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRankCommand::GenericZRank(std::shared_ptr<const db::RedisDb> db,
-                               const ZSetArgs* args) const {
+int ZRankCommand::ZRank(std::shared_ptr<const db::RedisDb> db,
+                        const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
   }
@@ -53,7 +53,7 @@ int ZRankCommand::GenericZRank(std::shared_ptr<const db::RedisDb> db,
   }
   try {
     const zset::ZSet* const zset = obj->ZSet();
-    return zset->getRank(args->ele);
+    return zset->GetRankOfKey(args->ele);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;

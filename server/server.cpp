@@ -10,9 +10,9 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
-std::shared_ptr<ae::AeEventLoop> Server::el = ae::AeEventLoop::InitEventLoop();
+std::shared_ptr<ae::AeEventLoop> Server::el_(ae::AeEventLoop::InitEventLoop());
 
-Server::Server() : db(db::RedisDb::Init()) {}
+Server::Server() : db_(db::RedisDb::Init()) {}
 
 Server* Server::Get() {
   static std::unique_ptr<Server> server;
@@ -23,26 +23,26 @@ Server* Server::Get() {
 }
 
 void Server::Run(const std::string& ip, const int& port) {
-  const connection::Context& ctx = {.fd = -1, .loop = el.get()};
+  const connection::Context& ctx = {.fd = -1, .loop = el_};
   connection::Connection conn(ctx);
   if (conn.Listen(ip, port) == connection::StatusCode::c_err) {
     return;
   }
-  fd = conn.Fd();
+  fd_ = conn.Fd();
   AcceptConnHandler();
   ae::AeTimeEventImpl<Server>::aeTimeProc time_proc = [](long long id,
                                                          Server* server) {
     return Get()->ServerCron(id, server);
   };
-  el->AeCreateTimeEvent(
+  el_->AeCreateTimeEvent(
       ae::AeTimeEventImpl<Server>::Create(time_proc, nullptr, this));
-  el->AeMain();
+  el_->AeMain();
 }
 
 void Server::AcceptConnHandler() {
   ae::AeFileEvent* fe = ae::AeFileEventImpl<Server>::Create(
       networking::AcceptHandler, nullptr, this, ae::aeReadable);
-  if (el->AeCreateFileEvent(fd, fe) < 0) {
+  if (el_->AeCreateFileEvent(fd_, fe) < 0) {
     printf("error in adding client creation file event\n");
   }
 }

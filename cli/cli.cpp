@@ -11,7 +11,7 @@
 namespace redis_simple {
 namespace cli {
 namespace {
-std::string readFromSocket(int fd) {
+static std::string readFromSocket(int fd) {
   std::string reply;
   ssize_t nread = 0;
   char buf[4096];
@@ -29,7 +29,7 @@ std::string readFromSocket(int fd) {
   return reply;
 }
 
-ssize_t writeToSocket(int fd, const std::string& cmds) {
+static ssize_t writeToSocket(int fd, const std::string& cmds) {
   ssize_t nwritten = 0;
   int nwrite = 0;
   printf("write %s\n", cmds.c_str());

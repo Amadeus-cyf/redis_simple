@@ -12,7 +12,10 @@
 namespace redis_simple {
 namespace tcp {
 namespace {
-int TCP_Bind(const int socket_fd, const std::string& ip, const int port) {
+static constexpr const int backlog = 3;
+
+static int TCP_Bind(const int socket_fd, const std::string& ip,
+                    const int port) {
   struct addrinfo hints, *info = nullptr;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
@@ -34,7 +37,7 @@ int TCP_Bind(const int socket_fd, const std::string& ip, const int port) {
   return r;
 }
 
-int TCP_SetReuseAddr(int socket_fd) {
+static int TCP_SetReuseAddr(int socket_fd) {
   int yes = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
       -1) {
@@ -43,8 +46,8 @@ int TCP_SetReuseAddr(int socket_fd) {
   return tcpOK;
 }
 
-int TCP_GenericCreateSocket(int domain, int type, int protocol,
-                            bool non_block) {
+static int TCP_GenericCreateSocket(int domain, int type, int protocol,
+                                   bool non_block) {
   int socket_fd = socket(domain, type, protocol);
   if (socket_fd < 0) {
     return TCPStatusCode::tcpError;
@@ -60,7 +63,7 @@ int TCP_GenericCreateSocket(int domain, int type, int protocol,
   return socket_fd;
 }
 
-int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
+static int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   int s = -1;
   if ((s = accept(socket_fd, addr, len)) == -1) {
     return TCPStatusCode::tcpError;
@@ -68,7 +71,7 @@ int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   return s;
 }
 
-int SetBlock(int fd, bool block) {
+static int SetBlock(int fd, bool block) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) {
     return TCPStatusCode::tcpError;
@@ -81,13 +84,13 @@ int SetBlock(int fd, bool block) {
                                        : TCPStatusCode::tcpOK;
 }
 
-bool IsNonBlock(int fd) {
+static bool IsNonBlock(int fd) {
   int flags = fcntl(fd, F_GETFL);
 
   return flags & O_NONBLOCK;
 }
 
-int SetCLOEXEC(int fd) {
+static int SetCLOEXEC(int fd) {
   int flags = fcntl(fd, F_GETFL);
   if (flags & O_CLOEXEC) {
     return tcpOK;
@@ -97,8 +100,6 @@ int SetCLOEXEC(int fd) {
                                        : TCPStatusCode::tcpOK;
 }
 }  // namespace
-
-static constexpr const int backlog = 3;
 
 int TCP_CreateSocket(int domain, bool non_block) {
   return TCP_GenericCreateSocket(domain, SOCK_STREAM, 0, non_block);

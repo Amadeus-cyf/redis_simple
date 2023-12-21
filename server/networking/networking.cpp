@@ -32,7 +32,12 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
     printf("invalid server / event loop\n");
     return ae::AeEventStatus::aeEventErr;
   }
-  const connection::Context& ctx = {.fd = fd, .loop = el};
+  /* should use server->EventLoop() method to get the shared pointer of event
+   * loop instead of using the raw pointer passed as arg */
+  const connection::Context& ctx = {
+      .fd = fd,
+      .loop = server->EventLoop(),
+  };
   connection::Connection* conn = new connection::Connection(ctx);
   conn->SetState(connection::ConnState::connStateAccepting);
   if (conn->Accept(&dest_ip, &dest_port) == connection::StatusCode::c_err) {
@@ -43,13 +48,13 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
     printf("invalid connection state\n");
     return ae::AeEventStatus::aeEventErr;
   }
-  // create client based on the connection
+  /* create client based on the connection */
   printf("accept connection from %s:%d with fd = %d\n", dest_ip.c_str(),
          dest_port, conn->Fd());
   printf("start create client\n");
-  Client* client = Client::create(conn);
+  Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
-  // install the read handler for the client connection
+  /* install the read handler for the client connection */
   conn->SetReadHandler(connection::ConnHandler::Create(
       connection::ConnHandlerType::readQueryFromClient));
   server->AddClient(client);

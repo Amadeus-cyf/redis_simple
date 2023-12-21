@@ -8,19 +8,19 @@ namespace command {
 namespace t_zset {
 void ZAddCommand::Exec(Client* const client) const {
   ZSetArgs args;
-  if (ParseArgs(client->getArgs(), &args) < 0) {
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->getDb().lock()) {
-    if (GenericZAdd(db, &args) < 0) {
-      client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+    if (ZAdd(db, &args) < 0) {
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyOK));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
     printf("db pointer expired\n");
-    client->addReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
 
@@ -43,8 +43,8 @@ int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZAddCommand::GenericZAdd(std::shared_ptr<const db::RedisDb> db,
-                             const ZSetArgs* args) const {
+int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
+                      const ZSetArgs* args) const {
   if (!db || !args) {
     return -1;
   }
@@ -54,7 +54,7 @@ int ZAddCommand::GenericZAdd(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   if (!obj) {
-    obj = db::RedisObj::CreateZSet(zset::ZSet::init());
+    obj = db::RedisObj::CreateZSet(zset::ZSet::Init());
     int r = db->SetKey(args->key, obj, 0) == db::DBStatus::dbErr;
     obj->DecrRefCount();
     if (r < 0) {
@@ -63,7 +63,7 @@ int ZAddCommand::GenericZAdd(std::shared_ptr<const db::RedisDb> db,
   }
   try {
     const zset::ZSet* const zset = obj->ZSet();
-    zset->addOrUpdate(args->ele, args->score);
+    zset->AddOrUpdate(args->ele, args->score);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;

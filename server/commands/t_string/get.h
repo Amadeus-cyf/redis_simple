@@ -14,8 +14,8 @@ class GetCommand : public Command {
 
  private:
   int ParseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
-  const db::RedisObj* GenericGet(std::shared_ptr<const db::RedisDb> db,
-                                 const StrArgs* args) const;
+  const db::RedisObj* Get(std::shared_ptr<const db::RedisDb> db,
+                          const StrArgs* args) const;
 };
 }  // namespace t_string
 }  // namespace command

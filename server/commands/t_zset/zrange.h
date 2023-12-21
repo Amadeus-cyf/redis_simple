@@ -16,12 +16,12 @@ class ZRangeCommand : public Command {
   static const std::string& flagByScore;
   static const std::string& flagLimit;
   static const std::string& flagWithScores;
-  int GenericRangeByRankSpec(
-      Client* const client, const std::vector<std::string>& args,
-      std::vector<const zset::ZSet::ZSetEntry*>* result) const;
-  int GenericRangeByScoreSpec(
-      Client* const client, const std::vector<std::string>& args,
-      std::vector<const zset::ZSet::ZSetEntry*>* result) const;
+  int RangeByRankSpec(Client* const client,
+                      const std::vector<std::string>& args,
+                      std::vector<const zset::ZSet::ZSetEntry*>* result) const;
+  int RangeByScoreSpec(Client* const client,
+                       const std::vector<std::string>& args,
+                       std::vector<const zset::ZSet::ZSetEntry*>* result) const;
 };
 }  // namespace t_zset
 }  // namespace command

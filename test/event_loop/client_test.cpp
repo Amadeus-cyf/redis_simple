@@ -9,7 +9,7 @@
 
 namespace redis_simple {
 static int i = 0;
-ae::AeEventStatus writeProc(ae::AeEventLoop* el, int fd, int* client_data,
+ae::AeEventStatus WriteProc(ae::AeEventLoop* el, int fd, int* client_data,
                             int mask) {
   printf("write to %d\n", fd);
   const std::string& s = "hello world\n";
@@ -22,8 +22,8 @@ ae::AeEventStatus writeProc(ae::AeEventLoop* el, int fd, int* client_data,
   return ae::AeEventStatus::aeEventOK;
 }
 
-void run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::InitEventLoop();
+void Run() {
+  std::shared_ptr<ae::AeEventLoop> el(ae::AeEventLoop::InitEventLoop());
   int fd = tcp::TCP_Connect("localhost", 8081, true, "localhost", 8080);
   printf("conn result %d\n", fd);
   if (fd == -1) {
@@ -33,10 +33,10 @@ void run() {
 
   int data = 10000;
   ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::Create(
-      nullptr, writeProc, &data, ae::AeFlags::aeWritable);
+      nullptr, WriteProc, &data, ae::AeFlags::aeWritable);
   el->AeCreateFileEvent(fd, fe);
   el->AeMain();
 }
 }  // namespace redis_simple
 
-int main() { redis_simple::run(); }
+int main() { redis_simple::Run(); }

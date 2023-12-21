@@ -64,9 +64,9 @@ void HandleRead(connection::Connection* conn) {
 }
 
 void Run() {
-  std::unique_ptr<ae::AeEventLoop> el = ae::AeEventLoop::InitEventLoop();
+  std::shared_ptr<ae::AeEventLoop> el(ae::AeEventLoop::InitEventLoop());
   connection::Connection* conn =
-      new connection::Connection({.fd = -1, .loop = el.get()});
+      new connection::Connection({.fd = -1, .loop = el});
   connection::StatusCode r =
       conn->Connect("localhost", 8081, "localhost", 8080);
   printf("conn result %d\n", r);

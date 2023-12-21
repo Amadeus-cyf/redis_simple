@@ -15,8 +15,7 @@ class ZRankCommand : public Command {
  private:
   int ParseArgs(const std::vector<std::string>& args,
                 ZSetArgs* zset_args) const;
-  int GenericZRank(std::shared_ptr<const db::RedisDb> db,
-                   const ZSetArgs* args) const;
+  int ZRank(std::shared_ptr<const db::RedisDb> db, const ZSetArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

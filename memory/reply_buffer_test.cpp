@@ -19,7 +19,7 @@ TEST_F(ReplyBufferTest, AddToBuf) {
   std::string s(2000, 'a');
   size_t r = buf->AddReplyToBufferOrList(s.c_str(), 2000);
   ASSERT_EQ(r, 2000);
-  ASSERT_EQ(buf->BufPos(), 2000);
+  ASSERT_EQ(buf->BufPosition(), 2000);
 }
 
 TEST_F(ReplyBufferTest, AddToReplyList) {
@@ -35,7 +35,7 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   r = buf->AddReplyToBufferOrList(s3.c_str(), 1024);
   ASSERT_EQ(r, 1024);
 
-  ASSERT_EQ(buf->BufPos(), 4096);
+  ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->ReplyLen(), 3);
 
   const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
@@ -46,8 +46,8 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
 }
 
 TEST_F(ReplyBufferTest, TrimProcessedBuffer) {
-  buf->WriteProcessed(8000);
-  ASSERT_EQ(buf->BufPos(), 0);
+  buf->ClearProcessed(8000);
+  ASSERT_EQ(buf->BufPosition(), 0);
   ASSERT_EQ(buf->SentLen(), 8000 - 2000 - 4096);
   ASSERT_EQ(buf->ReplyLen(), 2);
 
@@ -60,13 +60,13 @@ TEST_F(ReplyBufferTest, TrimProcessedBuffer) {
 TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   BufNode* tail = buf->ReplyTail();
 
-  tail->used /= 3;
-  memset(tail->buf + tail->used, 0, tail->len - tail->used);
+  tail->used_ /= 3;
+  memset(tail->buf_ + tail->used_, 0, tail->len_ - tail->used_);
 
   std::string s(5000, 'e');
   size_t r = buf->AddReplyToBufferOrList(s.c_str(), 5000);
   ASSERT_EQ(r, 5000);
-  ASSERT_EQ(buf->BufPos(), 0);
+  ASSERT_EQ(buf->BufPosition(), 0);
   ASSERT_EQ(buf->ReplyLen(), 3);
 
   const std::vector<std::pair<char*, size_t>>& mem_vec_2 = buf->Memvec();

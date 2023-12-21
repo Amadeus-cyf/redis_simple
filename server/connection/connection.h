@@ -25,7 +25,7 @@ enum class ConnState {
 };
 
 struct Context {
-  ae::AeEventLoop* loop;
+  std::weak_ptr<ae::AeEventLoop> loop;
   int fd;
 };
 
@@ -38,20 +38,20 @@ class Connection {
   StatusCode Accept(std::string* remote_ip, int* remote_port);
   void SetReadHandler(std::unique_ptr<ConnHandler> handler);
   void UnsetReadHandler();
-  bool HasReadHandler() { return read_handler != nullptr; }
-  bool HasReadHandler() const { return read_handler != nullptr; }
+  bool HasReadHandler() { return read_handler_ != nullptr; }
+  bool HasReadHandler() const { return read_handler_ != nullptr; }
   void SetWriteHandler(std::unique_ptr<ConnHandler> handler,
                        bool barrier = false);
   void UnsetWriteHandler();
-  bool HasWriteHandler() { return write_handler != nullptr; }
-  bool HasWriteHandler() const { return write_handler != nullptr; }
-  int Fd() { return fd; }
-  ConnState State() { return state; }
-  ConnState State() const { return state; }
-  void SetState(ConnState _state) { state = _state; }
-  void SetPrivateData(void* _private_data) { private_data = _private_data; }
-  void* PrivateData() { return private_data; }
-  void* PrivateData() const { return private_data; }
+  bool HasWriteHandler() { return write_handler_ != nullptr; }
+  bool HasWriteHandler() const { return write_handler_ != nullptr; }
+  int Fd() { return fd_; }
+  ConnState State() { return state_; }
+  ConnState State() const { return state_; }
+  void SetState(ConnState state) { state_ = state; }
+  void SetPrivateData(void* private_data) { private_data_ = private_data; }
+  void* PrivateData() { return private_data_; }
+  void* PrivateData() const { return private_data_; }
   ssize_t Read(const char* buf, size_t readlen);
   ssize_t Read(const char* buf, size_t readlen) const;
   ssize_t Read(std::string& s);
@@ -68,7 +68,7 @@ class Connection {
   ssize_t Writev(const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
   ssize_t SyncWrite(const char* buffer, size_t len, long timeout);
   ssize_t SyncWrite(const char* buffer, size_t len, long timeout) const;
-  void Close() { close(fd); }
+  void Close() { close(fd_); }
   ~Connection() { Close(); }
 
  private:
@@ -78,16 +78,15 @@ class Connection {
   static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
-  void _setWriteHandler(std::unique_ptr<ConnHandler> handler);
-  int fd;
+  int fd_;
   /* flags used to judge connFlagWriteBarrier is set */
-  int flags;
-  ae::AeEventLoop* el;
-  mutable ConnState state;
-  std::unique_ptr<ConnHandler> read_handler;
-  std::unique_ptr<ConnHandler> write_handler;
-  std::unique_ptr<ConnHandler> accept_handler;
-  void* private_data;
+  int flags_;
+  std::weak_ptr<ae::AeEventLoop> el_;
+  mutable ConnState state_;
+  std::unique_ptr<ConnHandler> read_handler_;
+  std::unique_ptr<ConnHandler> write_handler_;
+  std::unique_ptr<ConnHandler> accept_handler_;
+  void* private_data_;
 };
 }  // namespace connection
 }  // namespace redis_simple

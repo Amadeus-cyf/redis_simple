@@ -13,13 +13,13 @@ class RedisCommand {
   explicit RedisCommand(
       const std::string& name,
       const std::vector<std::string>& args = std::vector<std::string>{});
-  const std::string& Name() const { return name; }
-  const std::vector<std::string>& Args() const { return args; }
+  const std::string& Name() const { return name_; }
+  const std::vector<std::string>& Args() const { return args_; }
   std::string String() const;
 
  private:
-  const std::string name;
-  const std::vector<std::string> args;
+  const std::string name_;
+  const std::vector<std::string> args_;
 };
 }  // namespace networking
 }  // namespace redis_simple
