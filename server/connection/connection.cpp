@@ -4,6 +4,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <optional>
+
 #include "event_loop/ae_file_event_impl.h"
 #include "tcp/tcp.h"
 
