@@ -125,86 +125,61 @@ TEST_F(SkiplistTest, GetRankofKey) {
 
 TEST_F(SkiplistTest, GetKeysGt) {
   const std::vector<std::string>& k0 = skiplist->GetKeysGt("key0");
-  ASSERT_EQ(k0.size(), 3);
-  ASSERT_EQ(k0[0], "key2");
+  ASSERT_EQ(k0, std::vector<std::string>({"key2", "key4", "key5"}));
 
   const std::vector<std::string>& k1 = skiplist->GetKeysGt("key3");
-  ASSERT_EQ(k1.size(), 2);
-  ASSERT_EQ(k1[0], "key4");
+  ASSERT_EQ(k1, std::vector<std::string>({"key4", "key5"}));
 
   const std::vector<std::string>& k2 = skiplist->GetKeysGt("key6");
   ASSERT_EQ(k2.size(), 0);
 
   const std::vector<std::string>& k3 = skiplist->GetKeysGt("abc");
-  ASSERT_EQ(k3.size(), 4);
-  ASSERT_EQ(k3[0], "key0");
+  ASSERT_EQ(k3, std::vector<std::string>({"key0", "key2", "key4", "key5"}));
 }
 
 TEST_F(SkiplistTest, GetKeysGte) {
   const std::vector<std::string>& k0 = skiplist->GetKeysGte("key0");
-  ASSERT_EQ(k0.size(), 4);
-  ASSERT_EQ(k0[0], "key0");
+  ASSERT_EQ(k0, std::vector<std::string>({"key0", "key2", "key4", "key5"}));
 
   const std::vector<std::string>& k1 = skiplist->GetKeysGte("key3");
-  ASSERT_EQ(k1.size(), 2);
-  ASSERT_EQ(k1[0], "key4");
+  ASSERT_EQ(k1, std::vector<std::string>({"key4", "key5"}));
 
   const std::vector<std::string>& k2 = skiplist->GetKeysGte("key6");
   ASSERT_EQ(k2.size(), 0);
 
   const std::vector<std::string>& k3 = skiplist->GetKeysGte("key5");
-  ASSERT_EQ(k3.size(), 1);
-  ASSERT_EQ(k3[0], "key5");
+  ASSERT_EQ(k3, std::vector<std::string>({"key5"}));
 }
 
 TEST_F(SkiplistTest, GetKeysLt) {
   const std::vector<std::string>& k0 = skiplist->GetKeysLt("key5");
-  ASSERT_EQ(k0.size(), 3);
-  ASSERT_EQ(k0[0], "key0");
-  ASSERT_EQ(k0[1], "key2");
-  ASSERT_EQ(k0[2], "key4");
+  ASSERT_EQ(k0, std::vector<std::string>({"key0", "key2", "key4"}));
 
   const std::vector<std::string>& k1 = skiplist->GetKeysLt("key3");
-  ASSERT_EQ(k1.size(), 2);
-  ASSERT_EQ(k1[0], "key0");
-  ASSERT_EQ(k1[1], "key2");
+  ASSERT_EQ(k1, std::vector<std::string>({"key0", "key2"}));
 
   const std::vector<std::string>& k2 = skiplist->GetKeysLt("key2");
-  ASSERT_EQ(k2.size(), 1);
-  ASSERT_EQ(k2[0], "key0");
+  ASSERT_EQ(k2, std::vector<std::string>({"key0"}));
 
   const std::vector<std::string>& k3 = skiplist->GetKeysLt("key0");
   ASSERT_EQ(k3.size(), 0);
 
   const std::vector<std::string>& k4 = skiplist->GetKeysLt("key6");
-  ASSERT_EQ(k4.size(), 4);
-  ASSERT_EQ(k4[0], "key0");
-  ASSERT_EQ(k0[1], "key2");
-  ASSERT_EQ(k0[2], "key4");
-  ASSERT_EQ(k4[3], "key5");
+  ASSERT_EQ(k4, std::vector<std::string>({"key0", "key2", "key4", "key5"}));
 }
 
 TEST_F(SkiplistTest, GetKeysLte) {
   const std::vector<std::string>& k0 = skiplist->GetKeysLte("key5");
-  ASSERT_EQ(k0.size(), 4);
-  ASSERT_EQ(k0[0], "key0");
-  ASSERT_EQ(k0[1], "key2");
-  ASSERT_EQ(k0[2], "key4");
-  ASSERT_EQ(k0[3], "key5");
+  ASSERT_EQ(k0, std::vector<std::string>({"key0", "key2", "key4", "key5"}));
 
   const std::vector<std::string>& k1 = skiplist->GetKeysLte("key3");
-  ASSERT_EQ(k1.size(), 2);
-  ASSERT_EQ(k1[0], "key0");
-  ASSERT_EQ(k1[1], "key2");
+  ASSERT_EQ(k1, std::vector<std::string>({"key0", "key2"}));
 
   const std::vector<std::string>& k2 = skiplist->GetKeysLte("key2");
-  ASSERT_EQ(k2.size(), 2);
-  ASSERT_EQ(k2[0], "key0");
-  ASSERT_EQ(k2[1], "key2");
+  ASSERT_EQ(k2, std::vector<std::string>({"key0", "key2"}));
 
   const std::vector<std::string>& k3 = skiplist->GetKeysLte("key0");
-  ASSERT_EQ(k3.size(), 1);
-  ASSERT_EQ(k3[0], "key0");
+  ASSERT_EQ(k3, std::vector<std::string>({"key0"}));
 
   const std::vector<std::string>& k4 = skiplist->GetKeysLte("abc");
   ASSERT_EQ(k4.size(), 0);

@@ -13,6 +13,8 @@ class ZSet {
  public:
   struct LimitSpec {
     long offset, count;
+    LimitSpec() : offset(0), count(0){};
+    LimitSpec(long offset, long count) : offset(offset), count(count){};
   };
   struct RangeByRankSpec {
     long min, max;

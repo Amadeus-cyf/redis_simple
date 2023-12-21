@@ -58,14 +58,24 @@ class Dict {
   bool Rehash(int n);
   void Clear(int i);
   void Reset(int i);
+  /* hashtable initial size */
   static constexpr const int htInitSize = 2;
+  /* hashtable initial exponential */
   static constexpr const int htInitExp = 1;
+  /* the threshold for rehashing. The ratio is calculated from (num of elements
+   * / hashtable size) */
   static constexpr const double dictForceResizeRatio = 2.0;
+  /* specify hash function, key constructor and destructor in type */
   DictType* type_;
+  /* containing 2 hastables, the second one is used for rehash */
   std::vector<std::vector<DictEntry*>> ht_;
+  /* number of elements in each hashtable*/
   size_t ht_used_[2];
+  /* exponential used by the 2 hashtable */
   int ht_size_exp_[2];
+  /* the idx that the rehash will start at, -1 if no rehash happened */
   long rehash_idx_;
+  /* larger than 0 if rehash is paused */
   int64_t pause_rehash_;
 };
 

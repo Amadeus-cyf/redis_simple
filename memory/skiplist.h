@@ -103,10 +103,15 @@ class Skiplist {
   const SkiplistNode* GetLastKeyLt(const Key& key, bool eq);
   void Reset();
   const SkiplistNode* FindLast() const;
+  /* skiplist node head */
   SkiplistNode* head_;
+  /* key comparator */
   const Comparator compare_;
+  /* key destructor */
   const Destructor dtr_;
+  /* number of levels */
   size_t level_;
+  /* number of nodes */
   size_t size_;
 };
 

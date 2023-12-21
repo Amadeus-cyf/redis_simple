@@ -1,6 +1,7 @@
 #include "zrange.h"
 
 #include <limits>
+#include <memory>
 
 #include "server/client.h"
 #include "server/zset/zset.h"
@@ -171,7 +172,7 @@ static int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
       break;
     }
   }
-  if (i >= args.size()) {
+  if (i > args.size() - 3) {
     /* limit flag not found or missing offset count info, set to default */
     *offset = 0, *count = -1;
     return 0;
@@ -221,6 +222,7 @@ void ZRangeCommand::Exec(Client* const client) const {
   const std::vector<std::string>& args = client->CommandArgs();
   std::vector<const zset::ZSet::ZSetEntry*> result;
   if (FlaggedByScore(args)) {
+    RangeByScoreSpec(client, args, &result);
   } else {
     RangeByRankSpec(client, args, &result);
   }
