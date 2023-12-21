@@ -79,17 +79,20 @@ class Skiplist {
   bool Eq(const Key& k1, const Key& k2);
   void DeleteNode(const Key& key, SkiplistNode* prev[maxSkiplistLevel]);
   const SkiplistNode* GetKey(size_t rank);
-  bool RebaseAndValidateRangeRankSpec(const SkiplistRangeByRankSpec* spec);
   const SkiplistNode* GetMinNodeByRangeRankSpec(
       const SkiplistRangeByRankSpec* spec);
   const SkiplistNode* GetRevMinNodeByRangeRankSpec(
       const SkiplistRangeByRankSpec* spec);
-  std::vector<Key> _rangeByRank(const SkiplistRangeByRankSpec* spec);
-  long _count(const SkiplistRangeByRankSpec* spec);
+  bool RebaseAndValidateRangeRankSpec(const SkiplistRangeByRankSpec* spec);
   bool ValidateRangeKeySpec(const SkiplistRangeByKeySpec* spec);
-  std::vector<Key> RevRangeByRankInternal(const SkiplistRangeByRankSpec* spec);
-  std::vector<Key> RangeByKeyInternal(const SkiplistRangeByKeySpec* spec);
-  std::vector<Key> RevRangeByKeyInternal(const SkiplistRangeByKeySpec* spec);
+  long CountWithValidSpec(const SkiplistRangeByRankSpec* spec);
+  std::vector<Key> RangeByRankWithValidSpec(
+      const SkiplistRangeByRankSpec* spec);
+  std::vector<Key> RevRangeByRankWithValidSpec(
+      const SkiplistRangeByRankSpec* spec);
+  std::vector<Key> RangeByKeyWithValidSpec(const SkiplistRangeByKeySpec* spec);
+  std::vector<Key> RevRangeByKeyWithValidSpec(
+      const SkiplistRangeByKeySpec* spec);
   std::vector<Key> GetKeysGt(const Key& start, bool eq);
   std::vector<Key> GetKeysLt(const Key& end, bool eq);
   const SkiplistNode* GetFirstKeyGte(const Key& key);
@@ -539,7 +542,7 @@ ssize_t Skiplist<Key, Comparator, Destructor>::GetRankofKey(const Key& key) {
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByRank(
     const SkiplistRangeByRankSpec* spec) {
-  return RebaseAndValidateRangeRankSpec(spec) ? _rangeByRank(spec)
+  return RebaseAndValidateRangeRankSpec(spec) ? RangeByRankWithValidSpec(spec)
                                               : std::vector<Key>();
 }
 
@@ -549,7 +552,7 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByRank(
 template <typename Key, typename Comparator, typename Destructor>
 long Skiplist<Key, Comparator, Destructor>::Count(
     const SkiplistRangeByRankSpec* spec) {
-  return RebaseAndValidateRangeRankSpec(spec) ? _count(spec) : -1;
+  return RebaseAndValidateRangeRankSpec(spec) ? CountWithValidSpec(spec) : -1;
 }
 
 /*
@@ -558,8 +561,9 @@ long Skiplist<Key, Comparator, Destructor>::Count(
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByRank(
     const SkiplistRangeByRankSpec* spec) {
-  return RebaseAndValidateRangeRankSpec(spec) ? RevRangeByRankInternal(spec)
-                                              : std::vector<Key>();
+  return RebaseAndValidateRangeRankSpec(spec)
+             ? RevRangeByRankWithValidSpec(spec)
+             : std::vector<Key>();
 }
 
 /*
@@ -604,7 +608,7 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::GetKeysLte(
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKey(
     const SkiplistRangeByKeySpec* spec) {
-  return ValidateRangeKeySpec(spec) ? RangeByKeyInternal(spec)
+  return ValidateRangeKeySpec(spec) ? RangeByKeyWithValidSpec(spec)
                                     : std::vector<Key>();
 }
 
@@ -614,7 +618,7 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKey(
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByKey(
     const SkiplistRangeByKeySpec* spec) {
-  return ValidateRangeKeySpec(spec) ? RevRangeByKeyInternal(spec)
+  return ValidateRangeKeySpec(spec) ? RevRangeByKeyWithValidSpec(spec)
                                     : std::vector<Key>();
 }
 
@@ -848,10 +852,11 @@ Skiplist<Key, Comparator, Destructor>::GetRevMinNodeByRangeRankSpec(
  * Get keys in reverse range of rank .Rank indicates the position of the key in
  * the skiplist.
  * The function assumes the spec are valid with non-negative min and max value.
- * Should call rebaseAndValidateRangeRankSpec before calling this function.
+ * Should call RebaseAndValidateRangeRankSpec before calling this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::_rangeByRank(
+std::vector<Key>
+Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
     const SkiplistRangeByRankSpec* spec) {
   const SkiplistNode* node = GetMinNodeByRangeRankSpec(spec);
   if (!node) {
@@ -883,11 +888,11 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::_rangeByRank(
 /*
  * Get number of keys in range of rank. Rank indicates the position of the key
  * in the skiplist. The function assumes the spec are valid with non-negative
- * min and max value. Should call rebaseAndValidateRangeRankSpec before calling
+ * min and max value. Should call RebaseAndValidateRangeRankSpec before calling
  * this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
-long Skiplist<Key, Comparator, Destructor>::_count(
+long Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
     const SkiplistRangeByRankSpec* spec) {
   const SkiplistNode* node = GetMinNodeByRangeRankSpec(spec);
   if (!node) {
@@ -919,10 +924,11 @@ long Skiplist<Key, Comparator, Destructor>::_count(
  * Get keys in reverse range of rank. Rank indicates the position of the key in
  * the skiplist.
  * The function assumes the spec are valid with non-negative min and max value.
- * Should call rebaseAndValidateRangeRankSpec before calling this function.
+ * Should call RebaseAndValidateRangeRankSpec before calling this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByRankInternal(
+std::vector<Key>
+Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
     const SkiplistRangeByRankSpec* spec) {
   const SkiplistNode* node = GetRevMinNodeByRangeRankSpec(spec);
   if (!node) {
@@ -964,7 +970,7 @@ bool Skiplist<Key, Comparator, Destructor>::ValidateRangeKeySpec(
  * before calling this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyInternal(
+std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
     const SkiplistRangeByKeySpec* spec) {
   const SkiplistNode* node = GetFirstKeyGte(spec->min);
   if (!node) {
@@ -1001,7 +1007,8 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyInternal(
  * before calling this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByKeyInternal(
+std::vector<Key>
+Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
     const SkiplistRangeByKeySpec* spec) {
   const SkiplistNode* node = GetLastKeyLte(spec->max);
   if (!node) {
