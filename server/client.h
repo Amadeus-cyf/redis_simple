@@ -42,8 +42,9 @@ class Client {
   void SetCmdArgs(const std::vector<std::string>& _args) { args_ = _args; }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
-  std::weak_ptr<const db::RedisDb> db_;
+  /* client flags */
   int flags;
+  std::weak_ptr<const db::RedisDb> db_;
   /* current command */
   std::weak_ptr<const command::Command> cmd_;
   /* current command args*/

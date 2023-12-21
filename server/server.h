@@ -23,10 +23,10 @@ class Server {
  private:
   Server();
   void AcceptConnHandler();
-  int ServerCron(long long id, void* clientData);
+  int ServerCron(long long id, std::any clientData);
   int fd_;
-  static std::shared_ptr<ae::AeEventLoop> el_;
   int flags_;
+  static std::shared_ptr<ae::AeEventLoop> el_;
   std::vector<Client*> clients_;
   std::shared_ptr<db::RedisDb> db_;
 };

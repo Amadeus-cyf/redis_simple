@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 
+#include <any>
 #include <string>
 
 #include "event_loop/ae.h"
@@ -49,9 +50,9 @@ class Connection {
   ConnState State() { return state_; }
   ConnState State() const { return state_; }
   void SetState(ConnState state) { state_ = state; }
-  void SetPrivateData(void* private_data) { private_data_ = private_data; }
-  void* PrivateData() { return private_data_; }
-  void* PrivateData() const { return private_data_; }
+  void SetPrivateData(std::any private_data) { private_data_ = private_data; }
+  std::any PrivateData() { return private_data_; }
+  std::any PrivateData() const { return private_data_; }
   ssize_t Read(const char* buf, size_t readlen);
   ssize_t Read(const char* buf, size_t readlen) const;
   ssize_t Read(std::string& s);
@@ -81,12 +82,12 @@ class Connection {
   int fd_;
   /* flags used to judge connFlagWriteBarrier is set */
   int flags_;
-  std::weak_ptr<ae::AeEventLoop> el_;
   mutable ConnState state_;
+  std::any private_data_;
+  std::weak_ptr<ae::AeEventLoop> el_;
   std::unique_ptr<ConnHandler> read_handler_;
   std::unique_ptr<ConnHandler> write_handler_;
   std::unique_ptr<ConnHandler> accept_handler_;
-  void* private_data_;
 };
 }  // namespace connection
 }  // namespace redis_simple

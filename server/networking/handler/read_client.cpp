@@ -1,5 +1,7 @@
 #include "read_client.h"
 
+#include <any>
+
 #include "server/client.h"
 
 namespace redis_simple {
@@ -19,7 +21,7 @@ void ReadFromClientHandler::Handle(connection::Connection* conn) {
 
 void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
   printf("read query from client\n");
-  Client* c = static_cast<Client*>(conn->PrivateData());
+  Client* c = std::any_cast<Client*>(conn->PrivateData());
   if (!c) {
     printf("invalid client\n");
     return;

@@ -7,9 +7,7 @@
 
 namespace redis_simple {
 namespace db {
-std::unique_ptr<RedisDb> RedisDb::Init() {
-  return std::unique_ptr<RedisDb>(new RedisDb());
-}
+RedisDb* RedisDb::Init() { return new RedisDb(); }
 
 RedisDb::RedisDb()
     : dict_(in_memory::Dict<std::string, RedisObj*>::Init()),

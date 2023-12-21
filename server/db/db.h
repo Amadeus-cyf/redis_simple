@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <string>
 
 #include "memory/dict.h"
@@ -19,7 +18,7 @@ enum SetKeyFlags {
 
 class RedisDb {
  public:
-  static std::unique_ptr<RedisDb> Init();
+  static RedisDb* Init();
   const RedisObj* LookupKey(const std::string& key) const;
   DBStatus SetKey(const std::string& key, const RedisObj* const val,
                   const int64_t expire) const;

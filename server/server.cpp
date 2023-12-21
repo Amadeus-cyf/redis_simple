@@ -3,6 +3,8 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#include <any>
+
 #include "db/db.h"
 #include "event_loop/ae_file_event_impl.h"
 #include "event_loop/ae_time_event_impl.h"
@@ -47,7 +49,7 @@ void Server::AcceptConnHandler() {
   }
 }
 
-int Server::ServerCron(long long id, void* clientData) {
+int Server::ServerCron(long long id, std::any clientData) {
   ActiveExpireCycle();
   return 1;
 }

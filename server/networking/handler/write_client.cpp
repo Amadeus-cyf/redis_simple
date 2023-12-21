@@ -1,5 +1,7 @@
 #include "write_client.h"
 
+#include <any>
+
 #include "server/client.h"
 #include "server/connection/connection.h"
 
@@ -20,7 +22,7 @@ void WriteToClientHandler::Handle(connection::Connection* conn) {
 }
 
 void WriteToClientHandler::SendReplyToClient(connection::Connection* conn) {
-  Client* c = static_cast<Client*>(conn->PrivateData());
+  Client* c = std::any_cast<Client*>(conn->PrivateData());
   printf("write reply called %d\n", c->HasPendingReplies());
   WriteToClient(c);
 }
