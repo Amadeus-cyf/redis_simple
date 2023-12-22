@@ -15,7 +15,7 @@ class ZSetTest : public testing::Test {
 };
 
 const ZSet* ZSetTest::zset;
-
+using KeyScorePair = std::pair<std::string, double>;
 std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSet::ZSetEntry*> keys);
 
@@ -90,8 +90,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k0 = zset->RangeByRank(&spec0);
-  const std::vector<std::pair<std::string, double>>& p0 = ToKeyScorePairs(k0);
-  const std::vector<std::pair<std::string, double>>& e0 = {
+  const std::vector<KeyScorePair>& p0 = ToKeyScorePairs(k0);
+  const std::vector<KeyScorePair>& e0 = {
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p0, e0);
 
@@ -105,9 +105,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k1 = zset->RangeByRank(&spec1);
-  const std::vector<std::pair<std::string, double>>& p1 = ToKeyScorePairs(k1);
-  const std::vector<std::pair<std::string, double>>& e1 = {{"key3", 4.0},
-                                                           {"key1", 5.0}};
+  const std::vector<KeyScorePair>& p1 = ToKeyScorePairs(k1);
+  const std::vector<KeyScorePair>& e1 = {{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p1, e1);
 
   /* max exclusive */
@@ -120,9 +119,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k2 = zset->RangeByRank(&spec2);
-  const std::vector<std::pair<std::string, double>>& p2 = ToKeyScorePairs(k2);
-  const std::vector<std::pair<std::string, double>>& e2 = {{"key2", 2.0},
-                                                           {"key3", 4.0}};
+  const std::vector<KeyScorePair>& p2 = ToKeyScorePairs(k2);
+  const std::vector<KeyScorePair>& e2 = {{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p2, e2);
 
   /* min and max exclusive */
@@ -135,8 +133,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k3 = zset->RangeByRank(&spec3);
-  const std::vector<std::pair<std::string, double>>& p3 = ToKeyScorePairs(k3);
-  const std::vector<std::pair<std::string, double>>& e3 = {{"key3", 4.0}};
+  const std::vector<KeyScorePair>& p3 = ToKeyScorePairs(k3);
+  const std::vector<KeyScorePair>& e3 = {{"key3", 4.0}};
   ASSERT_EQ(p3, e3);
 
   /* limit */
@@ -149,9 +147,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k4 = zset->RangeByRank(&spec4);
-  const std::vector<std::pair<std::string, double>>& p4 = ToKeyScorePairs(k4);
-  const std::vector<std::pair<std::string, double>>& e4 = {{"key3", 4.0},
-                                                           {"key1", 5.0}};
+  const std::vector<KeyScorePair>& p4 = ToKeyScorePairs(k4);
+  const std::vector<KeyScorePair>& e4 = {{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p4, e4);
 
   /* reverse */
@@ -164,8 +161,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = true,
   };
   const std::vector<const ZSet::ZSetEntry*>& k5 = zset->RangeByRank(&spec5);
-  const std::vector<std::pair<std::string, double>>& p5 = ToKeyScorePairs(k5);
-  const std::vector<std::pair<std::string, double>>& e5 = {
+  const std::vector<KeyScorePair>& p5 = ToKeyScorePairs(k5);
+  const std::vector<KeyScorePair>& e5 = {
       {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
   ASSERT_EQ(p5, e5);
 
@@ -179,9 +176,8 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = true,
   };
   const std::vector<const ZSet::ZSetEntry*>& k6 = zset->RangeByRank(&spec6);
-  const std::vector<std::pair<std::string, double>>& p6 = ToKeyScorePairs(k6);
-  const std::vector<std::pair<std::string, double>>& e6 = {{"key3", 4.0},
-                                                           {"key2", 2.0}};
+  const std::vector<KeyScorePair>& p6 = ToKeyScorePairs(k6);
+  const std::vector<KeyScorePair>& e6 = {{"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p6, e6);
 
   /* count = 0 */
@@ -194,7 +190,7 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k7 = zset->RangeByRank(&spec7);
-  const std::vector<std::pair<std::string, double>>& p7 = ToKeyScorePairs(k7);
+  const std::vector<KeyScorePair>& p7 = ToKeyScorePairs(k7);
   ASSERT_EQ(p7.size(), 0);
 
   /* invalid spec non-exclusive, min > max */
@@ -207,7 +203,7 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k8 = zset->RangeByRank(&spec8);
-  const std::vector<std::pair<std::string, double>>& p8 = ToKeyScorePairs(k8);
+  const std::vector<KeyScorePair>& p8 = ToKeyScorePairs(k8);
   ASSERT_EQ(p8.size(), 0);
 
   /* invalid spec exclusive, min >= max */
@@ -220,7 +216,7 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k9 = zset->RangeByRank(&spec9);
-  const std::vector<std::pair<std::string, double>>& p9 = ToKeyScorePairs(k9);
+  const std::vector<KeyScorePair>& p9 = ToKeyScorePairs(k9);
   ASSERT_EQ(p9.size(), 0);
 
   /* min out of range */
@@ -233,7 +229,7 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k10 = zset->RangeByRank(&spec10);
-  const std::vector<std::pair<std::string, double>>& p10 = ToKeyScorePairs(k10);
+  const std::vector<KeyScorePair>& p10 = ToKeyScorePairs(k10);
   ASSERT_EQ(p10.size(), 0);
 
   /* offset out of range */
@@ -246,7 +242,7 @@ TEST_F(ZSetTest, RangeByRank) {
       .reverse = false,
   };
   const std::vector<const ZSet::ZSetEntry*>& k11 = zset->RangeByRank(&spec11);
-  const std::vector<std::pair<std::string, double>>& p11 = ToKeyScorePairs(k11);
+  const std::vector<KeyScorePair>& p11 = ToKeyScorePairs(k11);
   ASSERT_EQ(p11.size(), 0);
 }
 
@@ -262,7 +258,7 @@ TEST_F(ZSetTest, Remove) {
   ASSERT_FALSE(r2);
 }
 
-std::vector<std::pair<std::string, double>> ToKeyScorePairs(
+std::vector<KeyScorePair> ToKeyScorePairs(
     const std::vector<const ZSet::ZSetEntry*> keys) {
   std::vector<std::pair<std::string, double>> pairs;
   for (int i = 0; i < keys.size(); ++i) {

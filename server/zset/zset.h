@@ -71,12 +71,12 @@ class ZSet {
                             Destructor>::SkiplistRangeByKeySpec*
   ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
   void FreeSkiplistRangeByRankSpec(
-      const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
-                                ZSet::Destructor>::SkiplistRangeByRankSpec*
+      const in_memory::Skiplist<const ZSetEntry*, Comparator,
+                                Destructor>::SkiplistRangeByRankSpec*
           skiplist_spec) const;
   void FreeSkiplistRangeByKeySpec(
-      const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
-                                ZSet::Destructor>::SkiplistRangeByKeySpec*
+      const in_memory::Skiplist<const ZSetEntry*, Comparator,
+                                Destructor>::SkiplistRangeByKeySpec*
           skiplist_spec) const;
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
   std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
