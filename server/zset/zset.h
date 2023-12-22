@@ -42,10 +42,11 @@ class ZSet {
   void AddOrUpdate(const std::string& key, const double score) const;
   bool Remove(const std::string& key) const;
   int GetRankOfKey(const std::string& key) const;
-  std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec) const;
-  std::vector<const ZSetEntry*> RangeByScore(
+  const std::vector<const ZSetEntry*> RangeByRank(
+      const RangeByRankSpec* spec) const;
+  const std::vector<const ZSetEntry*> RangeByScore(
       const RangeByScoreSpec* spec) const;
-  size_t size() const { return skiplist_->Size(); }
+  size_t Size() const { return skiplist_->Size(); }
 
  private:
   struct Comparator {

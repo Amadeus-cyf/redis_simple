@@ -272,139 +272,193 @@ const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
               .count = -1,
           }));
 
-  return {
-      {
-          /* base */
-          .spec = {.min = 0,
-                   .max = 3,
-                   .minex = false,
-                   .maxex = false,
-                   .limit = nullptr},
-          .keys = {"key0", "key2", "key4", "key5"},
-          .revkeys = {"key5", "key4", "key2", "key0"},
-          .count = 4,
-      },
-      {
-          /* min exclusive */
-          .spec = {.min = 1,
-                   .max = 3,
-                   .minex = true,
-                   .maxex = false,
-                   .limit = nullptr},
-          .keys = {"key4", "key5"},
-          .revkeys = {"key2", "key0"},
-          .count = 2,
-      },
-      {
-          /* max exclusive */
-          .spec = {.min = 1,
-                   .max = 3,
-                   .minex = false,
-                   .maxex = true,
-                   .limit = nullptr},
-          .keys = {"key2", "key4"},
-          .revkeys = {"key4", "key2"},
-          .count = 2,
-      },
-      {
-          /* count = -1, return all keys in the range */
-          .spec =
-              {
-                  .min = 1,
-                  .max = 3,
-                  .minex = false,
-                  .maxex = false,
-                  .limit = limit1.get(),
-              },
-          .keys = {"key2", "key4", "key5"},
-          .revkeys = {"key4", "key2", "key0"},
-          .count = 3,
-      },
-      {
-          /* with count */
-          .spec =
-              {
-                  .min = 1,
-                  .max = 3,
-                  .minex = false,
-                  .maxex = false,
-                  .limit = limit2.get(),
-              },
-          .keys = {"key2", "key4"},
-          .revkeys = {"key4", "key2"},
-          .count = 2,
-      },
-      {
-          /* with offset */
-          .spec =
-              {
-                  .min = 0,
-                  .max = 3,
-                  .minex = false,
-                  .maxex = false,
-                  .limit = limit3.get(),
-              },
-          .keys = {"key4", "key5"},
-          .revkeys = {"key2", "key0"},
-          .count = 2,
-      },
-      {
-          /* offset out of range */
-          .spec =
-              {
-                  .min = 0,
-                  .max = 4,
-                  .minex = false,
-                  .maxex = false,
-                  .limit = limit4.get(),
-              },
-          .keys = {},
-          .revkeys = {},
-          .count = 0,
-      },
-      {
-          /* invalid spec, non-exclusive, min > max */
-          .spec =
-              {
-                  .min = 2,
-                  .max = 1,
-                  .minex = false,
-                  .maxex = false,
-                  .limit = nullptr,
-              },
-          .keys = {},
-          .revkeys = {},
-          .count = -1,
-      },
-      {
-          /* invalid spec, min exclusive, min == max */
-          .spec =
-              {
-                  .min = 1,
-                  .max = 1,
-                  .minex = true,
-                  .maxex = false,
-                  .limit = nullptr,
-              },
-          .keys = {},
-          .revkeys = {},
-          .count = -1,
-      },
-      {
-          /* invalid spec, max exclusive, min == max */
-          .spec =
-              {
-                  .min = 1,
-                  .max = 1,
-                  .minex = false,
-                  .maxex = true,
-                  .limit = nullptr,
-              },
-          .keys = {},
-          .revkeys = {},
-          .count = -1,
-      },
-  };
+  return {{
+              /* base */
+              .spec = {.min = 0,
+                       .max = 3,
+                       .minex = false,
+                       .maxex = false,
+                       .limit = nullptr},
+              .keys = {"key0", "key2", "key4", "key5"},
+              .revkeys = {"key5", "key4", "key2", "key0"},
+              .count = 4,
+          },
+          {
+              /* min exclusive */
+              .spec = {.min = 1,
+                       .max = 3,
+                       .minex = true,
+                       .maxex = false,
+                       .limit = nullptr},
+              .keys = {"key4", "key5"},
+              .revkeys = {"key2", "key0"},
+              .count = 2,
+          },
+          {
+              /* max exclusive */
+              .spec = {.min = 1,
+                       .max = 3,
+                       .minex = false,
+                       .maxex = true,
+                       .limit = nullptr},
+              .keys = {"key2", "key4"},
+              .revkeys = {"key4", "key2"},
+              .count = 2,
+          },
+          {
+              /* count = -1, return all keys in the range */
+              .spec =
+                  {
+                      .min = 1,
+                      .max = 3,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = limit1.get(),
+                  },
+              .keys = {"key2", "key4", "key5"},
+              .revkeys = {"key4", "key2", "key0"},
+              .count = 3,
+          },
+          {
+              /* negative */
+              .spec =
+                  {
+                      .min = -3,
+                      .max = -1,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = limit1.get(),
+                  },
+              .keys = {"key2", "key4", "key5"},
+              .revkeys = {"key4", "key2", "key0"},
+              .count = 3,
+          },
+          {
+              /* with count */
+              .spec =
+                  {
+                      .min = 1,
+                      .max = 3,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = limit2.get(),
+                  },
+              .keys = {"key2", "key4"},
+              .revkeys = {"key4", "key2"},
+              .count = 2,
+          },
+          {
+              /* with offset */
+              .spec =
+                  {
+                      .min = 0,
+                      .max = 3,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = limit3.get(),
+                  },
+              .keys = {"key4", "key5"},
+              .revkeys = {"key2", "key0"},
+              .count = 2,
+          },
+          {
+              /* offset out of range */
+              .spec =
+                  {
+                      .min = 0,
+                      .max = 4,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = limit4.get(),
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = 0,
+          },
+          {
+              /* invalid spec, non-exclusive, min > max */
+              .spec =
+                  {
+                      .min = 2,
+                      .max = 1,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = nullptr,
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = -1,
+          },
+          {
+              /* invalid spec, min exclusive, min == max */
+              .spec =
+                  {
+                      .min = 1,
+                      .max = 1,
+                      .minex = true,
+                      .maxex = false,
+                      .limit = nullptr,
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = -1,
+          },
+          {
+              /* invalid spec, max exclusive, min == max */
+              .spec =
+                  {
+                      .min = 1,
+                      .max = 1,
+                      .minex = false,
+                      .maxex = true,
+                      .limit = nullptr,
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = -1,
+          },
+          {
+              /* invalid spec, negative index, non-exclusive, min > max */
+              .spec =
+                  {
+                      .min = -1,
+                      .max = -3,
+                      .minex = false,
+                      .maxex = false,
+                      .limit = nullptr,
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = -1,
+          },
+          {
+              /* invalid spec, negative index, min-exclusive, min == max */
+              .spec =
+                  {
+                      .min = -1,
+                      .max = -1,
+                      .minex = true,
+                      .maxex = false,
+                      .limit = nullptr,
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = -1,
+          },
+          {
+              /* invalid spec, negative index, min-exclusive, min == max */
+              .spec =
+                  {
+                      .min = -1,
+                      .max = -1,
+                      .minex = false,
+                      .maxex = true,
+                      .limit = nullptr,
+                  },
+              .keys = {},
+              .revkeys = {},
+              .count = -1,
+          }};
 }
 
 const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
@@ -443,7 +497,7 @@ const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
           .count = 4,
       },
       {
-          /* min exclusive */
+          /* min exclusive, min is existing key */
           .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
               "key2", true, "key5", false, nullptr),
           .keys = {"key4", "key5"},
@@ -451,12 +505,28 @@ const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
           .count = 2,
       },
       {
-          /* max exclusive */
+          /* min exclusive, min is not existing key */
+          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
+              "key1", true, "key5", false, nullptr),
+          .keys = {"key2", "key4", "key5"},
+          .revkeys = {"key5", "key4", "key2"},
+          .count = 3,
+      },
+      {
+          /* max exclusive, max is existing key */
           .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
               "key2", false, "key5", true, nullptr),
           .keys = {"key2", "key4"},
           .revkeys = {"key4", "key2"},
           .count = 2,
+      },
+      {
+          /* max exclusive, max is not existing key */
+          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
+              "key1", false, "key6", true, nullptr),
+          .keys = {"key2", "key4", "key5"},
+          .revkeys = {"key5", "key4", "key2"},
+          .count = 3,
       },
       {
           /* count = -1, return all keys in the range */

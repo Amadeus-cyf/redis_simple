@@ -33,7 +33,7 @@ class Skiplist {
     SkiplistRangeByKeySpec(const Key& min, bool minex, const Key& max,
                            bool maxex, const SkiplistLimitSpec* limit)
         : min(min), max(max), minex(minex), maxex(maxex), limit(limit){};
-    const Key &min, max;
+    const Key min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
     const SkiplistLimitSpec* limit;
@@ -52,9 +52,9 @@ class Skiplist {
   bool Delete(const Key& key);
   bool Update(const Key& key, const Key& new_key);
   const Key& GetKeyByRank(int rank);
-  ssize_t GetRankofKey(const Key& key);
-  std::vector<Key> RangeByRank(const SkiplistRangeByRankSpec* spec);
+  long GetRankofKey(const Key& key);
   long Count(const SkiplistRangeByRankSpec* spec);
+  std::vector<Key> RangeByRank(const SkiplistRangeByRankSpec* spec);
   std::vector<Key> RevRangeByRank(const SkiplistRangeByRankSpec* spec);
   std::vector<Key> RangeByKey(const SkiplistRangeByKeySpec* spec);
   std::vector<Key> RevRangeByKey(const SkiplistRangeByKeySpec* spec);
@@ -526,7 +526,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::GetKeyByRank(int rank) {
  * Return the rank of the key.
  */
 template <typename Key, typename Comparator, typename Destructor>
-ssize_t Skiplist<Key, Comparator, Destructor>::GetRankofKey(const Key& key) {
+long Skiplist<Key, Comparator, Destructor>::GetRankofKey(const Key& key) {
   size_t rank = 0;
   const SkiplistNode* node = head_;
   for (int i = level_ - 1; i >= 0; --i) {
@@ -552,7 +552,7 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByRank(
 }
 
 /*
- * Return the count of keys within the rank range
+ * Return the count of keys which have the rank within range
  */
 template <typename Key, typename Comparator, typename Destructor>
 long Skiplist<Key, Comparator, Destructor>::Count(
@@ -561,7 +561,7 @@ long Skiplist<Key, Comparator, Destructor>::Count(
 }
 
 /*
- * Return the keys within the reverse rank range
+ * Return the keys which have the reversed rank within the range
  */
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByRank(
@@ -837,7 +837,7 @@ Skiplist<Key, Comparator, Destructor>::GetMinNodeByRangeRankSpec(
 }
 
 /*
- * Return the first node having rank in the reverse rank range. If spec has
+ * Return the first node having reversed rank in the rank range. If spec has
  * minex = true, the returned node should be the one previous to the node at the
  * min rank.
  */
@@ -854,43 +854,6 @@ Skiplist<Key, Comparator, Destructor>::GetRevMinNodeByRangeRankSpec(
 }
 
 /*
- * Get keys in reverse range of rank .Rank indicates the position of the key in
- * the skiplist.
- * The function assumes the spec are valid with non-negative min and max value.
- * Should call RebaseAndValidateRangeRankSpec before calling this function.
- */
-template <typename Key, typename Comparator, typename Destructor>
-std::vector<Key>
-Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
-    const SkiplistRangeByRankSpec* spec) {
-  const SkiplistNode* node = GetMinNodeByRangeRankSpec(spec);
-  if (!node) {
-    return {};
-  }
-  std::vector<Key> keys;
-  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
-      end = spec->max + (spec->maxex ? -1 : 0);
-  const int offset = spec->limit ? spec->limit->offset : 0,
-            count = spec->limit ? spec->limit->count : -1;
-  while (node && start <= end) {
-    /* return the keys if the number reach the limit, only works when the limit
-     * is set to a non-negative value */
-    if (count >= 0 && keys.size() >= count) {
-      return keys;
-    }
-    const SkiplistNode* n = node;
-    node = node->Next(0);
-    ++start;
-    /* add the key if the current rank is larger of equal to the specified
-     * offset */
-    if (i++ >= offset) {
-      keys.push_back(n->key);
-    }
-  }
-  return keys;
-}
-
-/*
  * Get number of keys in range of rank. Rank indicates the position of the key
  * in the skiplist. The function assumes the spec are valid with non-negative
  * min and max value. Should call RebaseAndValidateRangeRankSpec before calling
@@ -903,11 +866,10 @@ long Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
   if (!node) {
     return {};
   }
-  long num = 0;
-  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
-      end = spec->max + (spec->maxex ? -1 : 0);
-  const int offset = spec->limit ? spec->limit->offset : 0,
-            count = spec->limit ? spec->limit->count : -1;
+  long num = 0, i = 0, start = spec->min + (spec->minex ? 1 : 0),
+       end = spec->max + (spec->maxex ? -1 : 0);
+  const long offset = spec->limit ? spec->limit->offset : 0,
+             count = spec->limit ? spec->limit->count : -1;
   while (node && start <= end) {
     /* return the keys if the number reach the limit, only works when the limit
      * is set to a non-negative value */
@@ -933,6 +895,43 @@ long Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
  */
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key>
+Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
+    const SkiplistRangeByRankSpec* spec) {
+  const SkiplistNode* node = GetMinNodeByRangeRankSpec(spec);
+  if (!node) {
+    return {};
+  }
+  std::vector<Key> keys;
+  long i = 0, start = spec->min + (spec->minex ? 1 : 0),
+       end = spec->max + (spec->maxex ? -1 : 0);
+  const long offset = spec->limit ? spec->limit->offset : 0,
+             count = spec->limit ? spec->limit->count : -1;
+  while (node && start <= end) {
+    /* return the keys if the number reach the limit, only works when the limit
+     * is set to a non-negative value */
+    if (count >= 0 && keys.size() >= count) {
+      return keys;
+    }
+    const SkiplistNode* n = node;
+    node = node->Next(0);
+    ++start;
+    /* add the key if the current rank is larger of equal to the specified
+     * offset */
+    if (i++ >= offset) {
+      keys.push_back(n->key);
+    }
+  }
+  return keys;
+}
+
+/*
+ * Get keys in reverse range of rank. Rank indicates the position of the key in
+ * the skiplist.
+ * The function assumes the spec are valid with non-negative min and max value.
+ * Should call RebaseAndValidateRangeRankSpec before calling this function.
+ */
+template <typename Key, typename Comparator, typename Destructor>
+std::vector<Key>
 Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
     const SkiplistRangeByRankSpec* spec) {
   const SkiplistNode* node = GetRevMinNodeByRangeRankSpec(spec);
@@ -940,10 +939,10 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
     return {};
   }
   std::vector<Key> keys;
-  int i = 0, start = spec->min + (spec->minex ? 1 : 0),
-      end = spec->max + (spec->maxex ? -1 : 0);
-  const int offset = spec->limit ? spec->limit->offset : 0,
-            count = spec->limit ? spec->limit->count : -1;
+  long i = 0, start = spec->min + (spec->minex ? 1 : 0),
+       end = spec->max + (spec->maxex ? -1 : 0);
+  const long offset = spec->limit ? spec->limit->offset : 0,
+             count = spec->limit ? spec->limit->count : -1;
   while (node && start <= end) {
     /* return the keys if the number reach the limit, only works when the limit
      * is set to a non-negative value */
@@ -981,12 +980,14 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
   if (!node) {
     return {};
   }
-  if (spec->minex) {
+  /* if min exclusive and the node is equal to min, then move to the next node
+   */
+  if (spec->minex && Eq(node->key, spec->min)) {
     node = node->Next(0);
   }
-  int i = 0;
-  const int offset = spec->limit ? spec->limit->offset : 0,
-            count = spec->limit ? spec->limit->count : -1;
+  long i = 0;
+  const long offset = spec->limit ? spec->limit->offset : 0,
+             count = spec->limit ? spec->limit->count : -1;
   std::vector<Key> keys;
   while (node &&
          (spec->maxex ? Lt(node->key, spec->max) : Lte(node->key, spec->max))) {
@@ -1019,12 +1020,14 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
   if (!node) {
     return {};
   }
-  if (spec->maxex) {
+  /* if max exclusive and the node is equal to max, then move to the previous
+   * node */
+  if (spec->maxex && Eq(node->key, spec->max)) {
     node = node->Prev();
   }
-  int i = 0;
-  const int offset = spec->limit ? spec->limit->offset : 0,
-            count = spec->limit ? spec->limit->count : -1;
+  long i = 0;
+  const long offset = spec->limit ? spec->limit->offset : 0,
+             count = spec->limit ? spec->limit->count : -1;
   std::vector<Key> keys;
   while (node &&
          (spec->minex ? Gt(node->key, spec->min) : Gte(node->key, spec->min))) {

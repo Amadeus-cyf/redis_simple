@@ -28,10 +28,10 @@ void ZSet::AddOrUpdate(const std::string& key, const double score) const {
     const ZSetEntry* inserted = skiplist_->Insert(ze);
     assert(inserted);
   }
-  if (!min_key_.has_value() || min_key_.value() < key) {
+  if (!min_key_.has_value() || key < min_key_.value()) {
     min_key_.emplace(key);
   }
-  if (!max_key_.has_value() || max_key_.value() > key) {
+  if (!max_key_.has_value() || key > max_key_.value()) {
     max_key_.emplace(key);
   }
 }
@@ -57,7 +57,7 @@ int ZSet::GetRankOfKey(const std::string& key) const {
   return skiplist_->GetRankofKey(&ze);
 }
 
-std::vector<const ZSet::ZSetEntry*> ZSet::RangeByRank(
+const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByRank(
     const RangeByRankSpec* spec) const {
   const auto* skiplist_spec = ToSkiplistRangeByRankSpec(spec);
   const std::vector<const ZSet::ZSetEntry*>& keys =
@@ -67,7 +67,7 @@ std::vector<const ZSet::ZSetEntry*> ZSet::RangeByRank(
   return keys;
 }
 
-std::vector<const ZSet::ZSetEntry*> ZSet::RangeByScore(
+const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByScore(
     const RangeByScoreSpec* spec) const {
   const auto* skiplist_spec = ToSkiplistRangeByKeySpec(spec);
   const std::vector<const ZSet::ZSetEntry*>& keys =
