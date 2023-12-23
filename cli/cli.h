@@ -20,19 +20,19 @@ class RedisCli {
   RedisCli();
   CliStatus Connect(const std::string& ip, const int port);
   void AddCommand(const std::string& cmd);
-  std::string getReply();
+  std::string GetReply();
   CompletableFuture<std::string> GetReplyAsync();
-  ~RedisCli() { close(socket_fd); }
+  ~RedisCli() { close(socket_fd_); }
 
  private:
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
   bool ProcessReply(std::string& reply);
-  int socket_fd;
-  std::string cli_ip;
-  int cli_port;
-  std::unique_ptr<in_memory::DynamicBuffer> query_buf;
-  std::unique_ptr<in_memory::DynamicBuffer> reply_buf;
+  int socket_fd_;
+  std::string cli_ip_;
+  int cli_port_;
+  std::unique_ptr<in_memory::DynamicBuffer> query_buf_;
+  std::unique_ptr<in_memory::DynamicBuffer> reply_buf_;
 };
 }  // namespace cli
 }  // namespace redis_simple

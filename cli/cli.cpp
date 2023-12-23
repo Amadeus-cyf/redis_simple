@@ -11,7 +11,7 @@
 namespace redis_simple {
 namespace cli {
 namespace {
-static std::string readFromSocket(int fd) {
+static std::string ReadFromSocket(int fd) {
   std::string reply;
   ssize_t nread = 0;
   char buf[4096];
@@ -29,7 +29,7 @@ static std::string readFromSocket(int fd) {
   return reply;
 }
 
-static ssize_t writeToSocket(int fd, const std::string& cmds) {
+static ssize_t WriteToSocket(int fd, const std::string& cmds) {
   ssize_t nwritten = 0;
   int nwrite = 0;
   printf("write %s\n", cmds.c_str());
@@ -47,33 +47,33 @@ const std::string& RedisCli::ErrResp = "error";
 const std::string& RedisCli::NoReplyResp = "no_reply";
 
 RedisCli::RedisCli()
-    : query_buf(std::make_unique<in_memory::DynamicBuffer>()),
-      reply_buf(std::make_unique<in_memory::DynamicBuffer>()){};
+    : query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
+      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
 
 CliStatus RedisCli::Connect(const std::string& ip, const int port) {
-  socket_fd = tcp::TCP_Connect(ip, port);
-  if (socket_fd < 0) {
+  socket_fd_ = tcp::TCP_Connect(ip, port);
+  if (socket_fd_ < 0) {
     return CliStatus::cliErr;
   }
   return CliStatus::cliOK;
 }
 
 void RedisCli::AddCommand(const std::string& cmd) {
-  query_buf->WriteToBuffer(cmd.c_str(), cmd.size());
+  query_buf_->WriteToBuffer(cmd.c_str(), cmd.size());
 }
 
-std::string RedisCli::getReply() {
+std::string RedisCli::GetReply() {
   std::string reply;
-  if (reply_buf && !reply_buf->Empty() && ProcessReply(reply)) {
+  if (reply_buf_ && !reply_buf_->Empty() && ProcessReply(reply)) {
     return reply;
   }
-  if (!query_buf->Empty()) {
-    if (writeToSocket(socket_fd, query_buf->GetBufInString()) < 0) {
+  if (!query_buf_->Empty()) {
+    if (WriteToSocket(socket_fd_, query_buf_->GetBufInString()) < 0) {
       return ErrResp;
     }
-    query_buf->Clear();
-    const std::string& replies = readFromSocket(socket_fd);
-    reply_buf->WriteToBuffer(replies.c_str(), replies.size());
+    query_buf_->Clear();
+    const std::string& replies = ReadFromSocket(socket_fd_);
+    reply_buf_->WriteToBuffer(replies.c_str(), replies.size());
     if (ProcessReply(reply)) {
       return reply;
     }
@@ -83,15 +83,15 @@ std::string RedisCli::getReply() {
 
 CompletableFuture<std::string> RedisCli::GetReplyAsync() {
   std::future<std::string> future =
-      std::async(std::launch::async, [&]() { return getReply(); });
+      std::async(std::launch::async, [&]() { return GetReply(); });
   return CompletableFuture<std::string>(std::move(future));
 }
 
 bool RedisCli::ProcessReply(std::string& reply) {
-  ssize_t processed = resp_parser::Parse(reply_buf->GetBufInString(), reply);
+  ssize_t processed = resp_parser::Parse(reply_buf_->GetBufInString(), reply);
   if (processed > 0) {
-    reply_buf->IncrProcessedOffset(processed);
-    reply_buf->TrimProcessedBuffer();
+    reply_buf_->IncrProcessedOffset(processed);
+    reply_buf_->TrimProcessedBuffer();
     return true;
   }
   return false;
@@ -121,11 +121,10 @@ int main() {
     cli.AddCommand(cmd6);
     cli.AddCommand(cmd7);
 
-    // const std::string& r1 = cli.getReply();
+    // const std::string& r1 = cli.GetReply();
     // printf("receive resp %s\n", r1.c_str());
-    // const std::string& r2 = cli.getReply();
+    // const std::string& r2 = cli.GetReply();
     // printf("receive resp %s\n", r2.c_str());
-    // printf("test\n");
 
     auto r3 = cli.GetReplyAsync();
     const std::string& applied_str1 =
@@ -135,7 +134,7 @@ int main() {
           })
             .ThenApply(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 1, %s\n", applied_str1.c_str());
 
     auto r4 = cli.GetReplyAsync();
@@ -146,7 +145,7 @@ int main() {
           })
             .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 2, %s\n", applied_str2.c_str());
 
     auto r5 = cli.GetReplyAsync();
@@ -157,7 +156,7 @@ int main() {
           })
             .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 3, %s\n", applied_str3.c_str());
 
     auto r6 = cli.GetReplyAsync();
@@ -168,7 +167,7 @@ int main() {
           })
             .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 4, %s\n", applied_str4.c_str());
 
     auto r7 = cli.GetReplyAsync();
@@ -179,7 +178,7 @@ int main() {
           })
             .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 5, %s\n", applied_str5.c_str());
 
     auto r8 = cli.GetReplyAsync();
@@ -190,7 +189,7 @@ int main() {
           })
             .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 6, %s\n", applied_str6.c_str());
 
     auto r9 = cli.GetReplyAsync();
@@ -201,7 +200,7 @@ int main() {
           })
             .ThenApplyAsync(
                 [](const std::string& reply) { return reply + "_processed"; })
-            .get();
+            .Get();
     printf("after processed 7, %s\n", applied_str7.c_str());
   }
 
@@ -219,7 +218,7 @@ int main() {
         })
           .ThenApplyAsync(
               [](const std::string& reply) { return reply + "_processed"; })
-          .get();
+          .Get();
   printf("after processed 6, %s\n", applied_str4.c_str());
   cli.AddCommand(cmd1);
 
@@ -231,7 +230,7 @@ int main() {
         })
           .ThenApplyAsync(
               [](const std::string& reply) { return reply + "_processed"; })
-          .get();
+          .Get();
   printf("after processed 7, %s\n", applied_str5.c_str());
 
   auto r8 = cli.GetReplyAsync();
@@ -242,6 +241,6 @@ int main() {
         })
           .ThenApplyAsync(
               [](const std::string& reply) { return reply + "_processed"; })
-          .get();
+          .Get();
   printf("after processed 8, %s\n", applied_str6.c_str());
 }

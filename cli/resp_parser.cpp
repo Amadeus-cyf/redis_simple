@@ -11,7 +11,7 @@ struct Prefix {
   static constexpr const char int64Prefix = ':';
 };
 
-static ssize_t findCRLF(const std::string& resp, int start) {
+static ssize_t FindCRLF(const std::string& resp, int start) {
   while (start >= 0) {
     start = resp.find('\n', start);
     if (start < 0) break;
@@ -21,15 +21,15 @@ static ssize_t findCRLF(const std::string& resp, int start) {
   return -1;
 }
 
-static ssize_t parseString(const std::string& resp, std::string& reply) {
-  int i = findCRLF(resp, 0);
+static ssize_t ParseString(const std::string& resp, std::string& reply) {
+  int i = FindCRLF(resp, 0);
   if (i < 0) return -1;
   reply = resp.substr(1, i - 2);
   return i + 1;
 }
 
-static ssize_t parseBulkString(const std::string& resp, std::string& reply) {
-  int i = findCRLF(resp, 0);
+static ssize_t ParseBulkString(const std::string& resp, std::string& reply) {
+  int i = FindCRLF(resp, 0);
   if (i < 0) return -1;
   int len = 0;
   for (int j = 1; j < i - 1; ++j) {
@@ -38,14 +38,14 @@ static ssize_t parseBulkString(const std::string& resp, std::string& reply) {
     }
     len = len * 10 + (resp[j] - '0');
   }
-  int j = findCRLF(resp, i + len + 1);
+  int j = FindCRLF(resp, i + len + 1);
   if (j < 0) return -1;
   reply = resp.substr(i + 1, len);
   return j + 1;
 }
 
-static size_t parseInt64(const std::string& resp, std::string& reply) {
-  int i = findCRLF(resp, 0);
+static size_t ParseInt64(const std::string& resp, std::string& reply) {
+  int i = FindCRLF(resp, 0);
   if (i < 0) return -1;
   int sign = 1, j = 1, r = 0;
   if (resp[1] == '-') {
@@ -69,11 +69,11 @@ ssize_t Parse(const std::string& resp, std::string& reply) {
   }
   switch (resp[0]) {
     case Prefix::stringPrefix:
-      return parseString(resp, reply);
+      return ParseString(resp, reply);
     case Prefix::bulkStringPrefix:
-      return parseBulkString(resp, reply);
+      return ParseBulkString(resp, reply);
     case Prefix::int64Prefix:
-      return parseInt64(resp, reply);
+      return ParseInt64(resp, reply);
     default:
       return -1;
   }

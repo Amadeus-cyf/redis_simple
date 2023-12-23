@@ -166,7 +166,7 @@ TEST_F(ZSetTest, RangeByRank) {
       {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
   ASSERT_EQ(p5, e5);
 
-  /* reverse with offset */
+  /* reverse with limit */
   const ZSet::RangeByRankSpec& spec6 = {
       .min = 0,
       .max = 3,
@@ -387,6 +387,114 @@ TEST_F(ZSetTest, RangeByScore) {
       ToKeyScorePairs(zset->RangeByScore(&spec3));
   const std::vector<KeyScorePair>& e3 = {{"key3", 4.0}};
   ASSERT_EQ(p3, e3);
+
+  /* with limit */
+  const ZSet::RangeByScoreSpec& spec4 = {
+      .min = 1.0,
+      .max = 6.0,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(1, 2),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p4 =
+      ToKeyScorePairs(zset->RangeByScore(&spec4));
+  const std::vector<KeyScorePair>& e4 = {{"key2", 2.0}, {"key3", 4.0}};
+  ASSERT_EQ(p4, e4);
+
+  /* reverse */
+  const ZSet::RangeByScoreSpec& spec5 = {
+      .min = 2.0,
+      .max = 6.0,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, -1),
+      .reverse = true,
+  };
+  const std::vector<KeyScorePair>& p5 =
+      ToKeyScorePairs(zset->RangeByScore(&spec5));
+  const std::vector<KeyScorePair>& e5 = {
+      {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}};
+  ASSERT_EQ(p5, e5);
+
+  /* reverse with limit */
+  const ZSet::RangeByScoreSpec& spec6 = {
+      .min = 1.0,
+      .max = 6.0,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(1, 2),
+      .reverse = true,
+  };
+  const std::vector<KeyScorePair>& p6 =
+      ToKeyScorePairs(zset->RangeByScore(&spec6));
+  const std::vector<KeyScorePair>& e6 = {{"key3", 4.0}, {"key2", 2.0}};
+  ASSERT_EQ(p6, e6);
+
+  /* count = 0 */
+  const ZSet::RangeByScoreSpec& spec7 = {
+      .min = 1.0,
+      .max = 6.0,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, 0),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p7 =
+      ToKeyScorePairs(zset->RangeByScore(&spec7));
+  ASSERT_EQ(p7.size(), 0);
+
+  /* invalid spec, non-exclusive, min >= max */
+  const ZSet::RangeByScoreSpec& spec8 = {
+      .min = 6.0,
+      .max = 1.0,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, -1),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p8 =
+      ToKeyScorePairs(zset->RangeByScore(&spec8));
+  ASSERT_EQ(p8.size(), 0);
+
+  /* invalid spec, min exclusive, min >= max */
+  const ZSet::RangeByScoreSpec& spec9 = {
+      .min = 1.0,
+      .max = 1.0,
+      .minex = true,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, -1),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p9 =
+      ToKeyScorePairs(zset->RangeByScore(&spec9));
+  ASSERT_EQ(p9.size(), 0);
+
+  /* invalid spec, max exclusive, min >= max */
+  const ZSet::RangeByScoreSpec& spec10 = {
+      .min = 1.0,
+      .max = 1.0,
+      .minex = false,
+      .maxex = true,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, -1),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p10 =
+      ToKeyScorePairs(zset->RangeByScore(&spec10));
+  ASSERT_EQ(p10.size(), 0);
+
+  /* invalid spec, offset out of range */
+  const ZSet::RangeByScoreSpec& spec11 = {
+      .min = 1.0,
+      .max = 6.0,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(5, 0),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p11 =
+      ToKeyScorePairs(zset->RangeByScore(&spec11));
+  ASSERT_EQ(p11.size(), 0);
 }
 
 TEST_F(ZSetTest, Remove) {
