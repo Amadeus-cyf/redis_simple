@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.9)
 project(redis_simple LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
