@@ -497,6 +497,78 @@ TEST_F(ZSetTest, RangeByScore) {
   ASSERT_EQ(p11.size(), 0);
 }
 
+TEST_F(ZSetTest, Count) {
+  /* base */
+  const ZSet::RangeByScoreSpec& spec1 = {
+      .min = 1.0,
+      .max = 6.0,
+      .minex = false,
+      .maxex = false,
+  };
+  const long c1 = zset->Count(&spec1);
+  ASSERT_EQ(c1, 4);
+
+  /* min exclusive */
+  const ZSet::RangeByScoreSpec& spec2 = {
+      .min = 2.0,
+      .max = 5.0,
+      .minex = true,
+      .maxex = false,
+  };
+  const long c2 = zset->Count(&spec2);
+  ASSERT_EQ(c2, 2);
+
+  /* max exclusive */
+  const ZSet::RangeByScoreSpec& spec3 = {
+      .min = 2.0,
+      .max = 5.0,
+      .minex = false,
+      .maxex = true,
+  };
+  const long c3 = zset->Count(&spec3);
+  ASSERT_EQ(c3, 2);
+
+  /* min and max exclusive */
+  const ZSet::RangeByScoreSpec& spec4 = {
+      .min = 1.0,
+      .max = 5.0,
+      .minex = true,
+      .maxex = true,
+  };
+  const long c4 = zset->Count(&spec4);
+  ASSERT_EQ(c4, 2);
+
+  /* invalid spec non-exclusive, min > max */
+  const ZSet::RangeByScoreSpec& spec5 = {
+      .min = 6.0,
+      .max = 1.0,
+      .minex = false,
+      .maxex = false,
+  };
+  const long c5 = zset->Count(&spec5);
+  ASSERT_EQ(c5, 0);
+
+  /* invalid spec min exclusive, min >= max */
+  const ZSet::RangeByScoreSpec& spec6 = {
+      .min = 1.0,
+      .max = 1.0,
+      .minex = true,
+      .maxex = false,
+  };
+  const long c6 = zset->Count(&spec6);
+  ASSERT_EQ(c6, 0);
+
+  /* invalid spec max exclusive, min >= max */
+  const ZSet::RangeByScoreSpec& spec7 = {
+      .min = 1.0,
+      .max = 1.0,
+      .minex = false,
+      .maxex = true,
+  };
+  const long c7 = zset->Count(&spec7);
+  ASSERT_EQ(c7, 0);
+}
+
 TEST_F(ZSetTest, Remove) {
   bool r1 = zset->Remove("key1");
   ASSERT_TRUE(r1);

@@ -46,6 +46,7 @@ class ZSet {
       const RangeByRankSpec* spec) const;
   const std::vector<const ZSetEntry*> RangeByScore(
       const RangeByScoreSpec* spec) const;
+  long Count(const RangeByScoreSpec* spec) const;
   size_t Size() const { return skiplist_->Size(); }
 
  private:

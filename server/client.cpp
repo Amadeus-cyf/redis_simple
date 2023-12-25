@@ -7,7 +7,7 @@
 
 namespace redis_simple {
 namespace {
-static std::string getCmdName(const std::vector<std::string>& args) {
+static std::string GetCmdName(const std::vector<std::string>& args) {
   std::string name = std::move(args[0]);
   utils::ToUppercase(name);
   return name;
@@ -85,7 +85,7 @@ ClientStatus Client::ProcessInlineBuffer() {
   if (args.size() == 0) {
     return ClientStatus::clientErr;
   }
-  const std::string& name = getCmdName(args);
+  const std::string& name = GetCmdName(args);
   args.erase(args.begin());
   std::weak_ptr<const command::Command> cmdptr = command::Command::Create(name);
   if (std::shared_ptr<const command::Command> cmd = cmdptr.lock()) {

@@ -77,6 +77,13 @@ const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByScore(
   return keys;
 }
 
+long ZSet::Count(const RangeByScoreSpec* spec) const {
+  const auto* skiplist_spec = ToSkiplistRangeByKeySpec(spec);
+  const long count = skiplist_->Count(skiplist_spec);
+  FreeSkiplistRangeByKeySpec(skiplist_spec);
+  return count == -1 ? 0 : count;
+}
+
 const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                           ZSet::Destructor>::SkiplistRangeByRankSpec*
 ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
