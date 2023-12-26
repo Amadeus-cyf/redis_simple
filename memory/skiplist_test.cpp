@@ -87,40 +87,40 @@ TEST_F(SkiplistTest, Update) {
   ASSERT_EQ(skiplist->Size(), 4);
 }
 
-TEST_F(SkiplistTest, GetKeyByRank) {
-  const std::string& s0 = skiplist->GetKeyByRank(0);
+TEST_F(SkiplistTest, FindKeyByRank) {
+  const std::string& s0 = skiplist->FindKeyByRank(0);
   ASSERT_EQ(s0, "key0");
 
-  const std::string& s1 = skiplist->GetKeyByRank(1);
+  const std::string& s1 = skiplist->FindKeyByRank(1);
   ASSERT_EQ(s1, "key2");
 
-  const std::string& s2 = skiplist->GetKeyByRank(-1);
+  const std::string& s2 = skiplist->FindKeyByRank(-1);
   ASSERT_EQ(s2, "key5");
 
-  const std::string& s3 = skiplist->GetKeyByRank(-2);
+  const std::string& s3 = skiplist->FindKeyByRank(-2);
   ASSERT_EQ(s3, "key4");
 
-  const std::string& s4 = skiplist->GetKeyByRank(-4);
+  const std::string& s4 = skiplist->FindKeyByRank(-4);
   ASSERT_EQ(s4, "key0");
 
-  ASSERT_THROW(skiplist->GetKeyByRank(skiplist->Size()), std::out_of_range);
-  ASSERT_THROW(skiplist->GetKeyByRank(-skiplist->Size() - 1),
+  ASSERT_THROW(skiplist->FindKeyByRank(skiplist->Size()), std::out_of_range);
+  ASSERT_THROW(skiplist->FindKeyByRank(-skiplist->Size() - 1),
                std::out_of_range);
-  ASSERT_THROW(skiplist->GetKeyByRank(INT_MAX), std::out_of_range);
-  ASSERT_THROW(skiplist->GetKeyByRank(INT_MIN), std::out_of_range);
+  ASSERT_THROW(skiplist->FindKeyByRank(INT_MAX), std::out_of_range);
+  ASSERT_THROW(skiplist->FindKeyByRank(INT_MIN), std::out_of_range);
 }
 
-TEST_F(SkiplistTest, GetRankofKey) {
-  ssize_t r0 = skiplist->GetRankofKey("key0");
+TEST_F(SkiplistTest, FindRankofKey) {
+  ssize_t r0 = skiplist->FindRankofKey("key0");
   ASSERT_EQ(r0, 0);
 
-  ssize_t r1 = skiplist->GetRankofKey("key2");
+  ssize_t r1 = skiplist->FindRankofKey("key2");
   ASSERT_EQ(r1, 1);
 
-  ssize_t r2 = skiplist->GetRankofKey("key5");
+  ssize_t r2 = skiplist->FindRankofKey("key5");
   ASSERT_EQ(r2, 3);
 
-  ssize_t r3 = skiplist->GetRankofKey("key_not_exist");
+  ssize_t r3 = skiplist->FindRankofKey("key_not_exist");
   ASSERT_EQ(r3, -1);
 }
 
