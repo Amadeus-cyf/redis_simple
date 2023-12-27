@@ -749,21 +749,6 @@ Skiplist<Key, Comparator, Destructor>::FindKey(size_t rank) {
 }
 
 /*
- * Validate the range rank spec. Return true if the spec is
- * valid.
- */
-template <typename Key, typename Comparator, typename Destructor>
-bool Skiplist<Key, Comparator, Destructor>::ValidateRangeRankSpec(
-    const SkiplistRangeByRankSpec* spec) {
-  if (!spec) {
-    return false;
-  }
-  return spec->min >= 0 && spec->max >= 0 &&
-         ((!spec->minex && !spec->maxex && spec->min <= spec->max) ||
-          spec->min < spec->max);
-}
-
-/*
  * Return the first node having rank in the rank range. If spec has minex =
  * true, the returned node should be the one next to the node at the min rank.
  */
@@ -794,6 +779,29 @@ Skiplist<Key, Comparator, Destructor>::FindRevMinNodeByRangeRankSpec(
     node = node->Prev();
   }
   return node;
+}
+
+/*
+ * Validate the range rank spec. Return true if the spec is
+ * valid.
+ */
+template <typename Key, typename Comparator, typename Destructor>
+bool Skiplist<Key, Comparator, Destructor>::ValidateRangeRankSpec(
+    const SkiplistRangeByRankSpec* spec) {
+  return spec && spec->min >= 0 && spec->max >= 0 &&
+         ((!spec->minex && !spec->maxex && spec->min <= spec->max) ||
+          spec->min < spec->max);
+}
+
+/*
+ * Validate the range key spec. Return true if the spec is
+ * valid.
+ */
+template <typename Key, typename Comparator, typename Destructor>
+bool Skiplist<Key, Comparator, Destructor>::ValidateRangeKeySpec(
+    const SkiplistRangeByKeySpec* spec) {
+  return spec && ((!spec->minex && !spec->maxex && Lte(spec->min, spec->max)) ||
+                  Lt(spec->min, spec->max));
 }
 
 /*
@@ -868,13 +876,6 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
     }
   }
   return keys;
-}
-
-template <typename Key, typename Comparator, typename Destructor>
-bool Skiplist<Key, Comparator, Destructor>::ValidateRangeKeySpec(
-    const SkiplistRangeByKeySpec* spec) {
-  return spec && ((!spec->minex && !spec->maxex && Lte(spec->min, spec->max)) ||
-                  Lt(spec->min, spec->max));
 }
 
 /*
