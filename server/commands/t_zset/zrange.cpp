@@ -20,15 +20,15 @@ static bool FlaggedByScore(const std::vector<std::string>& args);
 std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeByRankSpec(
     const std::vector<std::string>& args);
 static int ParseRange(const std::string& start, const std::string& end,
-                      zset::ZSet::RangeByRankSpec* spec);
-static int ParseRangeTerm(const std::string& term, long* dst);
+                      zset::ZSet::RangeByRankSpec* const spec);
+static int ParseRangeTerm(const std::string& term, long* const dst);
 std::unique_ptr<const zset::ZSet::RangeByScoreSpec> ParseRangeByScoreSpec(
     const std::vector<std::string>& args);
 static int ParseScoreRange(const std::string& start, const std::string& end,
-                           zset::ZSet::RangeByScoreSpec* spec);
-static int ParseScoreTerm(const std::string& term, double* dst);
+                           zset::ZSet::RangeByScoreSpec* const spec);
+static int ParseScoreTerm(const std::string& term, double* const dst);
 static int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
-                                    long* offset, long* count);
+                                    size_t* const offset, ssize_t* const count);
 static bool IsReverse(const std::vector<std::string>& args);
 static const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                        const std::string& key);
@@ -66,7 +66,7 @@ static std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeByRankSpec(
 }
 
 static int ParseRange(const std::string& start, const std::string& end,
-                      zset::ZSet::RangeByRankSpec* spec) {
+                      zset::ZSet::RangeByRankSpec* const spec) {
   if (ParseRangeTerm(start, &(spec->min)) < 0) {
     return -1;
   }
@@ -82,11 +82,11 @@ static int ParseRange(const std::string& start, const std::string& end,
   return 0;
 }
 
-static int ParseRangeTerm(const std::string& term, long* dst) {
+static int ParseRangeTerm(const std::string& term, long* const dst) {
   if (term == "+inf") {
-    *dst = std::numeric_limits<long>::infinity();
+    *dst = std::numeric_limits<size_t>::infinity();
   } else if (term == "-inf") {
-    *dst = -std::numeric_limits<long>::infinity();
+    *dst = -std::numeric_limits<size_t>::infinity();
   } else if (term[0] == '(') {
     try {
       *dst = std::stol(term.substr(1));
@@ -123,7 +123,7 @@ ParseRangeByScoreSpec(const std::vector<std::string>& args) {
 }
 
 static int ParseScoreRange(const std::string& start, const std::string& end,
-                           zset::ZSet::RangeByScoreSpec* spec) {
+                           zset::ZSet::RangeByScoreSpec* const spec) {
   if (ParseScoreTerm(start, &(spec->min)) < 0) {
     return -1;
   }
@@ -139,7 +139,7 @@ static int ParseScoreRange(const std::string& start, const std::string& end,
   return 0;
 }
 
-static int ParseScoreTerm(const std::string& term, double* dst) {
+static int ParseScoreTerm(const std::string& term, double* const dst) {
   if (term == "+inf") {
     *dst = std::numeric_limits<double>::infinity();
   } else if (term == "-inf") {
@@ -161,7 +161,8 @@ static int ParseScoreTerm(const std::string& term, double* dst) {
 }
 
 static int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
-                                    long* offset, long* count) {
+                                    size_t* const offset,
+                                    ssize_t* const count) {
   /* start searching at the 3rd index(0-based). Rankes before are key, start,
    * end offsets */
   int i = 3;

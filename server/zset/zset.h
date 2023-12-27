@@ -12,14 +12,16 @@ namespace zset {
 class ZSet {
  public:
   struct LimitSpec {
-    long offset, count;
+    size_t offset;
+    ssize_t count;
     LimitSpec() : offset(0), count(0){};
-    LimitSpec(long offset, long count) : offset(offset), count(count){};
+    LimitSpec(size_t offset, size_t count) : offset(offset), count(count){};
   };
   struct RangeByRankSpec {
     long min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
+    /* starting offset and count */
     std::unique_ptr<LimitSpec> limit;
     /* reverse order ? */
     bool reverse;
@@ -28,6 +30,7 @@ class ZSet {
     double min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
+    /* starting offset and count */
     std::unique_ptr<LimitSpec> limit;
     /* reverse order ? */
     bool reverse;
@@ -46,7 +49,7 @@ class ZSet {
       const RangeByRankSpec* spec) const;
   const std::vector<const ZSetEntry*> RangeByScore(
       const RangeByScoreSpec* spec) const;
-  long Count(const RangeByScoreSpec* spec) const;
+  size_t Count(const RangeByScoreSpec* spec) const;
   size_t Size() const { return skiplist_->Size(); }
 
  private:

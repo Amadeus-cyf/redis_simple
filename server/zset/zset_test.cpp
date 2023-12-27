@@ -505,7 +505,7 @@ TEST_F(ZSetTest, Count) {
       .minex = false,
       .maxex = false,
   };
-  const long c1 = zset->Count(&spec1);
+  const size_t c1 = zset->Count(&spec1);
   ASSERT_EQ(c1, 4);
 
   /* min exclusive */
@@ -515,7 +515,7 @@ TEST_F(ZSetTest, Count) {
       .minex = true,
       .maxex = false,
   };
-  const long c2 = zset->Count(&spec2);
+  const size_t c2 = zset->Count(&spec2);
   ASSERT_EQ(c2, 2);
 
   /* max exclusive */
@@ -525,7 +525,7 @@ TEST_F(ZSetTest, Count) {
       .minex = false,
       .maxex = true,
   };
-  const long c3 = zset->Count(&spec3);
+  const size_t c3 = zset->Count(&spec3);
   ASSERT_EQ(c3, 2);
 
   /* min and max exclusive */
@@ -535,7 +535,7 @@ TEST_F(ZSetTest, Count) {
       .minex = true,
       .maxex = true,
   };
-  const long c4 = zset->Count(&spec4);
+  const size_t c4 = zset->Count(&spec4);
   ASSERT_EQ(c4, 2);
 
   /* invalid spec non-exclusive, min > max */
@@ -545,7 +545,7 @@ TEST_F(ZSetTest, Count) {
       .minex = false,
       .maxex = false,
   };
-  const long c5 = zset->Count(&spec5);
+  const size_t c5 = zset->Count(&spec5);
   ASSERT_EQ(c5, 0);
 
   /* invalid spec min exclusive, min >= max */
@@ -555,7 +555,7 @@ TEST_F(ZSetTest, Count) {
       .minex = true,
       .maxex = false,
   };
-  const long c6 = zset->Count(&spec6);
+  const size_t c6 = zset->Count(&spec6);
   ASSERT_EQ(c6, 0);
 
   /* invalid spec max exclusive, min >= max */
@@ -565,7 +565,7 @@ TEST_F(ZSetTest, Count) {
       .minex = false,
       .maxex = true,
   };
-  const long c7 = zset->Count(&spec7);
+  const size_t c7 = zset->Count(&spec7);
   ASSERT_EQ(c7, 0);
 }
 

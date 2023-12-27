@@ -4,11 +4,13 @@
 
 namespace redis_simple {
 namespace in_memory {
+/* default comparator */
 template <typename Key>
 const auto default_compare = [](const Key& k1, const Key& k2) {
   return k1 < k2 ? -1 : (k1 == k2 ? 0 : 1);
 };
 
+/* default destructor */
 template <typename Key>
 const auto default_dtr = [](const Key& k) {};
 
@@ -21,10 +23,11 @@ class Skiplist {
 
  public:
   struct SkiplistLimitSpec {
-    long offset, count;
+    size_t offset;
+    ssize_t count;
   };
   struct SkiplistRangeByRankSpec {
-    mutable long min, max;
+    mutable size_t min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
     const SkiplistLimitSpec* limit;
@@ -52,12 +55,12 @@ class Skiplist {
   bool Delete(const Key& key);
   bool Update(const Key& key, const Key& new_key);
   const Key& FindKeyByRank(int rank);
-  long FindRankofKey(const Key& key);
+  size_t FindRankofKey(const Key& key);
   std::vector<Key> RangeByRank(const SkiplistRangeByRankSpec* spec);
   std::vector<Key> RevRangeByRank(const SkiplistRangeByRankSpec* spec);
   std::vector<Key> RangeByKey(const SkiplistRangeByKeySpec* spec);
   std::vector<Key> RevRangeByKey(const SkiplistRangeByKeySpec* spec);
-  long Count(const SkiplistRangeByKeySpec* spec);
+  size_t Count(const SkiplistRangeByKeySpec* spec);
   const Key& operator[](size_t i);
   size_t Size() { return size_; }
   void Clear();
@@ -79,7 +82,7 @@ class Skiplist {
       const SkiplistRangeByRankSpec* spec);
   const SkiplistNode* FindRevMinNodeByRangeRankSpec(
       const SkiplistRangeByRankSpec* spec);
-  bool RebaseAndValidateRangeRankSpec(const SkiplistRangeByRankSpec* spec);
+  bool ValidateRangeRankSpec(const SkiplistRangeByRankSpec* spec);
   bool ValidateRangeKeySpec(const SkiplistRangeByKeySpec* spec);
   std::vector<Key> RangeByRankWithValidSpec(
       const SkiplistRangeByRankSpec* spec);
@@ -88,7 +91,7 @@ class Skiplist {
   std::vector<Key> RangeByKeyWithValidSpec(const SkiplistRangeByKeySpec* spec);
   std::vector<Key> RevRangeByKeyWithValidSpec(
       const SkiplistRangeByKeySpec* spec);
-  long CountWithValidSpec(const SkiplistRangeByKeySpec* spec);
+  size_t CountWithValidSpec(const SkiplistRangeByKeySpec* spec);
   SkiplistNode* FindKeyGreaterOrEqual(const Key& key, SkiplistNode** const prev,
                                       size_t* const rank);
   const SkiplistNode* FindKeyGreaterOrEqual(const Key& key);
@@ -96,7 +99,7 @@ class Skiplist {
   const SkiplistNode* FindKeyLessOrEqual(const Key& key);
   const SkiplistNode* FindKeyLessThan(const Key& key);
   const SkiplistNode* FindKeyLess(const Key& key, bool eq);
-  const SkiplistNode* LastNode() const;
+  const SkiplistNode* FindLast() const;
   void Reset();
   /* skiplist node head */
   SkiplistNode* head_;
@@ -215,10 +218,14 @@ class Skiplist<Key, Comparator, Destructor>::Iterator {
   explicit Iterator(const Skiplist* skiplist);
   explicit Iterator(const Skiplist* skiplist, const SkiplistNode* node);
   Iterator(const Iterator& it);
+  /* Position at the first node in the list */
   void SeekToFirst();
+  /* Position at the last node in the list */
   void SeekToLast();
   Iterator& operator=(const Iterator& it);
+  /* move to the next node in the list */
   void operator--();
+  /* move to the previous node in the list */
   void operator++();
   bool operator==(const Iterator& it);
   bool operator!=(const Iterator& it);
@@ -250,7 +257,7 @@ void Skiplist<Key, Comparator, Destructor>::Iterator::SeekToFirst() {
 
 template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::Iterator::SeekToLast() {
-  node_ = skiplist_->LastNode();
+  node_ = skiplist_->FindLast();
   if (node_ == skiplist_->head_) node_ = nullptr;
 }
 
@@ -340,7 +347,7 @@ Skiplist<Key, Comparator, Destructor>::Begin() const {
 template <typename Key, typename Comparator, typename Destructor>
 typename Skiplist<Key, Comparator, Destructor>::Iterator
 Skiplist<Key, Comparator, Destructor>::End() const {
-  return Iterator(this, LastNode()->Next(0));
+  return Iterator(this, FindLast()->Next(0));
 }
 
 /*
@@ -511,7 +518,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::FindKeyByRank(int rank) {
  * Return the index of the key.
  */
 template <typename Key, typename Comparator, typename Destructor>
-long Skiplist<Key, Comparator, Destructor>::FindRankofKey(const Key& key) {
+size_t Skiplist<Key, Comparator, Destructor>::FindRankofKey(const Key& key) {
   size_t rank = 0;
   const SkiplistNode* node = head_;
   for (int i = level_ - 1; i >= 0; --i) {
@@ -532,8 +539,8 @@ long Skiplist<Key, Comparator, Destructor>::FindRankofKey(const Key& key) {
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByRank(
     const SkiplistRangeByRankSpec* spec) {
-  return RebaseAndValidateRangeRankSpec(spec) ? RangeByRankWithValidSpec(spec)
-                                              : std::vector<Key>();
+  return ValidateRangeRankSpec(spec) ? RangeByRankWithValidSpec(spec)
+                                     : std::vector<Key>();
 }
 
 /*
@@ -542,9 +549,8 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByRank(
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByRank(
     const SkiplistRangeByRankSpec* spec) {
-  return RebaseAndValidateRangeRankSpec(spec)
-             ? RevRangeByRankWithValidSpec(spec)
-             : std::vector<Key>();
+  return ValidateRangeRankSpec(spec) ? RevRangeByRankWithValidSpec(spec)
+                                     : std::vector<Key>();
 }
 
 /*
@@ -571,9 +577,9 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RevRangeByKey(
  * Return the count of keys which have the rank within range.
  */
 template <typename Key, typename Comparator, typename Destructor>
-long Skiplist<Key, Comparator, Destructor>::Count(
+size_t Skiplist<Key, Comparator, Destructor>::Count(
     const SkiplistRangeByKeySpec* spec) {
-  return ValidateRangeKeySpec(spec) ? CountWithValidSpec(spec) : -1;
+  return ValidateRangeKeySpec(spec) ? CountWithValidSpec(spec) : 0;
 }
 
 /*
@@ -743,21 +749,14 @@ Skiplist<Key, Comparator, Destructor>::FindKey(size_t rank) {
 }
 
 /*
- * Rebase the spec's min and max value by converting the negative offset to the
- * positive offset. Validate the range rank spec. Return true if the spec is
+ * Validate the range rank spec. Return true if the spec is
  * valid.
  */
 template <typename Key, typename Comparator, typename Destructor>
-bool Skiplist<Key, Comparator, Destructor>::RebaseAndValidateRangeRankSpec(
+bool Skiplist<Key, Comparator, Destructor>::ValidateRangeRankSpec(
     const SkiplistRangeByRankSpec* spec) {
   if (!spec) {
     return false;
-  }
-  if (spec->min < 0) {
-    spec->min += size_;
-  }
-  if (spec->max < 0) {
-    spec->max += size_;
   }
   return spec->min >= 0 && spec->max >= 0 &&
          ((!spec->minex && !spec->maxex && spec->min <= spec->max) ||
@@ -800,8 +799,8 @@ Skiplist<Key, Comparator, Destructor>::FindRevMinNodeByRangeRankSpec(
 /*
  * Find keys in reverse range of rank. Rank indicates the position of the key in
  * the skiplist.
- * The function assumes the spec are valid with non-negative min and max value.
- * Should call RebaseAndValidateRangeRankSpec before calling this function.
+ * The function assumes the spec are valid. Should call ValidateRangeRankSpec
+ * before calling this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key>
@@ -812,13 +811,13 @@ Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
     return {};
   }
   std::vector<Key> keys;
-  long i = 0, start = spec->min + (spec->minex ? 1 : 0),
-       end = spec->max + (spec->maxex ? -1 : 0);
-  const long offset = spec->limit ? spec->limit->offset : 0,
-             count = spec->limit ? spec->limit->count : -1;
+  size_t i = 0, start = spec->min + (spec->minex ? 1 : 0),
+         end = spec->max + (spec->maxex ? -1 : 0);
+  const size_t offset = spec->limit ? spec->limit->offset : 0,
+               count = spec->limit ? spec->limit->count : -1;
   while (node && start <= end) {
     /* return the keys if the number reach the limit, only works when the limit
-     * is set to a non-negative value */
+     * is a non-negative value */
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
@@ -838,7 +837,7 @@ Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
  * Find keys in reverse range of rank. Rank indicates the position of the key in
  * the skiplist.
  * The function assumes the spec are valid with non-negative min and max value.
- * Should call RebaseAndValidateRangeRankSpec before calling this function.
+ * Should call ValidateRangeRankSpec before calling this function.
  */
 template <typename Key, typename Comparator, typename Destructor>
 std::vector<Key>
@@ -849,13 +848,13 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
     return {};
   }
   std::vector<Key> keys;
-  long i = 0, start = spec->min + (spec->minex ? 1 : 0),
-       end = spec->max + (spec->maxex ? -1 : 0);
-  const long offset = spec->limit ? spec->limit->offset : 0,
-             count = spec->limit ? spec->limit->count : -1;
+  size_t i = 0, start = spec->min + (spec->minex ? 1 : 0),
+         end = spec->max + (spec->maxex ? -1 : 0);
+  const size_t offset = spec->limit ? spec->limit->offset : 0,
+               count = spec->limit ? spec->limit->count : -1;
   while (node && start <= end) {
     /* return the keys if the number reach the limit, only works when the limit
-     * is set to a non-negative value */
+     * is a non-negative value */
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
@@ -895,14 +894,14 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
   if (spec->minex && Eq(node->key, spec->min)) {
     node = node->Next(0);
   }
-  long i = 0;
-  const long offset = spec->limit ? spec->limit->offset : 0,
-             count = spec->limit ? spec->limit->count : -1;
+  size_t i = 0;
+  const size_t offset = spec->limit ? spec->limit->offset : 0,
+               count = spec->limit ? spec->limit->count : -1;
   std::vector<Key> keys;
   while (node &&
          (spec->maxex ? Lt(node->key, spec->max) : Lte(node->key, spec->max))) {
     /* return the keys if the number reach the limit, only works when the limit
-     * is set to a non-negative value */
+     * is a non-negative value */
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
@@ -935,14 +934,14 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
   if (spec->maxex && Eq(node->key, spec->max)) {
     node = node->Prev();
   }
-  long i = 0;
-  const long offset = spec->limit ? spec->limit->offset : 0,
-             count = spec->limit ? spec->limit->count : -1;
+  size_t i = 0;
+  const size_t offset = spec->limit ? spec->limit->offset : 0,
+               count = spec->limit ? spec->limit->count : -1;
   std::vector<Key> keys;
   while (node != head_ &&
          (spec->minex ? Gt(node->key, spec->min) : Gte(node->key, spec->min))) {
     /* return the keys if the number reach the limit, only works when the limit
-     * is set to a non-negative value */
+     * is a non-negative value */
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
@@ -964,7 +963,7 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
  * The result is not related to SkiplistRangeByKeySpec.SkiplistLimitSpec.
  */
 template <typename Key, typename Comparator, typename Destructor>
-long Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
+size_t Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
     const SkiplistRangeByKeySpec* spec) {
   const SkiplistNode* node = FindKeyGreaterOrEqual(spec->min);
   if (!node) {
@@ -975,7 +974,7 @@ long Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
   if (spec->minex && Eq(node->key, spec->min)) {
     node = node->Next(0);
   }
-  long num = 0;
+  size_t num = 0;
   std::vector<Key> keys;
   while (node &&
          (spec->maxex ? Lt(node->key, spec->max) : Lte(node->key, spec->max))) {
@@ -990,7 +989,7 @@ long Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
  */
 template <typename Key, typename Comparator, typename Destructor>
 const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
-Skiplist<Key, Comparator, Destructor>::LastNode() const {
+Skiplist<Key, Comparator, Destructor>::FindLast() const {
   const SkiplistNode* node = head_;
   int l = level_;
   while (--l >= 0) {

@@ -74,9 +74,9 @@ class Dict {
   /* exponential used by the 2 hashtable */
   int ht_size_exp_[2];
   /* the idx that the rehash will start at, -1 if no rehash happened */
-  long rehash_idx_;
+  ssize_t rehash_idx_;
   /* larger than 0 if rehash is paused */
-  int64_t pause_rehash_;
+  size_t pause_rehash_;
 };
 
 template <typename K, typename V>

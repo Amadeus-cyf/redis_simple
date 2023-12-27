@@ -28,7 +28,7 @@ struct RangeByKeySpecTestCase {
   const std::vector<std::string> revkeys;
   /* the value used for testing Skiplist.Count(), the result is not related to
    * SkiplistLimitSpec */
-  const long count;
+  const ssize_t count;
 };
 
 const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases();
@@ -255,19 +255,6 @@ const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
               .revkeys = {"key4", "key2", "key0"},
           },
           {
-              /* negative */
-              .spec =
-                  {
-                      .min = -3,
-                      .max = -1,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = limit1.get(),
-                  },
-              .keys = {"key2", "key4", "key5"},
-              .revkeys = {"key4", "key2", "key0"},
-          },
-          {
               /* with count */
               .spec =
                   {
@@ -346,39 +333,13 @@ const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
               .revkeys = {},
           },
           {
-              /* invalid spec, negative index, non-exclusive, min > max */
+              /* invalid spec, min out of range */
               .spec =
                   {
-                      .min = -1,
-                      .max = -3,
+                      .min = 100000,
+                      .max = 1000000,
                       .minex = false,
                       .maxex = false,
-                      .limit = nullptr,
-                  },
-              .keys = {},
-              .revkeys = {},
-          },
-          {
-              /* invalid spec, negative index, min-exclusive, min == max */
-              .spec =
-                  {
-                      .min = -1,
-                      .max = -1,
-                      .minex = true,
-                      .maxex = false,
-                      .limit = nullptr,
-                  },
-              .keys = {},
-              .revkeys = {},
-          },
-          {
-              /* invalid spec, negative index, min-exclusive, min == max */
-              .spec =
-                  {
-                      .min = -1,
-                      .max = -1,
-                      .minex = false,
-                      .maxex = true,
                       .limit = nullptr,
                   },
               .keys = {},
@@ -494,7 +455,7 @@ const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
               "zzzzzzz", false, "", false, nullptr),
           .keys = {},
           .revkeys = {},
-          .count = -1,
+          .count = 0,
       },
       {
           /* invalid spec, max exclusive, min == max */
@@ -502,7 +463,7 @@ const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
               "key0", false, "key0", true, nullptr),
           .keys = {},
           .revkeys = {},
-          .count = -1,
+          .count = 0,
       },
   };
 }
