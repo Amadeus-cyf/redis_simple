@@ -328,6 +328,32 @@ TEST_F(ZSetTest, RangeByRank) {
   const std::vector<KeyScorePair>& p17 =
       ToKeyScorePairs(zset->RangeByRank(&spec17));
   ASSERT_EQ(p17.size(), 0);
+
+  /* negative index, invalid spec, min out of range */
+  const ZSet::RangeByRankSpec& spec18 = {
+      .min = -10,
+      .max = 3,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, -1),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p18 =
+      ToKeyScorePairs(zset->RangeByRank(&spec18));
+  ASSERT_EQ(p18.size(), 0);
+
+  /* negative index, invalid spec, max out of range */
+  const ZSet::RangeByRankSpec& spec19 = {
+      .min = -1,
+      .max = -6,
+      .minex = false,
+      .maxex = false,
+      .limit = std::make_unique<ZSet::LimitSpec>(0, -1),
+      .reverse = false,
+  };
+  const std::vector<KeyScorePair>& p19 =
+      ToKeyScorePairs(zset->RangeByRank(&spec19));
+  ASSERT_EQ(p19.size(), 0);
 }
 
 TEST_F(ZSetTest, RangeByScore) {

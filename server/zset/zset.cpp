@@ -91,11 +91,13 @@ ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
       new in_memory::Skiplist<const ZSetEntry*, Comparator,
                               Destructor>::SkiplistRangeByRankSpec();
   /* rebase the index if it's negative */
-  skiplist_spec->min = spec->min < 0 ? (spec->min + Size()) : spec->min;
-  skiplist_spec->max = spec->max < 0 ? (spec->max + Size()) : spec->max;
-  if (skiplist_spec->min < 0 || skiplist_spec->max < 0) {
+  if ((spec->min < 0 && spec->min + Size() > Size()) ||
+      (spec->max < 0 && spec->max + Size() > Size())) {
+    /* the index is still negative after rebase */
     return nullptr;
   }
+  skiplist_spec->min = spec->min < 0 ? (spec->min + Size()) : spec->min;
+  skiplist_spec->max = spec->max < 0 ? (spec->max + Size()) : spec->max;
   skiplist_spec->minex = spec->minex;
   skiplist_spec->maxex = spec->maxex;
   if (spec->limit) {
@@ -154,10 +156,14 @@ void ZSet::FreeSkiplistRangeByKeySpec(
     const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                               ZSet::Destructor>::SkiplistRangeByKeySpec*
         skiplist_spec) const {
-  delete skiplist_spec->limit;
-  delete skiplist_spec->min;
-  delete skiplist_spec->max;
-  delete skiplist_spec;
+  if (skiplist_spec) {
+    if (skiplist_spec->limit) {
+      delete skiplist_spec->limit;
+    }
+    delete skiplist_spec->min;
+    delete skiplist_spec->max;
+    delete skiplist_spec;
+  }
 }
 }  // namespace zset
 }  // namespace redis_simple

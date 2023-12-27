@@ -812,9 +812,9 @@ Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
   }
   std::vector<Key> keys;
   size_t i = 0, start = spec->min + (spec->minex ? 1 : 0),
-         end = spec->max + (spec->maxex ? -1 : 0);
-  const size_t offset = spec->limit ? spec->limit->offset : 0,
-               count = spec->limit ? spec->limit->count : -1;
+         end = spec->max + (spec->maxex ? -1 : 0),
+         offset = spec->limit ? spec->limit->offset : 0;
+  const ssize_t count = spec->limit ? spec->limit->count : -1;
   while (node && start <= end) {
     /* return the keys if the number reach the limit, only works when the limit
      * is a non-negative value */
@@ -849,9 +849,9 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
   }
   std::vector<Key> keys;
   size_t i = 0, start = spec->min + (spec->minex ? 1 : 0),
-         end = spec->max + (spec->maxex ? -1 : 0);
-  const size_t offset = spec->limit ? spec->limit->offset : 0,
-               count = spec->limit ? spec->limit->count : -1;
+         end = spec->max + (spec->maxex ? -1 : 0),
+         offset = spec->limit ? spec->limit->offset : 0;
+  const ssize_t count = spec->limit ? spec->limit->count : -1;
   while (node && start <= end) {
     /* return the keys if the number reach the limit, only works when the limit
      * is a non-negative value */
@@ -895,8 +895,8 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
     node = node->Next(0);
   }
   size_t i = 0;
-  const size_t offset = spec->limit ? spec->limit->offset : 0,
-               count = spec->limit ? spec->limit->count : -1;
+  const size_t offset = spec->limit ? spec->limit->offset : 0;
+  const ssize_t count = spec->limit ? spec->limit->count : -1;
   std::vector<Key> keys;
   while (node &&
          (spec->maxex ? Lt(node->key, spec->max) : Lte(node->key, spec->max))) {
@@ -935,8 +935,8 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
     node = node->Prev();
   }
   size_t i = 0;
-  const size_t offset = spec->limit ? spec->limit->offset : 0,
-               count = spec->limit ? spec->limit->count : -1;
+  const size_t offset = spec->limit ? spec->limit->offset : 0;
+  const ssize_t count = spec->limit ? spec->limit->count : -1;
   std::vector<Key> keys;
   while (node != head_ &&
          (spec->minex ? Gt(node->key, spec->min) : Gte(node->key, spec->min))) {
