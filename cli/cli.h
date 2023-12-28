@@ -27,12 +27,13 @@ class RedisCli {
  private:
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
-  bool ProcessReply(std::string& reply);
+  bool ProcessReply(std::vector<std::string>& reply);
   int socket_fd_;
   std::string cli_ip_;
   int cli_port_;
   std::unique_ptr<in_memory::DynamicBuffer> query_buf_;
   std::unique_ptr<in_memory::DynamicBuffer> reply_buf_;
+  std::mutex lock_;
 };
 }  // namespace cli
 }  // namespace redis_simple

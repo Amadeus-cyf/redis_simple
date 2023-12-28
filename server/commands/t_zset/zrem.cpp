@@ -9,7 +9,7 @@ namespace command {
 namespace t_zset {
 void ZRemCommand::Exec(Client* const client) const {
   ZSetArgs args;
-  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+  if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }

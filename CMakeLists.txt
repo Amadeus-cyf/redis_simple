@@ -80,29 +80,6 @@ endfunction()
 
 redis_simple_add_source(redis_simple "server/main.cpp")
 
-add_executable(redis_simple_cli "")
-target_sources(redis_simple_cli
-  PRIVATE
-    "cli/cli.h"
-    "cli/cli.cpp"
-    "cli/completable_future.h"
-    "cli/resp_parser.h"
-    "cli/resp_parser.cpp"
-    "tcp/tcp.h"
-    "tcp/tcp.cpp"
-    "event_loop/ae.h"
-    "event_loop/ae.cpp"
-    "event_loop/ae_file_event.h"
-    "event_loop/ae_kqueue.h"
-    "event_loop/ae_kqueue.cpp"
-    "event_loop/ae_time_event.h"
-    "event_loop/ae_time_event_impl.h"
-    "memory/dynamic_buffer.h"
-    "memory/dynamic_buffer.cpp"
-    "utils/string_utils.h"
-    "utils/string_utils.cpp"
-)
-
 add_subdirectory("third_party/googletest")
 
 add_executable(redis_simple_tests "") 
@@ -190,6 +167,36 @@ target_sources(mock_event_loop_client
 
 redis_simple_add_source(mock_server "test/server/server_test.cpp")
 redis_simple_add_source(mock_client "test/server/client_test.cpp")
+
+function(redis_simple_cli_add_source source source_file)
+add_executable(${source} "")
+target_sources(${source}
+  PRIVATE
+  ${source_file}
+    "cli/cli.h"
+    "cli/cli.cpp"
+    "cli/completable_future.h"
+    "cli/resp_parser.h"
+    "cli/resp_parser.cpp"
+    "tcp/tcp.h"
+    "tcp/tcp.cpp"
+    "event_loop/ae.h"
+    "event_loop/ae.cpp"
+    "event_loop/ae_file_event.h"
+    "event_loop/ae_kqueue.h"
+    "event_loop/ae_kqueue.cpp"
+    "event_loop/ae_time_event.h"
+    "event_loop/ae_time_event_impl.h"
+    "memory/dynamic_buffer.h"
+    "memory/dynamic_buffer.cpp"
+    "utils/string_utils.h"
+    "utils/string_utils.cpp"
+)
+endfunction()
+
+redis_simple_add_source(mock_command_server "test/command/server_test.cpp")
+redis_simple_cli_add_source(mock_t_string_client "test/command/t_string/client_test.cpp")
+redis_simple_cli_add_source(mock_t_zset_client "test/command/t_zset/client_test.cpp")
 
 add_subdirectory("third_party/benchmark")
 

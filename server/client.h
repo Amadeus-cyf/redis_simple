@@ -32,14 +32,14 @@ class Client {
   ClientStatus ProcessInputBuffer();
   void Free() { conn_->Close(); }
   void Free() const { conn_->Close(); }
-  const std::vector<std::string>& CommandArgs() { return args_; }
+  const std::vector<std::string>& CmdArgs() { return args_; }
 
  private:
   explicit Client(connection::Connection* connection);
   ClientStatus ProcessInlineBuffer();
   ClientStatus ProcessCommand();
   void SetCmd(std::weak_ptr<const command::Command> command) { cmd_ = command; }
-  void SetCmdArgs(const std::vector<std::string>& _args) { args_ = _args; }
+  void SetCmdArgs(const std::vector<std::string>& args) { args_ = args; }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
   /* client flags */

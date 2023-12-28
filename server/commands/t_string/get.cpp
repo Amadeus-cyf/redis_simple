@@ -9,7 +9,7 @@ namespace t_string {
 void GetCommand::Exec(Client* const client) const {
   printf("get command called\n");
   StrArgs args;
-  if (ParseArgs(client->CommandArgs(), &args) < 0) {
+  if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }

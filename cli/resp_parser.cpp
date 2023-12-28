@@ -9,74 +9,115 @@ struct Prefix {
   static constexpr const char stringPrefix = '+';
   static constexpr const char bulkStringPrefix = '$';
   static constexpr const char int64Prefix = ':';
+  static constexpr const char arrayPrefix = '*';
 };
 
-static ssize_t FindCRLF(const std::string& resp, int start) {
-  while (start >= 0) {
-    start = resp.find('\n', start);
-    if (start < 0) break;
-    if (start > 0 && resp[start - 1] == '\r') return start;
-    ++start;
-  }
-  return -1;
-}
+static ssize_t Parse(const std::string& resp, size_t start,
+                     std::vector<std::string>& reply);
+static ssize_t FindCRLF(const std::string& resp, size_t start);
+static ssize_t ParseString(const std::string& resp, size_t start,
+                           std::vector<std::string>& reply);
+static ssize_t ParseBulkString(const std::string& resp, size_t start,
+                               std::vector<std::string>& reply);
+static ssize_t ParseInt64(const std::string& resp, size_t start,
+                          std::vector<std::string>& reply);
+static ssize_t ParseArray(const std::string& resp, size_t start,
+                          std::vector<std::string>& reply);
 
-static ssize_t ParseString(const std::string& resp, std::string& reply) {
-  int i = FindCRLF(resp, 0);
-  if (i < 0) return -1;
-  reply = resp.substr(1, i - 2);
-  return i + 1;
-}
-
-static ssize_t ParseBulkString(const std::string& resp, std::string& reply) {
-  int i = FindCRLF(resp, 0);
-  if (i < 0) return -1;
-  int len = 0;
-  for (int j = 1; j < i - 1; ++j) {
-    if (!std::isdigit(resp[j])) {
-      return -1;
-    }
-    len = len * 10 + (resp[j] - '0');
-  }
-  int j = FindCRLF(resp, i + len + 1);
-  if (j < 0) return -1;
-  reply = resp.substr(i + 1, len);
-  return j + 1;
-}
-
-static size_t ParseInt64(const std::string& resp, std::string& reply) {
-  int i = FindCRLF(resp, 0);
-  if (i < 0) return -1;
-  int sign = 1, j = 1, r = 0;
-  if (resp[1] == '-') {
-    sign = -1, ++j;
-  }
-  while (j < i - 1) {
-    if (!std::isdigit(resp[j])) {
-      return -1;
-    }
-    r = r * 10 + (resp[j++] - '0');
-  }
-  reply = std::to_string(sign * r);
-  return i + 1;
-}
-}  // namespace
-
-ssize_t Parse(const std::string& resp, std::string& reply) {
-  if (resp.size() < 2 || resp[resp.size() - 2] != '\r' ||
+static ssize_t Parse(const std::string& resp, size_t start,
+                     std::vector<std::string>& reply) {
+  if (start > resp.size() - 2 || resp[resp.size() - 2] != '\r' ||
       resp[resp.size() - 1] != '\n') {
     return -1;
   }
-  switch (resp[0]) {
+  switch (resp[start]) {
     case Prefix::stringPrefix:
-      return ParseString(resp, reply);
+      return ParseString(resp, start, reply);
     case Prefix::bulkStringPrefix:
-      return ParseBulkString(resp, reply);
+      return ParseBulkString(resp, start, reply);
     case Prefix::int64Prefix:
-      return ParseInt64(resp, reply);
+      return ParseInt64(resp, start, reply);
+    case Prefix::arrayPrefix:
+      return ParseArray(resp, start, reply);
     default:
       return -1;
   }
+}
+
+static ssize_t FindCRLF(const std::string& resp, size_t start) {
+  start = resp.find_first_of('\r', start);
+  if (start == std::string::npos) return -1;
+  if (start < resp.size() - 1 && resp[start + 1] == '\n') return start;
+  return -1;
+}
+
+static ssize_t ParseString(const std::string& resp, size_t start,
+                           std::vector<std::string>& reply) {
+  ssize_t i = FindCRLF(resp, start);
+  if (i < 0) return -1;
+  reply.push_back(resp.substr(start + 1, i - start - 1));
+  return i - start + 2;
+}
+
+static ssize_t ParseBulkString(const std::string& resp, size_t start,
+                               std::vector<std::string>& reply) {
+  ssize_t i = FindCRLF(resp, start);
+  if (i < 0) return -1;
+  size_t len = 0;
+  for (int j = start + 1; j < i; ++j) {
+    if (!std::isdigit(resp[j])) return -1;
+    len = len * 10 + (resp[j] - '0');
+  }
+  ssize_t j = i;
+  while (j >= 0 && j < i + len + 2) {
+    j = FindCRLF(resp, j + 2);
+  }
+  if (j < 0 || j != i + len + 2) return -1;
+  reply.push_back(resp.substr(i + 2, len));
+  return j - start + 2;
+}
+
+static ssize_t ParseInt64(const std::string& resp, size_t start,
+                          std::vector<std::string>& reply) {
+  ssize_t i = FindCRLF(resp, start);
+  if (i < 0) return -1;
+  int sign = 1;
+  long r = 0;
+  for (size_t j = start + 1; j < i; ++j) {
+    if (j == start + 1 && resp[j] == '-') {
+      sign = -1;
+      continue;
+    }
+    if (!std::isdigit(resp[j])) return -1;
+    r = r * 10 + (resp[j] - '0');
+  }
+  reply.push_back(std::to_string(sign * r));
+  return i - start + 2;
+}
+
+static ssize_t ParseArray(const std::string& resp, size_t start,
+                          std::vector<std::string>& reply) {
+  ssize_t i = FindCRLF(resp, start);
+  if (i < 0) return -1;
+  std::string len_str;
+  size_t len = 0, parsed = i + 2;
+  for (size_t j = start + 1; j < i; ++j) {
+    if (!std::isdigit(resp[j])) return -1;
+    len = len * 10 + (resp[j++] - '0');
+  }
+  for (size_t j = 0; j < len; ++j) {
+    std::vector<std::string> r;
+    ssize_t n = Parse(resp, start + parsed, r);
+    if (n < 0) return -1;
+    parsed += n;
+    reply.insert(reply.end(), r.begin(), r.end());
+  }
+  return parsed;
+}
+}  // namespace
+
+ssize_t Parse(const std::string& resp, std::vector<std::string>& reply) {
+  return Parse(resp, 0, reply);
 }
 }  // namespace resp_parser
 }  // namespace cli
