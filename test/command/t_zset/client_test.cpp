@@ -10,9 +10,11 @@ void Run() {
   const std::string& cmd3 = "ZRANK key1 ele1\r\n";
   const std::string& cmd4 = "ZRANK key1 ele2\r\n";
   const std::string& cmd5 = "ZRANK key1 ele3\r\n";
-  const std::string& cmd6 = "ZRANGE key1 1 2\r\n";
-  const std::string& cmd7 = "ZRANGE key1 1.0 2.0 BYSCORE\r\n";
-  const std::string& cmd8 = "ZREM key1 ele1\r\n";
+  const std::string& cmd6 = "ZRANGE key1 0 1\r\n";
+  const std::string& cmd7 = "ZRANGE key1 -inf +inf\r\n";
+  const std::string& cmd8 = "ZRANGE key1 1.0 2.0 BYSCORE\r\n";
+  const std::string& cmd9 = "ZRANGE key1 -inf +inf BYSCORE\r\n";
+  const std::string& cmd10 = "ZREM key1 ele1\r\n";
 
   cli.AddCommand(cmd1);
   cli.AddCommand(cmd2);
@@ -22,10 +24,14 @@ void Run() {
   cli.AddCommand(cmd6);
   cli.AddCommand(cmd7);
   cli.AddCommand(cmd8);
-  cli.AddCommand(cmd8);
+  cli.AddCommand(cmd9);
+  cli.AddCommand(cmd10);
+  cli.AddCommand(cmd10);
   cli.AddCommand(cmd3);
   cli.AddCommand(cmd6);
   cli.AddCommand(cmd7);
+  cli.AddCommand(cmd8);
+  cli.AddCommand(cmd9);
 
   auto r1 = cli.GetReplyAsync();
   auto r2 = cli.GetReplyAsync();
@@ -39,6 +45,10 @@ void Run() {
   auto r10 = cli.GetReplyAsync();
   auto r11 = cli.GetReplyAsync();
   auto r12 = cli.GetReplyAsync();
+  auto r13 = cli.GetReplyAsync();
+  auto r14 = cli.GetReplyAsync();
+  auto r15 = cli.GetReplyAsync();
+  auto r16 = cli.GetReplyAsync();
 
   const std::string& applied_str1 =
       r1.ThenApply([](const std::string& reply) {
@@ -159,6 +169,46 @@ void Run() {
               [](const std::string& reply) { return reply + "_processed"; })
           .Get();
   printf("after processed, %s\n", applied_str12.c_str());
+
+  const std::string& applied_str13 =
+      r13.ThenApplyAsync([](const std::string& reply) {
+           printf("receive resp 13: %s end\n", reply.c_str());
+           return reply;
+         })
+          .ThenApplyAsync(
+              [](const std::string& reply) { return reply + "_processed"; })
+          .Get();
+  printf("after processed, %s\n", applied_str13.c_str());
+
+  const std::string& applied_str14 =
+      r14.ThenApplyAsync([](const std::string& reply) {
+           printf("receive resp 14: %s end\n", reply.c_str());
+           return reply;
+         })
+          .ThenApplyAsync(
+              [](const std::string& reply) { return reply + "_processed"; })
+          .Get();
+  printf("after processed, %s\n", applied_str14.c_str());
+
+  const std::string& applied_str15 =
+      r15.ThenApplyAsync([](const std::string& reply) {
+           printf("receive resp 15: %s end\n", reply.c_str());
+           return reply;
+         })
+          .ThenApplyAsync(
+              [](const std::string& reply) { return reply + "_processed"; })
+          .Get();
+  printf("after processed, %s\n", applied_str15.c_str());
+
+  const std::string& applied_str16 =
+      r16.ThenApplyAsync([](const std::string& reply) {
+           printf("receive resp 16: %s end\n", reply.c_str());
+           return reply;
+         })
+          .ThenApplyAsync(
+              [](const std::string& reply) { return reply + "_processed"; })
+          .Get();
+  printf("after processed, %s\n", applied_str16.c_str());
 }
 }  // namespace redis_simple
 

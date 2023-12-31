@@ -12,10 +12,6 @@ Server
 ```sh
 cd build && ./redis_simple
 ```
-Client
-```sh
-cd build && ./redis_simple_cli
-```
 
 ### Running Tests
 ### Unit Tests
@@ -46,6 +42,19 @@ cd build && ./mock_tcp_server
 ```
 ```sh
 cd build && ./mock_tcp_client
+```
+
+#### Mock Commands
+Server
+```sh
+cd build && ./mock_command_server
+```
+Clients
+```sh
+cd build && ./mock_t_string_client
+```
+```sh
+cd build && ./mock_t_zset_client
 ```
 
 ### Running Benchmark

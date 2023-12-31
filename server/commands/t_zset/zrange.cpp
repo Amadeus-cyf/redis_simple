@@ -16,6 +16,8 @@ static const std::string& flagByScore = "BYSCORE";
 static const std::string& flagLimit = "LIMIT";
 static const std::string& flagReverse = "REV";
 static const std::string& flagWithScores = "WITHSCORES";
+static const std::string& maxScore = "+inf";
+static const std::string& minScore = "-inf";
 
 static bool FlaggedByScore(const std::vector<std::string>& args);
 std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeToRankSpec(
@@ -91,10 +93,10 @@ static int ParseRankRange(
 }
 
 static int ParseRangeTerm(const std::string& term, long* const dst) {
-  if (term == "+inf") {
-    *dst = std::numeric_limits<size_t>::infinity();
-  } else if (term == "-inf") {
-    *dst = -std::numeric_limits<size_t>::infinity();
+  if (term == minScore) {
+    *dst = 0;
+  } else if (term == maxScore) {
+    *dst = std::numeric_limits<long>::max();
   } else if (term[0] == '(') {
     try {
       *dst = std::stol(term.substr(1));
@@ -150,9 +152,9 @@ static int ParseScoreRange(
 }
 
 static int ParseScoreTerm(const std::string& term, double* const dst) {
-  if (term == "+inf") {
-    *dst = std::numeric_limits<double>::infinity();
-  } else if (term == "-inf") {
+  if (term == minScore) {
+    *dst = -std::numeric_limits<double>::infinity();
+  } else if (term == maxScore) {
     *dst = std::numeric_limits<double>::infinity();
   } else if (term[0] == '(') {
     try {

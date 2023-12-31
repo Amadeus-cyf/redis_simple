@@ -90,7 +90,7 @@ ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
   auto skiplist_spec =
       new in_memory::Skiplist<const ZSetEntry*, Comparator,
                               Destructor>::SkiplistRangeByRankSpec();
-  /* rebase the index if it's negative */
+  /* use overflow to check if the index is still negative after rebase */
   if ((spec->min < 0 && spec->min + Size() > Size()) ||
       (spec->max < 0 && spec->max + Size() > Size())) {
     /* the index is still negative after rebase */
