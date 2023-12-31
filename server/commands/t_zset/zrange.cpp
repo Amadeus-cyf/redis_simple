@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "server/client.h"
+#include "server/reply/reply.h"
 #include "server/zset/zset.h"
 #include "utils/string_utils.h"
 
@@ -35,13 +36,15 @@ static int ParseLimitOffsetAndCount(
 static bool IsReverse(const std::vector<std::string>& args);
 static const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                        const std::string& key);
+static std::optional<std::string> Encode(
+    const std::vector<const zset::ZSet::ZSetEntry*>& result);
 
 static bool FlaggedByScore(const std::vector<std::string>& args) {
-  /* start searching at the 3rd index(0-based). Rankes before are key, start and
-   * end offsets */
+  /* start searching at the 3rd index(0-based). Arguments before are key, start
+   * and end */
   for (int i = 3; i < args.size(); ++i) {
-    std::string upper;
-    std::transform(args[i].begin(), args[i].end(), upper.begin(), toupper);
+    std::string upper = args[i];
+    std::transform(upper.begin(), upper.end(), upper.begin(), toupper);
     if (upper == flagByScore) {
       return true;
     }
@@ -54,7 +57,7 @@ static std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeToRankSpec(
   if (args.size() < 3) {
     return nullptr;
   }
-  const std::string &start = args[2], &end = args[3];
+  const std::string &start = args[1], &end = args[2];
   std::unique_ptr<zset::ZSet::RangeByRankSpec> spec =
       std::make_unique<zset::ZSet::RangeByRankSpec>();
   /* parse range */
@@ -113,7 +116,7 @@ ParseRangeToScoreSpec(const std::vector<std::string>& args) {
   if (args.size() < 3) {
     return nullptr;
   }
-  const std::string &start = args[2], &end = args[3];
+  const std::string &start = args[1], &end = args[2];
   std::unique_ptr<zset::ZSet::RangeByScoreSpec> spec =
       std::make_unique<zset::ZSet::RangeByScoreSpec>();
   /* parse score range */
@@ -224,6 +227,21 @@ static const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
   }
   return obj;
 }
+
+static std::optional<std::string> Encode(
+    const std::vector<const zset::ZSet::ZSetEntry*>& result) {
+  std::vector<std::string> array;
+  for (const zset::ZSet::ZSetEntry* entry : result) {
+    array.push_back(reply::FromBulkString(entry->key));
+  }
+  try {
+    const std::string& reply = reply::FromArray(array);
+    return std::optional<std::string>(reply);
+  } catch (const std::exception& e) {
+    printf("catch exception while encoding the array %s", e.what());
+    return std::nullopt;
+  }
+}
 }  // namespace
 
 void ZRangeCommand::Exec(Client* const client) const {
@@ -234,6 +252,12 @@ void ZRangeCommand::Exec(Client* const client) const {
   } else {
     RangeByRank(client, args, &result);
   }
+  const std::optional<std::string>& reply = Encode(result);
+  if (reply.has_value()) {
+    client->AddReply(reply.value());
+  } else {
+    client->AddReply(reply::FromInt64(reply::replyErr));
+  }
 }
 
 int ZRangeCommand::RangeByRank(
@@ -242,7 +266,7 @@ int ZRangeCommand::RangeByRank(
   std::unique_ptr<const zset::ZSet::RangeByRankSpec> spec =
       ParseRangeToRankSpec(args);
   if (!spec) {
-    printf("invalid arguments for zrange\n");
+    printf("invalid arguments for zrange rank\n");
     return -1;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
@@ -271,7 +295,7 @@ int ZRangeCommand::RangeByScore(
   std::unique_ptr<const zset::ZSet::RangeByScoreSpec> spec =
       ParseRangeToScoreSpec(args);
   if (!spec) {
-    printf("invalid arguments for zrange\n");
+    printf("invalid arguments for zrange score\n");
     return -1;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {

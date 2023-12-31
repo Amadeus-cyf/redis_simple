@@ -23,5 +23,19 @@ std::string FromInt64(const int64_t i64) {
   reply.append(std::to_string(i64)).append(CRLF);
   return reply;
 }
+
+/* Encode list of strings to reply. The function assumes that each element in
+ * the input list has already been encoded. */
+std::string FromArray(const std::vector<std::string>& array) {
+  std::string reply;
+  reply.push_back('*');
+  reply.append(std::to_string(array.size())).append(CRLF);
+  for (const std::string& str : array) {
+    if (str.size() < 2 || str.substr(str.size() - 2) != CRLF)
+      throw std::invalid_argument("array element not encoded");
+    reply.append(str);
+  }
+  return reply;
+}
 }  // namespace reply
 }  // namespace redis_simple

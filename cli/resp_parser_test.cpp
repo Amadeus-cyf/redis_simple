@@ -45,16 +45,27 @@ TEST(RespParserTest, ParseInt64) {
 }
 
 TEST(ReplyParserTest, ParseArray) {
+  // base
   std::vector<std::string> reply1;
-  ASSERT_EQ(resp_parser::Parse("*5\r\n+key1\r\n$5\r\nhello\r\n$"
-                               "7\r\nhello\r\n\r\n:123456\r\n:-12345\r\n",
-                               reply1),
-            53);
-  ASSERT_EQ(reply1, std::vector<std::string>(
-                        {"key1", "hello", "hello\r\n", "123456", "-12345"}));
+  const std::string& s1 =
+      "*5\r\n+key1\r\n$5\r\nhello\r\n$7\r\nhello\r\n\r\n:123456\r\n:-12345\r\n";
+  ASSERT_EQ(resp_parser::Parse(s1, reply1), s1.size());
+  ASSERT_EQ(reply1, std::vector<std::string>({"key1", "hello", "hello\r\n",
+                                              "123456", "-12345", "\n"}));
+  // empty array
   std::vector<std::string> reply2;
-  ASSERT_EQ(resp_parser::Parse("*0\r\n", reply2), 4);
-  ASSERT_EQ(reply2.size(), 0);
+  const std::string& s2 = "*0\r\n";
+  ASSERT_EQ(resp_parser::Parse(s2, reply2), 4);
+  ASSERT_EQ(reply2, std::vector<std::string>({"\n"}));
+  // nested array
+  std::vector<std::string> reply3;
+  const std::string& s3 =
+      "*3\r\n*5\r\n+key1\r\n$5\r\nhello\r\n$7\r\nhello\r\n\r\n:123456\r\n:-"
+      "12345\r\n*0\r\n*3\r\n+key2\r\n$7\r\nhello\r\n\r\n:123456\r\n";
+  ASSERT_EQ(resp_parser::Parse(s3, reply3), s3.size());
+  ASSERT_EQ(reply3, std::vector<std::string>(
+                        {"key1", "hello", "hello\r\n", "123456", "-12345", "\n",
+                         "\n", "key2", "hello\r\n", "123456", "\n", "\n"}));
 }
 }  // namespace resp_parser
 }  // namespace cli

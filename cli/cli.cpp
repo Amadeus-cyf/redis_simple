@@ -45,7 +45,7 @@ static ssize_t WriteToSocket(int fd, const std::string& cmds) {
 static std::string ReplyListToString(const std::vector<std::string>& reply) {
   std::string reply_str;
   for (const std::string& r : reply) {
-    reply_str.append(r);
+    reply_str.append(r).push_back('\n');
   }
   return reply_str;
 }

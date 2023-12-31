@@ -13,19 +13,19 @@ struct Prefix {
 };
 
 static ssize_t Parse(const std::string& resp, size_t start,
-                     std::vector<std::string>& reply);
+                     std::vector<std::string>* const reply);
 static ssize_t FindCRLF(const std::string& resp, size_t start);
 static ssize_t ParseString(const std::string& resp, size_t start,
-                           std::vector<std::string>& reply);
+                           std::vector<std::string>* const reply);
 static ssize_t ParseBulkString(const std::string& resp, size_t start,
-                               std::vector<std::string>& reply);
+                               std::vector<std::string>* const reply);
 static ssize_t ParseInt64(const std::string& resp, size_t start,
-                          std::vector<std::string>& reply);
+                          std::vector<std::string>* const reply);
 static ssize_t ParseArray(const std::string& resp, size_t start,
-                          std::vector<std::string>& reply);
+                          std::vector<std::string>* const reply);
 
 static ssize_t Parse(const std::string& resp, size_t start,
-                     std::vector<std::string>& reply) {
+                     std::vector<std::string>* const reply) {
   if (start > resp.size() - 2 || resp[resp.size() - 2] != '\r' ||
       resp[resp.size() - 1] != '\n') {
     return -1;
@@ -52,19 +52,19 @@ static ssize_t FindCRLF(const std::string& resp, size_t start) {
 }
 
 static ssize_t ParseString(const std::string& resp, size_t start,
-                           std::vector<std::string>& reply) {
+                           std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
-  reply.push_back(resp.substr(start + 1, i - start - 1));
+  reply->push_back(resp.substr(start + 1, i - start - 1));
   return i - start + 2;
 }
 
 static ssize_t ParseBulkString(const std::string& resp, size_t start,
-                               std::vector<std::string>& reply) {
+                               std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   size_t len = 0;
-  for (int j = start + 1; j < i; ++j) {
+  for (size_t j = start + 1; j < i; ++j) {
     if (!std::isdigit(resp[j])) return -1;
     len = len * 10 + (resp[j] - '0');
   }
@@ -73,12 +73,12 @@ static ssize_t ParseBulkString(const std::string& resp, size_t start,
     j = FindCRLF(resp, j + 2);
   }
   if (j < 0 || j != i + len + 2) return -1;
-  reply.push_back(resp.substr(i + 2, len));
+  reply->push_back(resp.substr(i + 2, len));
   return j - start + 2;
 }
 
 static ssize_t ParseInt64(const std::string& resp, size_t start,
-                          std::vector<std::string>& reply) {
+                          std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   int sign = 1;
@@ -91,33 +91,33 @@ static ssize_t ParseInt64(const std::string& resp, size_t start,
     if (!std::isdigit(resp[j])) return -1;
     r = r * 10 + (resp[j] - '0');
   }
-  reply.push_back(std::to_string(sign * r));
+  reply->push_back(std::to_string(sign * r));
   return i - start + 2;
 }
 
 static ssize_t ParseArray(const std::string& resp, size_t start,
-                          std::vector<std::string>& reply) {
+                          std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   std::string len_str;
-  size_t len = 0, parsed = i + 2;
+  size_t len = 0, parsed = i - start + 2;
   for (size_t j = start + 1; j < i; ++j) {
     if (!std::isdigit(resp[j])) return -1;
     len = len * 10 + (resp[j++] - '0');
   }
   for (size_t j = 0; j < len; ++j) {
-    std::vector<std::string> r;
-    ssize_t n = Parse(resp, start + parsed, r);
+    ssize_t n = Parse(resp, start + parsed, reply);
     if (n < 0) return -1;
     parsed += n;
-    reply.insert(reply.end(), r.begin(), r.end());
   }
+  // indicate the end of the array
+  reply->push_back("\n");
   return parsed;
 }
 }  // namespace
 
 ssize_t Parse(const std::string& resp, std::vector<std::string>& reply) {
-  return Parse(resp, 0, reply);
+  return Parse(resp, 0, &reply);
 }
 }  // namespace resp_parser
 }  // namespace cli
