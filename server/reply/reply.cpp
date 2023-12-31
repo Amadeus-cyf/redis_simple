@@ -3,7 +3,6 @@
 namespace redis_simple {
 namespace reply {
 const std::string& CRLF = "\r\n";
-
 static constexpr const char stringPrefix = '+';
 static constexpr const char bulkStringPrefix = '$';
 static constexpr const char int64Prefix = ':';
@@ -41,7 +40,8 @@ std::string FromInt64(const int64_t i64) {
 
 /*
  * Encode list of strings. The function assumes that each element in
- * the input list has already been encoded. */
+ * the input list has already been encoded.
+ */
 std::string FromArray(const std::vector<std::string>& array) {
   std::string reply;
   reply.push_back(arrayPrefix);
