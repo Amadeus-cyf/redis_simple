@@ -2,7 +2,7 @@
 
 namespace redis_simple {
 namespace reply {
-const std::string& CRLF = "\r\n";
+static const std::string& CRLF = "\r\n";
 static constexpr const char stringPrefix = '+';
 static constexpr const char bulkStringPrefix = '$';
 static constexpr const char int64Prefix = ':';

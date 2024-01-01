@@ -10,7 +10,6 @@ enum ReplyStatus {
   replyErr = -1,
 };
 
-extern const std::string& CRLF;
 std::string FromString(const std::string& s);
 std::string FromBulkString(const std::string& s);
 std::string FromInt64(const int64_t ll);

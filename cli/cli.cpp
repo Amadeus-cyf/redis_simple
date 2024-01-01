@@ -59,7 +59,7 @@ RedisCli::RedisCli()
       reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
 
 CliStatus RedisCli::Connect(const std::string& ip, const int port) {
-  socket_fd_ = tcp::TCP_Connect(ip, port);
+  socket_fd_ = tcp::TCP_Connect(ip, port, false, ip_, port_);
   if (socket_fd_ < 0) {
     return CliStatus::cliErr;
   }
@@ -71,18 +71,35 @@ void RedisCli::AddCommand(const std::string& cmd) {
 }
 
 std::string RedisCli::GetReply() {
-  std::vector<std::string> reply;
-  {
-    const std::lock_guard<std::mutex> lock(lock_);
-    if (reply_buf_ && !reply_buf_->Empty()) {
-      if (!ProcessReply(reply)) {
-        return NoReplyResp;
-      }
-      const std::string& s = ReplyListToString(reply);
-      return ReplyListToString(reply);
-    }
-  }
+  const std::optional<std::string>& opt = MaybeGetReply();
+  return opt.has_value() ? opt.value() : GetReplyFromSocket();
+}
+
+CompletableFuture<std::string> RedisCli::GetReplyAsync() {
+  std::future<std::string> future =
+      std::async(std::launch::async, [&]() { return GetReplyAsyncCallback(); });
+  return CompletableFuture<std::string>(std::move(future));
+}
+
+/*
+ * Callback of GetReplyAsync(). Same as GetReply, except thread-safe.
+ */
+std::string RedisCli::GetReplyAsyncCallback() {
   const std::lock_guard<std::mutex> lock(lock_);
+  return GetReply();
+}
+
+std::optional<std::string> RedisCli::MaybeGetReply() {
+  std::vector<std::string> reply;
+  if (reply_buf_ && !reply_buf_->Empty() && ProcessReply(reply)) {
+    const std::string& s = ReplyListToString(reply);
+    return ReplyListToString(reply);
+  }
+  return std::nullopt;
+}
+
+std::string RedisCli::GetReplyFromSocket() {
+  std::vector<std::string> reply;
   if (!query_buf_->Empty()) {
     if (WriteToSocket(socket_fd_, query_buf_->GetBufInString()) < 0) {
       return ErrResp;
@@ -91,17 +108,10 @@ std::string RedisCli::GetReply() {
     const std::string& replies = ReadFromSocket(socket_fd_);
     reply_buf_->WriteToBuffer(replies.c_str(), replies.size());
     if (ProcessReply(reply)) {
-      const std::string& s = ReplyListToString(reply);
       return ReplyListToString(reply);
     }
   }
   return NoReplyResp;
-}
-
-CompletableFuture<std::string> RedisCli::GetReplyAsync() {
-  std::future<std::string> future =
-      std::async(std::launch::async, [&]() { return GetReply(); });
-  return CompletableFuture<std::string>(std::move(future));
 }
 
 bool RedisCli::ProcessReply(std::vector<std::string>& reply) {

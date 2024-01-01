@@ -2,6 +2,7 @@
 
 #include <unistd.h>
 
+#include <optional>
 #include <string>
 
 #include "completable_future.h"
@@ -18,6 +19,7 @@ enum CliStatus {
 class RedisCli {
  public:
   RedisCli();
+  RedisCli(const std::string& ip, const int port) : ip_(ip), port_(port){};
   CliStatus Connect(const std::string& ip, const int port);
   void AddCommand(const std::string& cmd);
   std::string GetReply();
@@ -27,10 +29,13 @@ class RedisCli {
  private:
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
+  std::string GetReplyAsyncCallback();
+  std::optional<std::string> MaybeGetReply();
+  std::string GetReplyFromSocket();
   bool ProcessReply(std::vector<std::string>& reply);
   int socket_fd_;
-  std::string cli_ip_;
-  int cli_port_;
+  std::optional<std::string> ip_;
+  std::optional<int> port_;
   std::unique_ptr<in_memory::DynamicBuffer> query_buf_;
   std::unique_ptr<in_memory::DynamicBuffer> reply_buf_;
   std::mutex lock_;

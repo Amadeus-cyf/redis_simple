@@ -8,31 +8,27 @@ void Run() {
 
   const std::string& cmd1 = "SET key val\r\n";
   const std::string& cmd2 = "GET key\r\n";
-  cli.AddCommand(cmd1);
-  cli.AddCommand(cmd2);
+  std::vector<std::string> commands = {
+      cmd1,
+      cmd2,
+  };
 
-  auto r1 = cli.GetReplyAsync();
-  auto r2 = cli.GetReplyAsync();
+  for (const std::string& command : commands) {
+    cli.AddCommand(command);
+  }
 
-  const std::string& applied_str1 =
-      r1.ThenApply([](const std::string& reply) {
-          printf("receive resp: %s end\n", reply.c_str());
-          return reply;
-        })
-          .ThenApply(
-              [](const std::string& reply) { return reply + "_processed"; })
-          .Get();
-  printf("after processed, %s\n", applied_str1.c_str());
-
-  const std::string& applied_str2 =
-      r2.ThenApply([](const std::string& reply) {
-          printf("receive resp: %s end\n", reply.c_str());
-          return reply;
-        })
-          .ThenApply(
-              [](const std::string& reply) { return reply + "_processed"; })
-          .Get();
-  printf("after processed, %s\n", applied_str2.c_str());
+  for (const std::string& command : commands) {
+    const std::string& applied_str =
+        cli.GetReplyAsync()
+            .ThenApply([](const std::string& reply) {
+              printf("receive resp: %s end\n", reply.c_str());
+              return reply;
+            })
+            .ThenApply(
+                [](const std::string& reply) { return "processed: " + reply; })
+            .Get();
+    printf("after processed, %s\n", applied_str.c_str());
+  }
 }
 }  // namespace redis_simple
 
