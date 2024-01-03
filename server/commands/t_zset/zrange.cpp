@@ -249,10 +249,14 @@ static std::optional<std::string> Encode(
 void ZRangeCommand::Exec(Client* const client) const {
   const std::vector<std::string>& args = client->CmdArgs();
   std::vector<const zset::ZSet::ZSetEntry*> result;
+  int r = 0;
   if (FlaggedByScore(args)) {
-    RangeByScore(client, args, &result);
+    r = RangeByScore(client, args, &result);
   } else {
-    RangeByRank(client, args, &result);
+    r = RangeByRank(client, args, &result);
+  }
+  if (r < 0) {
+    client->AddReply(reply::FromInt64(reply::replyErr));
   }
   const std::optional<std::string>& reply = Encode(result);
   if (reply.has_value()) {
