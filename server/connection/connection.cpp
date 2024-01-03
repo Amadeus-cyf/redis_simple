@@ -139,48 +139,12 @@ void Connection::UnsetWriteHandler() {
   flags_ &= ~ae::AeFlags::aeWritable;
 }
 
-ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
-                                                     int fd, Connection* conn,
-                                                     int mask) {
-  printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
-         fd, mask & ae::AeFlags::aeReadable, mask & ae::AeFlags::aeWritable);
-  if (conn == nullptr) {
-    return ae::AeEventStatus::aeEventErr;
-  }
-
-  printf("state: %d\n", conn->State());
-  if (conn->State() == ConnState::connStateConnecting &&
-      (mask & ae::AeFlags::aeWritable)) {
-    if (tcp::IsSocketError(fd)) {
-      printf("socker error\n");
-      conn->SetState(ConnState::connStateError);
-      return ae::AeEventStatus::aeEventErr;
-    } else {
-      printf("connection state set to connected\n");
-      conn->SetState(ConnState::connStateConnected);
-    }
-  }
-
-  int invert = conn->flags_ & connFlagWriteBarrier;
-  if (!invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
-    conn->read_handler_->Handle(conn);
-  }
-  if ((mask & ae::AeFlags::aeWritable) && conn->write_handler_) {
-    conn->write_handler_->Handle(conn);
-  }
-  if (invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
-    conn->read_handler_->Handle(conn);
-  }
-  return ae::AeEventStatus::aeEventOK;
-}
-
 ssize_t Connection::Read(const char* buffer, size_t readlen) {
   return std::as_const(*this).Read(buffer, readlen);
 }
 
 ssize_t Connection::Read(const char* buffer, size_t readlen) const {
-  ssize_t nread = 0;
-  int r = read(fd_, (char*)buffer, readlen);
+  ssize_t r = read(fd_, (char*)buffer, readlen);
   if (r < 0 && errno != EAGAIN) {
     if (errno != EINTR && state_ == ConnState::connStateConnected) {
       state_ = ConnState::connStateError;
@@ -197,7 +161,7 @@ ssize_t Connection::Read(std::string& s) {
 
 ssize_t Connection::Read(std::string& s) const {
   char buffer[1024];
-  int r = 0, nread = 0;
+  ssize_t r = 0, nread = 0;
   while ((r = read(fd_, buffer + nread, 1024)) != EOF) {
     if (r == 0) {
       break;
@@ -222,18 +186,8 @@ ssize_t Connection::SyncRead(const char* buffer, size_t readlen, long timeout) {
 
 ssize_t Connection::SyncRead(const char* buffer, size_t readlen,
                              long timeout) const {
-  if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
-    int r = eventLoop->AeWait(fd_, ae::AeFlags::aeReadable, timeout);
-    if (r < 0) {
-      printf("conn sync read failed for connection %d\n", fd_);
-      return -1;
-    } else if (r == 0) {
-      printf("aeWait timeout\n");
-      return 0;
-    }
-  } else {
-    printf("event loop expired\n");
-    return -1;
+  if (ssize_t r = WaitRead(timeout); r <= 0) {
+    return r;
   }
   return Read(buffer, readlen);
 }
@@ -243,18 +197,8 @@ ssize_t Connection::SyncRead(std::string& s, long timeout) {
 }
 
 ssize_t Connection::SyncRead(std::string& s, long timeout) const {
-  if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
-    int r = eventLoop->AeWait(fd_, ae::AeFlags::aeReadable, timeout);
-    if (r < 0) {
-      printf("conn sync read string failed for connection %d\n", fd_);
-      return -1;
-    } else if (r == 0) {
-      printf("aeWait timeout\n");
-      return 0;
-    }
-  } else {
-    printf("event loop expired\n");
-    return -1;
+  if (ssize_t r = WaitRead(timeout); r <= 0) {
+    return r;
   }
   return Read(s);
 }
@@ -264,20 +208,10 @@ ssize_t Connection::SyncReadline(std::string& s, long timeout) {
 }
 
 ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
-  if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
-    int r = eventLoop->AeWait(fd_, ae::AeFlags::aeReadable, timeout);
-    if (r < 0) {
-      printf("conn sync readline failed for connection %d\n", fd_);
-      return -1;
-    } else if (r == 0) {
-      printf("aeWait timeout\n");
-      return 0;
-    }
-  } else {
-    printf("event loop expired\n");
-    return -1;
+  if (ssize_t r = WaitRead(timeout); r <= 0) {
+    return r;
   }
-  int r = 0;
+  ssize_t r = 0;
   char buffer[1];
   while ((r = read(fd_, buffer, 1)) != EOF) {
     if (r == 0 || buffer[0] == '\n') {
@@ -316,18 +250,8 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len, long timeout) {
 
 ssize_t Connection::SyncWrite(const char* buffer, size_t len,
                               long timeout) const {
-  if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
-    int r = eventLoop->AeWait(fd_, ae::AeFlags::aeWritable, timeout);
-    if (r < 0) {
-      printf("conn sync write failed for connection fd %d\n", fd_);
-      return -1;
-    } else if (r == 0) {
-      printf("aeWait timeout\n");
-      return 0;
-    }
-  } else {
-    printf("event loop expired\n");
-    return -1;
+  if (ssize_t r = WaitWrite(timeout); r <= 0) {
+    return r;
   }
   return Write(buffer, len);
 }
@@ -341,7 +265,7 @@ ssize_t Connection::Writev(
     const std::vector<std::pair<char*, size_t>>& mem_blocks) const {
   iovec vec[mem_blocks.size()];
   ssize_t len = 0, written = 0;
-  for (int i = 0; i < mem_blocks.size(); ++i) {
+  for (size_t i = 0; i < mem_blocks.size(); ++i) {
     vec[i].iov_base = mem_blocks[i].first;
     vec[i].iov_len = mem_blocks[i].second;
     len += mem_blocks[i].second;
@@ -354,6 +278,57 @@ ssize_t Connection::Writev(
     printf("write failed\n");
   }
   return n;
+}
+
+ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
+                                                     int fd, Connection* conn,
+                                                     int mask) {
+  printf("event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
+         fd, mask & ae::AeFlags::aeReadable, mask & ae::AeFlags::aeWritable);
+  if (conn == nullptr) {
+    return ae::AeEventStatus::aeEventErr;
+  }
+
+  printf("state: %d\n", conn->State());
+  if (conn->State() == ConnState::connStateConnecting &&
+      (mask & ae::AeFlags::aeWritable)) {
+    if (tcp::IsSocketError(fd)) {
+      printf("socker error\n");
+      conn->SetState(ConnState::connStateError);
+      return ae::AeEventStatus::aeEventErr;
+    } else {
+      printf("connection state set to connected\n");
+      conn->SetState(ConnState::connStateConnected);
+    }
+  }
+
+  int invert = conn->flags_ & connFlagWriteBarrier;
+  if (!invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
+    conn->read_handler_->Handle(conn);
+  }
+  if ((mask & ae::AeFlags::aeWritable) && conn->write_handler_) {
+    conn->write_handler_->Handle(conn);
+  }
+  if (invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
+    conn->read_handler_->Handle(conn);
+  }
+  return ae::AeEventStatus::aeEventOK;
+}
+
+ssize_t Connection::Wait(ae::AeFlags flag, long timeout) const {
+  if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
+    int r = eventLoop->AeWait(fd_, flag, timeout);
+    if (r < 0) {
+      printf("conn sync %s failed for connection %d\n",
+             flag == ae::AeFlags::aeReadable ? "read" : "write", fd_);
+    } else if (r == 0) {
+      printf("aeWait timeout\n");
+      return 0;
+    }
+  } else {
+    printf("event loop expired\n");
+  }
+  return -1;
 }
 }  // namespace connection
 }  // namespace redis_simple

@@ -79,6 +79,13 @@ class Connection {
   static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
+  ssize_t WaitRead(long timeout) const {
+    return Wait(ae::AeFlags::aeReadable, timeout);
+  }
+  ssize_t WaitWrite(long timeout) const {
+    return Wait(ae::AeFlags::aeWritable, timeout);
+  }
+  ssize_t Wait(ae::AeFlags flag, long timeout) const;
   int fd_;
   /* flags used to judge connFlagWriteBarrier is set */
   int flags_;
