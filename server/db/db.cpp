@@ -66,12 +66,12 @@ DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
 DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
                          const int64_t expire, int flags) const {
   dict_->Replace(key, const_cast<RedisObj*>(val));
-  if (!(flags & SetKeyFlags::setKeyKeepTTL)) {
+  if (!(flags & SetKeyFlags::setKeyKeepTTL) && expire == 0) {
     expires_->Delete(key);
   }
   if (expire > 0) {
-    assert(expires_->Add(key, expire));
-    printf("add expire %lu\n", expires_->Size());
+    expires_->Replace(key, expire);
+    printf("add expire %lld\n", expire);
   }
   val->IncrRefCount();
   return DBStatus::dbOK;

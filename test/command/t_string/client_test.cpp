@@ -8,8 +8,11 @@ void Run() {
 
   const std::string& cmd1 = "SET key val 1000\r\n";
   const std::string& cmd2 = "GET key\r\n";
+  const std::string& cmd3 = "SET key val1 3000\r\n";
   std::vector<std::string> commands = {
       cmd1,
+      cmd2,
+      cmd3,
       cmd2,
   };
 
