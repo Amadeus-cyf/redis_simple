@@ -5,20 +5,27 @@ namespace in_memory {
 ReplyBuffer::ReplyBuffer()
     : buf_usable_size_(4096), buf_(new char[4096]), sent_len_(0), buf_pos_(0) {}
 
+/*
+ * Add buffer to the main buffer or the reply list.
+ */
 size_t ReplyBuffer::AddReplyToBufferOrList(const char* s, size_t len) {
   if (len == 0) {
     return 0;
   }
+  /* try to add to the main buffer first */
   size_t reply = AddReplyToBuffer(s, len);
-  // printf("add reply %zu %zu\n", len, reply);
   len -= reply;
   size_t appended = 0;
+  /* Add the remaining part (if any) to the reply list */
   if (len) {
     appended = AddReplyProtoToList(s + reply, len);
   }
   return reply + appended;
 }
 
+/*
+ * Add buffer to the main buffer.
+ */
 size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
   if (reply_len_ > 0) {
     return 0;
@@ -30,8 +37,10 @@ size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
   return added_reply;
 }
 
+/*
+ * Add buffer to the reply list.
+ */
 size_t ReplyBuffer::AddReplyProtoToList(const char* c, size_t len) {
-  // printf("add reply to list %zu\n", len);
   if (!reply_) {
     reply_ = BufNode::Create(len);
     memcpy(reply_->buf_, c, len);
@@ -61,6 +70,9 @@ size_t ReplyBuffer::AddReplyProtoToList(const char* c, size_t len) {
   return len + copy;
 }
 
+/*
+ * Turn the reply buffer to a vector of buffer. Used for writev
+ */
 std::vector<std::pair<char*, size_t>> ReplyBuffer::Memvec() {
   std::vector<std::pair<char*, size_t>> mem_vec;
   if (buf_pos_ > 0) {
@@ -88,16 +100,25 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::Memvec() {
   return mem_vec;
 }
 
+/*
+ * Clear the main buffer.
+ */
 void ReplyBuffer::ClearBuffer() {
   memset(buf_, '\0', buf_pos_);
   buf_pos_ = 0;
   sent_len_ = 0;
 }
 
+/*
+ * Remove the processed content.
+ */
 void ReplyBuffer::ClearProcessed(size_t nwritten) {
   reply_ ? ClearListProcessed(nwritten) : ClearBufferProcessed(nwritten);
 }
 
+/*
+ * Remove the processed part in the main buffer.
+ */
 void ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
   sent_len_ += nwritten;
   if (sent_len_ >= buf_pos_) {
@@ -105,6 +126,9 @@ void ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
   }
 }
 
+/*
+ * Remove the processed part in the main buffer and the reply list.
+ */
 void ReplyBuffer::ClearListProcessed(size_t nwritten) {
   printf("writevProcessed: nwritten %zu\n", nwritten);
   if (buf_pos_ > 0) {

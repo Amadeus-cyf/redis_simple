@@ -10,7 +10,9 @@ namespace in_memory {
 template <typename K, typename V>
 class Dict {
  public:
+  /* Entry storing the key-value pair */
   struct DictEntry;
+  /* specify key-value related functions */
   struct DictType;
   using dictScanFunc = void (*)(const DictEntry*);
   static std::unique_ptr<Dict<K, V>> Init();
@@ -29,7 +31,7 @@ class Dict {
   bool Delete(K&& key);
   DictEntry* Unlink(const K& key);
   DictEntry* Unlink(K&& key);
-  int Scan(int cursor, dictScanFunc callback);
+  ssize_t Scan(size_t cursor, dictScanFunc callback);
   void Clear();
   ~Dict();
 
@@ -41,20 +43,20 @@ class Dict {
   void ResumeRehashing() {
     if (pause_rehash_ > 0) --pause_rehash_;
   }
-  unsigned int HtMask(int i);
-  unsigned int KeyHashIndex(const K& key, int i);
-  unsigned int NextExp(int val);
+  size_t HtMask(int i);
+  size_t KeyHashIndex(const K& key, int i);
+  int NextExp(ssize_t size);
   bool IsEqual(const K& key1, const K& key2);
   void SetKey(DictEntry* entry, const K& key);
   void SetVal(DictEntry* entry, const V& val);
   void FreeKey(DictEntry* entry);
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
-  unsigned int KeyIndex(const K& key, DictEntry** existing);
+  ssize_t KeyIndex(const K& key, DictEntry** existing);
   DictEntry* AddRaw(const K& key, DictEntry** existing);
   void ExpandIfNeeded();
   bool Expand(size_t size);
-  void RehashStep();
+  void RehashStepIfNeeded();
   bool Rehash(int n);
   void Clear(int i);
   void Reset(int i);
@@ -89,14 +91,23 @@ struct Dict<K, V>::DictEntry {
 
 template <typename K, typename V>
 struct Dict<K, V>::DictType {
-  std::function<const unsigned int(const K& key)> hashFunction;
+  /* used to get the hash index of the key. Use std::hash by default */
+  std::function<const size_t(const K& key)> hashFunction;
+  /* if set, all keys will be copied while being inserted into the dict. */
   std::function<K(const K& key)> keyDup;
+  /* if set, all values will be copied while being inserted into the dict. */
   std::function<V(const V& val)> valDup;
+  /* callback function when the key is freed from the dict. */
   std::function<void(K& key)> keyDestructor;
+  /* callback function when the value is freed from the dict. */
   std::function<void(V& val)> valDestructor;
+  /* comparator for keys. Used to check whether two keys are equal. */
   std::function<int(const K& key1, const K& key2)> keyCompare;
 };
 
+/*
+ * Initialize the dict with default functions.
+ */
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
@@ -110,6 +121,9 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   return dict;
 }
 
+/*
+ * Initialize the dict with customized functions.
+ */
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
     const typename Dict<K, V>::DictType* type) {
@@ -121,10 +135,14 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
   return dict;
 }
 
+/*
+ * Find the entry containing the given key.
+ */
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::Find(const K& key) {
-  for (int i = 0; i < ht_.size(); ++i) {
-    int idx = KeyHashIndex(key, i);
+  RehashStepIfNeeded();
+  for (size_t i = 0; i < ht_.size(); ++i) {
+    size_t idx = KeyHashIndex(key, i);
     DictEntry* entry = ht_[i][idx];
     while (entry) {
       if (IsEqual(key, entry->key)) {
@@ -144,6 +162,10 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Find(K&& key) {
   return Find(key);
 }
 
+/*
+ * Insert the key-value pair to the dict.
+ * Return false if the key already exists in the dict.
+ */
 template <typename K, typename V>
 bool Dict<K, V>::Add(const K& key, const V& val) {
   DictEntry* entry = AddRaw(key, nullptr);
@@ -159,6 +181,11 @@ bool Dict<K, V>::Add(K&& key, V&& val) {
   return Add(key, val);
 }
 
+/*
+ * Add or find the given key.
+ * Return the newly created dict entry if the key is inserted into the dict.
+ * Otherwise, return the existing dict entry containing the key-value pair.
+ */
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(const K& key) {
   DictEntry* existing;
@@ -171,6 +198,10 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(K&& key) {
   return AddOrFind(key);
 }
 
+/*
+ * Replace the given key with the value.
+ * Insert the key-value pair into the dict if the key is not found.
+ */
 template <typename K, typename V>
 void Dict<K, V>::Replace(const K& key, const V& val) {
   DictEntry* existing;
@@ -189,6 +220,10 @@ void Dict<K, V>::Replace(K&& key, V&& val) {
   Replace(key, val);
 }
 
+/*
+ * Delete the key from the dict, and free the memory of the entry used to store
+ * the key-value pair.
+ */
 template <typename K, typename V>
 bool Dict<K, V>::Delete(const K& key) {
   DictEntry* de = Unlink(key);
@@ -201,11 +236,16 @@ bool Dict<K, V>::Delete(K&& key) {
   return Delete(key);
 }
 
+/*
+ * Unlink the key from the list and returned the entry.
+ * Unlike Delete, the function does not free the memory of the entry used to
+ * store the key-value pair.
+ */
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
-  RehashStep();
-  for (int i = 0; i < ht_.size(); ++i) {
-    int idx = KeyHashIndex(key, i);
+  RehashStepIfNeeded();
+  for (size_t i = 0; i < ht_.size(); ++i) {
+    size_t idx = KeyHashIndex(key, i);
     DictEntry *entry = ht_[i][idx], *prev = nullptr;
     while (entry) {
       if (IsEqual(key, entry->key)) {
@@ -233,8 +273,14 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(K&& key) {
   return Unlink(key);
 }
 
+/*
+ * Scan dict with the given cursor and apply the callback function to
+ * all scanned entries.
+ * Return the cursor used for the next scanning. If all entries in the dict has
+ * been scanned, return -1. The initial cursor is 0,.
+ */
 template <typename K, typename V>
-int Dict<K, V>::Scan(int cursor, dictScanFunc callback) {
+ssize_t Dict<K, V>::Scan(size_t cursor, dictScanFunc callback) {
   PauseRehashing();
   if (cursor < ht_[0].size()) {
     const DictEntry* de = ht_[0][cursor];
@@ -244,6 +290,8 @@ int Dict<K, V>::Scan(int cursor, dictScanFunc callback) {
       de = next;
     }
   }
+  /* if a rehashing is in progress, scan all dict entries at the corresponding
+   * index in the rehashed table */
   if (IsRehashing() && cursor < ht_[1].size()) {
     const DictEntry* de = ht_[1][cursor];
     while (de) {
@@ -252,6 +300,7 @@ int Dict<K, V>::Scan(int cursor, dictScanFunc callback) {
       de = next;
     }
   }
+  /* scan finished, return -1 */
   if (cursor >= std::max(ht_[0].size(), ht_[1].size())) {
     cursor = -1;
   }
@@ -259,6 +308,10 @@ int Dict<K, V>::Scan(int cursor, dictScanFunc callback) {
   return ++cursor;
 }
 
+/*
+ * Delete all key-value pairs in the dict and reset the dict to the initial
+ * state.
+ */
 template <typename K, typename V>
 void Dict<K, V>::Clear() {
   Clear(0);
@@ -276,28 +329,42 @@ Dict<K, V>::~Dict() {
 
 template <typename K, typename V>
 Dict<K, V>::Dict() : rehash_idx_(-1), pause_rehash_(0), type_(new DictType()) {
+  /* init 2 tables, table 0 is the current table and table 1 is used for
+   * rehashing */
   ht_.resize(2);
+  /* init the table 0 */
   Reset(0);
+  /* init the table 1 used for rehashing */
   Reset(1);
 }
 
+/*
+ * Return the mask of the given table which is used to calculate the hash index
+ * of the key.
+ */
 template <typename K, typename V>
-unsigned int Dict<K, V>::HtMask(int i) {
+size_t Dict<K, V>::HtMask(int i) {
   return ht_size_exp_[i] == -1 ? 0 : (1 << ht_size_exp_[i]) - 1;
 }
 
+/*
+ * Return the hash index of the key.
+ */
 template <typename K, typename V>
-unsigned int Dict<K, V>::KeyHashIndex(const K& key, int i) {
+size_t Dict<K, V>::KeyHashIndex(const K& key, int i) {
   assert(type_->hashFunction);
   return (type_->hashFunction(key)) & HtMask(i);
 }
 
+/*
+ * Return the exponential that is greater or equal to the given size.
+ * The function is called in by DictExpand.
+ */
 template <typename K, typename V>
-unsigned int Dict<K, V>::NextExp(int val) {
-  if (val < 0) return htInitExp;
-
+int Dict<K, V>::NextExp(ssize_t size) {
+  if (size < 0) return htInitExp;
   int i = 1;
-  while ((1 << i) < val) ++i;
+  while ((1 << i) < size) ++i;
   return i;
 }
 
@@ -331,6 +398,10 @@ void Dict<K, V>::FreeVal(DictEntry* entry) {
   }
 }
 
+/*
+ * Delete the unlinked entry through calling key/value destructors and freeing
+ * the memory.
+ */
 template <typename K, typename V>
 void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
   if (entry) {
@@ -341,15 +412,20 @@ void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
   }
 }
 
+/*
+ * Return the hash index to store the key.
+ * If the key already exists, make `existing` point to the entry.
+ * The function is called everytime when a key is trying to be inserted into the
+ * dict.
+ */
 template <typename K, typename V>
-unsigned int Dict<K, V>::KeyIndex(const K& key,
-                                  Dict<K, V>::DictEntry** existing) {
+ssize_t Dict<K, V>::KeyIndex(const K& key, Dict<K, V>::DictEntry** existing) {
   if (existing) {
     *existing = nullptr;
   }
   ExpandIfNeeded();
-  int idx = -1;
-  for (int i = 0; i < ht_.size(); ++i) {
+  ssize_t idx = -1;
+  for (size_t i = 0; i < ht_.size(); ++i) {
     idx = KeyHashIndex(key, i);
     DictEntry* entry = ht_[i][idx];
     while (entry) {
@@ -368,14 +444,21 @@ unsigned int Dict<K, V>::KeyIndex(const K& key,
   return idx;
 }
 
+/*
+ * Helper function for inserting a key into the dict.
+ * If the key already exists, make `existing` point to the entry.
+ */
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::AddRaw(
     const K& key, Dict<K, V>::DictEntry** existing) {
-  RehashStep();
-  int idx = KeyIndex(key, existing);
+  RehashStepIfNeeded();
+  ssize_t idx = KeyIndex(key, existing);
   if (idx < 0) {
     return nullptr;
   }
+  /* if a rehashing is in progress, directly insert the key to the rehashed
+   * table
+   */
   int i = IsRehashing() ? 1 : 0;
   DictEntry* de = new DictEntry();
   SetKey(de, key);
@@ -385,6 +468,10 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::AddRaw(
   return de;
 }
 
+/*
+ * Expand the dict if ratio of the number of key-value pairs stored to the dict
+ * size exceeds the threshold.
+ */
 template <typename K, typename V>
 void Dict<K, V>::ExpandIfNeeded() {
   if ((double)ht_used_[0] / HtSize(ht_size_exp_[0]) >= dictForceResizeRatio) {
@@ -392,21 +479,32 @@ void Dict<K, V>::ExpandIfNeeded() {
   }
 }
 
+/*
+ * Expand the dict to be greater or equal to the given size.
+ * Return true if succeeded.
+ */
 template <typename K, typename V>
 bool Dict<K, V>::Expand(size_t size) {
+  /* do not expand the dict if a rehashing is in progress */
   if (IsRehashing() || size < ht_used_[0]) {
     return false;
   }
   int new_exp = NextExp(size);
+  /* fail to expand if the new exponential value is less or equal to the current
+   * one */
   if (new_exp <= ht_size_exp_[0]) {
     return false;
   }
+  /* get the new dict size */
   size_t new_size = HtSize(new_exp);
   printf("dict expand to %zu %d\n", new_size, new_exp);
+  /* check for overflow */
   if (new_size < size ||
       new_size * sizeof(DictEntry*) < size * sizeof(DictEntry*)) {
     return false;
   }
+  /* Set the table 0 if it has not been initialized. This happened when the dict
+   * has just been created and its size has not been initialized. */
   if (ht_size_exp_[0] < 0) {
     ht_size_exp_[0] = new_exp;
     ht_[0].resize(new_size);
@@ -414,6 +512,7 @@ bool Dict<K, V>::Expand(size_t size) {
     rehash_idx_ = -1;
     return true;
   }
+  /* initialize the rehashed table */
   ht_size_exp_[1] = new_exp;
   ht_[1].resize(new_size);
   ht_used_[1] = 0;
@@ -421,8 +520,12 @@ bool Dict<K, V>::Expand(size_t size) {
   return true;
 }
 
+/*
+ * If a rehashing is in progress, perform rehash for at most one bucket. Called
+ * in Add, Update, Find, Delete.
+ */
 template <typename K, typename V>
-void Dict<K, V>::RehashStep() {
+void Dict<K, V>::RehashStepIfNeeded() {
   if (pause_rehash_ == 0) {
     Rehash(1);
   }
@@ -432,11 +535,12 @@ void Dict<K, V>::RehashStep() {
  * completed and vice versa */
 template <typename K, typename V>
 bool Dict<K, V>::Rehash(int n) {
+  /* do not rehash if a rehashing is in progress */
   if (!IsRehashing()) {
     return false;
   }
   int empty_visit = n * 10;
-  int dict_size = HtSize(ht_size_exp_[0]);
+  size_t dict_size = HtSize(ht_size_exp_[0]);
   while (n > 0 && rehash_idx_ < dict_size && ht_used_[0] && empty_visit) {
     DictEntry* de = ht_[0][rehash_idx_];
     if (!de) {
@@ -444,7 +548,7 @@ bool Dict<K, V>::Rehash(int n) {
       continue;
     }
     while (de) {
-      int idx = KeyHashIndex(de->key, 1);
+      size_t idx = KeyHashIndex(de->key, 1);
       DictEntry* next = de->next;
       de->next = ht_[1][idx];
       ht_[1][idx] = de;
@@ -454,6 +558,8 @@ bool Dict<K, V>::Rehash(int n) {
     ht_[0][rehash_idx_] = nullptr;
     --n, ++rehash_idx_;
   }
+  /* rehash completes, copy all the states of the table 1 to table 0 and reset
+   * the table 1 to the initial state. */
   if (ht_used_[0] == 0) {
     ht_[0] = std::move(ht_[1]);
     ht_size_exp_[0] = ht_size_exp_[1];
@@ -466,9 +572,13 @@ bool Dict<K, V>::Rehash(int n) {
   return true;
 }
 
+/*
+ * Helper function for dict clear. Delete all key-value pairs in the given table
+ * and reset the table to the initial state.
+ */
 template <typename K, typename V>
 void Dict<K, V>::Clear(int i) {
-  for (int j = 0; j < ht_[i].size() && ht_used_[i] > 0; ++j) {
+  for (size_t j = 0; j < ht_[i].size() && ht_used_[i] > 0; ++j) {
     DictEntry* de = ht_[i][j];
     while (de) {
       DictEntry* next = de->next;
@@ -484,7 +594,9 @@ void Dict<K, V>::Clear(int i) {
 
 template <typename K, typename V>
 void Dict<K, V>::Reset(int i) {
-  if (i >= ht_.size()) return;
+  if (i >= ht_.size()) {
+    return;
+  }
   ht_[i].clear();
   ht_used_[i] = 0;
   ht_size_exp_[i] = -1;

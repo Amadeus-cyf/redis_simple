@@ -11,12 +11,14 @@ namespace redis_simple {
 namespace zset {
 class ZSet {
  public:
+  /* spec for LIMIT flag */
   struct LimitSpec {
     size_t offset;
     ssize_t count;
     LimitSpec() : offset(0), count(0){};
     LimitSpec(size_t offset, size_t count) : offset(offset), count(count){};
   };
+  /* spec for range by rank */
   struct RangeByRankSpec {
     long min, max;
     /* are min or max exclusive? */
@@ -26,6 +28,7 @@ class ZSet {
     /* reverse order ? */
     bool reverse;
   };
+  /* spec for range by score */
   struct RangeByScoreSpec {
     double min, max;
     /* are min or max exclusive? */
@@ -35,6 +38,7 @@ class ZSet {
     /* reverse order ? */
     bool reverse;
   };
+  /* entry storing key and score */
   struct ZSetEntry {
     ZSetEntry(const std::string& key, const double score)
         : key(key), score(score){};
@@ -68,6 +72,7 @@ class ZSet {
       se = nullptr;
     }
   };
+
   explicit ZSet();
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByRankSpec*

@@ -37,7 +37,7 @@ class RedisDb {
   std::unique_ptr<in_memory::Dict<std::string, RedisObj*>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
   bool free_async_;
-  mutable int expire_cursor_;
+  mutable ssize_t expire_cursor_;
 };
 }  // namespace db
 }  // namespace redis_simple

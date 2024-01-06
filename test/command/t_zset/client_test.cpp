@@ -6,8 +6,8 @@ void Run() {
   cli::RedisCli cli;
   cli.Connect("localhost", 8081);
 
-  const std::string& cmd1 = "ZADD key1 ele1 1.0\r\n";
-  const std::string& cmd2 = "ZADD key1 ele2 1.0\r\n";
+  const std::string& cmd1 = "ZADD key1 1.0 ele1\r\n";
+  const std::string& cmd2 = "ZADD key1 1.0 ele2\r\n";
   const std::string& cmd3 = "ZRANK key1 ele1\r\n";
   const std::string& cmd4 = "ZRANK key1 ele2\r\n";
   const std::string& cmd5 = "ZRANK key1 ele3\r\n";
@@ -18,8 +18,8 @@ void Run() {
   const std::string& cmd10 = "ZREM key1 ele1\r\n";
 
   std::vector<std::string> commands = {
-      cmd1, cmd2,  cmd3,  cmd4, cmd5, cmd6, cmd7, cmd8,
-      cmd9, cmd10, cmd10, cmd3, cmd6, cmd7, cmd8, cmd9,
+      cmd1,  cmd2,  cmd3, cmd4, cmd5, cmd6, cmd7, cmd8, cmd9,
+      cmd10, cmd10, cmd3, cmd4, cmd6, cmd7, cmd8, cmd9,
   };
 
   for (const std::string& command : commands) {

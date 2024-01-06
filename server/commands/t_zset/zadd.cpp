@@ -31,10 +31,10 @@ int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
     return -1;
   }
   const std::string& key = args[0];
-  const std::string& ele = args[1];
+  const std::string& ele = args[2];
   double score = 0.0;
   try {
-    score = stod(args[2]);
+    score = stod(args[1]);
   } catch (const std::exception&) {
     printf("invalid args format\n");
     return -1;

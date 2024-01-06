@@ -20,25 +20,24 @@ class ReplyBuffer {
   size_t AddReplyToBufferOrList(const char* s, size_t len);
   void ClearProcessed(size_t nwritten);
   std::vector<std::pair<char*, size_t>> Memvec();
-  void ClearBuffer();
   bool Empty() { return buf_pos_ == 0 && reply_len_ == 0; }
   ~ReplyBuffer();
 
  private:
   size_t AddReplyToBuffer(const char* s, size_t len);
   size_t AddReplyProtoToList(const char* c, size_t len);
-  /* written only main buffer to the client */
   void ClearBufferProcessed(size_t nwritten);
-  /* written both main buffer and reply list to the client */
   void ClearListProcessed(size_t nwritten);
+  void ClearBuffer();
   /* output main buffer */
   char* buf_;
   /* buf position for bytes already in use in main buffer */
   size_t buf_pos_;
   /* remaining bytes in main buffer */
   size_t buf_usable_size_;
-  /* reply linked list */
+  /* head of the reply list */
   BufNode* reply_;
+  /* tail of the reply list */
   BufNode* reply_tail_;
   /* number of buf nodes */
   size_t reply_len_;

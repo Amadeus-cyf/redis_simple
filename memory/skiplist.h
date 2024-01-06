@@ -22,26 +22,37 @@ class Skiplist {
   class SkiplistNode;
 
  public:
+  /* spec for LIMIT flag */
   struct SkiplistLimitSpec {
+    /* starting offset */
     size_t offset;
+    /* number of keys to return */
     ssize_t count;
   };
+  /* spec for range by rank */
   struct SkiplistRangeByRankSpec {
+    /* min and max index */
     mutable size_t min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
+    /* set if LIMIT flag is included */
     const SkiplistLimitSpec* limit;
   };
+  /* spec for range by key */
   struct SkiplistRangeByKeySpec {
     SkiplistRangeByKeySpec(const Key& min, bool minex, const Key& max,
                            bool maxex, const SkiplistLimitSpec* limit)
         : min(min), max(max), minex(minex), maxex(maxex), limit(limit){};
+    /* min and max key */
     const Key min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
+    /* set if LIMIT flag is included */
     const SkiplistLimitSpec* limit;
   };
+  /* skiplist iterator */
   class Iterator;
+  /* initial skiplist height */
   static constexpr const int InitSkiplistLevel = 2;
   Skiplist();
   explicit Skiplist(const size_t level);
