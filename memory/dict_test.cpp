@@ -77,7 +77,9 @@ class DictIntTest : public testing::Test {
 std::unique_ptr<Dict<int, int>> DictIntTest::dict_int = nullptr;
 
 TEST_F(DictIntTest, Init) {
-  dict_int->GetType()->hashFunction = [](const int i) { return i; };
+  const Dict<int, int>::DictType& type = {
+      .hashFunction = [](const int i) { return i; },
+  };
   ASSERT_TRUE(dict_int);
   ASSERT_EQ(dict_int->Size(), 0);
 }

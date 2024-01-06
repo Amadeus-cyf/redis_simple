@@ -16,8 +16,7 @@ class Dict {
   struct DictType;
   using dictScanFunc = void (*)(const DictEntry*);
   static std::unique_ptr<Dict<K, V>> Init();
-  static std::unique_ptr<Dict<K, V>> Init(const DictType* type);
-  DictType* GetType() { return type_; }
+  static std::unique_ptr<Dict<K, V>> Init(const DictType& type);
   size_t Size() { return ht_used_[0] + ht_used_[1]; }
   DictEntry* Find(const K& key);
   DictEntry* Find(K&& key);
@@ -37,6 +36,8 @@ class Dict {
 
  private:
   Dict();
+  Dict(const DictType& type);
+  void InitTables();
   size_t HtSize(int exp) { return exp < 0 ? 0 : 1 << exp; }
   bool IsRehashing() { return rehash_idx_ >= 0; }
   void PauseRehashing() { ++pause_rehash_; }
@@ -68,7 +69,7 @@ class Dict {
    * / hashtable size) */
   static constexpr const double dictForceResizeRatio = 2.0;
   /* specify hash function, key constructor and destructor in type */
-  DictType* type_;
+  DictType type_;
   /* containing 2 hastables, the second one is used for rehash */
   std::vector<std::vector<DictEntry*>> ht_;
   /* number of elements in each hashtable*/
@@ -91,7 +92,7 @@ struct Dict<K, V>::DictEntry {
 
 template <typename K, typename V>
 struct Dict<K, V>::DictType {
-  /* used to get the hash index of the key. Use std::hash by default */
+  /* used to get the hash index of the key. Use std::hash by default. */
   std::function<const size_t(const K& key)> hashFunction;
   /* if set, all keys will be copied while being inserted into the dict. */
   std::function<K(const K& key)> keyDup;
@@ -101,7 +102,8 @@ struct Dict<K, V>::DictType {
   std::function<void(K& key)> keyDestructor;
   /* callback function when the value is freed from the dict. */
   std::function<void(V& val)> valDestructor;
-  /* comparator for keys. Used to check whether two keys are equal. */
+  /* comparator for keys. Used to check whether two keys are equal. Use operator
+   * = by default.*/
   std::function<int(const K& key1, const K& key2)> keyCompare;
 };
 
@@ -114,7 +116,7 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   if (!dict->Expand(htInitSize)) {
     return nullptr;
   }
-  dict->GetType()->hashFunction = [](const K& key) {
+  dict->type_.hashFunction = [](const K& key) {
     std::hash<K> h;
     return h(key);
   };
@@ -126,12 +128,11 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
  */
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
-    const typename Dict<K, V>::DictType* type) {
-  std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
+    const typename Dict<K, V>::DictType& type) {
+  std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>(type));
   if (!dict->Expand(htInitSize)) {
     return nullptr;
   }
-  dict->GetType() = type;
   return dict;
 }
 
@@ -301,11 +302,11 @@ ssize_t Dict<K, V>::Scan(size_t cursor, dictScanFunc callback) {
     }
   }
   /* scan finished, return -1 */
-  if (cursor >= std::max(ht_[0].size(), ht_[1].size())) {
+  if (++cursor >= std::max(ht_[0].size(), ht_[1].size())) {
     cursor = -1;
   }
   ResumeRehashing();
-  return ++cursor;
+  return cursor;
 }
 
 /*
@@ -323,12 +324,24 @@ void Dict<K, V>::Clear() {
 template <typename K, typename V>
 Dict<K, V>::~Dict() {
   Clear();
-  delete type_;
-  type_ = nullptr;
 }
 
 template <typename K, typename V>
-Dict<K, V>::Dict() : rehash_idx_(-1), pause_rehash_(0), type_(new DictType()) {
+Dict<K, V>::Dict() : rehash_idx_(-1), pause_rehash_(0) {
+  InitTables();
+}
+
+template <typename K, typename V>
+Dict<K, V>::Dict(const DictType& type)
+    : rehash_idx_(-1), pause_rehash_(0), type_(type) {
+  InitTables();
+}
+
+/*
+ * Initialize 2 hash tables in the dict.
+ */
+template <typename K, typename V>
+void Dict<K, V>::InitTables() {
   /* init 2 tables, table 0 is the current table and table 1 is used for
    * rehashing */
   ht_.resize(2);
@@ -352,8 +365,8 @@ size_t Dict<K, V>::HtMask(int i) {
  */
 template <typename K, typename V>
 size_t Dict<K, V>::KeyHashIndex(const K& key, int i) {
-  assert(type_->hashFunction);
-  return (type_->hashFunction(key)) & HtMask(i);
+  assert(type_.hashFunction);
+  return (type_.hashFunction(key)) & HtMask(i);
 }
 
 /*
@@ -370,31 +383,30 @@ int Dict<K, V>::NextExp(ssize_t size) {
 
 template <typename K, typename V>
 bool Dict<K, V>::IsEqual(const K& key1, const K& key2) {
-  return key1 == key2 ||
-         (type_->keyCompare && !(type_->keyCompare(key1, key2)));
+  return key1 == key2 || (type_.keyCompare && !(type_.keyCompare(key1, key2)));
 }
 
 template <typename K, typename V>
 void Dict<K, V>::SetKey(DictEntry* entry, const K& key) {
-  entry->key = type_->keyDup ? type_->keyDup(key) : key;
+  entry->key = type_.keyDup ? type_.keyDup(key) : key;
 }
 
 template <typename K, typename V>
 void Dict<K, V>::SetVal(DictEntry* entry, const V& val) {
-  entry->val = type_->valDup ? type_->valDup(val) : val;
+  entry->val = type_.valDup ? type_.valDup(val) : val;
 }
 
 template <typename K, typename V>
 void Dict<K, V>::FreeKey(DictEntry* entry) {
-  if (type_->keyDestructor) {
-    type_->keyDestructor(entry->key);
+  if (type_.keyDestructor) {
+    type_.keyDestructor(entry->key);
   }
 }
 
 template <typename K, typename V>
 void Dict<K, V>::FreeVal(DictEntry* entry) {
-  if (type_->valDestructor) {
-    type_->valDestructor(entry->val);
+  if (type_.valDestructor) {
+    type_.valDestructor(entry->val);
   }
 }
 

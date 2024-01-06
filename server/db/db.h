@@ -25,7 +25,7 @@ class RedisDb {
   DBStatus SetKey(const std::string& key, const RedisObj* const val,
                   const int64_t expire, int flags) const;
   DBStatus DeleteKey(const std::string& key) const;
-  void ScanExpires(
+  bool ScanExpires(
       in_memory::Dict<std::string, int64_t>::dictScanFunc callback) const;
   double ExpiredPercentage() const {
     return dict_->Size() > 0 ? (double)expires_->Size() / dict_->Size() : 0.0;

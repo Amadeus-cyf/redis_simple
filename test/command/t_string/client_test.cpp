@@ -6,7 +6,7 @@ void Run() {
   cli::RedisCli cli;
   cli.Connect("localhost", 8081);
 
-  const std::string& cmd1 = "SET key val\r\n";
+  const std::string& cmd1 = "SET key val 1000\r\n";
   const std::string& cmd2 = "GET key\r\n";
   std::vector<std::string> commands = {
       cmd1,
