@@ -456,7 +456,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::Insert(const Key& key) {
  */
 template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::Contains(const Key& key) {
-  const SkiplistNode* n = FindKeyGreaterOrEqual(key, nullptr, nullptr);
+  const SkiplistNode* n = FindKeyGreaterOrEqual(key);
   return n && Eq(n->key, key);
 }
 
@@ -609,7 +609,7 @@ Skiplist<Key, Comparator, Destructor>::FindKeyGreaterOrEqual(const Key& key) {
 template <typename Key, typename Comparator, typename Destructor>
 const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
 Skiplist<Key, Comparator, Destructor>::FindKeyGreaterThan(const Key& key) {
-  const SkiplistNode* n = FindKeyGreaterOrEqual(key, nullptr, nullptr);
+  const SkiplistNode* n = FindKeyGreaterOrEqual(key);
   return (n && Eq(n->key, key)) ? n->Next(0) : n;
 }
 
@@ -681,8 +681,8 @@ void Skiplist<Key, Comparator, Destructor>::Print() const {
  * Find the first key greater than or equal to the given key.
  * If prev is non-null, fills prev[level] with pointer to previous node at
  * "level" for every level in [0...level_-1].
- * If rank is non-null, fills rank[level] with rank of the given key at "level"
- * for every level in [0...level_-1];
+ * If rank is non-null, fills rank[level] with the rank of the previous key at
+ * "level" for every level in [0...level_-1];
  */
 template <typename Key, typename Comparator, typename Destructor>
 typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*

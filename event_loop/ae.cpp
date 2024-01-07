@@ -49,12 +49,17 @@ int AeEventLoop::AeWait(int fd, int mask, long timeout) const {
 AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
   printf("create events for fd = %d, mask = %d\n", fd, fe->GetMask());
   if (fe == nullptr) {
-    return ae_err;
+    return aeErr;
   }
   if (fd < 0 || fd >= eventSize) {
-    throw("file descriptor out of range");
+    printf("file descriptor out of range");
+    return aeErr;
   }
-  int mask = fe->GetMask();
+  if (int r = ae_api_state_->AeApiAddEvent(fd, fe->GetMask()); r < 0) {
+    /* free the event if failed to add */
+    delete fe;
+    return aeErr;
+  }
   if (file_events_[fd] == nullptr) {
     printf("add new event\n");
     max_fd_ = std::max(max_fd_, fd);
@@ -63,7 +68,7 @@ AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
     delete file_events_[fd];
   }
   file_events_[fd] = fe;
-  return ae_api_state_->AeApiAddEvent(fd, mask) < 0 ? ae_err : ae_ok;
+  return aeOK;
 }
 
 AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
@@ -72,8 +77,7 @@ AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
         fd, errno);
-
-    return ae_err;
+    return aeErr;
   }
   printf("delete file event success for file descriptor = %d, mask = %d\n", fd,
          mask);
@@ -87,7 +91,7 @@ AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
     m &= ~mask;
     fe->SetMask(m);
   }
-  return ae_ok;
+  return aeOK;
 }
 
 void AeEventLoop::AeCreateTimeEvent(AeTimeEvent* te) {
@@ -100,6 +104,11 @@ void AeEventLoop::AeCreateTimeEvent(AeTimeEvent* te) {
 }
 
 void AeEventLoop::AeProcessEvents() {
+  ProcessFileEvents();
+  ProcessTimeEvents();
+}
+
+void AeEventLoop::ProcessFileEvents() {
   if (max_fd_ == -1) {
     return;
   }
@@ -110,7 +119,7 @@ void AeEventLoop::AeProcessEvents() {
       ae_api_state_->AeApiPoll(&tspec);
   for (const auto& it : fdToMask) {
     int fd = it.first, mask = it.second;
-    AeFileEvent* fe = file_events_[fd];
+    const AeFileEvent* fe = file_events_[fd];
     int inverted = fe->GetMask() & AeFlags::aeBarrier;
     bool fired = false;
     if (!inverted && (mask & fe->GetMask() & AeFlags::aeReadable) &&
@@ -128,7 +137,6 @@ void AeEventLoop::AeProcessEvents() {
       fe->CallReadProc(this, fd, mask);
     }
   }
-  ProcessTimeEvents();
 }
 
 void AeEventLoop::ProcessTimeEvents() const {

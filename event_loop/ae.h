@@ -17,8 +17,8 @@ enum AeFlags {
 };
 
 enum AeStatus {
-  ae_ok = 0,
-  ae_err = -1,
+  aeOK = 0,
+  aeErr = -1,
 };
 
 enum class AeEventStatus {
@@ -41,6 +41,7 @@ class AeEventLoop {
  private:
   static constexpr const int eventSize = 1024;
   explicit AeEventLoop(AeKqueue* kq);
+  void ProcessFileEvents();
   void ProcessTimeEvents() const;
   std::vector<AeFileEvent*> file_events_;
   mutable AeTimeEvent* time_event_head_;

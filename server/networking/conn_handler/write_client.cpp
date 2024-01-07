@@ -39,8 +39,9 @@ ssize_t WriteToClientHandler::WriteToClient(Client* c) {
       return -1;
     }
   }
-  if (!c->HasPendingReplies()) {
-    c->Connection()->UnsetWriteHandler();
+  if (!c->HasPendingReplies() && !c->Connection()->UnsetWriteHandler()) {
+    /* ignore the failure of uninstalling the write handler */
+    printf("failed to unset the write handler\n");
   }
   return nwritten;
 }

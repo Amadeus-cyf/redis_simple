@@ -40,7 +40,7 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
   connection::Connection* conn = new connection::Connection(ctx);
   conn->SetState(connection::ConnState::connStateAccepting);
   connection::AddressInfo addrInfo;
-  if (conn->Accept(addrInfo) == connection::StatusCode::c_err) {
+  if (conn->Accept(addrInfo) == connection::StatusCode::connStatusErr) {
     printf("connection accept failed\n");
     return ae::AeEventStatus::aeEventErr;
   }
@@ -55,8 +55,11 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
   /* install the read handler for the client connection */
-  conn->SetReadHandler(
-      CreateConnHandler(connection::ConnHandlerType::readQueryFromClient));
+  if (!conn->SetReadHandler(CreateConnHandler(
+          connection::ConnHandlerType::readQueryFromClient))) {
+    printf("AcceptHandler: failed to set the read handler\n");
+    return ae::AeEventStatus::aeEventErr;
+  }
   server->AddClient(client);
   return ae::AeEventStatus::aeEventOK;
 }

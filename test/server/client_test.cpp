@@ -48,7 +48,10 @@ void HandleWrite(connection::Connection* conn) {
 
   std::unique_ptr<ConnReadHandler> rhandler =
       std::make_unique<ConnReadHandler>();
-  conn->SetReadHandler(std::move(rhandler));
+  if (!conn->SetReadHandler(std::move(rhandler))) {
+    printf("failed to set read handler\n");
+    return;
+  }
   printf("write handler called\n");
 }
 
@@ -56,9 +59,8 @@ void HandleRead(connection::Connection* conn) {
   printf("read resp from %d\n", conn->Fd());
 
   std::string s;
-  int n = conn->Read(s);
-
-  printf("read %d\n", n);
+  int nread = conn->BatchRead(s);
+  printf("read %d\n", nread);
   printf("receive response: %s\n", s.c_str());
   conn->SetReadHandler(nullptr);
 }
@@ -71,15 +73,16 @@ void Run() {
   const connection::AddressInfo local("localhost", 8081);
   connection::StatusCode r = conn->BindAndConnect(remote, local);
   printf("conn result %d\n", r);
-  if (r == connection::StatusCode::c_err) {
+  if (r == connection::StatusCode::connStatusErr) {
     printf("connection failed\n");
     return;
   }
-
   std::unique_ptr<ConnWriteHandler> handler =
       std::make_unique<ConnWriteHandler>();
-  conn->SetWriteHandler(std::move(handler));
-
+  if (!conn->SetWriteHandler(std::move(handler))) {
+    printf("failed to unset the write handler\n");
+    return;
+  }
   el->AeMain();
 }
 }  // namespace redis_simple

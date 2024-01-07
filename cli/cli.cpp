@@ -80,8 +80,8 @@ CliStatus RedisCli::Connect(const std::string& ip, const int port) {
     local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
   }
   connection::StatusCode st = connection_->BindAndConnect(remote, local);
-  return st == connection::StatusCode::c_err ? CliStatus::cliErr
-                                             : CliStatus::cliOK;
+  return st == connection::StatusCode::connStatusErr ? CliStatus::cliErr
+                                                     : CliStatus::cliOK;
 }
 
 void RedisCli::AddCommand(const std::string& cmd) {
@@ -119,11 +119,19 @@ std::optional<std::string> RedisCli::MaybeGetReply() {
 std::string RedisCli::GetReplyFromConnection() {
   std::vector<std::string> reply;
   if (!query_buf_->Empty()) {
-    if (WriteToConnection(connection_.get(), query_buf_->GetBufInString()) <
-        0) {
+    ssize_t sent =
+        WriteToConnection(connection_.get(), query_buf_->GetBufInString());
+    if (sent < 0) {
       return ErrResp;
     }
-    query_buf_->Clear();
+    /* Clear sent queries. Clear the entire query buffer if all queries have
+     * been sent. */
+    if (sent == query_buf_->NRead()) {
+      query_buf_->Clear();
+    } else {
+      query_buf_->IncrProcessedOffset(sent);
+      query_buf_->TrimProcessedBuffer();
+    }
     const std::string& replies = ReadFromConnection(connection_.get());
     reply_buf_->WriteToBuffer(replies.c_str(), replies.size());
     if (ProcessReply(reply)) {

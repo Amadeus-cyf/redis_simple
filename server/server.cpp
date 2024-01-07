@@ -27,7 +27,7 @@ void Server::Run(const std::string& ip, const int& port) {
   const connection::Context& ctx = {.fd = -1, .event_loop = el_};
   connection::Connection conn(ctx);
   const connection::AddressInfo addrInfo(ip, port);
-  if (conn.BindAndListen(addrInfo) == connection::StatusCode::c_err) {
+  if (conn.BindAndListen(addrInfo) == connection::StatusCode::connStatusErr) {
     return;
   }
   fd_ = conn.Fd();
