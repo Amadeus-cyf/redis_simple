@@ -61,14 +61,14 @@ class Connection {
   void SetPrivateData(std::any private_data) { private_data_ = private_data; }
   std::any PrivateData() { return private_data_; }
   std::any PrivateData() const { return private_data_; }
-  ssize_t Read(const char* buf, size_t readlen);
-  ssize_t Read(const char* buf, size_t readlen) const;
+  ssize_t Read(char* const buf, size_t readlen);
+  ssize_t Read(char* const buf, size_t readlen) const;
   ssize_t Read(std::string& s);
   ssize_t Read(std::string& s) const;
   ssize_t SyncReadline(std::string& s, long timeout);
   ssize_t SyncReadline(std::string& s, long timeout) const;
-  ssize_t SyncRead(const char* buffer, size_t readlen, long timeout);
-  ssize_t SyncRead(const char* buffer, size_t readlen, long timeout) const;
+  ssize_t SyncRead(char* const buffer, size_t readlen, long timeout);
+  ssize_t SyncRead(char* const buffer, size_t readlen, long timeout) const;
   ssize_t SyncRead(std::string& s, long timeout);
   ssize_t SyncRead(std::string& s, long timeout) const;
   ssize_t Write(const char* buffer, size_t len);

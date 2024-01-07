@@ -6,7 +6,9 @@
 namespace redis_simple {
 void Run() {
   cli::RedisCli cli;
-  cli.Connect("localhost", 8080);
+  if (cli.Connect("localhost", 8080) == cli::CliStatus::cliErr) {
+    return;
+  }
 
   const std::string& cmd1 = "ZADD key1 1.0 ele1\r\n";
   const std::string& cmd2 = "ZADD key1 1.0 ele2\r\n";

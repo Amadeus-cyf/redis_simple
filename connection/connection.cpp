@@ -163,12 +163,12 @@ void Connection::UnsetWriteHandler() {
   flags_ &= ~ae::AeFlags::aeWritable;
 }
 
-ssize_t Connection::Read(const char* buffer, size_t readlen) {
+ssize_t Connection::Read(char* const buffer, size_t readlen) {
   return std::as_const(*this).Read(buffer, readlen);
 }
 
-ssize_t Connection::Read(const char* buffer, size_t readlen) const {
-  ssize_t r = read(fd_, (char*)buffer, readlen);
+ssize_t Connection::Read(char* const buffer, size_t readlen) const {
+  ssize_t r = read(fd_, buffer, readlen);
   if (r < 0 && errno != EAGAIN) {
     if (errno != EINTR && state_ == ConnState::connStateConnected) {
       state_ = ConnState::connStateError;
@@ -204,11 +204,11 @@ ssize_t Connection::Read(std::string& s) const {
   return s.size();
 }
 
-ssize_t Connection::SyncRead(const char* buffer, size_t readlen, long timeout) {
+ssize_t Connection::SyncRead(char* const buffer, size_t readlen, long timeout) {
   return std::as_const(*this).SyncRead(buffer, readlen, timeout);
 }
 
-ssize_t Connection::SyncRead(const char* buffer, size_t readlen,
+ssize_t Connection::SyncRead(char* const buffer, size_t readlen,
                              long timeout) const {
   if (ssize_t r = WaitRead(timeout); r <= 0) {
     return r;

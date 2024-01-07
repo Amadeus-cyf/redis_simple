@@ -30,8 +30,7 @@ void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
   }
   ssize_t nread = c->ReadQuery();
   if (nread <= 0) {
-    if (nread == 0 ||
-        conn->State() != connection::ConnState::connStateConnected) {
+    if (conn->State() != connection::ConnState::connStateConnected) {
       printf("client free\n");
       c->Free();
     }
