@@ -72,9 +72,9 @@ class Dict {
   DictType type_;
   /* containing 2 hastables, the second one is used for rehash */
   std::vector<std::vector<DictEntry*>> ht_;
-  /* number of elements in each hashtable*/
+  /* number of elements in each hashtable */
   size_t ht_used_[2];
-  /* exponential used by the 2 hashtable */
+  /* exponential used to calculate the size of the 2 hashtables */
   int ht_size_exp_[2];
   /* the idx that the rehash will start at, -1 if no rehash happened */
   ssize_t rehash_idx_;

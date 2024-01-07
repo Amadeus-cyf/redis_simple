@@ -3,7 +3,6 @@
 #include <any>
 
 #include "server/client.h"
-#include "server/connection/connection.h"
 
 namespace redis_simple {
 namespace networking {

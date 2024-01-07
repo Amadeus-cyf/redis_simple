@@ -14,29 +14,6 @@ namespace tcp {
 namespace {
 static constexpr const int backlog = 3;
 
-static int TCP_Bind(const int socket_fd, const std::string& ip,
-                    const int port) {
-  struct addrinfo hints, *info = nullptr;
-  memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hints, &info) <
-      0) {
-    return TCPStatusCode::tcpError;
-  }
-  int r = TCPStatusCode::tcpError;
-  for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
-    if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
-      continue;
-    }
-    printf("bind success\n");
-    r = TCPStatusCode::tcpOK;
-    break;
-  }
-  freeaddrinfo(info);
-  return r;
-}
-
 static int TCP_SetReuseAddr(int socket_fd) {
   int yes = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
@@ -125,13 +102,13 @@ int TCP_Connect(const std::string& remote_ip, const int remote_port,
       continue;
     }
     if (local_ip.has_value() && local_port.has_value() &&
-        TCP_Bind(socket_fd, local_ip.value(), local_port.value()) ==
-            TCPStatusCode::tcpError) {
+        TCP_Bind(socket_fd, local_ip.value(), local_port.value()) < 0) {
+      perror("bind error");
       close(socket_fd);
       socket_fd = -1;
       continue;
     }
-    if (connect(socket_fd, p->ai_addr, p->ai_addrlen) == -1) {
+    if (connect(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       if (!IsNonBlock(socket_fd) || errno != EINPROGRESS) {
         perror("conn error");
         close(socket_fd);
@@ -167,11 +144,29 @@ int TCP_Accept(const int socket_fd, std::string* const ip, int* const port) {
   return remote_fd;
 }
 
-int TCP_BindAndListen(const int socket_fd, const std::string& ip,
-                      const int port) {
-  if (TCP_Bind(socket_fd, ip, port) < 0) {
+int TCP_Bind(const int socket_fd, const std::string& ip, const int port) {
+  struct addrinfo hints, *info = nullptr;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hints, &info) <
+      0) {
     return TCPStatusCode::tcpError;
   }
+  int r = TCPStatusCode::tcpError;
+  for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
+    if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
+      continue;
+    }
+    printf("bind success\n");
+    r = TCPStatusCode::tcpOK;
+    break;
+  }
+  freeaddrinfo(info);
+  return r;
+}
+
+int TCP_Listen(const int socket_fd, const std::string& ip, const int port) {
   if (listen(socket_fd, backlog) < 0) {
     close(socket_fd);
     return TCPStatusCode::tcpError;

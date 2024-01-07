@@ -45,9 +45,12 @@ void run() {
     return;
   }
   printf("create socket fd %d\n", fd);
-  if (tcp::TCP_BindAndListen(fd, "localhost", 8081) ==
-      tcp::TCPStatusCode::tcpError) {
-    printf("failed to listen to %s:%d", "localhost", 8081);
+  if (tcp::TCP_Bind(fd, "localhost", 8080) == tcp::TCPStatusCode::tcpError) {
+    printf("failed to listen to %s:%d", "localhost", 8080);
+    return;
+  }
+  if (tcp::TCP_Listen(fd, "localhost", 8080) == tcp::TCPStatusCode::tcpError) {
+    printf("failed to listen to %s:%d", "localhost", 8080);
     return;
   }
   int client_data = 10000;

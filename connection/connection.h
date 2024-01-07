@@ -3,10 +3,11 @@
 #include <unistd.h>
 
 #include <any>
+#include <optional>
 #include <string>
 
+#include "connection/conn_handler.h"
 #include "event_loop/ae.h"
-#include "server/conn_handler/conn_handler.h"
 
 namespace redis_simple {
 namespace connection {
@@ -26,17 +27,24 @@ enum class ConnState {
 };
 
 struct Context {
-  std::weak_ptr<ae::AeEventLoop> loop;
+  std::weak_ptr<ae::AeEventLoop> event_loop;
   int fd;
+};
+
+struct AddressInfo {
+  std::string ip;
+  int port;
+  AddressInfo() : ip(""), port(0){};
+  AddressInfo(const std::string& ip, int port) : ip(ip), port(port){};
 };
 
 class Connection {
  public:
   explicit Connection(const Context& ctx);
-  StatusCode Connect(const std::string& remote_ip, int remote_port,
-                     const std::string& local_ip, int local_port);
-  StatusCode Listen(const std::string& ip, int port);
-  StatusCode Accept(std::string* remote_ip, int* remote_port);
+  StatusCode BindAndListen(const AddressInfo& addrInfo);
+  StatusCode BindAndConnect(const AddressInfo& remote,
+                            const std::optional<const AddressInfo>& local);
+  StatusCode Accept(AddressInfo& addrInfo);
   void SetReadHandler(std::unique_ptr<ConnHandler> handler);
   void UnsetReadHandler();
   bool HasReadHandler() { return read_handler_ != nullptr; }
@@ -70,12 +78,14 @@ class Connection {
   ssize_t SyncWrite(const char* buffer, size_t len, long timeout);
   ssize_t SyncWrite(const char* buffer, size_t len, long timeout) const;
   void Close() { close(fd_); }
+  void Close() const { close(fd_); }
   ~Connection() { Close(); }
 
  private:
   /* if this flag is set, then write handler will be called before the read
    * handler */
   static constexpr int connFlagWriteBarrier = 1;
+
   static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
@@ -89,11 +99,17 @@ class Connection {
   int fd_;
   /* flags used to judge connFlagWriteBarrier is set */
   int flags_;
+  /* connection state */
   mutable ConnState state_;
+  /* data used by connetion handlers */
   std::any private_data_;
+  /* event loop */
   std::weak_ptr<ae::AeEventLoop> el_;
+  /* connection read handler */
   std::unique_ptr<ConnHandler> read_handler_;
+  /* connection write handler */
   std::unique_ptr<ConnHandler> write_handler_;
+  /* connection accepted handler */
   std::unique_ptr<ConnHandler> accept_handler_;
 };
 }  // namespace connection

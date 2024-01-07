@@ -11,11 +11,12 @@
 namespace redis_simple {
 namespace cli {
 namespace {
-static std::string ReadFromSocket(int fd) {
+static std::string ReadFromConnection(
+    const connection::Connection* connection) {
   std::string reply;
   ssize_t nread = 0;
   char buf[4096];
-  while ((nread = read(fd, buf, 4096)) != EOF) {
+  while ((nread = connection->SyncRead(buf, 4096, 1000)) != EOF) {
     if (nread == 0) {
       break;
     }
@@ -29,11 +30,13 @@ static std::string ReadFromSocket(int fd) {
   return reply;
 }
 
-static ssize_t WriteToSocket(int fd, const std::string& cmds) {
+static ssize_t WriteToConnection(const connection::Connection* connection,
+                                 const std::string& cmds) {
   ssize_t nwritten = 0;
   int nwrite = 0;
   printf("client write %s\n", cmds.c_str());
-  while ((nwrite = write(fd, cmds.c_str(), cmds.size())) < cmds.size()) {
+  while ((nwrite = connection->SyncWrite(cmds.c_str(), cmds.size(), 1000)) <
+         cmds.size()) {
     if (nwrite < 0) {
       break;
     }
@@ -55,15 +58,30 @@ const std::string& RedisCli::ErrResp = "error";
 const std::string& RedisCli::NoReplyResp = "no_reply";
 
 RedisCli::RedisCli()
-    : query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
+    : el_(ae::AeEventLoop::InitEventLoop()),
+      ip_(std::nullopt),
+      port_(std::nullopt),
+      query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
+      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
+
+RedisCli::RedisCli(const std::string& ip, const int port)
+    : el_(ae::AeEventLoop::InitEventLoop()),
+      ip_(ip),
+      port_(port),
+      query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
       reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
 
 CliStatus RedisCli::Connect(const std::string& ip, const int port) {
-  socket_fd_ = tcp::TCP_Connect(ip, port, false, ip_, port_);
-  if (socket_fd_ < 0) {
-    return CliStatus::cliErr;
+  const connection::Context& ctx = {.fd = -1, .event_loop = el_};
+  connection_ = std::make_unique<connection::Connection>(ctx);
+  const connection::AddressInfo remote(ip, port);
+  std::optional<const connection::AddressInfo> local = std::nullopt;
+  if (ip_.has_value() && port_.has_value()) {
+    local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
   }
-  return CliStatus::cliOK;
+  connection::StatusCode st = connection_->BindAndConnect(remote, local);
+  return st == connection::StatusCode::c_err ? CliStatus::cliErr
+                                             : CliStatus::cliOK;
 }
 
 void RedisCli::AddCommand(const std::string& cmd) {
@@ -72,7 +90,7 @@ void RedisCli::AddCommand(const std::string& cmd) {
 
 std::string RedisCli::GetReply() {
   const std::optional<std::string>& opt = MaybeGetReply();
-  return opt.has_value() ? opt.value() : GetReplyFromSocket();
+  return opt.has_value() ? opt.value() : GetReplyFromConnection();
 }
 
 CompletableFuture<std::string> RedisCli::GetReplyAsync() {
@@ -98,14 +116,15 @@ std::optional<std::string> RedisCli::MaybeGetReply() {
   return std::nullopt;
 }
 
-std::string RedisCli::GetReplyFromSocket() {
+std::string RedisCli::GetReplyFromConnection() {
   std::vector<std::string> reply;
   if (!query_buf_->Empty()) {
-    if (WriteToSocket(socket_fd_, query_buf_->GetBufInString()) < 0) {
+    if (WriteToConnection(connection_.get(), query_buf_->GetBufInString()) <
+        0) {
       return ErrResp;
     }
     query_buf_->Clear();
-    const std::string& replies = ReadFromSocket(socket_fd_);
+    const std::string& replies = ReadFromConnection(connection_.get());
     reply_buf_->WriteToBuffer(replies.c_str(), replies.size());
     if (ProcessReply(reply)) {
       return ReplyListToString(reply);

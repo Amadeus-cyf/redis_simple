@@ -13,22 +13,43 @@ namespace redis_simple {
 namespace connection {
 Connection::Connection(const Context& ctx)
     : fd_(ctx.fd),
-      el_(ctx.loop),
+      el_(ctx.event_loop),
       state_(ConnState::connStateConnect),
       read_handler_(nullptr),
       write_handler_(nullptr),
       accept_handler_(nullptr) {}
 
-StatusCode Connection::Connect(const std::string& remote_ip, int remote_port,
-                               const std::string& local_ip, int local_port) {
+StatusCode Connection::BindAndListen(const AddressInfo& addrInfo) {
+  int s = tcp::TCP_CreateSocket(AF_INET, true);
+  if (s < 0) {
+    printf("create socket failed\n");
+    return StatusCode::c_err;
+  }
+  if (tcp::TCP_Bind(s, addrInfo.ip, addrInfo.port) ==
+      tcp::TCPStatusCode::tcpError) {
+    return StatusCode::c_err;
+  }
+  if (tcp::TCP_Listen(s, addrInfo.ip, addrInfo.port) ==
+      tcp::TCPStatusCode::tcpError) {
+    return StatusCode::c_err;
+  }
+  fd_ = s;
+  return StatusCode::c_ok;
+}
+
+StatusCode Connection::BindAndConnect(
+    const AddressInfo& remote, const std::optional<const AddressInfo>& local) {
   if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
     if (!eventLoop) {
       return StatusCode::c_err;
     }
-    std::optional<std::string> opt_ip =
-        std::make_optional<std::string>(local_ip);
-    std::optional<int> opt_port = std::make_optional<int>(local_port);
-    int s = tcp::TCP_Connect(remote_ip, remote_port, true, opt_ip, opt_port);
+    const std::optional<std::string>& opt_ip =
+        local.has_value() ? std::make_optional<std::string>(local.value().ip)
+                          : std::nullopt;
+    const std::optional<int>& opt_port =
+        local.has_value() ? std::make_optional<int>(local.value().port)
+                          : std::nullopt;
+    int s = tcp::TCP_Connect(remote.ip, remote.port, true, opt_ip, opt_port);
     if (s == -1) {
       return StatusCode::c_err;
     }
@@ -47,25 +68,12 @@ StatusCode Connection::Connect(const std::string& remote_ip, int remote_port,
   return StatusCode::c_ok;
 }
 
-StatusCode Connection::Listen(const std::string& ip, int port) {
-  int s = tcp::TCP_CreateSocket(AF_INET, true);
-  if (s < 0) {
-    printf("create socket failed\n");
-    return StatusCode::c_err;
-  }
-  if (tcp::TCP_BindAndListen(s, ip, port) == tcp::TCPStatusCode::tcpError) {
-    return StatusCode::c_err;
-  }
-  fd_ = s;
-  return StatusCode::c_ok;
-}
-
-StatusCode Connection::Accept(std::string* remote_ip, int* remote_port) {
+StatusCode Connection::Accept(AddressInfo& addrInfo) {
   if (fd_ < 0) {
     printf("socket not created\n");
     return StatusCode::c_err;
   }
-  int s = tcp::TCP_Accept(fd_, remote_ip, remote_port);
+  int s = tcp::TCP_Accept(fd_, &(addrInfo.ip), &(addrInfo.port));
   if (s < 0) {
     return StatusCode::c_err;
   }
@@ -85,6 +93,10 @@ void Connection::SetReadHandler(std::unique_ptr<ConnHandler> rHandler) {
   if (!rHandler) {
     UnsetReadHandler();
   } else if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
+    if (!eventLoop) {
+      printf("no event loop\n");
+      return;
+    }
     ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::Create(
         ConnSocketEventHandler, nullptr, this, ae::AeFlags::aeReadable);
     eventLoop->AeCreateFileEvent(fd_, e);
@@ -97,6 +109,10 @@ void Connection::SetReadHandler(std::unique_ptr<ConnHandler> rHandler) {
 
 void Connection::UnsetReadHandler() {
   if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
+    if (!eventLoop) {
+      printf("no event loop\n");
+      return;
+    }
     read_handler_ = nullptr;
     eventLoop->AeDeleteFileEvent(fd_, ae::AeFlags::aeReadable);
     flags_ &= ~ae::AeFlags::aeReadable;
@@ -118,6 +134,10 @@ void Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
     ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::Create(
         nullptr, ConnSocketEventHandler, this, ae::AeFlags::aeWritable);
     if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
+      if (!eventLoop) {
+        printf("no event loop\n");
+        return;
+      }
       eventLoop->AeCreateFileEvent(fd_, e);
     } else {
       printf("event loop expired\n");
@@ -130,6 +150,10 @@ void Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
 
 void Connection::UnsetWriteHandler() {
   if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
+    if (!eventLoop) {
+      printf("no event loop\n");
+      return;
+    }
     eventLoop->AeDeleteFileEvent(fd_, ae::AeFlags::aeWritable);
   } else {
     printf("event loop expired\n");
@@ -251,6 +275,7 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len, long timeout) {
 ssize_t Connection::SyncWrite(const char* buffer, size_t len,
                               long timeout) const {
   if (ssize_t r = WaitWrite(timeout); r <= 0) {
+    printf("wait failed\n");
     return r;
   }
   return Write(buffer, len);
@@ -316,19 +341,23 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
 }
 
 ssize_t Connection::Wait(ae::AeFlags flag, long timeout) const {
+  int r = -1;
   if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
-    int r = eventLoop->AeWait(fd_, flag, timeout);
+    if (!eventLoop) {
+      printf("no event loop\n");
+      return -1;
+    }
+    r = eventLoop->AeWait(fd_, flag, timeout);
     if (r < 0) {
       printf("conn sync %s failed for connection %d\n",
              flag == ae::AeFlags::aeReadable ? "read" : "write", fd_);
     } else if (r == 0) {
       printf("aeWait timeout\n");
-      return 0;
     }
   } else {
     printf("event loop expired\n");
   }
-  return -1;
+  return r;
 }
 }  // namespace connection
 }  // namespace redis_simple

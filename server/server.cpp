@@ -12,9 +12,8 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
-std::shared_ptr<ae::AeEventLoop> Server::el_(ae::AeEventLoop::InitEventLoop());
-
-Server::Server() : db_(db::RedisDb::Init()) {}
+Server::Server()
+    : db_(db::RedisDb::Init()), el_(ae::AeEventLoop::InitEventLoop()) {}
 
 Server* Server::Get() {
   static std::unique_ptr<Server> server;
@@ -25,9 +24,10 @@ Server* Server::Get() {
 }
 
 void Server::Run(const std::string& ip, const int& port) {
-  const connection::Context& ctx = {.fd = -1, .loop = el_};
+  const connection::Context& ctx = {.fd = -1, .event_loop = el_};
   connection::Connection conn(ctx);
-  if (conn.Listen(ip, port) == connection::StatusCode::c_err) {
+  const connection::AddressInfo addrInfo(ip, port);
+  if (conn.BindAndListen(addrInfo) == connection::StatusCode::c_err) {
     return;
   }
   fd_ = conn.Fd();

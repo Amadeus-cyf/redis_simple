@@ -6,7 +6,7 @@
 #include <string>
 
 #include "completable_future.h"
-#include "event_loop/ae.h"
+#include "connection/connection.h"
 #include "memory/dynamic_buffer.h"
 
 namespace redis_simple {
@@ -19,21 +19,22 @@ enum CliStatus {
 class RedisCli {
  public:
   RedisCli();
-  RedisCli(const std::string& ip, const int port) : ip_(ip), port_(port){};
+  RedisCli(const std::string& ip, const int port);
   CliStatus Connect(const std::string& ip, const int port);
   void AddCommand(const std::string& cmd);
   std::string GetReply();
   CompletableFuture<std::string> GetReplyAsync();
-  ~RedisCli() { close(socket_fd_); }
+  ~RedisCli() = default;
 
  private:
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
   std::string GetReplyAsyncCallback();
   std::optional<std::string> MaybeGetReply();
-  std::string GetReplyFromSocket();
+  std::string GetReplyFromConnection();
   bool ProcessReply(std::vector<std::string>& reply);
-  int socket_fd_;
+  std::shared_ptr<ae::AeEventLoop> el_;
+  std::unique_ptr<connection::Connection> connection_;
   std::optional<std::string> ip_;
   std::optional<int> port_;
   std::unique_ptr<in_memory::DynamicBuffer> query_buf_;

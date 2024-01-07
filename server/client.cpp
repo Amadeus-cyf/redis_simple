@@ -15,7 +15,7 @@ static std::string GetCmdName(const std::vector<std::string>& args) {
 }  // namespace
 
 Client::Client(connection::Connection* connection)
-    : conn_(connection),
+    : connection_(connection),
       db_(Server::Get()->DB()),
       cmd_(),
       buf_(std::make_unique<in_memory::ReplyBuffer>()),
@@ -24,7 +24,7 @@ Client::Client(connection::Connection* connection)
 ssize_t Client::ReadQuery() {
   char buf[4096];
   memset(buf, 0, sizeof buf);
-  ssize_t nread = conn_->Read(buf, 4096);
+  ssize_t nread = connection_->Read(buf, 4096);
   printf("nread %zd, buf %s end\n", nread, buf);
   if (nread <= 0) {
     return nread;
@@ -41,7 +41,7 @@ ssize_t Client::SendBufferReply() {
   printf("_sendReply %s %zu\n", buf_->UnsentBuffer(),
          buf_->UnsentBufferLength());
   ssize_t nwritten =
-      conn_->Write(buf_->UnsentBuffer(), buf_->UnsentBufferLength());
+      connection_->Write(buf_->UnsentBuffer(), buf_->UnsentBufferLength());
   if (nwritten < 0) {
     return -1;
   }
@@ -52,7 +52,7 @@ ssize_t Client::SendBufferReply() {
 ssize_t Client::SendListReply() {
   printf("_sendvReply\n");
   const std::vector<std::pair<char*, size_t>>& memToWrite = buf_->Memvec();
-  ssize_t nwritten = conn_->Writev(memToWrite);
+  ssize_t nwritten = connection_->Writev(memToWrite);
   if (nwritten < 0) {
     return -1;
   }

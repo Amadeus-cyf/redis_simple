@@ -1,10 +1,12 @@
+#include <vector>
+
 #include "cli/cli.h"
 #include "cli/completable_future.h"
 
 namespace redis_simple {
 void Run() {
   cli::RedisCli cli;
-  cli.Connect("localhost", 8081);
+  cli.Connect("localhost", 8080);
 
   const std::string& cmd1 = "SET key val 1000\r\n";
   const std::string& cmd2 = "GET key\r\n";

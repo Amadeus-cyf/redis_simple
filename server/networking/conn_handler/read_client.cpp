@@ -3,6 +3,8 @@
 #include <any>
 
 #include "server/client.h"
+#include "server/networking/conn_handler/conn_handler.h"
+#include "server/networking/networking.h"
 
 namespace redis_simple {
 namespace networking {
@@ -40,7 +42,7 @@ void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
   }
   if (c->HasPendingReplies() && !c->Connection()->HasWriteHandler()) {
     printf("client has pending replies, install write handler\n");
-    c->Connection()->SetWriteHandler(connection::ConnHandler::Create(
+    c->Connection()->SetWriteHandler(networking::CreateConnHandler(
         connection::ConnHandlerType::writeReplyToClient));
   }
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "server/conn_handler/conn_handler.h"
+#include "connection/conn_handler.h"
 
 namespace redis_simple {
 namespace networking {

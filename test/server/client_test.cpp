@@ -3,9 +3,9 @@
 
 #include <string>
 
+#include "connection/conn_handler.h"
+#include "connection/connection.h"
 #include "event_loop/ae.h"
-#include "server/conn_handler/conn_handler.h"
-#include "server/connection/connection.h"
 #include "server/networking/networking.h"
 #include "server/networking/redis_cmd.h"
 
@@ -37,7 +37,7 @@ void HandleWrite(connection::Connection* conn) {
   const networking::RedisCommand& delCmd =
       networking::RedisCommand("DEL", {"key"});
 
-  networking::SendCommand(conn, &setCmd);
+  bool r = networking::SendCommand(conn, &setCmd);
   networking::SendCommand(conn, &getCmd);
   networking::SendCommand(conn, &delCmd);
   networking::SendCommand(conn, &delCmd);
@@ -66,9 +66,10 @@ void HandleRead(connection::Connection* conn) {
 void Run() {
   std::shared_ptr<ae::AeEventLoop> el(ae::AeEventLoop::InitEventLoop());
   connection::Connection* conn =
-      new connection::Connection({.fd = -1, .loop = el});
-  connection::StatusCode r =
-      conn->Connect("localhost", 8081, "localhost", 8080);
+      new connection::Connection({.fd = -1, .event_loop = el});
+  const connection::AddressInfo remote("localhost", 8080);
+  const connection::AddressInfo local("localhost", 8081);
+  connection::StatusCode r = conn->BindAndConnect(remote, local);
   printf("conn result %d\n", r);
   if (r == connection::StatusCode::c_err) {
     printf("connection failed\n");

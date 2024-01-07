@@ -2,10 +2,10 @@
 
 #include <string>
 
+#include "connection/connection.h"
 #include "memory/dynamic_buffer.h"
 #include "memory/reply_buffer.h"
 #include "server/commands/command.h"
-#include "server/connection/connection.h"
 #include "server/db/db.h"
 #include "server/networking/networking.h"
 
@@ -21,7 +21,7 @@ class Client {
     return new Client(connection);
   }
   int Flags() { return flags; }
-  connection::Connection* Connection() { return conn_.get(); }
+  connection::Connection* Connection() { return connection_.get(); }
   std::weak_ptr<const db::RedisDb> DB() { return db_; }
   ssize_t ReadQuery();
   ssize_t SendReply();
@@ -30,8 +30,8 @@ class Client {
   }
   bool HasPendingReplies() { return !(buf_->Empty()); }
   ClientStatus ProcessInputBuffer();
-  void Free() { conn_->Close(); }
-  void Free() const { conn_->Close(); }
+  void Free() { connection_->Close(); }
+  void Free() const { connection_->Close(); }
   const std::vector<std::string>& CmdArgs() { return args_; }
 
  private:
@@ -50,7 +50,7 @@ class Client {
   /* current command args*/
   std::vector<std::string> args_;
   /* connection */
-  std::unique_ptr<connection::Connection> conn_;
+  std::unique_ptr<connection::Connection> connection_;
   /* in memory buffer used to store incoming query */
   std::unique_ptr<in_memory::DynamicBuffer> query_buf_;
   /* in memory buffer used to store reply of command */

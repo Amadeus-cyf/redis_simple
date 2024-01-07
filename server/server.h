@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
+#include "connection/connection.h"
 #include "event_loop/ae.h"
 #include "server/client.h"
-#include "server/connection/connection.h"
 
 namespace redis_simple {
 class Server {
@@ -26,7 +26,7 @@ class Server {
   int ServerCron(long long id, std::any clientData);
   int fd_;
   int flags_;
-  static std::shared_ptr<ae::AeEventLoop> el_;
+  std::shared_ptr<ae::AeEventLoop> el_;
   std::vector<Client*> clients_;
   std::shared_ptr<db::RedisDb> db_;
 };

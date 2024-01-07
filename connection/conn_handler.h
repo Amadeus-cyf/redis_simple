@@ -13,7 +13,6 @@ enum class ConnHandlerType {
 
 class ConnHandler {
  public:
-  static std::unique_ptr<ConnHandler> Create(const ConnHandlerType flag);
   virtual void Handle(Connection* conn) = 0;
   virtual ~ConnHandler() = default;
 };
