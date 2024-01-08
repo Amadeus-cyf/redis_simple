@@ -14,6 +14,36 @@
 
 namespace redis_simple {
 namespace ae {
+int AeWait(int fd, int mask, long timeout) {
+  int nfds = 1;
+  struct pollfd pfds[1];
+  pfds[0].fd = fd;
+  if (mask & AeFlags::aeReadable) {
+    pfds[0].events |= POLLIN;
+  }
+  if (mask & AeFlags::aeWritable) {
+    pfds[0].events |= POLLOUT;
+  }
+  int r = poll(pfds, nfds, timeout);
+  if (r < 0) {
+    perror("Poll Error: ");
+    return r;
+  }
+  if (r == 0) {
+    /* the file descriptor is not readable/writeable */
+    return r;
+  }
+  int retmask = 0;
+  if (pfds[0].revents & POLL_IN) {
+    retmask |= AeFlags::aeReadable;
+  }
+  if ((pfds[0].revents & POLL_OUT) || (pfds[0].revents & POLL_HUP) ||
+      (pfds[0].revents & POLL_ERR)) {
+    retmask |= AeFlags::aeWritable;
+  }
+  return retmask;
+}
+
 AeEventLoop::AeEventLoop(AeKqueue* kq)
     : file_events_(std::vector<AeFileEvent*>(eventSize)),
       ae_api_state_(kq),
@@ -30,22 +60,6 @@ void AeEventLoop::AeMain() {
   }
 }
 
-int AeEventLoop::AeWait(int fd, int mask, long timeout) {
-  int nfds = 1;
-  struct pollfd pfds[1];
-  pfds[0].fd = fd;
-  if (mask & AeFlags::aeReadable) {
-    pfds[0].events = POLLIN;
-  } else if (mask & AeFlags::aeWritable) {
-    pfds[0].events = POLLOUT;
-  }
-  int r = poll(pfds, nfds, timeout);
-  if (r < 0) {
-    perror("Poll Error: ");
-  }
-  return r;
-}
-
 AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
   printf("create events for fd = %d, mask = %d\n", fd, fe->GetMask());
   if (fe == nullptr) {
@@ -55,7 +69,7 @@ AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
     printf("file descriptor out of range");
     return aeErr;
   }
-  if (int r = ae_api_state_->AeApiAddEvent(fd, fe->GetMask()); r < 0) {
+  if (ae_api_state_->AeApiAddEvent(fd, fe->GetMask()) < 0) {
     /* free the event if failed to add */
     delete fe;
     return aeErr;

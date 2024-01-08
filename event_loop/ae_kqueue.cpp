@@ -65,14 +65,14 @@ int AeKqueue::AeApiDelEvent(int fd, int mask) const {
 std::unordered_map<int, int> AeKqueue::AeApiPoll(struct timespec* tspec) const {
   struct kevent events[nevents_];
   std::unordered_map<int, int> fdToMaskMap;
-  int num_events = kevent(kqueue_fd_, nullptr, 0, events, nevents_, tspec);
-  if (num_events < 0) {
+  int numevents = kevent(kqueue_fd_, nullptr, 0, events, nevents_, tspec);
+  if (numevents < 0) {
     perror("Error: ");
     printf("Errno %d\n", errno);
     return fdToMaskMap;
   }
-  printf("kqueue: poll %d fds from kqueue\n", num_events);
-  for (int i = 0; i < num_events; i++) {
+  printf("kqueue: poll %d fds from kqueue\n", numevents);
+  for (int i = 0; i < numevents; i++) {
     if (events[i].filter == EVFILT_READ) {
       printf("kqueue: poll read\n");
       fdToMaskMap[events[i].ident] |= AeFlags::aeReadable;

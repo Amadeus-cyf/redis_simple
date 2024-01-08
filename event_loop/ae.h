@@ -26,11 +26,17 @@ enum class AeEventStatus {
   aeEventErr = -1,
 };
 
+/*
+ * Wait for milliseconds until the given file descriptor is
+ * readable/writable/exception. Return the mask indicating if the given file
+ * descriptor is readable/writeable. Used for sync read/write in Connection.
+ */
+int AeWait(int fd, int mask, long timeout);
+
+/* Event loop */
 class AeEventLoop {
  public:
   static AeEventLoop* InitEventLoop();
-  /* used for sync read/write. Timeout is in milliseconds */
-  static int AeWait(int fd, int mask, long timeout);
   void AeMain();
   AeStatus AeCreateFileEvent(int fd, AeFileEvent* fe);
   AeStatus AeDeleteFileEvent(int fd, int mask);

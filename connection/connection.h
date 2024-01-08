@@ -44,7 +44,8 @@ class Connection {
   StatusCode BindAndConnect(const AddressInfo& remote,
                             const std::optional<const AddressInfo>& local);
   StatusCode BindAndBlockingConnect(
-      const AddressInfo& remote, const std::optional<const AddressInfo>& local);
+      const AddressInfo& remote, const std::optional<const AddressInfo>& local,
+      long timeout);
   StatusCode BindAndListen(const AddressInfo& addrInfo);
   StatusCode Accept(AddressInfo* const addrInfo);
   bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
@@ -107,13 +108,13 @@ class Connection {
   static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
                                                   Connection* client_data,
                                                   int mask);
-  ssize_t WaitRead(long timeout) const {
+  int WaitRead(long timeout) const {
     return Wait(ae::AeFlags::aeReadable, timeout);
   }
-  ssize_t WaitWrite(long timeout) const {
+  int WaitWrite(long timeout) const {
     return Wait(ae::AeFlags::aeWritable, timeout);
   }
-  ssize_t Wait(ae::AeFlags flag, long timeout) const;
+  int Wait(ae::AeFlags flag, long timeout) const;
   int fd_;
   /* flags used to judge connFlagWriteBarrier is set */
   int flags_;

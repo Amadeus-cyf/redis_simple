@@ -78,7 +78,7 @@ CliStatus RedisCli::Connect(const std::string& ip, const int port) {
     local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
   }
   connection::StatusCode st =
-      connection_->BindAndBlockingConnect(remote, local);
+      connection_->BindAndBlockingConnect(remote, local, 1000);
   return st == connection::StatusCode::connStatusErr ? CliStatus::cliErr
                                                      : CliStatus::cliOK;
 }

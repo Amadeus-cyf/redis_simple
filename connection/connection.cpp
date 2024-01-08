@@ -57,13 +57,14 @@ StatusCode Connection::BindAndConnect(
 }
 
 StatusCode Connection::BindAndBlockingConnect(
-    const AddressInfo& remote, const std::optional<const AddressInfo>& local) {
+    const AddressInfo& remote, const std::optional<const AddressInfo>& local,
+    long timeout) {
   int fd = TCPBindAndConnect(remote, local);
   if (fd < 0) {
     return StatusCode::connStatusErr;
   }
   fd_ = fd;
-  if (WaitWrite(1000) <= 0) {
+  if (WaitWrite(timeout) <= 0) {
     printf("wait failed\n");
     fd_ = -1;
     return StatusCode::connStatusErr;
@@ -263,21 +264,21 @@ ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
   } else if (r < 0 && errno != EAGAIN) {
     return -1;
   }
-  if (ssize_t r = WaitRead(timeout); r <= 0) {
+  if (WaitRead(timeout) < 0) {
     return -1;
   }
   return Read(buffer, readlen);
 }
 
 ssize_t Connection::SyncBatchRead(std::string& s, long timeout) const {
-  if (ssize_t r = WaitRead(timeout); r <= 0) {
+  if (WaitRead(timeout) < 0) {
     return -1;
   }
   return BatchRead(s);
 }
 
 ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
-  if (ssize_t r = WaitRead(timeout); r <= 0) {
+  if (WaitRead(timeout) < 0) {
     return -1;
   }
   ssize_t r = 0;
@@ -325,7 +326,7 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len,
   if (len == 0) {
     return r;
   }
-  if (ssize_t r = WaitWrite(timeout); r <= 0) {
+  if (WaitWrite(timeout) < 0) {
     printf("wait failed\n");
     return -1;
   }
@@ -388,14 +389,15 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
   return ae::AeEventStatus::aeEventOK;
 }
 
-ssize_t Connection::Wait(ae::AeFlags flag, long timeout) const {
-  int r = ae::AeEventLoop::AeWait(fd_, flag, timeout);
+int Connection::Wait(ae::AeFlags flag, long timeout) const {
+  int r = ae::AeWait(fd_, flag, timeout);
   if (r < 0) {
     printf("conn sync %s failed for connection %d\n",
            flag == ae::AeFlags::aeReadable ? "read" : "write", fd_);
     return -1;
   } else if (r == 0) {
     printf("aeWait timeout\n");
+    return -1;
   }
   return r;
 }
