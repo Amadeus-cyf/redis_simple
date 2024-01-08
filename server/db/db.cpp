@@ -45,7 +45,8 @@ RedisDb::RedisDb() : expire_cursor_(0) {
 }
 
 const RedisObj* RedisDb::LookupKey(const std::string& key) const {
-  in_memory::Dict<std::string, RedisObj*>::DictEntry* de = dict_->Find(key);
+  const in_memory::Dict<std::string, RedisObj*>::DictEntry* de =
+      dict_->Find(key);
   if (!de) return nullptr;
   const RedisObj* val = de->val;
   if (IsKeyExpired(key)) {

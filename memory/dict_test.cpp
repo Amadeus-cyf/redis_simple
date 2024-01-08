@@ -68,6 +68,25 @@ TEST_F(DictStrTest, Unlink) {
   ASSERT_EQ(dict_str->Size(), 0);
 }
 
+TEST_F(DictStrTest, AddOrFind) {
+  bool status = dict_str->Add("key", "val");
+  ASSERT_TRUE(status);
+  ASSERT_EQ(dict_str->Size(), 1);
+
+  /* call the method with an existing key */
+  const Dict<std::string, std::string>::DictEntry* entry1 =
+      dict_str->AddOrFind("key");
+  ASSERT_EQ(entry1->key, "key");
+  ASSERT_EQ(entry1->val, "val");
+
+  /* call the method with a new key */
+  const Dict<std::string, std::string>::DictEntry* entry2 =
+      dict_str->AddOrFind("key1");
+  ASSERT_EQ(dict_str->Size(), 2);
+  ASSERT_EQ(entry2->key, "key1");
+  ASSERT_EQ(entry2->val.size(), 0);
+}
+
 class DictIntTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { dict_int = Dict<int, int>::Init(); }
@@ -92,6 +111,20 @@ TEST_F(DictIntTest, BatchInsert) {
   const Dict<int, int>::DictEntry* entry = dict_int->Find(96);
   ASSERT_TRUE(entry);
   ASSERT_EQ(entry->val, 96);
+}
+
+TEST_F(DictIntTest, AddOrFind) {
+  /* call the method with an existing key */
+  const Dict<int, int>::DictEntry* entry1 = dict_int->AddOrFind(99);
+  ASSERT_EQ(dict_int->Size(), 100);
+  ASSERT_EQ(entry1->key, 99);
+  ASSERT_EQ(entry1->val, 99);
+
+  /* call the method with a new key */
+  const Dict<int, int>::DictEntry* entry2 = dict_int->AddOrFind(100);
+  ASSERT_EQ(dict_int->Size(), 101);
+  ASSERT_EQ(entry2->key, 100);
+  ASSERT_EQ(entry2->val, 0);
 }
 
 TEST_F(DictIntTest, Clear) {

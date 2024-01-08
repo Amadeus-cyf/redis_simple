@@ -490,15 +490,14 @@ bool Skiplist<Key, Comparator, Destructor>::Update(const Key& key,
     /* key not found */
     return false;
   }
-
   const SkiplistNode* next = n->Next(0);
   if ((prev[0] == head_ || Gte(new_key, prev[0]->key)) &&
       (!next || Lte(new_key, next->key))) {
     /* if in the key's position is not changed, update the key directly */
     SkiplistNode* next = prev[0]->Next(0);
-    next->key = new_key;
     /* delete the old key */
-    dtr_(key);
+    dtr_(next->key);
+    next->key = new_key;
   } else {
     /* otherwise, delete the original node and insert a new one */
     DeleteNode(key, prev);

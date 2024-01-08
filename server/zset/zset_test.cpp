@@ -53,9 +53,15 @@ TEST_F(ZSetTest, GetRankOfKey) {
 }
 
 TEST_F(ZSetTest, Update) {
+  /* update score with no change in rank */
+  zset->AddOrUpdate("key1", 10.0);
+  ASSERT_EQ(zset->Size(), 4);
+  int r0 = zset->GetRankOfKey("key1");
+  ASSERT_EQ(r0, 3);
+
+  /* update score with change in rank */
   zset->AddOrUpdate("key1", 1.0);
   ASSERT_EQ(zset->Size(), 4);
-
   zset->AddOrUpdate("key3", 4.0);
   ASSERT_EQ(zset->Size(), 4);
 
