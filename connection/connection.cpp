@@ -25,13 +25,12 @@ StatusCode Connection::BindAndConnect(
     if (!eventLoop) {
       return StatusCode::connStatusErr;
     }
-    const std::optional<std::string>& opt_ip =
-        local.has_value() ? std::make_optional<std::string>(local.value().ip)
+    const tcp::TCPAddrInfo remote_addr(remote.ip, remote.port);
+    const std::optional<const tcp::TCPAddrInfo>& local_addr =
+        local.has_value() ? std::make_optional<tcp::TCPAddrInfo>(
+                                local.value().ip, local.value().port)
                           : std::nullopt;
-    const std::optional<int>& opt_port =
-        local.has_value() ? std::make_optional<int>(local.value().port)
-                          : std::nullopt;
-    int s = tcp::TCP_Connect(remote.ip, remote.port, true, opt_ip, opt_port);
+    int s = tcp::TCP_Connect(remote_addr, local_addr, true);
     if (s == -1) {
       return StatusCode::connStatusErr;
     }
@@ -56,30 +55,29 @@ StatusCode Connection::BindAndListen(const AddressInfo& addrInfo) {
     printf("create socket failed\n");
     return StatusCode::connStatusErr;
   }
-  if (tcp::TCP_Bind(s, addrInfo.ip, addrInfo.port) ==
-      tcp::TCPStatusCode::tcpError) {
+  const tcp::TCPAddrInfo tcp_addr(addrInfo.ip, addrInfo.port);
+  if (tcp::TCP_Bind(s, tcp_addr) == tcp::TCPStatusCode::tcpError) {
     return StatusCode::connStatusErr;
   }
-  if (tcp::TCP_Listen(s, addrInfo.ip, addrInfo.port) ==
-      tcp::TCPStatusCode::tcpError) {
+  if (tcp::TCP_Listen(s) == tcp::TCPStatusCode::tcpError) {
     return StatusCode::connStatusErr;
   }
   fd_ = s;
   return StatusCode::connStatusOK;
 }
 
-StatusCode Connection::Accept(AddressInfo& addrInfo) {
-  if (fd_ < 0) {
-    printf("socket not created\n");
+StatusCode Connection::Accept(AddressInfo* const addrInfo) {
+  if (fd_ < 0 || state_ != ConnState::connStateAccepting) {
     return StatusCode::connStatusErr;
   }
-  int s = tcp::TCP_Accept(fd_, &(addrInfo.ip), &(addrInfo.port));
+  tcp::TCPAddrInfo tcp_addr;
+  int s = tcp::TCP_Accept(fd_, &tcp_addr);
   if (s < 0) {
     return StatusCode::connStatusErr;
   }
-  if (state_ != ConnState::connStateAccepting) {
-    return StatusCode::connStatusErr;
-  }
+  addrInfo->ip = tcp_addr.ip;
+  addrInfo->port = tcp_addr.port;
+  printf("accept %s %d\n", addrInfo->ip.c_str(), addrInfo->port);
   state_ = ConnState::connStateConnected;
   fd_ = s;
   if (accept_handler_) {

@@ -38,7 +38,7 @@ static int ParseLimitOffsetAndCount(
 static bool IsReverse(const std::vector<std::string>& args);
 static const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                        const std::string& key);
-static std::optional<std::string> Encode(
+static std::optional<const std::string> Encode(
     const std::vector<const zset::ZSet::ZSetEntry*>& result);
 
 static bool FlaggedByScore(const std::vector<std::string>& args) {
@@ -230,7 +230,7 @@ static const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
   return obj;
 }
 
-static std::optional<std::string> Encode(
+static std::optional<const std::string> Encode(
     const std::vector<const zset::ZSet::ZSetEntry*>& result) {
   std::vector<std::string> array;
   for (const zset::ZSet::ZSetEntry* entry : result) {
@@ -238,7 +238,7 @@ static std::optional<std::string> Encode(
   }
   try {
     const std::string& reply = reply::FromArray(array);
-    return std::optional<std::string>(reply);
+    return std::optional<const std::string>(reply);
   } catch (const std::exception& e) {
     printf("catch exception while encoding the array %s", e.what());
     return std::nullopt;
@@ -258,7 +258,7 @@ void ZRangeCommand::Exec(Client* const client) const {
   if (r < 0) {
     client->AddReply(reply::FromInt64(reply::replyErr));
   }
-  const std::optional<std::string>& reply = Encode(result);
+  const std::optional<const std::string>& reply = Encode(result);
   if (reply.has_value()) {
     client->AddReply(reply.value());
   } else {

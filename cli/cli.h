@@ -30,7 +30,7 @@ class RedisCli {
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
   std::string GetReplyAsyncCallback();
-  std::optional<std::string> MaybeGetReply();
+  std::optional<const std::string> MaybeGetReply();
   std::string GetReplyFromConnection();
   bool ProcessReply(std::vector<std::string>& reply);
   std::shared_ptr<ae::AeEventLoop> el_;

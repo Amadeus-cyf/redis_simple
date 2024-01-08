@@ -33,14 +33,13 @@ static std::string ReadFromConnection(
 static ssize_t WriteToConnection(const connection::Connection* connection,
                                  const std::string& cmds) {
   ssize_t nwritten = 0;
-  int nwrite = 0;
   printf("client write %s\n", cmds.c_str());
-  while ((nwrite = connection->SyncWrite(cmds.c_str(), cmds.size(), 1000)) <
-         cmds.size()) {
-    if (nwrite < 0) {
+  while (nwritten < cmds.size()) {
+    ssize_t n = connection->SyncWrite(cmds.c_str(), cmds.size(), 1000);
+    if (n <= 0) {
       break;
     }
-    nwritten += nwrite;
+    nwritten += n;
   }
   return nwritten;
 }
@@ -89,8 +88,10 @@ void RedisCli::AddCommand(const std::string& cmd) {
 }
 
 std::string RedisCli::GetReply() {
-  const std::optional<std::string>& opt = MaybeGetReply();
-  return opt.has_value() ? opt.value() : GetReplyFromConnection();
+  /* try to Get reply from local buffer first. If failed, get reply through
+   * sending queries to the server */
+  const std::optional<const std::string>& opt = MaybeGetReply();
+  return opt.value_or(GetReplyFromConnection());
 }
 
 CompletableFuture<std::string> RedisCli::GetReplyAsync() {
@@ -100,14 +101,14 @@ CompletableFuture<std::string> RedisCli::GetReplyAsync() {
 }
 
 /*
- * Callback of GetReplyAsync(). Same as GetReply, except thread-safe.
+ * Callback of GetReplyAsync(). Thread-safe version of GetReply().
  */
 std::string RedisCli::GetReplyAsyncCallback() {
   const std::lock_guard<std::mutex> lock(lock_);
   return GetReply();
 }
 
-std::optional<std::string> RedisCli::MaybeGetReply() {
+std::optional<const std::string> RedisCli::MaybeGetReply() {
   std::vector<std::string> reply;
   if (reply_buf_ && !reply_buf_->Empty() && ProcessReply(reply)) {
     const std::string& s = ReplyListToString(reply);
@@ -121,7 +122,7 @@ std::string RedisCli::GetReplyFromConnection() {
   if (!query_buf_->Empty()) {
     ssize_t sent =
         WriteToConnection(connection_.get(), query_buf_->GetBufInString());
-    if (sent < 0) {
+    if (sent <= 0) {
       return ErrResp;
     }
     /* Clear sent queries. Clear the entire query buffer if all queries have

@@ -23,14 +23,14 @@ ae::AeEventStatus ReadProc(ae::AeEventLoop* el, int fd, int* client_data,
 
 ae::AeEventStatus AcceptProc(ae::AeEventLoop* el, int fd, int* client_data,
                              int mask) {
-  std::string ip;
+  tcp::TCPAddrInfo addr;
   int port = 0;
-  int remote_fd = tcp::TCP_Accept(fd, &ip, &port);
+  int remote_fd = tcp::TCP_Accept(fd, &addr);
   if (remote_fd < 0) {
     printf("accept failed\n");
     return ae::AeEventStatus::aeEventErr;
   }
-  printf("accept %s:%d\n", ip.c_str(), port);
+  printf("accept %s:%d\n", addr.ip.c_str(), addr.port);
   ae::AeFileEvent* fe = ae::AeFileEventImpl<int>::Create(
       ReadProc, nullptr, client_data, ae::AeFlags::aeReadable);
   el->AeCreateFileEvent(remote_fd, fe);
@@ -45,11 +45,12 @@ void run() {
     return;
   }
   printf("create socket fd %d\n", fd);
-  if (tcp::TCP_Bind(fd, "localhost", 8080) == tcp::TCPStatusCode::tcpError) {
+  const tcp::TCPAddrInfo addr("localhost", 8080);
+  if (tcp::TCP_Bind(fd, addr) == tcp::TCPStatusCode::tcpError) {
     printf("failed to listen to %s:%d", "localhost", 8080);
     return;
   }
-  if (tcp::TCP_Listen(fd, "localhost", 8080) == tcp::TCPStatusCode::tcpError) {
+  if (tcp::TCP_Listen(fd) == tcp::TCPStatusCode::tcpError) {
     printf("failed to listen to %s:%d", "localhost", 8080);
     return;
   }

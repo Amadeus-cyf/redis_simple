@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <optional>
 #include <string>
 
 #include "event_loop/ae.h"
@@ -24,7 +25,10 @@ ae::AeEventStatus WriteProc(ae::AeEventLoop* el, int fd, int* client_data,
 
 void Run() {
   std::shared_ptr<ae::AeEventLoop> el(ae::AeEventLoop::InitEventLoop());
-  int fd = tcp::TCP_Connect("localhost", 8080, true, "localhost", 8081);
+  const tcp::TCPAddrInfo remote("localhost", 8080);
+  const std::optional<const tcp::TCPAddrInfo>& local =
+      std::make_optional<const tcp::TCPAddrInfo>("localhost", 8081);
+  int fd = tcp::TCP_Connect(remote, local, true);
   printf("conn result %d\n", fd);
   if (fd == -1) {
     printf("connection failed\n");

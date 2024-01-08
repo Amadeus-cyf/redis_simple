@@ -40,7 +40,7 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
   connection::Connection* conn = new connection::Connection(ctx);
   conn->SetState(connection::ConnState::connStateAccepting);
   connection::AddressInfo addrInfo;
-  if (conn->Accept(addrInfo) == connection::StatusCode::connStatusErr) {
+  if (conn->Accept(&addrInfo) == connection::StatusCode::connStatusErr) {
     printf("connection accept failed\n");
     return ae::AeEventStatus::aeEventErr;
   }

@@ -44,7 +44,7 @@ class Connection {
   StatusCode BindAndConnect(const AddressInfo& remote,
                             const std::optional<const AddressInfo>& local);
   StatusCode BindAndListen(const AddressInfo& addrInfo);
-  StatusCode Accept(AddressInfo& addrInfo);
+  StatusCode Accept(AddressInfo* const addrInfo);
   bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
   bool UnsetReadHandler();
   bool HasReadHandler() { return read_handler_ != nullptr; }

@@ -7,18 +7,17 @@
 namespace redis_simple {
 void Run() {
   int s = tcp::TCP_CreateSocket(AF_INET, false);
-  printf("bind result: %d\n", tcp::TCP_Bind(s, "localhost", 8080));
-  printf("listen result: %d\n", tcp::TCP_Listen(s, "localhost", 8080));
+  const tcp::TCPAddrInfo local("localhost", 8080);
+  printf("bind result: %d\n", tcp::TCP_Bind(s, local));
+  printf("listen result: %d\n", tcp::TCP_Listen(s));
 
   struct sockaddr_in remote;
   socklen_t len = sizeof(remote);
 
-  std::string remote_ip;
-  int a = 1;
-  int* remote_port = &a;
-
-  printf("accept result: %d\n", tcp::TCP_Accept(s, &remote_ip, remote_port));
-  printf("accept connection from %s:%d\n", remote_ip.c_str(), *remote_port);
+  tcp::TCPAddrInfo remote_addr;
+  printf("accept result: %d\n", tcp::TCP_Accept(s, &remote_addr));
+  printf("accept connection from %s:%d\n", remote_addr.ip.c_str(),
+         remote_addr.port);
 }
 }  // namespace redis_simple
 

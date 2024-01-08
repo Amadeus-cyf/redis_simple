@@ -82,15 +82,14 @@ int TCP_CreateSocket(int domain, bool non_block) {
   return TCP_GenericCreateSocket(domain, SOCK_STREAM, 0, non_block);
 }
 
-int TCP_Connect(const std::string& remote_ip, const int remote_port,
-                const bool non_block,
-                const std::optional<std::string>& local_ip,
-                const std::optional<int>& local_port) {
+int TCP_Connect(const TCPAddrInfo& remote,
+                const std::optional<const TCPAddrInfo>& local,
+                const bool non_block) {
   struct addrinfo hints, *info;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  if (getaddrinfo(remote_ip.c_str(), std::to_string(remote_port).c_str(),
+  if (getaddrinfo(remote.ip.c_str(), std::to_string(remote.port).c_str(),
                   &hints, &info) < 0) {
     return TCPStatusCode::tcpError;
   }
@@ -101,8 +100,7 @@ int TCP_Connect(const std::string& remote_ip, const int remote_port,
     if (socket_fd < 0) {
       continue;
     }
-    if (local_ip.has_value() && local_port.has_value() &&
-        TCP_Bind(socket_fd, local_ip.value(), local_port.value()) < 0) {
+    if (local.has_value() && TCP_Bind(socket_fd, local.value()) < 0) {
       perror("bind error");
       close(socket_fd);
       socket_fd = -1;
@@ -123,7 +121,7 @@ int TCP_Connect(const std::string& remote_ip, const int remote_port,
   return socket_fd != -1 ? socket_fd : TCPStatusCode::tcpError;
 }
 
-int TCP_Accept(const int socket_fd, std::string* const ip, int* const port) {
+int TCP_Accept(const int socket_fd, TCPAddrInfo* const addrInfo) {
   sockaddr_storage sa;
   socklen_t len = sizeof(sa);
   int remote_fd = -1;
@@ -137,20 +135,20 @@ int TCP_Accept(const int socket_fd, std::string* const ip, int* const port) {
     return TCPStatusCode::tcpError;
   }
   struct sockaddr_in* s = reinterpret_cast<sockaddr_in*>(&sa);
-  *ip = inet_ntoa(s->sin_addr);
-  if (port) {
-    *port = ntohs(s->sin_port);
+  if (addrInfo) {
+    addrInfo->ip = inet_ntoa(s->sin_addr);
+    addrInfo->port = ntohs(s->sin_port);
   }
   return remote_fd;
 }
 
-int TCP_Bind(const int socket_fd, const std::string& ip, const int port) {
+int TCP_Bind(const int socket_fd, const TCPAddrInfo& addrInfo) {
   struct addrinfo hints, *info = nullptr;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  if (getaddrinfo(ip.c_str(), std::to_string(port).c_str(), &hints, &info) <
-      0) {
+  if (getaddrinfo(addrInfo.ip.c_str(), std::to_string(addrInfo.port).c_str(),
+                  &hints, &info) < 0) {
     return TCPStatusCode::tcpError;
   }
   int r = TCPStatusCode::tcpError;
@@ -166,7 +164,7 @@ int TCP_Bind(const int socket_fd, const std::string& ip, const int port) {
   return r;
 }
 
-int TCP_Listen(const int socket_fd, const std::string& ip, const int port) {
+int TCP_Listen(const int socket_fd) {
   if (listen(socket_fd, backlog) < 0) {
     close(socket_fd);
     return TCPStatusCode::tcpError;
