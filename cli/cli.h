@@ -33,7 +33,6 @@ class RedisCli {
   std::optional<const std::string> MaybeGetReply();
   std::string GetReplyFromConnection();
   bool ProcessReply(std::vector<std::string>& reply);
-  std::shared_ptr<ae::AeEventLoop> el_;
   std::unique_ptr<connection::Connection> connection_;
   std::optional<std::string> ip_;
   std::optional<int> port_;

@@ -20,9 +20,9 @@ struct TCPAddrInfo {
 };
 
 int TCP_CreateSocket(int domain, bool non_block);
-int TCP_Connect(const TCPAddrInfo& remote,
-                const std::optional<const TCPAddrInfo>& local,
-                const bool non_block = false);
+int TCP_BindAndConnect(const TCPAddrInfo& remote,
+                       const std::optional<const TCPAddrInfo>& local,
+                       const bool non_block = true);
 int TCP_Bind(const int socket_fd, const TCPAddrInfo& addrInfo);
 int TCP_Listen(const int socket_fd);
 int TCP_Accept(const int socket_fd, TCPAddrInfo* const addrInfo);

@@ -43,6 +43,8 @@ class Connection {
   explicit Connection(const Context& ctx);
   StatusCode BindAndConnect(const AddressInfo& remote,
                             const std::optional<const AddressInfo>& local);
+  StatusCode BindAndBlockingConnect(
+      const AddressInfo& remote, const std::optional<const AddressInfo>& local);
   StatusCode BindAndListen(const AddressInfo& addrInfo);
   StatusCode Accept(AddressInfo* const addrInfo);
   bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
@@ -69,10 +71,10 @@ class Connection {
     return std::as_const(*this).BatchRead(s);
   }
   ssize_t BatchRead(std::string& s) const;
-  ssize_t SyncRead(char* const buffer, size_t readlen, long timeout) {
+  ssize_t SyncRead(char* buffer, size_t readlen, long timeout) {
     return std::as_const(*this).SyncRead(buffer, readlen, timeout);
   }
-  ssize_t SyncRead(char* const buffer, size_t readlen, long timeout) const;
+  ssize_t SyncRead(char* buffer, size_t readlen, long timeout) const;
   ssize_t SyncBatchRead(std::string& s, long timeout) {
     return std::as_const(*this).SyncBatchRead(s, timeout);
   }

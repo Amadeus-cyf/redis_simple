@@ -30,7 +30,7 @@ void AeEventLoop::AeMain() {
   }
 }
 
-int AeEventLoop::AeWait(int fd, int mask, long timeout) const {
+int AeEventLoop::AeWait(int fd, int mask, long timeout) {
   int nfds = 1;
   struct pollfd pfds[1];
   pfds[0].fd = fd;

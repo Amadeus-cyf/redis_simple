@@ -11,6 +11,18 @@
 
 namespace redis_simple {
 namespace connection {
+namespace {
+static int TCPBindAndConnect(const AddressInfo& remote,
+                             const std::optional<const AddressInfo>& local) {
+  const tcp::TCPAddrInfo remote_addr(remote.ip, remote.port);
+  const std::optional<const tcp::TCPAddrInfo>& local_addr =
+      local.has_value() ? std::make_optional<tcp::TCPAddrInfo>(
+                              local.value().ip, local.value().port)
+                        : std::nullopt;
+  return tcp::TCP_BindAndConnect(remote_addr, local_addr);
+}
+}  // namespace
+
 Connection::Connection(const Context& ctx)
     : fd_(ctx.fd),
       el_(ctx.event_loop),
@@ -25,16 +37,11 @@ StatusCode Connection::BindAndConnect(
     if (!eventLoop) {
       return StatusCode::connStatusErr;
     }
-    const tcp::TCPAddrInfo remote_addr(remote.ip, remote.port);
-    const std::optional<const tcp::TCPAddrInfo>& local_addr =
-        local.has_value() ? std::make_optional<tcp::TCPAddrInfo>(
-                                local.value().ip, local.value().port)
-                          : std::nullopt;
-    int s = tcp::TCP_Connect(remote_addr, local_addr, true);
-    if (s == -1) {
+    int fd = TCPBindAndConnect(remote, local);
+    if (fd < 0) {
       return StatusCode::connStatusErr;
     }
-    fd_ = s;
+    fd_ = fd;
     state_ = ConnState::connStateConnecting;
     ae::AeFileEvent* e = ae::AeFileEventImpl<Connection>::Create(
         nullptr, ConnSocketEventHandler, this, ae::AeFlags::aeWritable);
@@ -46,6 +53,22 @@ StatusCode Connection::BindAndConnect(
     printf("event loop expired\n");
     return StatusCode::connStatusErr;
   }
+  return StatusCode::connStatusOK;
+}
+
+StatusCode Connection::BindAndBlockingConnect(
+    const AddressInfo& remote, const std::optional<const AddressInfo>& local) {
+  int fd = TCPBindAndConnect(remote, local);
+  if (fd < 0) {
+    return StatusCode::connStatusErr;
+  }
+  fd_ = fd;
+  if (WaitWrite(1000) <= 0) {
+    printf("wait failed\n");
+    fd_ = -1;
+    return StatusCode::connStatusErr;
+  }
+  state_ = ConnState::connStateConnected;
   return StatusCode::connStatusOK;
 }
 
@@ -201,6 +224,7 @@ ssize_t Connection::Read(char* const buffer, size_t readlen) const {
     if (errno != EINTR && state_ == ConnState::connStateConnected) {
       state_ = ConnState::connStateError;
     }
+    return -1;
   } else if (r == 0) {
     state_ = ConnState::connStateClosed;
   }
@@ -211,6 +235,7 @@ ssize_t Connection::BatchRead(std::string& s) const {
   char buffer[1024];
   ssize_t r = 0, nread = 0;
   while ((r = read(fd_, buffer + nread, 1024)) != EOF) {
+    printf("read %zu\n", r);
     if (r == 0) {
       break;
     }
@@ -228,24 +253,32 @@ ssize_t Connection::BatchRead(std::string& s) const {
   return s.size();
 }
 
-ssize_t Connection::SyncRead(char* const buffer, size_t readlen,
-                             long timeout) const {
-  if (ssize_t r = WaitRead(timeout); r <= 0) {
+ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
+  /* optimistically tried to read first */
+  ssize_t r = read(fd_, buffer, readlen);
+  if (r > 0) {
     return r;
+  } else if (r == 0) {
+    return 0;
+  } else if (r < 0 && errno != EAGAIN) {
+    return -1;
+  }
+  if (ssize_t r = WaitRead(timeout); r <= 0) {
+    return -1;
   }
   return Read(buffer, readlen);
 }
 
 ssize_t Connection::SyncBatchRead(std::string& s, long timeout) const {
   if (ssize_t r = WaitRead(timeout); r <= 0) {
-    return r;
+    return -1;
   }
   return BatchRead(s);
 }
 
 ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
   if (ssize_t r = WaitRead(timeout); r <= 0) {
-    return r;
+    return -1;
   }
   ssize_t r = 0;
   char buffer[1];
@@ -259,10 +292,11 @@ ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
     if (errno != EINTR && state_ == ConnState::connStateConnected) {
       state_ = ConnState::connStateError;
     }
+    return -1;
   } else if (s.empty() && r == 0) {
     state_ = ConnState::connStateClosed;
   }
-  return r < 0 ? r : s.size();
+  return s.size();
 }
 
 ssize_t Connection::Write(const char* buffer, size_t len) const {
@@ -272,15 +306,28 @@ ssize_t Connection::Write(const char* buffer, size_t len) const {
       state_ = ConnState::connStateError;
     }
     printf("write failed\n");
+    return -1;
   }
   return n;
 }
 
 ssize_t Connection::SyncWrite(const char* buffer, size_t len,
                               long timeout) const {
+  /* optimistically tried to write first */
+  ssize_t r = write(fd_, buffer, len);
+  if (r > 0) {
+    buffer += r;
+    len -= r;
+  } else if (r < 0 && errno != EAGAIN) {
+    return -1;
+  }
+  /* Return if write completes */
+  if (len == 0) {
+    return r;
+  }
   if (ssize_t r = WaitWrite(timeout); r <= 0) {
     printf("wait failed\n");
-    return r;
+    return -1;
   }
   return Write(buffer, len);
 }
@@ -300,6 +347,7 @@ ssize_t Connection::Writev(
       state_ = ConnState::connStateError;
     }
     printf("write failed\n");
+    return -1;
   }
   return n;
 }
@@ -318,7 +366,7 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
   if (conn->State() == ConnState::connStateConnecting &&
       (mask & ae::AeFlags::aeWritable)) {
     if (tcp::IsSocketError(fd)) {
-      printf("socker error\n");
+      printf("socket error\n");
       conn->SetState(ConnState::connStateError);
       return ae::AeEventStatus::aeEventErr;
     } else {
@@ -341,21 +389,13 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
 }
 
 ssize_t Connection::Wait(ae::AeFlags flag, long timeout) const {
-  int r = -1;
-  if (std::shared_ptr<ae::AeEventLoop> eventLoop = el_.lock()) {
-    if (!eventLoop) {
-      printf("no event loop\n");
-      return -1;
-    }
-    r = eventLoop->AeWait(fd_, flag, timeout);
-    if (r < 0) {
-      printf("conn sync %s failed for connection %d\n",
-             flag == ae::AeFlags::aeReadable ? "read" : "write", fd_);
-    } else if (r == 0) {
-      printf("aeWait timeout\n");
-    }
-  } else {
-    printf("event loop expired\n");
+  int r = ae::AeEventLoop::AeWait(fd_, flag, timeout);
+  if (r < 0) {
+    printf("conn sync %s failed for connection %d\n",
+           flag == ae::AeFlags::aeReadable ? "read" : "write", fd_);
+    return -1;
+  } else if (r == 0) {
+    printf("aeWait timeout\n");
   }
   return r;
 }

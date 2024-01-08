@@ -57,28 +57,28 @@ const std::string& RedisCli::ErrResp = "error";
 const std::string& RedisCli::NoReplyResp = "no_reply";
 
 RedisCli::RedisCli()
-    : el_(ae::AeEventLoop::InitEventLoop()),
-      ip_(std::nullopt),
+    : ip_(std::nullopt),
       port_(std::nullopt),
       query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
       reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
 
 RedisCli::RedisCli(const std::string& ip, const int port)
-    : el_(ae::AeEventLoop::InitEventLoop()),
-      ip_(ip),
+    : ip_(ip),
       port_(port),
       query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
       reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
 
 CliStatus RedisCli::Connect(const std::string& ip, const int port) {
-  const connection::Context& ctx = {.fd = -1, .event_loop = el_};
+  const connection::Context& ctx = {
+      .fd = -1, .event_loop = std::shared_ptr<ae::AeEventLoop>()};
   connection_ = std::make_unique<connection::Connection>(ctx);
   const connection::AddressInfo remote(ip, port);
   std::optional<const connection::AddressInfo> local = std::nullopt;
   if (ip_.has_value() && port_.has_value()) {
     local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
   }
-  connection::StatusCode st = connection_->BindAndConnect(remote, local);
+  connection::StatusCode st =
+      connection_->BindAndBlockingConnect(remote, local);
   return st == connection::StatusCode::connStatusErr ? CliStatus::cliErr
                                                      : CliStatus::cliOK;
 }

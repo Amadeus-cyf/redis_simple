@@ -82,9 +82,9 @@ int TCP_CreateSocket(int domain, bool non_block) {
   return TCP_GenericCreateSocket(domain, SOCK_STREAM, 0, non_block);
 }
 
-int TCP_Connect(const TCPAddrInfo& remote,
-                const std::optional<const TCPAddrInfo>& local,
-                const bool non_block) {
+int TCP_BindAndConnect(const TCPAddrInfo& remote,
+                       const std::optional<const TCPAddrInfo>& local,
+                       const bool non_block) {
   struct addrinfo hints, *info;
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;

@@ -29,9 +29,9 @@ enum class AeEventStatus {
 class AeEventLoop {
  public:
   static AeEventLoop* InitEventLoop();
-  void AeMain();
   /* used for sync read/write. Timeout is in milliseconds */
-  int AeWait(int fd, int mask, long timeout) const;
+  static int AeWait(int fd, int mask, long timeout);
+  void AeMain();
   AeStatus AeCreateFileEvent(int fd, AeFileEvent* fe);
   AeStatus AeDeleteFileEvent(int fd, int mask);
   void AeCreateTimeEvent(AeTimeEvent* te);

@@ -28,7 +28,7 @@ void Run() {
   const tcp::TCPAddrInfo remote("localhost", 8080);
   const std::optional<const tcp::TCPAddrInfo>& local =
       std::make_optional<const tcp::TCPAddrInfo>("localhost", 8081);
-  int fd = tcp::TCP_Connect(remote, local, true);
+  int fd = tcp::TCP_BindAndConnect(remote, local);
   printf("conn result %d\n", fd);
   if (fd == -1) {
     printf("connection failed\n");

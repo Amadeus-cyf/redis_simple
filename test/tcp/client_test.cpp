@@ -10,7 +10,7 @@ void Run() {
   const tcp::TCPAddrInfo remote("localhost", 8080);
   const std::optional<const tcp::TCPAddrInfo>& local =
       std::make_optional<const tcp::TCPAddrInfo>("localhost", 8081);
-  tcp::TCP_Connect(remote, local);
+  tcp::TCP_BindAndConnect(remote, local);
 }
 }  // namespace redis_simple
 
