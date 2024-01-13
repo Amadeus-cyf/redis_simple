@@ -7,6 +7,10 @@ namespace in_memory {
 class DynamicBufferTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { buffer = new DynamicBuffer(); }
+  static void TearDownTestSuite() {
+    delete buffer;
+    buffer = nullptr;
+  }
   static DynamicBuffer* buffer;
 };
 

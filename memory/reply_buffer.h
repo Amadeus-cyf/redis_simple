@@ -15,7 +15,7 @@ class ReplyBuffer {
   size_t ReplyLen() { return reply_len_; };
   size_t ReplyBytes() { return reply_bytes_; }
   size_t BufPosition() { return buf_pos_; };
-  BufNode* ReplyHead() { return reply_; }
+  BufNode* ReplyHead() { return reply_head_; }
   BufNode* ReplyTail() { return reply_tail_; }
   size_t AddReplyToBufferOrList(const char* s, size_t len);
   void ClearProcessed(size_t nwritten);
@@ -24,19 +24,24 @@ class ReplyBuffer {
   ~ReplyBuffer();
 
  private:
+  static constexpr const size_t defaultBufferSize = 4096;
   size_t AddReplyToBuffer(const char* s, size_t len);
   size_t AddReplyProtoToList(const char* c, size_t len);
-  void ClearBufferProcessed(size_t nwritten);
+  size_t ClearBufferProcessed(size_t nwritten);
   void ClearListProcessed(size_t nwritten);
   void ClearBuffer();
+  void AddNodeToReplyList(BufNode* node);
+  BufNode* DeleteNodeFromReplyList(BufNode* node, BufNode* prev);
+  BufNode* CreateReplyNode(const char* buffer, size_t len);
+  size_t AppendToReplyNode(BufNode* node, const char* buffer, size_t len);
   /* output main buffer */
   char* buf_;
-  /* buf position for bytes already in use in main buffer */
+  /* the end index of the main buffer which is already in use */
   size_t buf_pos_;
   /* remaining bytes in main buffer */
   size_t buf_usable_size_;
   /* head of the reply list */
-  BufNode* reply_;
+  BufNode* reply_head_;
   /* tail of the reply list */
   BufNode* reply_tail_;
   /* number of buf nodes */

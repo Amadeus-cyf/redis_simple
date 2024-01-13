@@ -3,7 +3,10 @@
 namespace redis_simple {
 namespace in_memory {
 ReplyBuffer::ReplyBuffer()
-    : buf_usable_size_(4096), buf_(new char[4096]), sent_len_(0), buf_pos_(0) {}
+    : buf_usable_size_(defaultBufferSize),
+      buf_(new char[defaultBufferSize]),
+      sent_len_(0),
+      buf_pos_(0) {}
 
 /*
  * Add buffer to the main buffer or the reply list.
@@ -27,47 +30,40 @@ size_t ReplyBuffer::AddReplyToBufferOrList(const char* s, size_t len) {
  * Add buffer to the main buffer.
  */
 size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
+  /* if reply list is used, store to the reply list first before storing it into
+   * the main buffer */
   if (reply_len_ > 0) {
     return 0;
   }
   size_t available = buf_usable_size_ - buf_pos_;
-  size_t added_reply = len < available ? len : available;
-  memcpy(buf_ + buf_pos_, s, added_reply);
-  buf_pos_ += added_reply;
-  return added_reply;
+  size_t nwritten = len < available ? len : available;
+  memcpy(buf_ + buf_pos_, s, nwritten);
+  buf_pos_ += nwritten;
+  return nwritten;
 }
 
 /*
  * Add buffer to the reply list.
  */
 size_t ReplyBuffer::AddReplyProtoToList(const char* c, size_t len) {
-  if (!reply_) {
-    reply_ = BufNode::Create(len);
-    memcpy(reply_->buf_, c, len);
-    reply_->used_ = len;
-    reply_bytes_ += reply_->len_;
-    reply_len_ = 1;
-    reply_tail_ = reply_;
-    printf("create reply head node\n");
-    return len;
+  /* if the reply list is not created yet, initialized the reply list through
+   * creating a head node */
+  if (!reply_head_) {
+    BufNode* node = CreateReplyNode(c, len);
+    AddNodeToReplyList(node);
+  } else {
+    /* store the buffer into the usable memory first */
+    size_t available = reply_tail_->len_ - reply_tail_->used_;
+    size_t nwritten = AppendToReplyNode(reply_tail_, c, len);
+    size_t remain = len - nwritten;
+    c += nwritten;
+    /* If the usable memory is less than the buffer size, create a new node to
+     * store the remaining buffer */
+    if (len) {
+      AddNodeToReplyList(CreateReplyNode(c, remain));
+    }
   }
-
-  size_t available = reply_tail_->len_ - reply_tail_->used_;
-  size_t copy = len < available ? len : available;
-  memcpy(reply_tail_->buf_ + reply_tail_->used_, c, copy);
-  reply_tail_->used_ += copy;
-  len -= copy, c += copy;
-
-  if (len) {
-    BufNode* new_node = BufNode::Create(len);
-    memcpy(new_node->buf_, c, len);
-    new_node->used_ += len;
-    ++reply_len_;
-    reply_bytes_ += new_node->len_;
-    reply_tail_->next_ = new_node;
-    reply_tail_ = new_node;
-  }
-  return len + copy;
+  return len;
 }
 
 /*
@@ -79,25 +75,33 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::Memvec() {
     mem_vec.push_back({buf_ + sent_len_, buf_pos_ - sent_len_});
   }
   size_t offset = buf_pos_ > 0 ? 0 : sent_len_;
-  BufNode *n = reply_, *prev = nullptr;
+  BufNode *n = reply_head_, *prev = nullptr;
   while (n) {
+    /* if the reply list node has 0 used bytes, delete the node from the list */
     if (n->used_ == 0) {
-      reply_bytes_ -= n->len_;
-      prev ? prev->next_ = n->next_ : reply_ = n->next_;
-      if (!n->next_) {
-        reply_tail_ = prev ? prev : reply_;
-      }
-      --reply_len_;
-      n->next_ = nullptr;
-      delete n;
+      n = DeleteNodeFromReplyList(n, prev);
       offset = 0;
       continue;
     }
+    /* push the list node memory and sent offset info into the result list */
     mem_vec.push_back({n->buf_ + offset, n->used_ - offset});
-    prev = n, n = n->next_;
+    prev = n;
+    n = n->next_;
     offset = 0;
   }
   return mem_vec;
+}
+
+ReplyBuffer::~ReplyBuffer() {
+  /* free main buffer */
+  if (buf_) {
+    delete[] buf_;
+    buf_ = nullptr;
+  }
+  /* free the reply list */
+  while (reply_head_) {
+    reply_head_ = DeleteNodeFromReplyList(reply_head_, nullptr);
+  }
 }
 
 /*
@@ -113,64 +117,103 @@ void ReplyBuffer::ClearBuffer() {
  * Remove the processed content.
  */
 void ReplyBuffer::ClearProcessed(size_t nwritten) {
-  reply_ ? ClearListProcessed(nwritten) : ClearBufferProcessed(nwritten);
+  printf("clear processed: nwritten %zu\n", nwritten);
+  /* clear main buffer first */
+  size_t processed = ClearBufferProcessed(nwritten);
+  /* clear the reply list if there are bytes remained */
+  if (processed < nwritten) {
+    ClearListProcessed(nwritten - processed);
+  }
 }
 
 /*
  * Remove the processed part in the main buffer.
  */
-void ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
-  sent_len_ += nwritten;
-  if (sent_len_ >= buf_pos_) {
-    ClearBuffer();
+size_t ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
+  if (buf_pos_ > 0) {
+    size_t remain = buf_pos_ - sent_len_;
+    nwritten = std::min(nwritten, remain);
+    sent_len_ += nwritten;
+    if (sent_len_ >= buf_pos_) {
+      ClearBuffer();
+    }
+    return nwritten;
+  }
+  return 0;
+}
+
+/*
+ * Remove the processed part in the reply list. The function assumes the main
+ * buffer memory has already been cleared. Should call ClearBufferProcessed
+ * before calling this function
+ *
+ */
+void ReplyBuffer::ClearListProcessed(size_t nwritten) {
+  printf("nwritten remained after processing main buffer %zu %zu\n", nwritten,
+         reply_bytes_);
+  /* if there are still written bytes remained, clear the reply list */
+  while (nwritten > 0 && reply_head_) {
+    if (nwritten < reply_head_->used_) {
+      /* reach the last processed node, set sent len */
+      sent_len_ = nwritten;
+      break;
+    }
+    /* delete the node from the list */
+    sent_len_ = 0;
+    nwritten -= (reply_head_->used_);
+    reply_head_ = DeleteNodeFromReplyList(reply_head_, nullptr);
   }
 }
 
 /*
- * Remove the processed part in the main buffer and the reply list.
+ * Add the reply node to the reply list
  */
-void ReplyBuffer::ClearListProcessed(size_t nwritten) {
-  printf("writevProcessed: nwritten %zu\n", nwritten);
-  if (buf_pos_ > 0) {
-    nwritten -= (buf_pos_ - sent_len_);
-    if (nwritten >= 0) {
-      ClearBuffer();
-    } else {
-      sent_len_ += nwritten;
-    }
+void ReplyBuffer::AddNodeToReplyList(BufNode* node) {
+  ++reply_len_;
+  reply_bytes_ += node->len_;
+  if (!reply_head_) {
+    reply_head_ = node;
+  } else {
+    reply_tail_->next_ = node;
   }
-  printf("nwritten after processing main buf_fer %zu %zu\n", nwritten,
-         reply_bytes_);
-  while (nwritten > 0) {
-    if (nwritten < reply_->used_) {
-      sent_len_ = nwritten;
-      break;
-    }
-    nwritten -= (reply_->used_);
-    sent_len_ = 0;
-    reply_bytes_ -= reply_->len_;
-    --reply_len_;
-    BufNode* n = reply_;
-    reply_ = reply_->next_;
-    delete n;
-  }
-  if (!reply_ || !reply_->next_) {
-    reply_tail_ = reply_;
-  }
+  reply_tail_ = node;
 }
 
-ReplyBuffer::~ReplyBuffer() {
-  if (buf_) {
-    delete[] buf_;
-    buf_ = nullptr;
+/*
+ * Create a new list node.
+ */
+BufNode* ReplyBuffer::CreateReplyNode(const char* buffer, size_t len) {
+  BufNode* node = BufNode::Create(len);
+  AppendToReplyNode(node, buffer, len);
+  return node;
+}
+
+/*
+ * Delete the node from the reply list and return the next node.
+ */
+BufNode* ReplyBuffer::DeleteNodeFromReplyList(BufNode* node, BufNode* prev) {
+  reply_bytes_ -= node->len_;
+  --reply_len_;
+  BufNode* next = node->next_;
+  if (prev) {
+    prev->next_ = next;
+  } else {
+    reply_head_ = next;
   }
-  while (reply_) {
-    BufNode* n = reply_;
-    reply_ = reply_->next_;
-    n->next_ = nullptr;
-    delete n;
-  }
-  reply_tail_ = nullptr;
+  if (!next) reply_tail_ = prev;
+  delete node;
+  return next;
+}
+
+/*
+ * Copy the buffer to the reply node. Return the actual number of bytes copied.
+ */
+size_t ReplyBuffer::AppendToReplyNode(BufNode* node, const char* buffer,
+                                      size_t len) {
+  size_t nwritten = std::min(len, node->len_ - node->used_);
+  memcpy(node->buf_ + node->used_, buffer, nwritten);
+  node->used_ += nwritten;
+  return nwritten;
 }
 }  // namespace in_memory
 }  // namespace redis_simple

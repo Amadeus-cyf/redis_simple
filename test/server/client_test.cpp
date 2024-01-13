@@ -24,7 +24,7 @@ struct ConnReadHandler : public connection::ConnHandler {
 
 void HandleWrite(connection::Connection* conn) {
   if (conn->State() != connection::ConnState::connStateConnected) {
-    printf("invalid connection state\n");
+    printf("mock client connection failed: invalid connection state\n");
     exit(-1);
     return;
   }
