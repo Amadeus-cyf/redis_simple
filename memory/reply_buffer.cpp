@@ -30,16 +30,15 @@ size_t ReplyBuffer::AddReplyToBufferOrList(const char* s, size_t len) {
  * Add buffer to the main buffer.
  */
 size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
-  /* if reply list is used, store to the reply list first before storing it into
-   * the main buffer */
-  if (reply_len_ > 0) {
-    return 0;
+  /* Only add the reply to the main buffer if reply list is not in use */
+  if (reply_len_ == 0) {
+    size_t available = buf_usable_size_ - buf_pos_;
+    size_t nwritten = len < available ? len : available;
+    memcpy(buf_ + buf_pos_, s, nwritten);
+    buf_pos_ += nwritten;
+    return nwritten;
   }
-  size_t available = buf_usable_size_ - buf_pos_;
-  size_t nwritten = len < available ? len : available;
-  memcpy(buf_ + buf_pos_, s, nwritten);
-  buf_pos_ += nwritten;
-  return nwritten;
+  return 0;
 }
 
 /*
@@ -79,7 +78,9 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::Memvec() {
   while (n) {
     /* if the reply list node has 0 used bytes, delete the node from the list */
     if (n->used_ == 0) {
-      n = DeleteNodeFromReplyList(n, prev);
+      BufNode* next = n->next_;
+      DeleteNodeFromReplyList(n, prev);
+      n = next;
       offset = 0;
       continue;
     }
@@ -100,7 +101,9 @@ ReplyBuffer::~ReplyBuffer() {
   }
   /* free the reply list */
   while (reply_head_) {
-    reply_head_ = DeleteNodeFromReplyList(reply_head_, nullptr);
+    BufNode* next = reply_head_->next_;
+    DeleteNodeFromReplyList(reply_head_, nullptr);
+    reply_head_ = next;
   }
 }
 
@@ -145,8 +148,7 @@ size_t ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
 /*
  * Remove the processed part in the reply list. The function assumes the main
  * buffer memory has already been cleared. Should call ClearBufferProcessed
- * before calling this function
- *
+ * before calling this function.
  */
 void ReplyBuffer::ClearListProcessed(size_t nwritten) {
   printf("nwritten remained after processing main buffer %zu %zu\n", nwritten,
@@ -161,7 +163,9 @@ void ReplyBuffer::ClearListProcessed(size_t nwritten) {
     /* delete the node from the list */
     sent_len_ = 0;
     nwritten -= (reply_head_->used_);
-    reply_head_ = DeleteNodeFromReplyList(reply_head_, nullptr);
+    BufNode* next = reply_head_->next_;
+    DeleteNodeFromReplyList(reply_head_, nullptr);
+    reply_head_ = next;
   }
 }
 
@@ -191,7 +195,7 @@ BufNode* ReplyBuffer::CreateReplyNode(const char* buffer, size_t len) {
 /*
  * Delete the node from the reply list and return the next node.
  */
-BufNode* ReplyBuffer::DeleteNodeFromReplyList(BufNode* node, BufNode* prev) {
+void ReplyBuffer::DeleteNodeFromReplyList(BufNode* node, BufNode* prev) {
   reply_bytes_ -= node->len_;
   --reply_len_;
   BufNode* next = node->next_;
@@ -202,7 +206,7 @@ BufNode* ReplyBuffer::DeleteNodeFromReplyList(BufNode* node, BufNode* prev) {
   }
   if (!next) reply_tail_ = prev;
   delete node;
-  return next;
+  node = nullptr;
 }
 
 /*

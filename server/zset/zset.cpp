@@ -24,7 +24,7 @@ void ZSet::AddOrUpdate(const std::string& key, const double score) const {
     de->val = score;
   } else {
     printf("insert %s %f\n", key.c_str(), score);
-    assert(dict_->Add(key, score));
+    assert(dict_->Insert(key, score));
     const ZSetEntry* inserted = skiplist_->Insert(ze);
     assert(inserted);
   }

@@ -20,10 +20,10 @@ class Dict {
   size_t Size() { return ht_used_[0] + ht_used_[1]; }
   DictEntry* Find(const K& key);
   DictEntry* Find(K&& key);
-  bool Add(const K& key, const V& val);
-  bool Add(K&& key, V&& val);
-  DictEntry* AddOrFind(const K& key);
-  DictEntry* AddOrFind(K&& key);
+  bool Insert(const K& key, const V& val);
+  bool Insert(K&& key, V&& val);
+  DictEntry* InsertOrFind(const K& key);
+  DictEntry* InsertOrFind(K&& key);
   void Replace(const K& key, const V& val);
   void Replace(K&& key, V&& val);
   bool Delete(const K& key);
@@ -37,7 +37,11 @@ class Dict {
  private:
   Dict();
   Dict(const DictType& type);
+  void InsertEntry(DictEntry* entry, int i);
+  void UnlinkEntry(DictEntry* entry, DictEntry* prev, int i);
+  void DeleteEntry(DictEntry* entry, DictEntry* prev, int i);
   void InitTables();
+  void InitTableWithSize(int i, int exp, size_t size);
   size_t HtSize(int exp) { return exp < 0 ? 0 : 1 << exp; }
   bool IsRehashing() { return rehash_idx_ >= 0; }
   void PauseRehashing() { ++pause_rehash_; }
@@ -54,10 +58,11 @@ class Dict {
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
   ssize_t KeyIndex(const K& key, DictEntry** existing);
-  DictEntry* AddRaw(const K& key, DictEntry** existing);
+  DictEntry* InsertRaw(const K& key, DictEntry** existing);
   void ExpandIfNeeded();
   bool Expand(size_t size);
   void RehashStepIfNeeded();
+  void MigrateRehashedTable();
   bool Rehash(int n);
   void Clear(int i);
   void Reset(int i);
@@ -168,8 +173,8 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Find(K&& key) {
  * Return false if the key already exists in the dict.
  */
 template <typename K, typename V>
-bool Dict<K, V>::Add(const K& key, const V& val) {
-  DictEntry* entry = AddRaw(key, nullptr);
+bool Dict<K, V>::Insert(const K& key, const V& val) {
+  DictEntry* entry = InsertRaw(key, nullptr);
   if (!entry) {
     return false;
   }
@@ -178,25 +183,25 @@ bool Dict<K, V>::Add(const K& key, const V& val) {
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::Add(K&& key, V&& val) {
-  return Add(key, val);
+bool Dict<K, V>::Insert(K&& key, V&& val) {
+  return Insert(key, val);
 }
 
 /*
- * Add or find the given key.
+ * Insert or find the given key.
  * Return the newly created dict entry if the key is inserted into the dict.
  * Otherwise, return the existing dict entry containing the key-value pair.
  */
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(const K& key) {
+typename Dict<K, V>::DictEntry* Dict<K, V>::InsertOrFind(const K& key) {
   DictEntry* existing;
-  DictEntry* new_entry = AddRaw(key, &existing);
+  DictEntry* new_entry = InsertRaw(key, &existing);
   return new_entry ? new_entry : existing;
 }
 
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(K&& key) {
-  return AddOrFind(key);
+typename Dict<K, V>::DictEntry* Dict<K, V>::InsertOrFind(K&& key) {
+  return InsertOrFind(key);
 }
 
 /*
@@ -206,7 +211,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::AddOrFind(K&& key) {
 template <typename K, typename V>
 void Dict<K, V>::Replace(const K& key, const V& val) {
   DictEntry* existing;
-  DictEntry* entry = AddRaw(key, &existing);
+  DictEntry* entry = InsertRaw(key, &existing);
   if (entry) {
     SetVal(entry, val);
   } else {
@@ -228,8 +233,11 @@ void Dict<K, V>::Replace(K&& key, V&& val) {
 template <typename K, typename V>
 bool Dict<K, V>::Delete(const K& key) {
   DictEntry* de = Unlink(key);
-  FreeUnlinkedEntry(de);
-  return de;
+  if (de) {
+    FreeUnlinkedEntry(de);
+    return true;
+  }
+  return false;
 }
 
 template <typename K, typename V>
@@ -250,13 +258,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
     DictEntry *entry = ht_[i][idx], *prev = nullptr;
     while (entry) {
       if (IsEqual(key, entry->key)) {
-        if (prev) {
-          prev->next = entry->next;
-        } else {
-          ht_[i][idx] = entry->next;
-        }
-        entry->next = nullptr;
-        --ht_used_[i];
+        UnlinkEntry(entry, prev, i);
         return entry;
       }
       prev = entry, entry = entry->next;
@@ -266,7 +268,6 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
     }
   }
   return nullptr;
-  ;
 }
 
 template <typename K, typename V>
@@ -349,6 +350,62 @@ void Dict<K, V>::InitTables() {
   Reset(0);
   /* init the table 1 used for rehashing */
   Reset(1);
+}
+
+template <typename K, typename V>
+void Dict<K, V>::InitTableWithSize(int i, int exp, size_t size) {
+  ht_size_exp_[i] = exp;
+  ht_[i].resize(size);
+  ht_used_[i] = 0;
+}
+
+/**
+ * Insert the Dict Entry into the hash table.
+ * The function assumes the dict entry has the key set and the key is not
+ *duplicated. Should call SetKey and KeyIndex before calling this function.
+ *
+ * @param entry the entry to insert.
+ * @param i the hash table index, 0 or 1.
+ */
+template <typename K, typename V>
+void Dict<K, V>::InsertEntry(DictEntry* de, int i) {
+  size_t key_idx = KeyHashIndex(de->key, i);
+  de->next = ht_[i][key_idx];
+  ht_[i][key_idx] = de;
+  ++ht_used_[i];
+}
+
+/**
+ * Unlink the entry from the hash table.
+ * The function does not free the entry. Should call FreeUnlinkedEntry.
+ *
+ * @param entry the entry to unlink.
+ * @param entry its previous entry.
+ * @param i the hash table index, 0 or 1.
+ */
+template <typename K, typename V>
+void Dict<K, V>::UnlinkEntry(DictEntry* de, DictEntry* prev, int i) {
+  if (prev) {
+    prev->next = de->next;
+  } else {
+    size_t key_idx = KeyHashIndex(de->key, i);
+    ht_[i][key_idx] = de->next;
+  }
+  de->next = nullptr;
+  --ht_used_[i];
+}
+
+/**
+ * Delete the entry from the hash table and frees the memory.
+ *
+ * @param entry the entry to unlink.
+ * @param entry its previous entry.
+ * @param i the hash table index, 0 or 1.
+ */
+template <typename K, typename V>
+void Dict<K, V>::DeleteEntry(DictEntry* de, DictEntry* prev, int i) {
+  UnlinkEntry(de, prev, i);
+  FreeUnlinkedEntry(de);
 }
 
 /*
@@ -461,7 +518,7 @@ ssize_t Dict<K, V>::KeyIndex(const K& key, Dict<K, V>::DictEntry** existing) {
  * If the key already exists, make `existing` point to the entry.
  */
 template <typename K, typename V>
-typename Dict<K, V>::DictEntry* Dict<K, V>::AddRaw(
+typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
     const K& key, Dict<K, V>::DictEntry** existing) {
   RehashStepIfNeeded();
   ssize_t idx = KeyIndex(key, existing);
@@ -474,9 +531,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::AddRaw(
   int i = IsRehashing() ? 1 : 0;
   DictEntry* de = new DictEntry();
   SetKey(de, key);
-  de->next = ht_[i][idx];
-  ht_[i][idx] = de;
-  ++ht_used_[i];
+  InsertEntry(de, i);
   return de;
 }
 
@@ -518,23 +573,19 @@ bool Dict<K, V>::Expand(size_t size) {
   /* Set the table 0 if it has not been initialized. This happened when the dict
    * has just been created and its size has not been initialized. */
   if (ht_size_exp_[0] < 0) {
-    ht_size_exp_[0] = new_exp;
-    ht_[0].resize(new_size);
-    ht_used_[0] = 0;
+    InitTableWithSize(0, new_exp, new_size);
     rehash_idx_ = -1;
     return true;
   }
   /* initialize the rehashed table */
-  ht_size_exp_[1] = new_exp;
-  ht_[1].resize(new_size);
-  ht_used_[1] = 0;
+  InitTableWithSize(1, new_exp, new_size);
   rehash_idx_ = 0;
   return true;
 }
 
 /*
  * If a rehashing is in progress, perform rehash for at most one bucket. Called
- * in Add, Update, Find, Delete.
+ * in Insert, Update, Find, Delete.
  */
 template <typename K, typename V>
 void Dict<K, V>::RehashStepIfNeeded() {
@@ -553,18 +604,17 @@ bool Dict<K, V>::Rehash(int n) {
   }
   int empty_visit = n * 10;
   size_t dict_size = HtSize(ht_size_exp_[0]);
-  while (n > 0 && rehash_idx_ < dict_size && ht_used_[0] && empty_visit) {
+  while (n > 0 && rehash_idx_ < dict_size && ht_used_[0] > 0 &&
+         empty_visit > 0) {
     DictEntry* de = ht_[0][rehash_idx_];
     if (!de) {
       --empty_visit, ++rehash_idx_;
       continue;
     }
     while (de) {
-      size_t idx = KeyHashIndex(de->key, 1);
       DictEntry* next = de->next;
-      de->next = ht_[1][idx];
-      ht_[1][idx] = de;
-      --ht_used_[0], ++ht_used_[1];
+      UnlinkEntry(de, nullptr, 0);
+      InsertEntry(de, 1);
       de = next;
     }
     ht_[0][rehash_idx_] = nullptr;
@@ -573,15 +623,24 @@ bool Dict<K, V>::Rehash(int n) {
   /* rehash completes, copy all the states of the table 1 to table 0 and reset
    * the table 1 to the initial state. */
   if (ht_used_[0] == 0) {
-    ht_[0] = std::move(ht_[1]);
-    ht_size_exp_[0] = ht_size_exp_[1];
-    ht_used_[0] = ht_used_[1];
-    Reset(1);
-    rehash_idx_ = -1;
+    MigrateRehashedTable();
     return false;
   }
   /* still exists keys to rehash */
   return true;
+}
+
+/**
+ * Migrate the rehashed table to the current table. Called when the rehashing
+ * completes.
+ */
+template <typename K, typename V>
+void Dict<K, V>::MigrateRehashedTable() {
+  ht_[0] = std::move(ht_[1]);
+  ht_size_exp_[0] = ht_size_exp_[1];
+  ht_used_[0] = ht_used_[1];
+  Reset(1);
+  rehash_idx_ = -1;
 }
 
 /*
@@ -594,10 +653,8 @@ void Dict<K, V>::Clear(int i) {
     DictEntry* de = ht_[i][j];
     while (de) {
       DictEntry* next = de->next;
-      de->next = nullptr;
-      FreeUnlinkedEntry(de);
+      DeleteEntry(de, nullptr, i);
       de = next;
-      --ht_used_[i];
     }
     ht_[i][j] = nullptr;
   }

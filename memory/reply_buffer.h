@@ -31,7 +31,7 @@ class ReplyBuffer {
   void ClearListProcessed(size_t nwritten);
   void ClearBuffer();
   void AddNodeToReplyList(BufNode* node);
-  BufNode* DeleteNodeFromReplyList(BufNode* node, BufNode* prev);
+  void DeleteNodeFromReplyList(BufNode* node, BufNode* prev);
   BufNode* CreateReplyNode(const char* buffer, size_t len);
   size_t AppendToReplyNode(BufNode* node, const char* buffer, size_t len);
   /* output main buffer */

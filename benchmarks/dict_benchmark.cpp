@@ -26,7 +26,7 @@ static void DictAdd(benchmark::State& state) {
   for (auto _ : state) {
     const std::string& key = RandString(10);
     keys.push_back(key);
-    dict->Add(key, RandString(10));
+    dict->Insert(key, RandString(10));
   }
 }
 

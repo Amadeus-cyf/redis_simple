@@ -23,7 +23,7 @@ TEST_F(DictStrTest, Init) {
 }
 
 TEST_F(DictStrTest, Insert) {
-  bool status = dict_str->Add("key", "val");
+  bool status = dict_str->Insert("key", "val");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
 
@@ -57,7 +57,7 @@ TEST_F(DictStrTest, Delete) {
 }
 
 TEST_F(DictStrTest, Unlink) {
-  bool status = dict_str->Add("key", "val");
+  bool status = dict_str->Insert("key", "val");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
 
@@ -68,20 +68,20 @@ TEST_F(DictStrTest, Unlink) {
   ASSERT_EQ(dict_str->Size(), 0);
 }
 
-TEST_F(DictStrTest, AddOrFind) {
-  bool status = dict_str->Add("key", "val");
+TEST_F(DictStrTest, InsertOrFind) {
+  bool status = dict_str->Insert("key", "val");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
 
   /* call the method with an existing key */
   const Dict<std::string, std::string>::DictEntry* entry1 =
-      dict_str->AddOrFind("key");
+      dict_str->InsertOrFind("key");
   ASSERT_EQ(entry1->key, "key");
   ASSERT_EQ(entry1->val, "val");
 
   /* call the method with a new key */
   const Dict<std::string, std::string>::DictEntry* entry2 =
-      dict_str->AddOrFind("key1");
+      dict_str->InsertOrFind("key1");
   ASSERT_EQ(dict_str->Size(), 2);
   ASSERT_EQ(entry2->key, "key1");
   ASSERT_EQ(entry2->val.size(), 0);
@@ -105,7 +105,7 @@ TEST_F(DictIntTest, Init) {
 
 TEST_F(DictIntTest, BatchInsert) {
   for (int i = 0; i < 100; ++i) {
-    dict_int->Add(i, i);
+    dict_int->Insert(i, i);
   }
   ASSERT_EQ(dict_int->Size(), 100);
   const Dict<int, int>::DictEntry* entry = dict_int->Find(96);
@@ -113,15 +113,15 @@ TEST_F(DictIntTest, BatchInsert) {
   ASSERT_EQ(entry->val, 96);
 }
 
-TEST_F(DictIntTest, AddOrFind) {
+TEST_F(DictIntTest, InsertOrFind) {
   /* call the method with an existing key */
-  const Dict<int, int>::DictEntry* entry1 = dict_int->AddOrFind(99);
+  const Dict<int, int>::DictEntry* entry1 = dict_int->InsertOrFind(99);
   ASSERT_EQ(dict_int->Size(), 100);
   ASSERT_EQ(entry1->key, 99);
   ASSERT_EQ(entry1->val, 99);
 
   /* call the method with a new key */
-  const Dict<int, int>::DictEntry* entry2 = dict_int->AddOrFind(100);
+  const Dict<int, int>::DictEntry* entry2 = dict_int->InsertOrFind(100);
   ASSERT_EQ(dict_int->Size(), 101);
   ASSERT_EQ(entry2->key, 100);
   ASSERT_EQ(entry2->val, 0);
