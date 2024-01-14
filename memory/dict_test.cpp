@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <optional>
 #include <string>
 
 namespace redis_simple {
@@ -27,21 +28,19 @@ TEST_F(DictStrTest, Insert) {
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
 
-  const Dict<std::string, std::string>::DictEntry* entry =
-      dict_str->Find("key");
-  ASSERT_TRUE(entry);
-  ASSERT_EQ(entry->val, "val");
-  ASSERT_EQ(dict_str->Size(), 1);
-}
-
-TEST_F(DictStrTest, Update) {
-  dict_str->Replace("key", "val_update");
+  // insert a new key
+  const std::optional<std::string>& opt1 = dict_str->Get("key");
+  ASSERT_TRUE(opt1.has_value());
+  ASSERT_EQ(opt1.value_or(""), "val");
   ASSERT_EQ(dict_str->Size(), 1);
 
-  const Dict<std::string, std::string>::DictEntry* entry =
-      dict_str->Find("key");
-  ASSERT_TRUE(entry);
-  ASSERT_EQ(entry->val, "val_update");
+  // update the key
+  dict_str->Set("key", "val_update");
+  ASSERT_EQ(dict_str->Size(), 1);
+
+  const std::optional<std::string>& opt2 = dict_str->Get("key");
+  ASSERT_TRUE(opt2.has_value());
+  ASSERT_EQ(opt2.value_or(""), "val_update");
   ASSERT_EQ(dict_str->Size(), 1);
 }
 
@@ -50,41 +49,10 @@ TEST_F(DictStrTest, Delete) {
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 0);
 
-  const Dict<std::string, std::string>::DictEntry* entry =
-      dict_str->Find("key");
-  ASSERT_FALSE(entry);
+  const std::optional<std::string>& opt = dict_str->Get("key");
+  ASSERT_FALSE(opt.has_value());
+  ASSERT_EQ(opt, std::nullopt);
   ASSERT_EQ(dict_str->Size(), 0);
-}
-
-TEST_F(DictStrTest, Unlink) {
-  bool status = dict_str->Insert("key", "val");
-  ASSERT_TRUE(status);
-  ASSERT_EQ(dict_str->Size(), 1);
-
-  Dict<std::string, std::string>::DictEntry* de = dict_str->Unlink("key");
-  ASSERT_TRUE(de);
-  ASSERT_EQ(de->key, "key");
-  ASSERT_EQ(de->val, "val");
-  ASSERT_EQ(dict_str->Size(), 0);
-}
-
-TEST_F(DictStrTest, InsertOrFind) {
-  bool status = dict_str->Insert("key", "val");
-  ASSERT_TRUE(status);
-  ASSERT_EQ(dict_str->Size(), 1);
-
-  /* call the method with an existing key */
-  const Dict<std::string, std::string>::DictEntry* entry1 =
-      dict_str->InsertOrFind("key");
-  ASSERT_EQ(entry1->key, "key");
-  ASSERT_EQ(entry1->val, "val");
-
-  /* call the method with a new key */
-  const Dict<std::string, std::string>::DictEntry* entry2 =
-      dict_str->InsertOrFind("key1");
-  ASSERT_EQ(dict_str->Size(), 2);
-  ASSERT_EQ(entry2->key, "key1");
-  ASSERT_EQ(entry2->val.size(), 0);
 }
 
 class DictIntTest : public testing::Test {
@@ -108,31 +76,18 @@ TEST_F(DictIntTest, BatchInsert) {
     dict_int->Insert(i, i);
   }
   ASSERT_EQ(dict_int->Size(), 100);
-  const Dict<int, int>::DictEntry* entry = dict_int->Find(96);
-  ASSERT_TRUE(entry);
-  ASSERT_EQ(entry->val, 96);
-}
-
-TEST_F(DictIntTest, InsertOrFind) {
-  /* call the method with an existing key */
-  const Dict<int, int>::DictEntry* entry1 = dict_int->InsertOrFind(99);
-  ASSERT_EQ(dict_int->Size(), 100);
-  ASSERT_EQ(entry1->key, 99);
-  ASSERT_EQ(entry1->val, 99);
-
-  /* call the method with a new key */
-  const Dict<int, int>::DictEntry* entry2 = dict_int->InsertOrFind(100);
-  ASSERT_EQ(dict_int->Size(), 101);
-  ASSERT_EQ(entry2->key, 100);
-  ASSERT_EQ(entry2->val, 0);
+  const std::optional<int>& opt = dict_int->Get(96);
+  ASSERT_TRUE(opt.has_value());
+  ASSERT_EQ(opt.value_or(0), 96);
 }
 
 TEST_F(DictIntTest, Clear) {
   dict_int->Clear();
   ASSERT_EQ(dict_int->Size(), 0);
 
-  const Dict<int, int>::DictEntry* entry = dict_int->Find(96);
-  ASSERT_FALSE(entry);
+  const std::optional<int>& opt = dict_int->Get(96);
+  ASSERT_FALSE(opt.has_value());
+  ASSERT_EQ(opt, std::nullopt);
 }
 }  // namespace in_memory
 }  // namespace redis_simple

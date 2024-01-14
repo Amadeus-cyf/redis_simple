@@ -24,7 +24,11 @@ const std::unordered_map<std::string, std::shared_ptr<const Command>>&
 std::weak_ptr<const Command> Command::Create(const std::string& name) {
   std::string upper_name;
   std::transform(name.begin(), name.end(), upper_name.begin(), toupper);
-  return cmdmap.at(name);
+  try {
+    return cmdmap.at(name);
+  } catch (const std::out_of_range& e) {
+    return std::shared_ptr<const Command>(nullptr);
+  }
 }
 }  // namespace command
 }  // namespace redis_simple

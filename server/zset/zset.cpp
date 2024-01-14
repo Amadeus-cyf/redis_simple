@@ -13,18 +13,16 @@ ZSet::ZSet()
           Comparator(), Destructor())){};
 
 void ZSet::AddOrUpdate(const std::string& key, const double score) const {
-  in_memory::Dict<std::string, double>::DictEntry* de = dict_->Find(key);
+  const std::optional<double>& opt = dict_->Get(key);
+  dict_->Set(key, score);
   const ZSetEntry* ze = new ZSetEntry(key, score);
-  if (de) {
-    printf("update %s's val from %f to %f\n", key.c_str(), de->val, score);
-    if (de->val == score) return;
-    const ZSetEntry old(key, de->val);
-    bool r = skiplist_->Update(&old, ze);
-    assert(r);
-    de->val = score;
+  if (opt.has_value()) {
+    printf("update %s's val from %f to %f\n", key.c_str(), opt.value(), score);
+    if (opt.value() == score) return;
+    const ZSetEntry old(key, opt.value());
+    assert(skiplist_->Update(&old, ze));
   } else {
     printf("insert %s %f\n", key.c_str(), score);
-    assert(dict_->Insert(key, score));
     const ZSetEntry* inserted = skiplist_->Insert(ze);
     assert(inserted);
   }
@@ -37,22 +35,22 @@ void ZSet::AddOrUpdate(const std::string& key, const double score) const {
 }
 
 bool ZSet::Remove(const std::string& key) const {
-  const in_memory::Dict<std::string, double>::DictEntry* de = dict_->Find(key);
-  if (!de) {
+  const std::optional<double>& opt = dict_->Get(key);
+  if (!opt.has_value()) {
     return false;
   }
-  const double score = de->val;
+  const double score = opt.value();
   const ZSetEntry ze(key, score);
   assert(dict_->Delete(key));
   return skiplist_->Delete(&ze);
 }
 
 int ZSet::GetRankOfKey(const std::string& key) const {
-  const in_memory::Dict<std::string, double>::DictEntry* de = dict_->Find(key);
-  if (!de) {
+  const std::optional<double>& opt = dict_->Get(key);
+  if (!opt.has_value()) {
     return -1;
   }
-  const double score = de->val;
+  const double score = opt.value();
   const ZSetEntry ze(key, score);
   return skiplist_->FindRankofKey(&ze);
 }

@@ -94,7 +94,7 @@ ClientStatus Client::ProcessInlineBuffer() {
       return ClientStatus::clientErr;
     }
   } else {
-    printf("command resource expired");
+    printf("command pointer expired\n");
     return ClientStatus::clientErr;
   }
   SetCmd(cmdptr);

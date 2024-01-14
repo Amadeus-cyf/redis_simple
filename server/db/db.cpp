@@ -45,10 +45,9 @@ RedisDb::RedisDb() : expire_cursor_(0) {
 }
 
 const RedisObj* RedisDb::LookupKey(const std::string& key) const {
-  const in_memory::Dict<std::string, RedisObj*>::DictEntry* de =
-      dict_->Find(key);
-  if (!de) return nullptr;
-  const RedisObj* val = de->val;
+  const std::optional<RedisObj*>& opt = dict_->Get(key);
+  if (!opt.has_value()) return nullptr;
+  const RedisObj* val = opt.value();
   if (IsKeyExpired(key)) {
     printf("look up key: key expired\n");
     /* if key is already expired, delete the key and return nullptr */
@@ -66,12 +65,12 @@ DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
 
 DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
                          const int64_t expire, int flags) const {
-  dict_->Replace(key, const_cast<RedisObj*>(val));
+  dict_->Set(key, const_cast<RedisObj*>(val));
   if (!(flags & SetKeyFlags::setKeyKeepTTL) && expire == 0) {
     expires_->Delete(key);
   }
   if (expire > 0) {
-    expires_->Replace(key, expire);
+    expires_->Set(key, expire);
     printf("add expire %lld\n", expire);
   }
   val->IncrRefCount();
@@ -104,10 +103,9 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
   if (expires_->Size() == 0) {
     return false;
   }
-  const in_memory::Dict<std::string, int64_t>::DictEntry* de =
-      expires_->Find(key);
+  const std::optional<int64_t>& opt = expires_->Get(key);
   int64_t now = utils::GetNowInMilliseconds();
-  return de && de->val < now;
+  return opt.value_or(0) < now;
 }
 }  // namespace db
 }  // namespace redis_simple

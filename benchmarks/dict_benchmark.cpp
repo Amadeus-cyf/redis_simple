@@ -32,7 +32,7 @@ static void DictAdd(benchmark::State& state) {
 
 static void DictFind(benchmark::State& state) {
   for (auto _ : state) {
-    dict->Find(keys[rand() % keys.size()]);
+    dict->Get(keys[rand() % keys.size()]);
   }
 }
 
@@ -41,9 +41,9 @@ static void DictUpdate(benchmark::State& state) {
   for (auto _ : state) {
     exist = rand() % 2 == 1;
     if (exist) {
-      dict->Replace(keys[rand() % keys.size()], RandString(10));
+      dict->Set(keys[rand() % keys.size()], RandString(10));
     } else {
-      dict->Replace("non-existing key", "val");
+      dict->Set("non-existing key", "val");
     }
   }
 }

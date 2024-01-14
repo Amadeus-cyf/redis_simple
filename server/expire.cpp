@@ -8,19 +8,18 @@
 
 namespace redis_simple {
 void ActiveExpireCycle() {
-  auto expire_callback =
-      [](const in_memory::Dict<std::string, int64_t>::DictEntry* de) {
-        int64_t now = utils::GetNowInMilliseconds();
-        if (de->val < now) {
-          printf("activeExpireCycle: key deleted %s\n", de->key.c_str());
-          if (std::shared_ptr<const db::RedisDb> db =
-                  Server::Get()->DB().lock()) {
-            assert(db->DeleteKey(de->key) == db::DBStatus::dbOK);
-          } else {
-            printf("db pointer expired\n");
-          }
-        }
-      };
+  auto expire_callback = [](const std::string& key,
+                            const int64_t& expire_time) {
+    int64_t now = utils::GetNowInMilliseconds();
+    if (expire_time < now) {
+      printf("activeExpireCycle: expired key deleted %s\n", key.c_str());
+      if (std::shared_ptr<const db::RedisDb> db = Server::Get()->DB().lock()) {
+        assert(db->DeleteKey(key) == db::DBStatus::dbOK);
+      } else {
+        printf("db pointer expired\n");
+      }
+    }
+  };
   if (std::shared_ptr<const db::RedisDb> db = Server::Get()->DB().lock()) {
     int64_t start = utils::GetNowInMilliseconds(), timelimit = 1000;
     int iteration = 0;
