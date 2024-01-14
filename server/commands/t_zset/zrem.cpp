@@ -53,7 +53,7 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
   }
   try {
     const zset::ZSet* const zset = obj->ZSet();
-    return zset->Remove(args->ele) ? 0 : -1;
+    return zset->Delete(args->ele) ? 0 : -1;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;

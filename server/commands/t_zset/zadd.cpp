@@ -63,7 +63,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
   }
   try {
     const zset::ZSet* const zset = obj->ZSet();
-    zset->AddOrUpdate(args->ele, args->score);
+    zset->InsertOrUpdate(args->ele, args->score);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;

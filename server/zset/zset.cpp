@@ -12,20 +12,26 @@ ZSet::ZSet()
                               Destructor>::InitSkiplistLevel,
           Comparator(), Destructor())){};
 
-void ZSet::AddOrUpdate(const std::string& key, const double score) const {
+void ZSet::InsertOrUpdate(const std::string& key, const double score) const {
   const std::optional<double>& opt = dict_->Get(key);
+  if (opt.has_value() && opt.value() == score) {
+    /* if the key exists and there is no change in score, do nothing. */
+    return;
+  }
   dict_->Set(key, score);
   const ZSetEntry* ze = new ZSetEntry(key, score);
   if (opt.has_value()) {
+    /* update the score */
     printf("update %s's val from %f to %f\n", key.c_str(), opt.value(), score);
-    if (opt.value() == score) return;
     const ZSetEntry old(key, opt.value());
     assert(skiplist_->Update(&old, ze));
   } else {
+    /* insert a new key */
     printf("insert %s %f\n", key.c_str(), score);
     const ZSetEntry* inserted = skiplist_->Insert(ze);
     assert(inserted);
   }
+  /* update min and max key */
   if (!min_key_.has_value() || key < min_key_.value()) {
     min_key_.emplace(key);
   }
@@ -34,7 +40,7 @@ void ZSet::AddOrUpdate(const std::string& key, const double score) const {
   }
 }
 
-bool ZSet::Remove(const std::string& key) const {
+bool ZSet::Delete(const std::string& key) const {
   const std::optional<double>& opt = dict_->Get(key);
   if (!opt.has_value()) {
     return false;
@@ -99,10 +105,8 @@ ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
   skiplist_spec->minex = spec->minex;
   skiplist_spec->maxex = spec->maxex;
   if (spec->limit) {
-    in_memory::Skiplist<const ZSetEntry*, Comparator,
-                        Destructor>::SkiplistLimitSpec* limit =
-        new in_memory::Skiplist<const ZSetEntry*, Comparator,
-                                Destructor>::SkiplistLimitSpec();
+    auto* limit = new in_memory::Skiplist<const ZSetEntry*, Comparator,
+                                          Destructor>::SkiplistLimitSpec();
     limit->offset = spec->limit->offset, limit->count = spec->limit->count,
     skiplist_spec->limit = limit;
   }

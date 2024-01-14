@@ -46,8 +46,8 @@ class ZSet {
     mutable double score;
   };
   static ZSet* Init() { return new ZSet(); }
-  void AddOrUpdate(const std::string& key, const double score) const;
-  bool Remove(const std::string& key) const;
+  void InsertOrUpdate(const std::string& key, const double score) const;
+  bool Delete(const std::string& key) const;
   int GetRankOfKey(const std::string& key) const;
   const std::vector<const ZSetEntry*> RangeByRank(
       const RangeByRankSpec* spec) const;
@@ -88,9 +88,12 @@ class ZSet {
       const in_memory::Skiplist<const ZSetEntry*, Comparator,
                                 Destructor>::SkiplistRangeByKeySpec*
           skiplist_spec) const;
+  /* dict mapping key to score */
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
+  /* skiplist storing key score pairs ordered by score */
   std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
       skiplist_;
+  /* min and max key value, used for RangeByScore */
   mutable std::optional<std::string> max_key_, min_key_;
 };
 }  // namespace zset
