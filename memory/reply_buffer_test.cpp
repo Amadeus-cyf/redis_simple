@@ -34,20 +34,35 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->ReplyLen(), 1);
 
-  std::string s2(2048, 'c');
-  r = buf->AddReplyToBufferOrList(s2.c_str(), 2048);
-  ASSERT_EQ(r, 2048);
+  // add a new node to the reply list
+  std::string s2(1000, 'c');
+  r = buf->AddReplyToBufferOrList(s2.c_str(), 1000);
+  ASSERT_EQ(r, 1000);
   ASSERT_EQ(buf->ReplyLen(), 2);
 
-  std::string s3(1024, 'd');
-  r = buf->AddReplyToBufferOrList(s3.c_str(), 1024);
-  ASSERT_EQ(r, 1024);
+  // no new node created
+  std::string s3(24, 'c');
+  r = buf->AddReplyToBufferOrList(s3.c_str(), 24);
+  ASSERT_EQ(r, 24);
+  ASSERT_EQ(buf->ReplyLen(), 2);
 
+  // add a new node with available space remained
+  std::string s4(1024, 'c');
+  r = buf->AddReplyToBufferOrList(s4.c_str(), 1024);
+  ASSERT_EQ(r, 1024);
   ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->ReplyLen(), 3);
 
+  // partially append to the last node and add a new node for the remaining
+  // memory
+  std::string s5(1024, 'd');
+  r = buf->AddReplyToBufferOrList(s5.c_str(), 1024);
+  ASSERT_EQ(r, 1024);
+  ASSERT_EQ(buf->BufPosition(), 4096);
+  ASSERT_EQ(buf->ReplyLen(), 4);
+
   const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
-  ASSERT_EQ(mem_vec.size(), 4);
+  ASSERT_EQ(mem_vec.size(), 5);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(2000, 'a').append(4096 - 2000, 'b'));
   ASSERT_EQ(mem_vec[0].second, 4096);
@@ -55,11 +70,14 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
             std::string(4096 - (4096 - 2000), 'b'));
   ASSERT_EQ(mem_vec[1].second, 4096 - (4096 - 2000));
   ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[2].second),
-            std::string(2048, 'c'));
-  ASSERT_EQ(mem_vec[2].second, 2048);
+            std::string(1024, 'c'));
+  ASSERT_EQ(mem_vec[2].second, 1024);
   ASSERT_EQ(std::string(mem_vec[3].first, mem_vec[3].second),
-            std::string(1024, 'd'));
+            std::string(1024, 'c'));
   ASSERT_EQ(mem_vec[3].second, 1024);
+  ASSERT_EQ(std::string(mem_vec[4].first, mem_vec[4].second),
+            std::string(1024, 'd'));
+  ASSERT_EQ(mem_vec[4].second, 1024);
 }
 
 TEST_F(ReplyBufferTest, ClearProcessed) {
@@ -72,16 +90,19 @@ TEST_F(ReplyBufferTest, ClearProcessed) {
   buf->ClearProcessed(5000);
   ASSERT_EQ(buf->BufPosition(), 0);
   ASSERT_EQ(buf->SentLen(), 5000 - (4096 - 2047) - 2000);
-  ASSERT_EQ(buf->ReplyLen(), 2);
+  ASSERT_EQ(buf->ReplyLen(), 3);
 
   const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
-  ASSERT_EQ(mem_vec.size(), 2);
+  ASSERT_EQ(mem_vec.size(), 3);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
-            std::string(2048 - (5000 - (4096 - 2047) - 2000), 'c'));
-  ASSERT_EQ(mem_vec[0].second, 2048 - (5000 - (4096 - 2047) - 2000));
+            std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));
+  ASSERT_EQ(mem_vec[0].second, 1024 - (5000 - (4096 - 2047) - 2000));
   ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
-            std::string(1024, 'd'));
+            std::string(1024, 'c'));
   ASSERT_EQ(mem_vec[1].second, 1024);
+  ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[1].second),
+            std::string(1024, 'd'));
+  ASSERT_EQ(mem_vec[2].second, 1024);
 }
 
 TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
@@ -94,19 +115,22 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   size_t r = buf->AddReplyToBufferOrList(s.c_str(), 5000);
   ASSERT_EQ(r, 5000);
   ASSERT_EQ(buf->BufPosition(), 0);
-  ASSERT_EQ(buf->ReplyLen(), 3);
+  ASSERT_EQ(buf->ReplyLen(), 4);
 
   const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
-  ASSERT_EQ(mem_vec.size(), 3);
+  ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
-            std::string(2048 - (5000 - (4096 - 2047) - 2000), 'c'));
-  ASSERT_EQ(mem_vec[0].second, 2048 - (5000 - (4096 - 2047) - 2000));
+            std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));
+  ASSERT_EQ(mem_vec[0].second, 1024 - (5000 - (4096 - 2047) - 2000));
   ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
-            std::string(1024 / 3, 'd').append(1024 - 1024 / 3, 'e'));
+            std::string(1024, 'c'));
   ASSERT_EQ(mem_vec[1].second, 1024);
   ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[2].second),
+            std::string(1024 / 3, 'd').append(1024 - 1024 / 3, 'e'));
+  ASSERT_EQ(mem_vec[1].second, 1024);
+  ASSERT_EQ(std::string(mem_vec[3].first, mem_vec[3].second),
             std::string(5000 - (1024 - 1024 / 3), 'e'));
-  ASSERT_EQ(mem_vec[2].second, 5000 - (1024 - 1024 / 3));
+  ASSERT_EQ(mem_vec[3].second, 5000 - (1024 - 1024 / 3));
 }
 }  // namespace in_memory
 }  // namespace redis_simple

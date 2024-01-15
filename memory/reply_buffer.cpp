@@ -16,21 +16,19 @@ size_t ReplyBuffer::AddReplyToBufferOrList(const char* s, size_t len) {
     return 0;
   }
   /* try to add to the main buffer first */
-  size_t reply = AddReplyToBuffer(s, len);
-  len -= reply;
-  size_t appended = 0;
+  size_t nwritten = AddReplyToBuffer(s, len);
   /* Add the remaining part (if any) to the reply list */
-  if (len) {
-    appended = AddReplyProtoToList(s + reply, len);
+  if (nwritten < len) {
+    nwritten += AddReplyProtoToList(s + nwritten, len - nwritten);
   }
-  return reply + appended;
+  return nwritten;
 }
 
 /*
  * Add buffer to the main buffer.
  */
 size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
-  /* Only add the reply to the main buffer if reply list is not in use */
+  /* Only add the reply to the main buffer if the reply list is not in use */
   if (reply_len_ == 0) {
     size_t available = buf_usable_size_ - buf_pos_;
     size_t nwritten = len < available ? len : available;
@@ -45,22 +43,18 @@ size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
  * Add buffer to the reply list.
  */
 size_t ReplyBuffer::AddReplyProtoToList(const char* c, size_t len) {
-  /* if the reply list is not created yet, initialized the reply list through
-   * creating a head node */
-  if (!reply_head_) {
-    BufNode* node = CreateReplyNode(c, len);
+  size_t appended = 0;
+  if (reply_head_) {
+    /* If the reply list is created, try to append the buffer to the last reply
+     * node's remaining memory */
+    appended = AppendToReplyNode(reply_tail_, c, len);
+  }
+  if (appended < len) {
+    /* If the usable memory of the last reply node is less than the buffer size,
+     * create a new node for the remaining buffer and add it to the reply list
+     */
+    BufNode* node = CreateReplyNode(c + appended, len - appended);
     AddNodeToReplyList(node);
-  } else {
-    /* store the buffer into the usable memory first */
-    size_t available = reply_tail_->len_ - reply_tail_->used_;
-    size_t nwritten = AppendToReplyNode(reply_tail_, c, len);
-    size_t remain = len - nwritten;
-    c += nwritten;
-    /* If the usable memory is less than the buffer size, create a new node to
-     * store the remaining buffer */
-    if (len) {
-      AddNodeToReplyList(CreateReplyNode(c, remain));
-    }
   }
   return len;
 }
@@ -86,8 +80,7 @@ std::vector<std::pair<char*, size_t>> ReplyBuffer::Memvec() {
     }
     /* push the list node memory and sent offset info into the result list */
     mem_vec.push_back({n->buf_ + offset, n->used_ - offset});
-    prev = n;
-    n = n->next_;
+    prev = n, n = n->next_;
     offset = 0;
   }
   return mem_vec;
@@ -123,7 +116,7 @@ void ReplyBuffer::ClearProcessed(size_t nwritten) {
   printf("clear processed: nwritten %zu\n", nwritten);
   /* clear main buffer first */
   size_t processed = ClearBufferProcessed(nwritten);
-  /* clear the reply list if there are bytes remained */
+  /* clear the reply list if there are still bytes not processed */
   if (processed < nwritten) {
     ClearListProcessed(nwritten - processed);
   }
@@ -137,6 +130,7 @@ size_t ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
     size_t remain = buf_pos_ - sent_len_;
     nwritten = std::min(nwritten, remain);
     sent_len_ += nwritten;
+    /* clear the main buffer if it has been completely processed */
     if (sent_len_ >= buf_pos_) {
       ClearBuffer();
     }
@@ -184,15 +178,6 @@ void ReplyBuffer::AddNodeToReplyList(BufNode* node) {
 }
 
 /*
- * Create a new list node.
- */
-BufNode* ReplyBuffer::CreateReplyNode(const char* buffer, size_t len) {
-  BufNode* node = BufNode::Create(len);
-  AppendToReplyNode(node, buffer, len);
-  return node;
-}
-
-/*
  * Delete the node from the reply list and return the next node.
  */
 void ReplyBuffer::DeleteNodeFromReplyList(BufNode* node, BufNode* prev) {
@@ -207,6 +192,15 @@ void ReplyBuffer::DeleteNodeFromReplyList(BufNode* node, BufNode* prev) {
   if (!next) reply_tail_ = prev;
   delete node;
   node = nullptr;
+}
+
+/*
+ * Create a new list node.
+ */
+BufNode* ReplyBuffer::CreateReplyNode(const char* buffer, size_t len) {
+  BufNode* node = BufNode::Create(len);
+  AppendToReplyNode(node, buffer, len);
+  return node;
 }
 
 /*
