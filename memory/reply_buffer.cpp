@@ -94,9 +94,7 @@ ReplyBuffer::~ReplyBuffer() {
   }
   /* free the reply list */
   while (reply_head_) {
-    BufNode* next = reply_head_->next_;
     DeleteNodeFromReplyList(reply_head_, nullptr);
-    reply_head_ = next;
   }
 }
 
@@ -157,9 +155,7 @@ void ReplyBuffer::ClearListProcessed(size_t nwritten) {
     /* delete the node from the list */
     sent_len_ = 0;
     nwritten -= (reply_head_->used_);
-    BufNode* next = reply_head_->next_;
     DeleteNodeFromReplyList(reply_head_, nullptr);
-    reply_head_ = next;
   }
 }
 

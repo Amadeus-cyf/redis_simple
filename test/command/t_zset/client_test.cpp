@@ -37,7 +37,7 @@ void Run() {
               printf("receive resp: %s end\n", reply.c_str());
               return reply;
             })
-            .ThenApply(
+            .ThenApplyAsync(
                 [](const std::string& reply) { return "processed: " + reply; })
             .Get();
     printf("after processed, %s\n", applied_str.c_str());
