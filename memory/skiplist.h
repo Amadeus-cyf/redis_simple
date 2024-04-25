@@ -839,14 +839,13 @@ Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
-    const SkiplistNode* n = node;
-    node = node->Next(0);
     ++start;
     /* add the key if the current rank is larger of equal to the specified
      * offset */
     if (i++ >= offset) {
-      keys.push_back(n->key);
+      keys.push_back(node->key);
     }
+    node = node->Next(0);
   }
   return keys;
 }
@@ -876,14 +875,13 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
-    const SkiplistNode* n = node;
-    node = node->Prev();
     ++start;
     /* add the key if the current rank is larger of equal to the specified
      * offset */
     if (i++ >= offset) {
-      keys.push_back(n->key);
+      keys.push_back(node->key);
     }
+    node = node->Prev();
   }
   return keys;
 }
@@ -916,13 +914,12 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
-    const SkiplistNode* n = node;
-    node = node->Next(0);
     /* add the key if the current rank is larger of equal to the specified
      * offset */
     if (i++ >= offset) {
-      keys.push_back(n->key);
+      keys.push_back(node->key);
     }
+    node = node->Next(0);
   }
   return keys;
 }
@@ -956,13 +953,12 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
-    const SkiplistNode* n = node;
-    node = node->Prev();
     /* add the key if the current rank is larger of equal to the specified
      * offset */
     if (i++ >= offset) {
-      keys.push_back(n->key);
+      keys.push_back(node->key);
     }
+    node = node->Prev();
   }
   return keys;
 }
