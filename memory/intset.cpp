@@ -30,6 +30,17 @@ bool IntSet::Find(const int64_t value) {
   return encoding <= encoding_ && Search(value, nullptr);
 }
 
+bool IntSet::Remove(const int64_t value) {
+  unsigned int index = 0;
+  bool exist = Search(value, &index);
+  if (!exist) return false;
+  printf("%d\n", index);
+  MoveTail(index + 1, index);
+  Resize(length_ - 1);
+  --length_;
+  return true;
+}
+
 /*
  * Get encoding type of the value.
  */

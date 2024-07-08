@@ -11,6 +11,8 @@ class IntSet {
   bool Add(const int64_t value);
   int64_t Get(const unsigned int index);
   bool Find(const int64_t value);
+  bool Remove(const int64_t value);
+  unsigned int size() { return length_; }
 
  private:
   static constexpr unsigned initSize = 1;
