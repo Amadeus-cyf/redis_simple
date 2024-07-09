@@ -12,7 +12,7 @@ ZSet::ZSet()
                               Destructor>::InitSkiplistLevel,
           Comparator(), Destructor())){};
 
-void ZSet::InsertOrUpdate(const std::string& key, const double score) const {
+void ZSet::InsertOrUpdate(const std::string& key, const double score) {
   const std::optional<double>& opt = dict_->Get(key);
   if (opt.has_value() && opt.value() == score) {
     /* if the key exists and there is no change in score, do nothing. */
@@ -40,7 +40,7 @@ void ZSet::InsertOrUpdate(const std::string& key, const double score) const {
   }
 }
 
-bool ZSet::Delete(const std::string& key) const {
+bool ZSet::Delete(const std::string& key) {
   const std::optional<double>& opt = dict_->Get(key);
   if (!opt.has_value()) {
     return false;
@@ -51,7 +51,7 @@ bool ZSet::Delete(const std::string& key) const {
   return skiplist_->Delete(&ze);
 }
 
-int ZSet::GetRankOfKey(const std::string& key) const {
+int ZSet::GetRankOfKey(const std::string& key) {
   const std::optional<double>& opt = dict_->Get(key);
   if (!opt.has_value()) {
     return -1;
@@ -62,7 +62,7 @@ int ZSet::GetRankOfKey(const std::string& key) const {
 }
 
 const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByRank(
-    const RangeByRankSpec* spec) const {
+    const RangeByRankSpec* spec) {
   const auto* skiplist_spec = ToSkiplistRangeByRankSpec(spec);
   const std::vector<const ZSet::ZSetEntry*>& keys =
       spec->reverse ? skiplist_->RevRangeByRank(skiplist_spec)
@@ -72,7 +72,7 @@ const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByRank(
 }
 
 const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByScore(
-    const RangeByScoreSpec* spec) const {
+    const RangeByScoreSpec* spec) {
   const auto* skiplist_spec = ToSkiplistRangeByKeySpec(spec);
   const std::vector<const ZSet::ZSetEntry*>& keys =
       spec->reverse ? skiplist_->RevRangeByKey(skiplist_spec)
@@ -81,7 +81,7 @@ const std::vector<const ZSet::ZSetEntry*> ZSet::RangeByScore(
   return keys;
 }
 
-size_t ZSet::Count(const RangeByScoreSpec* spec) const {
+size_t ZSet::Count(const RangeByScoreSpec* spec) {
   const auto* skiplist_spec = ToSkiplistRangeByKeySpec(spec);
   const size_t count = skiplist_->Count(skiplist_spec);
   FreeSkiplistRangeByKeySpec(skiplist_spec);
@@ -90,7 +90,7 @@ size_t ZSet::Count(const RangeByScoreSpec* spec) const {
 
 const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                           ZSet::Destructor>::SkiplistRangeByRankSpec*
-ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
+ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) {
   auto skiplist_spec =
       new in_memory::Skiplist<const ZSetEntry*, Comparator,
                               Destructor>::SkiplistRangeByRankSpec();
@@ -115,7 +115,7 @@ ZSet::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
 
 const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                           ZSet::Destructor>::SkiplistRangeByKeySpec*
-ZSet::ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const {
+ZSet::ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) {
   in_memory::Skiplist<const ZSetEntry*, Comparator,
                       Destructor>::SkiplistLimitSpec* limit = nullptr;
   if (spec->limit) {
@@ -145,7 +145,7 @@ ZSet::ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const {
 void ZSet::FreeSkiplistRangeByRankSpec(
     const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                               ZSet::Destructor>::SkiplistRangeByRankSpec*
-        skiplist_spec) const {
+        skiplist_spec) {
   if (skiplist_spec) {
     if (skiplist_spec->limit) {
       delete skiplist_spec->limit;
@@ -157,7 +157,7 @@ void ZSet::FreeSkiplistRangeByRankSpec(
 void ZSet::FreeSkiplistRangeByKeySpec(
     const in_memory::Skiplist<const ZSet::ZSetEntry*, ZSet::Comparator,
                               ZSet::Destructor>::SkiplistRangeByKeySpec*
-        skiplist_spec) const {
+        skiplist_spec) {
   if (skiplist_spec) {
     if (skiplist_spec->limit) {
       delete skiplist_spec->limit;

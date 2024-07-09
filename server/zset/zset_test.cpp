@@ -13,10 +13,10 @@ class ZSetTest : public testing::Test {
     delete zset;
     zset = nullptr;
   }
-  static const ZSet* zset;
+  static ZSet* zset;
 };
 
-const ZSet* ZSetTest::zset;
+ZSet* ZSetTest::zset;
 using KeyScorePair = std::pair<std::string, double>;
 const std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSet::ZSetEntry*>& keys);

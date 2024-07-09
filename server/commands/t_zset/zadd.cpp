@@ -54,7 +54,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   if (!obj) {
-    obj = db::RedisObj::CreateZSet(zset::ZSet::Init());
+    obj = db::RedisObj::CreateWithZSet(zset::ZSet::Init());
     int r = db->SetKey(args->key, obj, 0) == db::DBStatus::dbErr;
     obj->DecrRefCount();
     if (r < 0) {
@@ -62,7 +62,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
     }
   }
   try {
-    const zset::ZSet* const zset = obj->ZSet();
+    zset::ZSet* const zset = obj->ZSet();
     zset->InsertOrUpdate(args->ele, args->score);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());

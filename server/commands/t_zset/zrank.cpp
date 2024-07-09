@@ -52,7 +52,7 @@ int ZRankCommand::ZRank(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   try {
-    const zset::ZSet* const zset = obj->ZSet();
+    zset::ZSet* const zset = obj->ZSet();
     return zset->GetRankOfKey(args->ele);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());

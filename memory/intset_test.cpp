@@ -18,36 +18,36 @@ IntSet* IntSetTest::intset = nullptr;
 
 TEST_F(IntSetTest, AddAndUpgradeAndGet) {
   ASSERT_TRUE(intset->Add(1));
-  ASSERT_EQ(intset->size(), 1);
+  ASSERT_EQ(intset->Size(), 1);
   ASSERT_TRUE(intset->Add(5));
-  ASSERT_EQ(intset->size(), 2);
+  ASSERT_EQ(intset->Size(), 2);
   ASSERT_TRUE(intset->Add(7));
-  ASSERT_EQ(intset->size(), 3);
+  ASSERT_EQ(intset->Size(), 3);
   ASSERT_TRUE(intset->Add(3));
-  ASSERT_EQ(intset->size(), 4);
+  ASSERT_EQ(intset->Size(), 4);
   ASSERT_TRUE(intset->Add(2));
-  ASSERT_EQ(intset->size(), 5);
+  ASSERT_EQ(intset->Size(), 5);
   ASSERT_TRUE(intset->Add(-1));
-  ASSERT_EQ(intset->size(), 6);
+  ASSERT_EQ(intset->Size(), 6);
   ASSERT_TRUE(intset->Add(INT16_MIN));
-  ASSERT_EQ(intset->size(), 7);
+  ASSERT_EQ(intset->Size(), 7);
   ASSERT_TRUE(intset->Add(INT16_MAX));
-  ASSERT_EQ(intset->size(), 8);
+  ASSERT_EQ(intset->Size(), 8);
   ASSERT_TRUE(intset->Add(INT32_MIN));
-  ASSERT_EQ(intset->size(), 9);
+  ASSERT_EQ(intset->Size(), 9);
   ASSERT_TRUE(intset->Add(INT32_MAX));
-  ASSERT_EQ(intset->size(), 10);
+  ASSERT_EQ(intset->Size(), 10);
   ASSERT_TRUE(intset->Add(INT64_MIN));
-  ASSERT_EQ(intset->size(), 11);
+  ASSERT_EQ(intset->Size(), 11);
   ASSERT_TRUE(intset->Add(INT64_MAX));
-  ASSERT_EQ(intset->size(), 12);
+  ASSERT_EQ(intset->Size(), 12);
   ASSERT_FALSE(intset->Add(1));
-  ASSERT_EQ(intset->size(), 12);
+  ASSERT_EQ(intset->Size(), 12);
   ASSERT_FALSE(intset->Add(INT64_MIN));
-  ASSERT_EQ(intset->size(), 12);
+  ASSERT_EQ(intset->Size(), 12);
   ASSERT_FALSE(intset->Add(INT64_MAX));
-  ASSERT_EQ(intset->size(), 12);
-  ASSERT_EQ(intset->size(), 12);
+  ASSERT_EQ(intset->Size(), 12);
+  ASSERT_EQ(intset->Size(), 12);
 
   ASSERT_EQ(intset->Get(0), INT64_MIN);
   ASSERT_EQ(intset->Get(1), INT32_MIN);
@@ -83,21 +83,21 @@ TEST_F(IntSetTest, Find) {
 TEST_F(IntSetTest, Remove) {
   ASSERT_TRUE(intset->Remove(INT16_MAX));
   ASSERT_FALSE(intset->Find(INT16_MAX));
-  ASSERT_EQ(intset->size(), 11);
+  ASSERT_EQ(intset->Size(), 11);
   ASSERT_FALSE(intset->Remove(INT16_MAX));
-  ASSERT_EQ(intset->size(), 11);
+  ASSERT_EQ(intset->Size(), 11);
 
   ASSERT_TRUE(intset->Remove(INT64_MIN));
   ASSERT_FALSE(intset->Find(INT64_MIN));
-  ASSERT_EQ(intset->size(), 10);
+  ASSERT_EQ(intset->Size(), 10);
   ASSERT_FALSE(intset->Remove(INT64_MIN));
-  ASSERT_EQ(intset->size(), 10);
+  ASSERT_EQ(intset->Size(), 10);
 
   ASSERT_TRUE(intset->Remove(INT64_MAX));
   ASSERT_FALSE(intset->Find(INT64_MAX));
-  ASSERT_EQ(intset->size(), 9);
+  ASSERT_EQ(intset->Size(), 9);
   ASSERT_FALSE(intset->Remove(INT64_MAX));
-  ASSERT_EQ(intset->size(), 9);
+  ASSERT_EQ(intset->Size(), 9);
 }
 }  // namespace in_memory
 }  // namespace redis_simple

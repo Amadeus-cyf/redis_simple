@@ -6,6 +6,9 @@
 
 namespace redis_simple {
 namespace in_memory {
+/*
+ * Add the value to the intset. Return true if succeeded.
+ */
 bool IntSet::Add(const int64_t value) {
   unsigned int value_encode = ValueEncoding(value);
   if (value_encode > encoding_) {
@@ -21,6 +24,9 @@ bool IntSet::Add(const int64_t value) {
   return true;
 }
 
+/*
+ * Return the value at the index. Return true if succeeded.
+ */
 int64_t IntSet::Get(const unsigned int index) {
   return GetEncoded(index, encoding_);
 }
@@ -30,6 +36,9 @@ bool IntSet::Find(const int64_t value) {
   return encoding <= encoding_ && Search(value, nullptr);
 }
 
+/*
+ * Remove the value from the intset. Return true if succeeded.
+ */
 bool IntSet::Remove(const int64_t value) {
   unsigned int index = 0;
   bool exist = Search(value, &index);

@@ -4,6 +4,9 @@
 
 namespace redis_simple {
 namespace in_memory {
+/*
+ * An in memory set storing integers in ascending order.
+ */
 class IntSet {
  public:
   IntSet()
@@ -12,7 +15,11 @@ class IntSet {
   int64_t Get(const unsigned int index);
   bool Find(const int64_t value);
   bool Remove(const int64_t value);
-  unsigned int size() { return length_; }
+  unsigned int Size() { return length_; }
+  ~IntSet() {
+    delete[] contents_;
+    contents_ = nullptr;
+  }
 
  private:
   static constexpr unsigned initSize = 1;

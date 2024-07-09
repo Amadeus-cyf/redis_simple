@@ -46,14 +46,13 @@ class ZSet {
     mutable double score;
   };
   static ZSet* Init() { return new ZSet(); }
-  void InsertOrUpdate(const std::string& key, const double score) const;
-  bool Delete(const std::string& key) const;
-  int GetRankOfKey(const std::string& key) const;
-  const std::vector<const ZSetEntry*> RangeByRank(
-      const RangeByRankSpec* spec) const;
+  void InsertOrUpdate(const std::string& key, const double score);
+  bool Delete(const std::string& key);
+  int GetRankOfKey(const std::string& key);
+  const std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec);
   const std::vector<const ZSetEntry*> RangeByScore(
-      const RangeByScoreSpec* spec) const;
-  size_t Count(const RangeByScoreSpec* spec) const;
+      const RangeByScoreSpec* spec);
+  size_t Count(const RangeByScoreSpec* spec);
   size_t Size() const { return skiplist_->Size(); }
 
  private:
@@ -76,18 +75,18 @@ class ZSet {
   explicit ZSet();
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByRankSpec*
-  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
+  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec);
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByKeySpec*
-  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
+  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec);
   void FreeSkiplistRangeByRankSpec(
       const in_memory::Skiplist<const ZSetEntry*, Comparator,
                                 Destructor>::SkiplistRangeByRankSpec*
-          skiplist_spec) const;
+          skiplist_spec);
   void FreeSkiplistRangeByKeySpec(
       const in_memory::Skiplist<const ZSetEntry*, Comparator,
                                 Destructor>::SkiplistRangeByKeySpec*
-          skiplist_spec) const;
+          skiplist_spec);
   /* dict mapping key to score */
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
   /* skiplist storing key score pairs ordered by score */

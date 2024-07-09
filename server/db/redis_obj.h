@@ -9,7 +9,7 @@ namespace redis_simple {
 namespace db {
 class RedisObj {
  private:
-  using DataType = std::variant<std::string, const zset::ZSet*>;
+  using DataType = std::variant<std::string, zset::ZSet*>;
 
  public:
   enum class ObjEncoding {
@@ -17,17 +17,17 @@ class RedisObj {
     objEncodingZSet = 2,
   };
 
-  static RedisObj* CreateString(const std::string& val) {
+  static RedisObj* CreateWithString(const std::string& val) {
     return Create(ObjEncoding::objEncodingString, val);
   }
-  static RedisObj* CreateZSet(const zset::ZSet* const zset) {
+  static RedisObj* CreateWithZSet(zset::ZSet* const zset) {
     return Create(ObjEncoding::objEncodingZSet, zset);
   }
   static RedisObj* Create(const ObjEncoding encoding, const DataType& val) {
     return new RedisObj(encoding, val);
   }
   const std::string& String() const;
-  const zset::ZSet* const ZSet() const;
+  zset::ZSet* const ZSet() const;
   ObjEncoding Encoding() const { return encoding_; }
   void IncrRefCount() const { ++refcount_; }
   void DecrRefCount() const;
