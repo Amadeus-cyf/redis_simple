@@ -22,16 +22,16 @@ const std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSet::ZSetEntry*>& keys);
 
 TEST_F(ZSetTest, Add) {
-  zset->InsertOrUpdate("key1", 3.0);
+  ASSERT_TRUE(zset->InsertOrUpdate("key1", 3.0));
   ASSERT_EQ(zset->Size(), 1);
 
-  zset->InsertOrUpdate("key2", 2.0);
+  ASSERT_TRUE(zset->InsertOrUpdate("key2", 2.0));
   ASSERT_EQ(zset->Size(), 2);
 
-  zset->InsertOrUpdate("key3", 1.0);
+  ASSERT_TRUE(zset->InsertOrUpdate("key3", 1.0));
   ASSERT_EQ(zset->Size(), 3);
 
-  zset->InsertOrUpdate("key4", 1.0);
+  ASSERT_TRUE(zset->InsertOrUpdate("key4", 1.0));
   ASSERT_EQ(zset->Size(), 4);
 }
 
@@ -54,15 +54,15 @@ TEST_F(ZSetTest, GetRankOfKey) {
 
 TEST_F(ZSetTest, Update) {
   /* update score with no change in rank */
-  zset->InsertOrUpdate("key1", 10.0);
+  ASSERT_FALSE(zset->InsertOrUpdate("key1", 10.0));
   ASSERT_EQ(zset->Size(), 4);
   int r0 = zset->GetRankOfKey("key1");
   ASSERT_EQ(r0, 3);
 
   /* update score with change in rank */
-  zset->InsertOrUpdate("key1", 1.0);
+  ASSERT_FALSE(zset->InsertOrUpdate("key1", 1.0));
   ASSERT_EQ(zset->Size(), 4);
-  zset->InsertOrUpdate("key3", 4.0);
+  ASSERT_FALSE(zset->InsertOrUpdate("key3", 4.0));
   ASSERT_EQ(zset->Size(), 4);
 
   int r1 = zset->GetRankOfKey("key1");
@@ -77,7 +77,7 @@ TEST_F(ZSetTest, Update) {
   int r4 = zset->GetRankOfKey("key4");
   ASSERT_EQ(r4, 1);
 
-  zset->InsertOrUpdate("key1", 5.0);
+  ASSERT_FALSE(zset->InsertOrUpdate("key1", 5.0));
   ASSERT_EQ(zset->Size(), 4);
 
   r1 = zset->GetRankOfKey("key1");

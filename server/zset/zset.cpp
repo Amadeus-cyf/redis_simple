@@ -12,14 +12,19 @@ ZSet::ZSet()
                               Destructor>::InitSkiplistLevel,
           Comparator(), Destructor())){};
 
-void ZSet::InsertOrUpdate(const std::string& key, const double score) {
+/*
+ * Insert a new element with score or update the score of an existing
+ * element. Return true if the element is newly inserted.
+ */
+bool ZSet::InsertOrUpdate(const std::string& key, const double score) {
   const std::optional<double>& opt = dict_->Get(key);
   if (opt.has_value() && opt.value() == score) {
     /* if the key exists and there is no change in score, do nothing. */
-    return;
+    return false;
   }
   dict_->Set(key, score);
   const ZSetEntry* ze = new ZSetEntry(key, score);
+  bool inserted = false;
   if (opt.has_value()) {
     /* update the score */
     printf("update %s's val from %f to %f\n", key.c_str(), opt.value(), score);
@@ -28,8 +33,9 @@ void ZSet::InsertOrUpdate(const std::string& key, const double score) {
   } else {
     /* insert a new key */
     printf("insert %s %f\n", key.c_str(), score);
-    const ZSetEntry* inserted = skiplist_->Insert(ze);
-    assert(inserted);
+    const ZSetEntry* inserted_entry = skiplist_->Insert(ze);
+    assert(inserted_entry);
+    inserted = true;
   }
   /* update min and max key */
   if (!min_key_.has_value() || key < min_key_.value()) {
@@ -38,6 +44,7 @@ void ZSet::InsertOrUpdate(const std::string& key, const double score) {
   if (!max_key_.has_value() || key > max_key_.value()) {
     max_key_.emplace(key);
   }
+  return inserted;
 }
 
 bool ZSet::Delete(const std::string& key) {

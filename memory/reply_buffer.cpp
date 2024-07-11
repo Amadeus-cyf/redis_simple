@@ -154,7 +154,7 @@ void ReplyBuffer::ClearListProcessed(size_t nwritten) {
     }
     /* delete the node from the list */
     sent_len_ = 0;
-    nwritten -= (reply_head_->used_);
+    nwritten -= reply_head_->used_;
     DeleteNodeFromReplyList(reply_head_, nullptr);
   }
 }

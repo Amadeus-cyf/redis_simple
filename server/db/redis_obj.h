@@ -3,22 +3,27 @@
 #include <string>
 #include <variant>
 
+#include "server/set/set.h"
 #include "server/zset/zset.h"
 
 namespace redis_simple {
 namespace db {
 class RedisObj {
  private:
-  using DataType = std::variant<std::string, zset::ZSet*>;
+  using DataType = std::variant<std::string, set::Set*, zset::ZSet*>;
 
  public:
   enum class ObjEncoding {
     objEncodingString = 1,
-    objEncodingZSet = 2,
+    objEncodingSet = 2,
+    objEncodingZSet = 3,
   };
 
   static RedisObj* CreateWithString(const std::string& val) {
     return Create(ObjEncoding::objEncodingString, val);
+  }
+  static RedisObj* CreateWithSet(set::Set* const set) {
+    return Create(ObjEncoding::objEncodingSet, set);
   }
   static RedisObj* CreateWithZSet(zset::ZSet* const zset) {
     return Create(ObjEncoding::objEncodingZSet, zset);
@@ -27,6 +32,7 @@ class RedisObj {
     return new RedisObj(encoding, val);
   }
   const std::string& String() const;
+  set::Set* const Set() const;
   zset::ZSet* const ZSet() const;
   ObjEncoding Encoding() const { return encoding_; }
   void IncrRefCount() const { ++refcount_; }

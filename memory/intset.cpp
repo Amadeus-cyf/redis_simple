@@ -6,6 +6,8 @@
 
 namespace redis_simple {
 namespace in_memory {
+IntSet::IntSet()
+    : contents_(new int[initSize]), length_(0), encoding_(intsetEncoding16) {}
 /*
  * Add the value to the intset. Return true if succeeded.
  */
@@ -43,7 +45,6 @@ bool IntSet::Remove(const int64_t value) {
   unsigned int index = 0;
   bool exist = Search(value, &index);
   if (!exist) return false;
-  printf("%d\n", index);
   MoveTail(index + 1, index);
   Resize(length_ - 1);
   --length_;

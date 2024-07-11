@@ -1,4 +1,4 @@
-#include "zrange.h"
+#include "server/commands/t_zset/zrange.h"
 
 #include <limits>
 #include <memory>
@@ -257,6 +257,7 @@ void ZRangeCommand::Exec(Client* const client) const {
   }
   if (r < 0) {
     client->AddReply(reply::FromInt64(reply::replyErr));
+    return;
   }
   const std::optional<const std::string>& reply = Encode(result);
   if (reply.has_value()) {

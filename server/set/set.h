@@ -17,12 +17,12 @@ class Set {
  public:
   static Set* Init() { return new Set(); }
   bool Add(const std::string& value);
-  bool Contains(const std::string& value);
+  bool HasMember(const std::string& value);
   bool Remove(const std::string& value);
   size_t Size();
 
  private:
-  Set() : encoding_(SetEncodingType::setEncodingIntSet){};
+  explicit Set();
   bool IsInt64(const std::string& value);
   void ConvertIntSetToDict();
   /* set encoding, could either be intset or dict */

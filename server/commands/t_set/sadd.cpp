@@ -1,20 +1,19 @@
-#include "server/commands/t_zset/zrem.h"
+#include "server/commands/t_set/sadd.h"
 
 #include "server/client.h"
-#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple {
 namespace command {
-namespace t_zset {
-void ZRemCommand::Exec(Client* const client) const {
-  ZRemArgs args;
+namespace t_set {
+void SAddCommand::Exec(Client* const client) const {
+  SAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    int r = ZRem(db, &args);
+    int r = SAdd(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
@@ -26,46 +25,48 @@ void ZRemCommand::Exec(Client* const client) const {
   }
 }
 
-int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
-                           ZRemArgs* const zset_args) const {
+int SAddCommand::ParseArgs(const std::vector<std::string>& args,
+                           SAddArgs* const sadd_args) const {
   if (args.size() < 2) {
-    printf("invalid number of args\n");
+    printf("invalid number args\n");
     return -1;
   }
-  const std::string& key = args[0];
-  zset_args->key = key;
+  sadd_args->key = args[0];
   for (int i = 1; i < args.size(); ++i) {
-    zset_args->elements.push_back(args[i]);
+    sadd_args->elements.push_back(args[i]);
   }
   return 0;
 }
 
-int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
-                      const ZRemArgs* args) const {
+int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
+                      const SAddArgs* args) const {
   if (!db || !args) {
     return -1;
   }
   const db::RedisObj* obj = db->LookupKey(args->key);
-  if (!obj) {
-    printf("key not found\n");
+  if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
     return -1;
   }
-  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
-    printf("incorrect value type\n");
-    return -1;
+  if (!obj) {
+    obj = db::RedisObj::CreateWithSet(set::Set::Init());
+    int r = db->SetKey(args->key, obj, 0);
+    obj->DecrRefCount();
+    if (r < 0) {
+      return -1;
+    }
   }
   try {
-    zset::ZSet* const zset = obj->ZSet();
-    int deleted = 0;
+    set::Set* const set = obj->Set();
+    int added = 0;
     for (const std::string& element : args->elements) {
-      deleted += zset->Delete(element) ? 1 : 0;
+      added += set->Add(element) ? 1 : 0;
     }
-    return deleted;
+    return added;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;
   }
 }
-}  // namespace t_zset
+}  // namespace t_set
 }  // namespace command
 }  // namespace redis_simple

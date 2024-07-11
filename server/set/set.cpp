@@ -2,6 +2,8 @@
 
 namespace redis_simple {
 namespace set {
+Set::Set() : encoding_(SetEncodingType::setEncodingIntSet) {}
+
 /*
  * Add the value to the set. Return true if succeeded.
  */
@@ -25,7 +27,7 @@ bool Set::Add(const std::string& value) {
 /*
  * Return true if the value is in the set.
  */
-bool Set::Contains(const std::string& value) {
+bool Set::HasMember(const std::string& value) {
   if (Size() == 0) return false;
   if (encoding_ == SetEncodingType::setEncodingIntSet) {
     if (!IsInt64(value)) return false;
@@ -74,6 +76,7 @@ bool Set::IsInt64(const std::string& value) {
  * Convert set encoding from intset to dict and migrate all data.
  */
 void Set::ConvertIntSetToDict() {
+  if (!intset_) return;
   for (unsigned int i = 0; i < intset_->Size(); ++i) {
     int64_t value = intset_->Get(i);
     dict_->Set(std::to_string(value), nullptr);

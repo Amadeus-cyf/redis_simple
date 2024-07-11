@@ -13,14 +13,13 @@ DynamicBuffer::DynamicBuffer()
  * Add buffer.
  */
 void DynamicBuffer::WriteToBuffer(const char* buffer, size_t n) {
-  if (n == 0) {
-    return;
+  if (n > 0) {
+    if (len_ - nread_ < n) {
+      Resize(n + nread_);
+    }
+    memcpy(buf_ + nread_, buffer, n);
+    nread_ += n;
   }
-  if (len_ - nread_ < n) {
-    Resize(n + nread_);
-  }
-  memcpy(buf_ + nread_, buffer, n);
-  nread_ += n;
 }
 
 /*
@@ -60,7 +59,7 @@ void DynamicBuffer::Resize(size_t n) {
   if (n * 2 < resizeThreshold) {
     n *= 2;
   } else {
-    n += 10000;
+    n += 1000;
   }
   char* newbuf = new char[n * 2];
   memcpy(newbuf, buf_, len_);

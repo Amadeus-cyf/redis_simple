@@ -1,4 +1,4 @@
-#include "server/commands/t_zset//zadd.h"
+#include "server/commands/t_zset/zadd.h"
 
 #include "server/client.h"
 #include "server/reply/reply.h"
@@ -7,17 +7,18 @@ namespace redis_simple {
 namespace command {
 namespace t_zset {
 void ZAddCommand::Exec(Client* const client) const {
-  ZSetArgs args;
+  ZAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    if (ZAdd(db, &args) < 0) {
+    int r = ZAdd(db, &args);
+    if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
+    client->AddReply(reply::FromInt64(r));
   } else {
     printf("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -25,26 +26,29 @@ void ZAddCommand::Exec(Client* const client) const {
 }
 
 int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
-                           ZSetArgs* zset_args) const {
+                           ZAddArgs* const zset_args) const {
   if (args.size() < 3) {
     printf("invalid number args\n");
     return -1;
   }
   const std::string& key = args[0];
-  const std::string& ele = args[2];
-  double score = 0.0;
-  try {
-    score = stod(args[1]);
-  } catch (const std::exception&) {
-    printf("invalid args format\n");
-    return -1;
+  zset_args->key = key;
+  for (int i = 1; i < args.size() - 1; i += 2) {
+    const std::string& ele = args[i + 1];
+    double score = 0.0;
+    try {
+      score = stod(args[i]);
+    } catch (const std::exception&) {
+      printf("invalid args format\n");
+      return -1;
+    }
+    zset_args->ele_score_list.push_back({ele, score});
   }
-  zset_args->key = key, zset_args->ele = ele, zset_args->score = score;
   return 0;
 }
 
 int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
-                      const ZSetArgs* args) const {
+                      const ZAddArgs* args) const {
   if (!db || !args) {
     return -1;
   }
@@ -63,12 +67,17 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
   }
   try {
     zset::ZSet* const zset = obj->ZSet();
-    zset->InsertOrUpdate(args->ele, args->score);
+    int added = 0;
+    for (std::pair<std::string, double> ele_score : args->ele_score_list) {
+      const std::string& element = ele_score.first;
+      const double score = ele_score.second;
+      added += zset->InsertOrUpdate(element, score) ? 1 : 0;
+    }
+    return added;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;
   }
-  return 0;
 }
 }  // namespace t_zset
 }  // namespace command

@@ -7,7 +7,7 @@ namespace redis_simple {
 namespace command {
 namespace t_zset {
 void ZRankCommand::Exec(Client* const client) const {
-  ZSetArgs args;
+  ZRankArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
@@ -26,7 +26,7 @@ void ZRankCommand::Exec(Client* const client) const {
 }
 
 int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZSetArgs* zset_args) const {
+                            ZRankArgs* const zset_args) const {
   if (args.size() < 2) {
     printf("invalid number of args\n");
     return -1;
@@ -38,7 +38,7 @@ int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
 }
 
 int ZRankCommand::ZRank(std::shared_ptr<const db::RedisDb> db,
-                        const ZSetArgs* args) const {
+                        const ZRankArgs* args) const {
   if (!db || !args) {
     return -1;
   }

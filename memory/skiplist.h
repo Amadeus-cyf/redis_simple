@@ -66,7 +66,7 @@ class Skiplist {
   bool Delete(const Key& key);
   bool Update(const Key& key, const Key& new_key);
   const Key& FindKeyByRank(int rank);
-  size_t FindRankofKey(const Key& key);
+  ssize_t FindRankofKey(const Key& key);
   std::vector<Key> RangeByRank(const SkiplistRangeByRankSpec* spec);
   std::vector<Key> RevRangeByRank(const SkiplistRangeByRankSpec* spec);
   std::vector<Key> RangeByKey(const SkiplistRangeByKeySpec* spec);
@@ -528,7 +528,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::FindKeyByRank(int rank) {
  * Return the index of the key.
  */
 template <typename Key, typename Comparator, typename Destructor>
-size_t Skiplist<Key, Comparator, Destructor>::FindRankofKey(const Key& key) {
+ssize_t Skiplist<Key, Comparator, Destructor>::FindRankofKey(const Key& key) {
   size_t rank = 0;
   const SkiplistNode* node = head_;
   for (int i = level_ - 1; i >= 0; --i) {

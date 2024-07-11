@@ -46,7 +46,7 @@ class ZSet {
     mutable double score;
   };
   static ZSet* Init() { return new ZSet(); }
-  void InsertOrUpdate(const std::string& key, const double score);
+  bool InsertOrUpdate(const std::string& key, const double score);
   bool Delete(const std::string& key);
   int GetRankOfKey(const std::string& key);
   const std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec);

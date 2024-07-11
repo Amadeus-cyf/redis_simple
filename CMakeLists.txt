@@ -20,14 +20,14 @@ PRIVATE
   "server/expire.cpp"
   "server/commands/command.h"
   "server/commands/command.cpp"
-  "server/commands/t_string/args.h"
+  "server/commands/t_set/sadd.h"
+  "server/commands/t_set/sadd.cpp"
   "server/commands/t_string/get.h"
   "server/commands/t_string/get.cpp"
   "server/commands/t_string/set.h"
   "server/commands/t_string/set.cpp"
   "server/commands/t_string/delete.h"
   "server/commands/t_string/delete.cpp"
-  "server/commands/t_zset/args.h"
   "server/commands/t_zset/zadd.h"
   "server/commands/t_zset/zadd.cpp"
   "server/commands/t_zset/zrem.h"
@@ -212,6 +212,7 @@ endfunction()
 
 redis_simple_add_source(mock_command_server "test/command/server_test.cpp")
 redis_simple_cli_add_source(mock_t_string_client "test/command/t_string/client_test.cpp")
+redis_simple_cli_add_source(mock_t_set_client "test/command/t_set/client_test.cpp")
 redis_simple_cli_add_source(mock_t_zset_client "test/command/t_zset/client_test.cpp")
 
 add_subdirectory("third_party/benchmark")

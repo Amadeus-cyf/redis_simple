@@ -9,8 +9,7 @@ namespace in_memory {
  */
 class IntSet {
  public:
-  IntSet()
-      : contents_(new int[initSize]), length_(0), encoding_(intsetEncoding16){};
+  IntSet();
   bool Add(const int64_t value);
   int64_t Get(const unsigned int index);
   bool Find(const int64_t value);

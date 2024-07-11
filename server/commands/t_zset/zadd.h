@@ -1,12 +1,16 @@
 #pragma once
 
 #include "server/commands/command.h"
-#include "server/commands/t_zset/args.h"
 #include "server/db/db.h"
 
 namespace redis_simple {
 namespace command {
 namespace t_zset {
+struct ZAddArgs {
+  std::string key;
+  std::vector<std::pair<std::string, double>> ele_score_list;
+};
+
 class ZAddCommand : public Command {
  public:
   ZAddCommand() : Command("ZADD"){};
@@ -14,8 +18,8 @@ class ZAddCommand : public Command {
 
  private:
   int ParseArgs(const std::vector<std::string>& args,
-                ZSetArgs* zset_args) const;
-  int ZAdd(std::shared_ptr<const db::RedisDb> db, const ZSetArgs* args) const;
+                ZAddArgs* const zset_args) const;
+  int ZAdd(std::shared_ptr<const db::RedisDb> db, const ZAddArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

@@ -1,5 +1,6 @@
 #include "server/commands/command.h"
 
+#include "server/commands/t_set/sadd.h"
 #include "server/commands/t_string/delete.h"
 #include "server/commands/t_string/get.h"
 #include "server/commands/t_string/set.h"
@@ -15,6 +16,7 @@ const std::unordered_map<std::string, std::shared_ptr<const Command>>&
         {"GET", std::make_shared<const t_string::GetCommand>()},
         {"SET", std::make_shared<const t_string::SetCommand>()},
         {"DEL", std::make_shared<const t_string::DeleteCommand>()},
+        {"SADD", std::make_shared<const t_set::SAddCommand>()},
         {"ZADD", std::make_shared<const t_zset::ZAddCommand>()},
         {"ZREM", std::make_shared<const t_zset::ZRemCommand>()},
         {"ZRANK", std::make_shared<const t_zset::ZRankCommand>()},
