@@ -22,6 +22,8 @@ PRIVATE
   "server/commands/command.cpp"
   "server/commands/t_set/sadd.h"
   "server/commands/t_set/sadd.cpp"
+  "server/commands/t_set/srem.h"
+  "server/commands/t_set/srem.cpp"
   "server/commands/t_string/get.h"
   "server/commands/t_string/get.cpp"
   "server/commands/t_string/set.h"

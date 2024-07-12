@@ -28,7 +28,7 @@ void ZAddCommand::Exec(Client* const client) const {
 int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
                            ZAddArgs* const zset_args) const {
   if (args.size() < 3) {
-    printf("invalid number args\n");
+    printf("invalid number of args\n");
     return -1;
   }
   const std::string& key = args[0];

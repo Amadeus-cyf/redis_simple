@@ -1,4 +1,4 @@
-#include "server/commands/t_set/sadd.h"
+#include "server/commands/t_set/srem.h"
 
 #include "server/client.h"
 #include "server/reply/reply.h"
@@ -6,14 +6,14 @@
 namespace redis_simple {
 namespace command {
 namespace t_set {
-void SAddCommand::Exec(Client* const client) const {
-  SAddArgs args;
+void SRemCommand::Exec(Client* const client) const {
+  SRemArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    int r = SAdd(db, &args);
+    int r = SRem(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
@@ -25,43 +25,32 @@ void SAddCommand::Exec(Client* const client) const {
   }
 }
 
-int SAddCommand::ParseArgs(const std::vector<std::string>& args,
-                           SAddArgs* const sadd_args) const {
+int SRemCommand::ParseArgs(const std::vector<std::string>& args,
+                           SRemArgs* const srem_args) const {
   if (args.size() < 2) {
     printf("invalid number of args\n");
     return -1;
   }
-  sadd_args->key = args[0];
+  srem_args->key = args[0];
   for (int i = 1; i < args.size(); ++i) {
-    sadd_args->elements.push_back(args[i]);
+    srem_args->elements.push_back(args[i]);
   }
   return 0;
 }
 
-int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
-                      const SAddArgs* args) const {
-  if (!db || !args) {
-    return -1;
-  }
+int SRemCommand::SRem(std::shared_ptr<const db::RedisDb> db,
+                      const SRemArgs* args) const {
   const db::RedisObj* obj = db->LookupKey(args->key);
-  if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
+  if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
     return -1;
-  }
-  if (!obj) {
-    obj = db::RedisObj::CreateWithSet(set::Set::Init());
-    int r = db->SetKey(args->key, obj, 0);
-    obj->DecrRefCount();
-    if (r < 0) {
-      return -1;
-    }
   }
   try {
     set::Set* const set = obj->Set();
-    int added = 0;
+    int deleted = 0;
     for (const std::string& element : args->elements) {
-      added += set->Add(element) ? 1 : 0;
+      deleted += set->Remove(element) ? 1 : 0;
     }
-    return added;
+    return deleted;
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return -1;
