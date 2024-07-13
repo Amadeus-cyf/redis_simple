@@ -38,6 +38,17 @@ bool Set::HasMember(const std::string& value) {
 }
 
 /*
+ * List all members in the set.
+ */
+std::vector<std::string> Set::ListAllMembers() {
+  if (Size() == 0) return {};
+  if (encoding_ == SetEncodingType::setEncodingIntSet) {
+    return ListIntSetMembers();
+  }
+  return ListDictMembers();
+}
+
+/*
  * Remove the value from the set. Return true if succeeded.
  */
 bool Set::Remove(const std::string& value) {
@@ -82,6 +93,34 @@ void Set::ConvertIntSetToDict() {
     dict_->Set(std::to_string(value), nullptr);
   }
   intset_.reset();
+}
+
+/*
+ * List all members in the set for intset encoding type.
+ */
+std::vector<std::string> Set::ListIntSetMembers() {
+  std::vector<std::string> members;
+  in_memory::IntSet::Iterator it(intset_.get());
+  it.SeekToFirst();
+  while (it.Valid()) {
+    members.push_back(std::to_string(it.Value()));
+    it.Next();
+  }
+  return members;
+}
+
+/*
+ * List all members in the set for dict encoding type.
+ */
+std::vector<std::string> Set::ListDictMembers() {
+  std::vector<std::string> members;
+  in_memory::Dict<std::string, nullptr_t>::Iterator it(dict_.get());
+  it.SeekToFirst();
+  while (it.Valid()) {
+    members.push_back(it.Key());
+    it.Next();
+  }
+  return members;
 }
 }  // namespace set
 }  // namespace redis_simple

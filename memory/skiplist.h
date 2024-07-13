@@ -32,7 +32,7 @@ class Skiplist {
   /* spec for range by rank */
   struct SkiplistRangeByRankSpec {
     /* min and max index */
-    mutable size_t min, max;
+    size_t min, max;
     /* are min or max exclusive? */
     bool minex, maxex;
     /* set if LIMIT flag is included */
@@ -229,10 +229,16 @@ class Skiplist<Key, Comparator, Destructor>::Iterator {
   explicit Iterator(const Skiplist* skiplist);
   explicit Iterator(const Skiplist* skiplist, const SkiplistNode* node);
   Iterator(const Iterator& it);
+  /* Return true if the iterator is positioned to a valid node */
+  bool Valid() const;
   /* Position at the first node in the list */
   void SeekToFirst();
   /* Position at the last node in the list */
   void SeekToLast();
+  /* Advance to the next node in the list */
+  void Next();
+  /* Advance to the previous node in the list */
+  void Prev();
   Iterator& operator=(const Iterator& it);
   /* move to the next node in the list */
   void operator--();
@@ -262,6 +268,11 @@ Skiplist<Key, Comparator, Destructor>::Iterator::Iterator(const Iterator& it)
     : skiplist_(it.skiplist), node_(it.node) {}
 
 template <typename Key, typename Comparator, typename Destructor>
+bool Skiplist<Key, Comparator, Destructor>::Iterator::Valid() const {
+  return node_ != nullptr;
+}
+
+template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::Iterator::SeekToFirst() {
   node_ = skiplist_->head_->Next(0);
 }
@@ -270,6 +281,16 @@ template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::Iterator::SeekToLast() {
   node_ = skiplist_->FindLast();
   if (node_ == skiplist_->head_) node_ = nullptr;
+}
+
+template <typename Key, typename Comparator, typename Destructor>
+void Skiplist<Key, Comparator, Destructor>::Iterator::Next() {
+  node_ = node_->Next(0);
+}
+
+template <typename Key, typename Comparator, typename Destructor>
+void Skiplist<Key, Comparator, Destructor>::Iterator::Prev() {
+  node_ = node_->Prev();
 }
 
 template <typename Key, typename Comparator, typename Destructor>

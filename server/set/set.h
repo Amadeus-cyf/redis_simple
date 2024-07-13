@@ -18,6 +18,7 @@ class Set {
   static Set* Init() { return new Set(); }
   bool Add(const std::string& value);
   bool HasMember(const std::string& value);
+  std::vector<std::string> ListAllMembers();
   bool Remove(const std::string& value);
   size_t Size();
 
@@ -25,6 +26,8 @@ class Set {
   explicit Set();
   bool IsInt64(const std::string& value);
   void ConvertIntSetToDict();
+  std::vector<std::string> ListIntSetMembers();
+  std::vector<std::string> ListDictMembers();
   /* set encoding, could either be intset or dict */
   SetEncodingType encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;

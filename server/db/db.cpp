@@ -49,7 +49,7 @@ const RedisObj* RedisDb::LookupKey(const std::string& key) const {
   if (!opt.has_value()) return nullptr;
   const RedisObj* val = opt.value();
   if (IsKeyExpired(key)) {
-    printf("look up key: key expired\n");
+    printf("look up key: key %s expired\n", key.c_str());
     /* if key is already expired, delete the key and return nullptr */
     val = nullptr;
     assert(dict_->Delete(key));
@@ -104,8 +104,11 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
     return false;
   }
   const std::optional<int64_t>& opt = expires_->Get(key);
+  if (!opt.has_value()) {
+    return false;
+  }
   int64_t now = utils::GetNowInMilliseconds();
-  return opt.value_or(0) < now;
+  return opt.value() < now;
 }
 }  // namespace db
 }  // namespace redis_simple

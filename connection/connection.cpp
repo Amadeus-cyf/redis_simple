@@ -95,15 +95,15 @@ StatusCode Connection::Accept(AddressInfo* const addrInfo) {
     return StatusCode::connStatusErr;
   }
   tcp::TCPAddrInfo tcp_addr;
-  int s = tcp::TCP_Accept(fd_, &tcp_addr);
-  if (s < 0) {
+  int fd = tcp::TCP_Accept(fd_, &tcp_addr);
+  if (fd < 0) {
     return StatusCode::connStatusErr;
   }
   addrInfo->ip = tcp_addr.ip;
   addrInfo->port = tcp_addr.port;
   printf("accept %s %d\n", addrInfo->ip.c_str(), addrInfo->port);
   state_ = ConnState::connStateConnected;
-  fd_ = s;
+  fd_ = fd;
   if (accept_handler_) {
     accept_handler_->Handle(this);
   }

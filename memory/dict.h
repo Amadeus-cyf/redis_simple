@@ -11,6 +11,7 @@ namespace in_memory {
 template <typename K, typename V>
 class Dict {
  public:
+  class Iterator;
   /* specify key-value related functions */
   struct DictType;
   using dictScanFunc = void (*)(const K& key, const V& value);
@@ -26,6 +27,7 @@ class Dict {
   bool Delete(K&& key);
   ssize_t Scan(size_t cursor, dictScanFunc callback);
   size_t Size() { return ht_used_[0] + ht_used_[1]; }
+  size_t Size() const { return ht_used_[0] + ht_used_[1]; }
   void Clear();
   ~Dict();
 
@@ -109,6 +111,134 @@ struct Dict<K, V>::DictType {
    * = by default.*/
   std::function<int(const K& key1, const K& key2)> keyCompare;
 };
+
+/*
+ * Dict Iterator
+ */
+template <typename K, typename V>
+class Dict<K, V>::Iterator {
+ public:
+  explicit Iterator(const Dict* dict);
+  explicit Iterator(const Dict* dict, const DictEntry* entry);
+  Iterator& operator=(const Iterator& it);
+  bool operator==(const Iterator& it);
+  bool operator!=(const Iterator& it);
+  /* Returns true if the iterator is positioned to a valid entry */
+  bool Valid() const;
+  /* Position to the first entry in the dict */
+  void SeekToFirst();
+  /* Position to the Last entry in the dict */
+  void SeekToLast();
+  /* Advance to the next entry */
+  void Next();
+  void operator++();
+  K Key() { return entry_->key; }
+  V Value() { return entry_->val; }
+
+ private:
+  void SeekToNextEntry();
+  const Dict* dict_;
+  int table_;
+  ssize_t idx_;
+  const DictEntry* entry_;
+};
+
+template <typename K, typename V>
+Dict<K, V>::Iterator::Iterator(const Dict* dict)
+    : dict_(dict), entry_(nullptr), table_(0), idx_(-1) {}
+
+template <typename K, typename V>
+Dict<K, V>::Iterator::Iterator(const Dict* dict, const DictEntry* entry)
+    : dict_(dict), entry_(entry), table_(0), idx_(-1) {}
+
+template <typename K, typename V>
+typename Dict<K, V>::Iterator& Dict<K, V>::Iterator::operator=(
+    const Iterator& it) {
+  dict_ = it.dict_;
+  table_ = it.table;
+  idx_ = it.idx_;
+  entry_ = it.entry_;
+}
+
+template <typename K, typename V>
+bool Dict<K, V>::Iterator::operator==(const Iterator& it) {
+  return dict_ == it.dict_ && table_ == it.table_ && idx_ == it.idx_ &&
+         entry_ == it.entry_;
+}
+
+template <typename K, typename V>
+bool Dict<K, V>::Iterator::operator!=(const Iterator& it) {
+  return !((*this) == it);
+}
+
+template <typename K, typename V>
+bool Dict<K, V>::Iterator::Valid() const {
+  return entry_ != nullptr;
+}
+
+template <typename K, typename V>
+void Dict<K, V>::Iterator::SeekToFirst() {
+  table_ = 0;
+  idx_ = -1;
+  entry_ = nullptr;
+  SeekToNextEntry();
+}
+
+template <typename K, typename V>
+void Dict<K, V>::Iterator::SeekToLast() {
+  if (dict_->Size() == 0) {
+    return;
+  }
+  if (dict_->rehash_idx_ > 0) {
+    table_ = 1;
+  }
+  idx_ = dict_->ht_[table_].size() - 1;
+  while (idx_ >= 0 && !dict_->ht_[table_][idx_]) {
+    --idx_;
+  }
+  entry_ = dict_->ht_[table_][idx_];
+  while (entry_->next) {
+    entry_ = entry_->next;
+  }
+}
+
+template <typename K, typename V>
+void Dict<K, V>::Iterator::operator++() {
+  SeekToNextEntry();
+}
+
+template <typename K, typename V>
+void Dict<K, V>::Iterator::Next() {
+  SeekToNextEntry();
+}
+
+/*
+ * Find the next non-null entry in the dict.
+ */
+template <typename K, typename V>
+void Dict<K, V>::Iterator::SeekToNextEntry() {
+  if (entry_ && entry_->next) {
+    entry_ = entry_->next;
+    return;
+  }
+  ++idx_;
+  /* find next non empty table entry list */
+  while (idx_ < dict_->ht_[table_].size() && !dict_->ht_[table_][idx_]) {
+    ++idx_;
+  }
+  if (idx_ < dict_->ht_[table_].size()) {
+    entry_ = dict_->ht_[table_][idx_];
+    return;
+  }
+  if (table_ == 1 || dict_->rehash_idx_ <= 0) {
+    entry_ = nullptr;
+    return;
+  }
+  /* find the next element in the rehashed table */
+  idx_ = -1;
+  table_ = 1;
+  SeekToNextEntry();
+}
 
 /*
  * Initialize the dict with default functions.

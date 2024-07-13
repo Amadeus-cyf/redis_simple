@@ -99,5 +99,27 @@ TEST_F(IntSetTest, Remove) {
   ASSERT_FALSE(intset->Remove(INT64_MAX));
   ASSERT_EQ(intset->Size(), 9);
 }
+
+TEST_F(IntSetTest, Iterator) {
+  IntSet::Iterator it(intset);
+  it.SeekToFirst();
+  ASSERT_EQ(it.Value(), INT32_MIN);
+  it.Next();
+  ASSERT_EQ(it.Value(), INT16_MIN);
+  it.Next();
+  ASSERT_EQ(it.Value(), -1);
+  it.Next();
+  ASSERT_EQ(it.Value(), 1);
+  it.Next();
+  ASSERT_EQ(it.Value(), 2);
+  it.Next();
+  ASSERT_EQ(it.Value(), 3);
+  it.Next();
+  ASSERT_EQ(it.Value(), 5);
+  it.Next();
+  ASSERT_EQ(it.Value(), 7);
+  it.SeekToLast();
+  ASSERT_EQ(it.Value(), INT32_MAX);
+}
 }  // namespace in_memory
 }  // namespace redis_simple

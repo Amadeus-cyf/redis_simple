@@ -16,7 +16,7 @@ class SetTest : public testing::Test {
 
 Set* SetTest::set = nullptr;
 
-TEST_F(SetTest, Add) {
+TEST_F(SetTest, AddAndList) {
   /* intset encoding */
   ASSERT_TRUE(set->Add("1"));
   ASSERT_EQ(set->Size(), 1);
@@ -53,6 +53,12 @@ TEST_F(SetTest, Add) {
   ASSERT_TRUE(set->HasMember("-9223372036854775808"));
   ASSERT_FALSE(set->Add("-9223372036854775808"));
 
+  const std::vector<std::string>& members_intset = set->ListAllMembers();
+  ASSERT_EQ(members_intset,
+            std::vector<std::string>({"-9223372036854775808", "-4294967296",
+                                      "-65536", "1", "65535", "4294967295",
+                                      "9223372036854775807"}));
+
   /* convert to dict encoding */
   ASSERT_TRUE(set->Add("test_str_0"));
   ASSERT_EQ(set->Size(), 8);
@@ -65,6 +71,12 @@ TEST_F(SetTest, Add) {
   ASSERT_FALSE(set->Add("test_str_1"));
   ASSERT_TRUE(set->HasMember("-9223372036854775808"));
   ASSERT_TRUE(set->HasMember("4294967295"));
+
+  const std::vector<std::string>& members_dict = set->ListAllMembers();
+  ASSERT_EQ(members_dict.size(), 9);
+  for (const std::string& member : members_dict) {
+    printf("member: %s\n", member.c_str());
+  }
 }
 
 TEST_F(SetTest, Remove) {

@@ -33,6 +33,10 @@ int64_t IntSet::Get(const unsigned int index) {
   return GetEncoded(index, encoding_);
 }
 
+int64_t IntSet::Get(const unsigned int index) const {
+  return GetEncoded(index, encoding_);
+}
+
 bool IntSet::Find(const int64_t value) {
   EncodingType encoding = ValueEncoding(value);
   return encoding <= encoding_ && Search(value, nullptr);
@@ -120,7 +124,8 @@ bool IntSet::Search(const int64_t value, unsigned int* const index) {
 /*
  * Get the value at the index based on the encoding.
  */
-int64_t IntSet::GetEncoded(const unsigned int index, EncodingType encoding) {
+int64_t IntSet::GetEncoded(const unsigned int index,
+                           EncodingType encoding) const {
   if (index >= length_) throw std::out_of_range("index out of bound");
   if (encoding == intsetEncoding64) {
     int64_t v64;

@@ -72,13 +72,44 @@ TEST_F(DictIntTest, Init) {
 }
 
 TEST_F(DictIntTest, BatchInsert) {
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 129; ++i) {
     dict_int->Insert(i, i);
   }
-  ASSERT_EQ(dict_int->Size(), 100);
+  ASSERT_EQ(dict_int->Size(), 129);
   const std::optional<int>& opt = dict_int->Get(96);
   ASSERT_TRUE(opt.has_value());
   ASSERT_EQ(opt.value_or(0), 96);
+}
+
+TEST_F(DictIntTest, Iterator) {
+  in_memory::Dict<int, int>::Iterator it(dict_int.get());
+  it.SeekToFirst();
+  ASSERT_TRUE(it.Valid());
+  ASSERT_EQ(it.Key(), 128);
+  ASSERT_EQ(it.Value(), 128);
+
+  it.Next();
+  ASSERT_TRUE(it.Valid());
+  ASSERT_EQ(it.Key(), 0);
+  ASSERT_EQ(it.Value(), 0);
+
+  it.Next();
+  ASSERT_TRUE(it.Valid());
+  ASSERT_EQ(it.Key(), 1);
+  ASSERT_EQ(it.Value(), 1);
+
+  it.Next();
+  ASSERT_TRUE(it.Valid());
+  ASSERT_EQ(it.Key(), 2);
+  ASSERT_EQ(it.Value(), 2);
+
+  it.SeekToLast();
+  ASSERT_TRUE(it.Valid());
+  ASSERT_EQ(it.Key(), 127);
+  ASSERT_EQ(it.Value(), 127);
+
+  it.Next();
+  ASSERT_FALSE(it.Valid());
 }
 
 TEST_F(DictIntTest, Clear) {

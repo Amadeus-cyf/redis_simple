@@ -472,8 +472,12 @@ TEST_F(SkiplistTest, Iteration) {
   typename Skiplist<std::string>::Iterator it(skiplist);
   it.SeekToLast();
   ASSERT_EQ(*it, "key5");
+  ASSERT_TRUE(it.Valid());
+  it.Next();
+  ASSERT_FALSE(it.Valid());
 
-  --it;
+  it.SeekToLast();
+  it.Prev();
   ASSERT_EQ(*it, "key4");
 
   ++it;
@@ -481,9 +485,11 @@ TEST_F(SkiplistTest, Iteration) {
 
   it.SeekToFirst();
   ASSERT_EQ(*it, "key0");
+  ASSERT_TRUE(it.Valid());
 
   ++it;
   ASSERT_EQ(*it, "key2");
+  ASSERT_TRUE(it.Valid());
 
   ScanSkiplist(skiplist);
 }

@@ -9,12 +9,15 @@ namespace in_memory {
  */
 class IntSet {
  public:
+  class Iterator;
   IntSet();
   bool Add(const int64_t value);
   int64_t Get(const unsigned int index);
+  int64_t Get(const unsigned int index) const;
   bool Find(const int64_t value);
   bool Remove(const int64_t value);
   unsigned int Size() { return length_; }
+  unsigned int Size() const { return length_; }
   ~IntSet() {
     delete[] contents_;
     contents_ = nullptr;
@@ -29,7 +32,7 @@ class IntSet {
   };
   EncodingType ValueEncoding(const int64_t value);
   void Resize(const unsigned int length_);
-  int64_t GetEncoded(const unsigned int index, EncodingType encoding);
+  int64_t GetEncoded(const unsigned int index, EncodingType encoding) const;
   void UpgradeAndAdd(const int64_t value);
   bool Search(const int64_t value, unsigned int* const index);
   void Set(const unsigned int index, const int64_t value);
@@ -37,6 +40,30 @@ class IntSet {
   int* contents_;
   unsigned int length_;
   EncodingType encoding_;
+};
+
+class IntSet::Iterator {
+ public:
+  explicit Iterator(const IntSet* intset) : intset_(intset), idx_(0) {}
+  bool operator==(const Iterator& it) {
+    return intset_ == it.intset_ && idx_ == it.idx_;
+  }
+  bool operator!=(const Iterator& it) { return !((*this) == it); }
+  /* Return true if the iterator is positioned at a valid element */
+  bool Valid() const { return idx_ >= 0 && idx_ < intset_->Size(); }
+  /* Position at the first element */
+  void SeekToFirst() { idx_ = 0; }
+  /* Position at the last element */
+  void SeekToLast() { idx_ = intset_->Size() - 1; }
+  /* Advance to the next element */
+  void Next() { ++idx_; }
+  /* Advance to the previous element */
+  void Prev() { --idx_; }
+  int64_t Value() { return intset_->Get(idx_); }
+
+ private:
+  const IntSet* intset_;
+  unsigned int idx_;
 };
 }  // namespace in_memory
 }  // namespace redis_simple
