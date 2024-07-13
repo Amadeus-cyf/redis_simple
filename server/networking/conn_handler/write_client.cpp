@@ -3,6 +3,7 @@
 #include <any>
 
 #include "server/client.h"
+#include "server/server.h"
 
 namespace redis_simple {
 namespace networking {
@@ -36,6 +37,7 @@ ssize_t WriteToClientHandler::WriteToClient(Client* c) {
   if (r == -1) {
     if (c->Connection()->State() != connection::ConnState::connStateConnected) {
       c->Free();
+      Server::Get()->RemoveClient(c);
       return -1;
     }
   }

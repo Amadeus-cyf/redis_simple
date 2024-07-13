@@ -10,14 +10,19 @@
 namespace redis_simple {
 class Server {
  public:
-  static Server* Get();
+  static Server* const Get();
   void Run(const std::string& ip, const int& port);
   std::weak_ptr<ae::AeEventLoop> EventLoop() { return el_; }
   std::weak_ptr<const db::RedisDb> DB() { return db_; }
   void AddClient(Client* c) { clients_.push_back(c); }
+  bool RemoveClient(Client* c);
   const std::vector<Client*>& Clients() { return clients_; }
   ~Server() {
-    for (const Client* c : clients_) c->Free();
+    for (const Client* c : clients_) {
+      c->Free();
+      delete c;
+      c = nullptr;
+    }
   }
 
  private:

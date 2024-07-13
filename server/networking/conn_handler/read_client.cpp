@@ -5,6 +5,7 @@
 #include "server/client.h"
 #include "server/networking/conn_handler/conn_handler.h"
 #include "server/networking/networking.h"
+#include "server/server.h"
 
 namespace redis_simple {
 namespace networking {
@@ -33,6 +34,7 @@ void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
     if (conn->State() != connection::ConnState::connStateConnected) {
       printf("client free\n");
       c->Free();
+      Server::Get()->RemoveClient(c);
     }
     return;
   }
