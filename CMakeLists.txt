@@ -96,6 +96,7 @@ target_sources(redis_simple_tests
   PRIVATE
     "utils/string_utils.h"
     "utils/string_utils.cpp"
+    "utils/string_utils_test.cpp"
     "memory/buf_node.h"
     "memory/dict.h"
     "memory/dict_test.cpp"

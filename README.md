@@ -56,6 +56,9 @@ cd build && ./mock_t_string_client
 ```sh
 cd build && ./mock_t_zset_client
 ```
+```sh
+cd build && ./mock_t_set_client
+```
 
 ### Running Benchmark
 ```sh

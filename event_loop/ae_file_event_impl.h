@@ -21,6 +21,8 @@ class AeFileEventImpl : public AeFileEvent {
   void CallWriteProc(AeEventLoop* el, int fd, int mask) const override {
     wfile_proc_(el, fd, client_data_, mask);
   }
+  bool HasRFileProc() const override { return rfile_proc_ != nullptr; }
+  bool HasWFileProc() const override { return wfile_proc_ != nullptr; }
   bool IsRWProcDiff() const override { return rfile_proc_ != wfile_proc_; }
   void Merge(const AeFileEvent* fe) override;
   aeFileProc RFileProc() const { return rfile_proc_; }
@@ -29,8 +31,6 @@ class AeFileEventImpl : public AeFileEvent {
   void SetWFileProc(aeFileProc p) { wfile_proc_ = p; }
   T* ClientData() const { return client_data_; }
   void ClientData(const T* data) { client_data_ = data; }
-  bool HasRFileProc() const override { return rfile_proc_ != nullptr; }
-  bool HasWFileProc() const override { return wfile_proc_ != nullptr; }
 
  private:
   explicit AeFileEventImpl(aeFileProc rfile_proc_, aeFileProc wfile_proc_,
