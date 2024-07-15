@@ -10,16 +10,15 @@ namespace redis_simple {
 namespace command {
 namespace t_set {
 class SAddCommand : public Command {
-  struct SAddArgs {
-    std::string key;
-    std::vector<std::string> elements;
-  };
-
  public:
   SAddCommand() : Command("SADD"){};
   void Exec(Client* const client) const override;
 
  private:
+  struct SAddArgs {
+    std::string key;
+    std::vector<std::string> elements;
+  };
   int ParseArgs(const std::vector<std::string>& args,
                 SAddArgs* const sadd_args) const;
   int SAdd(std::shared_ptr<const db::RedisDb> db, const SAddArgs* args) const;

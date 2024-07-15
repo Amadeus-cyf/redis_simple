@@ -9,18 +9,18 @@ namespace in_memory {
 class ReplyBuffer {
  public:
   ReplyBuffer();
-  const char* UnsentBuffer() { return buf_ + sent_len_; }
-  size_t UnsentBufferLength() { return buf_pos_ - sent_len_; }
-  size_t SentLen() { return sent_len_; };
-  size_t ReplyLen() { return reply_len_; };
-  size_t ReplyBytes() { return reply_bytes_; }
-  size_t BufPosition() { return buf_pos_; };
-  BufNode* ReplyHead() { return reply_head_; }
-  BufNode* ReplyTail() { return reply_tail_; }
+  const char* UnsentBuffer() const { return buf_ + sent_len_; }
+  size_t UnsentBufferLength() const { return buf_pos_ - sent_len_; }
+  size_t SentLen() const { return sent_len_; };
+  size_t ReplyLen() const { return reply_len_; };
+  size_t ReplyBytes() const { return reply_bytes_; }
+  size_t BufPosition() const { return buf_pos_; };
+  BufNode* ReplyHead() const { return reply_head_; }
+  BufNode* ReplyTail() const { return reply_tail_; }
   size_t AddReplyToBufferOrList(const char* s, size_t len);
   void ClearProcessed(size_t nwritten);
   std::vector<std::pair<char*, size_t>> Memvec();
-  bool Empty() { return buf_pos_ == 0 && reply_len_ == 0; }
+  bool Empty() const { return buf_pos_ == 0 && reply_len_ == 0; }
   ~ReplyBuffer();
 
  private:

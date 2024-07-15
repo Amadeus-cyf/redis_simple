@@ -50,53 +50,24 @@ class Connection {
   StatusCode Accept(AddressInfo* const addrInfo);
   bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
   bool UnsetReadHandler();
-  bool HasReadHandler() { return read_handler_ != nullptr; }
   bool HasReadHandler() const { return read_handler_ != nullptr; }
   bool SetWriteHandler(std::unique_ptr<ConnHandler> handler,
                        bool barrier = false);
   bool UnsetWriteHandler();
-  bool HasWriteHandler() { return write_handler_ != nullptr; }
   bool HasWriteHandler() const { return write_handler_ != nullptr; }
-  int Fd() { return fd_; }
-  ConnState State() { return state_; }
+  int Fd() const { return fd_; }
   ConnState State() const { return state_; }
   void SetState(ConnState state) { state_ = state; }
   void SetPrivateData(std::any private_data) { private_data_ = private_data; }
-  std::any PrivateData() { return private_data_; }
   std::any PrivateData() const { return private_data_; }
-  ssize_t Read(char* const buffer, size_t readlen) {
-    return std::as_const(*this).Read(buffer, readlen);
-  }
   ssize_t Read(char* const buf, size_t readlen) const;
-  ssize_t BatchRead(std::string& s) {
-    return std::as_const(*this).BatchRead(s);
-  }
   ssize_t BatchRead(std::string& s) const;
-  ssize_t SyncRead(char* buffer, size_t readlen, long timeout) {
-    return std::as_const(*this).SyncRead(buffer, readlen, timeout);
-  }
   ssize_t SyncRead(char* buffer, size_t readlen, long timeout) const;
-  ssize_t SyncBatchRead(std::string& s, long timeout) {
-    return std::as_const(*this).SyncBatchRead(s, timeout);
-  }
   ssize_t SyncBatchRead(std::string& s, long timeout) const;
-  ssize_t SyncReadline(std::string& s, long timeout) {
-    return std::as_const(*this).SyncReadline(s, timeout);
-  }
   ssize_t SyncReadline(std::string& s, long timeout) const;
-  ssize_t Write(const char* buffer, size_t len) {
-    return std::as_const(*this).Write(buffer, len);
-  }
   ssize_t Write(const char* buffer, size_t len) const;
-  ssize_t Writev(const std::vector<std::pair<char*, size_t>>& mem_blocks) {
-    return std::as_const(*this).Writev(mem_blocks);
-  }
   ssize_t Writev(const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
-  ssize_t SyncWrite(const char* buffer, size_t len, long timeout) {
-    return std::as_const(*this).SyncWrite(buffer, len, timeout);
-  }
   ssize_t SyncWrite(const char* buffer, size_t len, long timeout) const;
-  void Close() { close(fd_); }
   void Close() const { close(fd_); }
   ~Connection() { Close(); }
 

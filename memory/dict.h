@@ -26,7 +26,6 @@ class Dict {
   bool Delete(const K& key);
   bool Delete(K&& key);
   ssize_t Scan(size_t cursor, dictScanFunc callback);
-  size_t Size() { return ht_used_[0] + ht_used_[1]; }
   size_t Size() const { return ht_used_[0] + ht_used_[1]; }
   void Clear();
   ~Dict();
@@ -42,16 +41,16 @@ class Dict {
   DictEntry* Unlink(const K& key);
   void UnlinkEntry(DictEntry* entry, DictEntry* prev, int i);
   void DeleteEntry(DictEntry* entry, DictEntry* prev, int i);
-  size_t HtSize(int exp) { return exp < 0 ? 0 : 1 << exp; }
-  bool IsRehashing() { return rehash_idx_ >= 0; }
+  size_t HtSize(int exp) const { return exp < 0 ? 0 : 1 << exp; }
+  bool IsRehashing() const { return rehash_idx_ >= 0; }
   void PauseRehashing() { ++pause_rehash_; }
   void ResumeRehashing() {
     if (pause_rehash_ > 0) --pause_rehash_;
   }
-  size_t HtMask(int i);
-  size_t KeyHashIndex(const K& key, int i);
-  int NextExp(ssize_t size);
-  bool IsEqual(const K& key1, const K& key2);
+  size_t HtMask(int i) const;
+  size_t KeyHashIndex(const K& key, int i) const;
+  int NextExp(ssize_t size) const;
+  bool IsEqual(const K& key1, const K& key2) const;
   void SetKey(DictEntry* entry, const K& key);
   void SetVal(DictEntry* entry, const V& val);
   void FreeKey(DictEntry* entry);
@@ -520,7 +519,7 @@ void Dict<K, V>::DeleteEntry(DictEntry* de, DictEntry* prev, int i) {
  * of the key.
  */
 template <typename K, typename V>
-size_t Dict<K, V>::HtMask(int i) {
+size_t Dict<K, V>::HtMask(int i) const {
   return ht_size_exp_[i] == -1 ? 0 : (1 << ht_size_exp_[i]) - 1;
 }
 
@@ -528,7 +527,7 @@ size_t Dict<K, V>::HtMask(int i) {
  * Return the hash index of the key.
  */
 template <typename K, typename V>
-size_t Dict<K, V>::KeyHashIndex(const K& key, int i) {
+size_t Dict<K, V>::KeyHashIndex(const K& key, int i) const {
   assert(type_.hashFunction);
   return (type_.hashFunction(key)) & HtMask(i);
 }
@@ -538,7 +537,7 @@ size_t Dict<K, V>::KeyHashIndex(const K& key, int i) {
  * The function is called in by DictExpand.
  */
 template <typename K, typename V>
-int Dict<K, V>::NextExp(ssize_t size) {
+int Dict<K, V>::NextExp(ssize_t size) const {
   if (size < 0) return htInitExp;
   int i = 1;
   while ((1 << i) < size) ++i;
@@ -546,7 +545,7 @@ int Dict<K, V>::NextExp(ssize_t size) {
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::IsEqual(const K& key1, const K& key2) {
+bool Dict<K, V>::IsEqual(const K& key1, const K& key2) const {
   return key1 == key2 || (type_.keyCompare && !(type_.keyCompare(key1, key2)));
 }
 

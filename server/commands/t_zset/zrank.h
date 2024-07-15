@@ -6,17 +6,16 @@
 namespace redis_simple {
 namespace command {
 namespace t_zset {
-struct ZRankArgs {
-  std::string key;
-  std::string ele;
-};
-
 class ZRankCommand : public Command {
  public:
   ZRankCommand() : Command("ZRANK"){};
   void Exec(Client* const client) const override;
 
  private:
+  struct ZRankArgs {
+    std::string key;
+    std::string ele;
+  };
   int ParseArgs(const std::vector<std::string>& args,
                 ZRankArgs* const zrank_args) const;
   int ZRank(std::shared_ptr<const db::RedisDb> db, const ZRankArgs* args) const;

@@ -29,15 +29,11 @@ bool IntSet::Add(const int64_t value) {
 /*
  * Return the value at the index. Return true if succeeded.
  */
-int64_t IntSet::Get(const unsigned int index) {
-  return GetEncoded(index, encoding_);
-}
-
 int64_t IntSet::Get(const unsigned int index) const {
   return GetEncoded(index, encoding_);
 }
 
-bool IntSet::Find(const int64_t value) {
+bool IntSet::Find(const int64_t value) const {
   EncodingType encoding = ValueEncoding(value);
   return encoding <= encoding_ && Search(value, nullptr);
 }
@@ -58,7 +54,7 @@ bool IntSet::Remove(const int64_t value) {
 /*
  * Get encoding type of the value.
  */
-IntSet::EncodingType IntSet::ValueEncoding(const int64_t value) {
+IntSet::EncodingType IntSet::ValueEncoding(const int64_t value) const {
   if (value < INT32_MIN || value > INT32_MAX) {
     return intsetEncoding64;
   } else if (value < INT16_MIN || value > INT16_MAX) {
@@ -96,7 +92,7 @@ void IntSet::UpgradeAndAdd(const int64_t value) {
  * Search for the value and set index to the index of the value if the value is
  * found. return true if the value is found.
  */
-bool IntSet::Search(const int64_t value, unsigned int* const index) {
+bool IntSet::Search(const int64_t value, unsigned int* const index) const {
   if (length_ > 0 && value < GetEncoded(0, encoding_)) {
     if (index) *index = 0;
     return false;

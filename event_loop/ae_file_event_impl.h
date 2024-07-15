@@ -15,33 +15,21 @@ class AeFileEventImpl : public AeFileEvent {
                              T* client_data_, int mask) {
     return new AeFileEventImpl(rfile_proc_, wfile_proc_, client_data_, mask);
   }
-  void CallReadProc(AeEventLoop* el, int fd, int mask) override {
-    rfile_proc_(el, fd, client_data_, mask);
-  }
   void CallReadProc(AeEventLoop* el, int fd, int mask) const override {
     rfile_proc_(el, fd, client_data_, mask);
-  }
-  void CallWriteProc(AeEventLoop* el, int fd, int mask) override {
-    wfile_proc_(el, fd, client_data_, mask);
   }
   void CallWriteProc(AeEventLoop* el, int fd, int mask) const override {
     wfile_proc_(el, fd, client_data_, mask);
   }
+  bool IsRWProcDiff() const override { return rfile_proc_ != wfile_proc_; }
   void Merge(const AeFileEvent* fe) override;
-  aeFileProc RFileProc() { return rfile_proc_; }
   aeFileProc RFileProc() const { return rfile_proc_; }
   void SetRFileProc(aeFileProc p) { rfile_proc_ = p; }
-  aeFileProc WFileProc() { return wfile_proc_; }
   aeFileProc WFileProc() const { return wfile_proc_; }
   void SetWFileProc(aeFileProc p) { wfile_proc_ = p; }
-  bool IsRWProcDiff() override { return rfile_proc_ != wfile_proc_; }
-  bool IsRWProcDiff() const override { return rfile_proc_ != wfile_proc_; }
-  T* ClientData() { return client_data_; }
   T* ClientData() const { return client_data_; }
   void ClientData(const T* data) { client_data_ = data; }
-  bool HasRFileProc() override { return rfile_proc_ != nullptr; }
   bool HasRFileProc() const override { return rfile_proc_ != nullptr; }
-  bool HasWFileProc() override { return wfile_proc_ != nullptr; }
   bool HasWFileProc() const override { return wfile_proc_ != nullptr; }
 
  private:

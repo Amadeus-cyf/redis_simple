@@ -48,11 +48,12 @@ class ZSet {
   static ZSet* Init() { return new ZSet(); }
   bool InsertOrUpdate(const std::string& key, const double score);
   bool Delete(const std::string& key);
-  int GetRankOfKey(const std::string& key);
-  const std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec);
+  int GetRankOfKey(const std::string& key) const;
+  const std::vector<const ZSetEntry*> RangeByRank(
+      const RangeByRankSpec* spec) const;
   const std::vector<const ZSetEntry*> RangeByScore(
-      const RangeByScoreSpec* spec);
-  size_t Count(const RangeByScoreSpec* spec);
+      const RangeByScoreSpec* spec) const;
+  size_t Count(const RangeByScoreSpec* spec) const;
   size_t Size() const { return skiplist_->Size(); }
 
  private:
@@ -75,18 +76,18 @@ class ZSet {
   explicit ZSet();
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByRankSpec*
-  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec);
+  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
   const in_memory::Skiplist<const ZSetEntry*, Comparator,
                             Destructor>::SkiplistRangeByKeySpec*
-  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec);
+  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
   void FreeSkiplistRangeByRankSpec(
       const in_memory::Skiplist<const ZSetEntry*, Comparator,
                                 Destructor>::SkiplistRangeByRankSpec*
-          skiplist_spec);
+          skiplist_spec) const;
   void FreeSkiplistRangeByKeySpec(
       const in_memory::Skiplist<const ZSetEntry*, Comparator,
                                 Destructor>::SkiplistRangeByKeySpec*
-          skiplist_spec);
+          skiplist_spec) const;
   /* dict mapping key to score */
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
   /* skiplist storing key score pairs ordered by score */

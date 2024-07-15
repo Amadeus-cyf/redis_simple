@@ -16,22 +16,19 @@ class AeTimeEventImpl : public AeTimeEvent {
     static long long gen_id = 0;
     return new AeTimeEventImpl(gen_id++, time_proc, finalize_proc, client_data);
   }
-  int CallTimeProc() override { return time_proc_(Id(), client_data_); }
   int CallTimeProc() const override { return time_proc_(Id(), client_data_); }
-  bool HasTimeFinalizeProc() override { return finalize_proc_ != nullptr; }
   bool HasTimeFinalizeProc() const override {
     return finalize_proc_ != nullptr;
   }
-  int CallTimeFinalizeProc() override { return finalize_proc_(client_data_); }
   int CallTimeFinalizeProc() const override {
     return finalize_proc_(client_data_);
   }
   void SetTimeProc(aeTimeProc proc) { time_proc_ = proc; }
-  aeTimeFinalizeProc GetTimeFinalizeProc() { return finalize_proc_; }
+  aeTimeFinalizeProc GetTimeFinalizeProc() const { return finalize_proc_; }
   void SetTimeFinalizeProc(aeTimeFinalizeProc finalize_proc) {
     finalize_proc_ = finalize_proc;
   }
-  T* ClientData() { return client_data_; }
+  T* ClientData() const { return client_data_; }
   void SetClientData(T* client_data) { client_data_ = client_data; }
 
  private:
