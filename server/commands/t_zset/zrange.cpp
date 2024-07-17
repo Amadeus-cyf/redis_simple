@@ -20,17 +20,15 @@ static const std::string& maxScore = "+inf";
 static const std::string& minScore = "-inf";
 
 static bool FlaggedByScore(const std::vector<std::string>& args);
-std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeToRankSpec(
-    const std::vector<std::string>& args);
-static int ParseRankRange(
-    const std::string& start, const std::string& end,
-    const std::unique_ptr<zset::ZSet::RangeByRankSpec>& spec);
+static int ParseRangeToRankSpec(const std::vector<std::string>& args,
+                                zset::ZSet::RangeByRankSpec* const spec);
+static int ParseRankRange(const std::string& start, const std::string& end,
+                          zset::ZSet::RangeByRankSpec* const spec);
 static int ParseRangeTerm(const std::string& term, long* const dst);
-std::unique_ptr<const zset::ZSet::RangeByScoreSpec> ParseRangeToScoreSpec(
-    const std::vector<std::string>& args);
-static int ParseScoreRange(
-    const std::string& start, const std::string& end,
-    const std::unique_ptr<zset::ZSet::RangeByScoreSpec>& spec);
+static int ParseRangeToScoreSpec(const std::vector<std::string>& args,
+                                 zset::ZSet::RangeByScoreSpec* const spec);
+static int ParseScoreRange(const std::string& start, const std::string& end,
+                           zset::ZSet::RangeByScoreSpec* const spec);
 static int ParseScoreTerm(const std::string& term, double* const dst);
 static int ParseLimitOffsetAndCount(
     const std::vector<std::string>& args,
@@ -54,41 +52,36 @@ static bool FlaggedByScore(const std::vector<std::string>& args) {
   return false;
 }
 
-static std::unique_ptr<const zset::ZSet::RangeByRankSpec> ParseRangeToRankSpec(
-    const std::vector<std::string>& args) {
+static int ParseRangeToRankSpec(const std::vector<std::string>& args,
+                                zset::ZSet::RangeByRankSpec* const spec) {
   if (args.size() < 3) {
-    return nullptr;
+    return -1;
   }
   const std::string &start = args[1], &end = args[2];
-  std::unique_ptr<zset::ZSet::RangeByRankSpec> spec =
-      std::make_unique<zset::ZSet::RangeByRankSpec>();
   /* parse range */
   if (ParseRankRange(start, end, spec) < 0) {
-    return nullptr;
+    return -1;
   }
   spec->limit = std::make_unique<zset::ZSet::LimitSpec>();
   /* parse limit */
-  ParseLimitOffsetAndCount(args, spec->limit);
+  if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
+    return -1;
+  }
   /* parse reverse */
   spec->reverse = IsReverse(args);
-  return spec;
+  return 0;
 }
 
-static int ParseRankRange(
-    const std::string& start, const std::string& end,
-    const std::unique_ptr<zset::ZSet::RangeByRankSpec>& spec) {
+static int ParseRankRange(const std::string& start, const std::string& end,
+                          zset::ZSet::RangeByRankSpec* const spec) {
   if (ParseRangeTerm(start, &(spec->min)) < 0) {
     return -1;
   }
   if (ParseRangeTerm(end, &(spec->max)) < 0) {
     return -1;
   }
-  if (start[0] == '(') {
-    spec->minex = true;
-  }
-  if (end[0] == '(') {
-    spec->maxex = true;
-  }
+  spec->minex = (start[0] == '(');
+  spec->maxex = (end[0] == '(');
   return 0;
 }
 
@@ -113,29 +106,28 @@ static int ParseRangeTerm(const std::string& term, long* const dst) {
   return 0;
 }
 
-static std::unique_ptr<const zset::ZSet::RangeByScoreSpec>
-ParseRangeToScoreSpec(const std::vector<std::string>& args) {
+static int ParseRangeToScoreSpec(const std::vector<std::string>& args,
+                                 zset::ZSet::RangeByScoreSpec* const spec) {
   if (args.size() < 3) {
-    return nullptr;
+    return -1;
   }
   const std::string &start = args[1], &end = args[2];
-  std::unique_ptr<zset::ZSet::RangeByScoreSpec> spec =
-      std::make_unique<zset::ZSet::RangeByScoreSpec>();
   /* parse score range */
   if (ParseScoreRange(start, end, spec) < 0) {
-    return nullptr;
+    return -1;
   }
   spec->limit = std::make_unique<zset::ZSet::LimitSpec>();
   /* parse limit */
-  ParseLimitOffsetAndCount(args, spec->limit);
+  if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
+    return -1;
+  }
   /* parse reverse */
   spec->reverse = IsReverse(args);
-  return spec;
+  return 0;
 }
 
-static int ParseScoreRange(
-    const std::string& start, const std::string& end,
-    const std::unique_ptr<zset::ZSet::RangeByScoreSpec>& spec) {
+static int ParseScoreRange(const std::string& start, const std::string& end,
+                           zset::ZSet::RangeByScoreSpec* const spec) {
   if (ParseScoreTerm(start, &(spec->min)) < 0) {
     return -1;
   }
@@ -270,9 +262,8 @@ void ZRangeCommand::Exec(Client* const client) const {
 int ZRangeCommand::RangeByRank(
     Client* const client, const std::vector<std::string>& args,
     std::vector<const zset::ZSet::ZSetEntry*>* result) const {
-  std::unique_ptr<const zset::ZSet::RangeByRankSpec> spec =
-      ParseRangeToRankSpec(args);
-  if (!spec) {
+  zset::ZSet::RangeByRankSpec spec;
+  if (ParseRangeToRankSpec(args, &spec) < 0) {
     printf("invalid arguments for zrange rank\n");
     return -1;
   }
@@ -284,7 +275,7 @@ int ZRangeCommand::RangeByRank(
     }
     try {
       zset::ZSet* const zset = obj->ZSet();
-      *result = zset->RangeByRank(spec.get());
+      *result = zset->RangeByRank(&spec);
     } catch (const std::exception& e) {
       printf("catch exception %s", e.what());
       return -1;
@@ -299,9 +290,8 @@ int ZRangeCommand::RangeByRank(
 int ZRangeCommand::RangeByScore(
     Client* const client, const std::vector<std::string>& args,
     std::vector<const zset::ZSet::ZSetEntry*>* result) const {
-  std::unique_ptr<const zset::ZSet::RangeByScoreSpec> spec =
-      ParseRangeToScoreSpec(args);
-  if (!spec) {
+  zset::ZSet::RangeByScoreSpec spec;
+  if (ParseRangeToScoreSpec(args, &spec) < 0) {
     printf("invalid arguments for zrange score\n");
     return -1;
   }
@@ -313,7 +303,7 @@ int ZRangeCommand::RangeByScore(
     }
     try {
       zset::ZSet* const zset = obj->ZSet();
-      *result = zset->RangeByScore(spec.get());
+      *result = zset->RangeByScore(&spec);
     } catch (const std::exception& e) {
       printf("catch exception %s", e.what());
       return -1;
