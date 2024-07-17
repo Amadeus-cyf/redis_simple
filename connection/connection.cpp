@@ -12,8 +12,8 @@
 namespace redis_simple {
 namespace connection {
 namespace {
-static int TCPBindAndConnect(const AddressInfo& remote,
-                             const std::optional<const AddressInfo>& local) {
+int TCPBindAndConnect(const AddressInfo& remote,
+                      const std::optional<const AddressInfo>& local) {
   const tcp::TCPAddrInfo remote_addr(remote.ip, remote.port);
   const std::optional<const tcp::TCPAddrInfo>& local_addr =
       local.has_value() ? std::make_optional<tcp::TCPAddrInfo>(

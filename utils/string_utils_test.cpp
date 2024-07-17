@@ -43,7 +43,7 @@ TEST(StringUtilsTest, ShiftCStr) {
   ASSERT_EQ(std::memcmp(s3, "test_buffer_3", sizeof("test_buffer_3")), 0);
 
   char s4[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
-                 'f', 'f', 'e', 'r', '_', '5'};
+                 'f', 'f', 'e', 'r', '_', '4'};
   ShiftCStr(s4, 14, -1);
   ASSERT_EQ(std::memcmp(s4, "", sizeof("")), 0);
 

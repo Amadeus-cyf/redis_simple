@@ -15,13 +15,15 @@ void Run() {
   const std::string& cmd3 = "SADD key_set ele3\r\n";
   const std::string& cmd4 = "SADD key_set ele4 ele5 ele6\r\n";
   const std::string& cmd5 = "SADD key_set ele5 ele6 ele7\r\n";
-  const std::string& cmd6 = "SISMEMBER key_set ele7\r\n";
-  const std::string& cmd7 = "SISMEMBER key_set ele9\r\n";
-  const std::string& cmd8 = "SREM key_set ele5 ele6 ele7\r\n";
-  const std::string& cmd9 = "SREM key_set ele1 ele6 ele7\r\n";
+  const std::string& cmd6 = "SMEMBERS key_set\r\n";
+  const std::string& cmd7 = "SISMEMBER key_set ele7\r\n";
+  const std::string& cmd8 = "SISMEMBER key_set ele9\r\n";
+  const std::string& cmd9 = "SREM key_set ele5 ele6 ele7\r\n";
+  const std::string& cmd10 = "SREM key_set ele1 ele6 ele7\r\n";
 
-  std::vector<std::string> commands = {cmd1, cmd2, cmd3, cmd4, cmd5, cmd6,
-                                       cmd7, cmd8, cmd9, cmd6, cmd7};
+  std::vector<std::string> commands = {cmd1, cmd2, cmd3, cmd4, cmd5,
+                                       cmd6, cmd7, cmd8, cmd9, cmd10,
+                                       cmd6, cmd7, cmd8};
 
   for (const std::string& command : commands) {
     cli.AddCommand(command);

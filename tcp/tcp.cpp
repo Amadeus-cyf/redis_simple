@@ -12,9 +12,9 @@
 namespace redis_simple {
 namespace tcp {
 namespace {
-static constexpr const int backlog = 3;
+constexpr const int backlog = 3;
 
-static int TCP_SetReuseAddr(int socket_fd) {
+int TCP_SetReuseAddr(int socket_fd) {
   int yes = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
       -1) {
@@ -23,8 +23,8 @@ static int TCP_SetReuseAddr(int socket_fd) {
   return tcpOK;
 }
 
-static int TCP_GenericCreateSocket(int domain, int type, int protocol,
-                                   bool non_block) {
+int TCP_GenericCreateSocket(int domain, int type, int protocol,
+                            bool non_block) {
   int socket_fd = socket(domain, type, protocol);
   if (socket_fd < 0) {
     return TCPStatusCode::tcpError;
@@ -40,7 +40,7 @@ static int TCP_GenericCreateSocket(int domain, int type, int protocol,
   return socket_fd;
 }
 
-static int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
+int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   int s = -1;
   if ((s = accept(socket_fd, addr, len)) == -1) {
     return TCPStatusCode::tcpError;
@@ -48,7 +48,7 @@ static int TCP_GenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   return s;
 }
 
-static int SetBlock(int fd, bool block) {
+int SetBlock(int fd, bool block) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) {
     return TCPStatusCode::tcpError;
@@ -61,13 +61,13 @@ static int SetBlock(int fd, bool block) {
                                        : TCPStatusCode::tcpOK;
 }
 
-static bool IsNonBlock(int fd) {
+bool IsNonBlock(int fd) {
   int flags = fcntl(fd, F_GETFL);
 
   return flags & O_NONBLOCK;
 }
 
-static int SetCLOEXEC(int fd) {
+int SetCLOEXEC(int fd) {
   int flags = fcntl(fd, F_GETFL);
   if (flags & O_CLOEXEC) {
     return tcpOK;

@@ -47,8 +47,9 @@ std::string FromArray(const std::vector<std::string>& array) {
   reply.push_back(arrayPrefix);
   reply.append(std::to_string(array.size())).append(CRLF);
   for (const std::string& str : array) {
-    if (str.size() < 2 || str.substr(str.size() - 2) != CRLF)
+    if (str.size() < 2 || str.substr(str.size() - 2) != CRLF) {
       throw std::invalid_argument("array element not encoded");
+    }
     reply.append(str);
   }
   return reply;

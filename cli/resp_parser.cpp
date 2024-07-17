@@ -12,20 +12,20 @@ struct Prefix {
   static constexpr const char arrayPrefix = '*';
 };
 
-static ssize_t Parse(const std::string& resp, size_t start,
-                     std::vector<std::string>* const reply);
-static ssize_t FindCRLF(const std::string& resp, size_t start);
-static ssize_t ParseString(const std::string& resp, size_t start,
-                           std::vector<std::string>* const reply);
-static ssize_t ParseBulkString(const std::string& resp, size_t start,
-                               std::vector<std::string>* const reply);
-static ssize_t ParseInt64(const std::string& resp, size_t start,
-                          std::vector<std::string>* const reply);
-static ssize_t ParseArray(const std::string& resp, size_t start,
-                          std::vector<std::string>* const reply);
+ssize_t Parse(const std::string& resp, size_t start,
+              std::vector<std::string>* const reply);
+ssize_t FindCRLF(const std::string& resp, size_t start);
+ssize_t ParseString(const std::string& resp, size_t start,
+                    std::vector<std::string>* const reply);
+ssize_t ParseBulkString(const std::string& resp, size_t start,
+                        std::vector<std::string>* const reply);
+ssize_t ParseInt64(const std::string& resp, size_t start,
+                   std::vector<std::string>* const reply);
+ssize_t ParseArray(const std::string& resp, size_t start,
+                   std::vector<std::string>* const reply);
 
-static ssize_t Parse(const std::string& resp, size_t start,
-                     std::vector<std::string>* const reply) {
+ssize_t Parse(const std::string& resp, size_t start,
+              std::vector<std::string>* const reply) {
   if (start > resp.size() - 2 || resp[resp.size() - 2] != '\r' ||
       resp[resp.size() - 1] != '\n') {
     return -1;
@@ -44,23 +44,23 @@ static ssize_t Parse(const std::string& resp, size_t start,
   }
 }
 
-static ssize_t FindCRLF(const std::string& resp, size_t start) {
+ssize_t FindCRLF(const std::string& resp, size_t start) {
   start = resp.find_first_of('\r', start);
   if (start == std::string::npos) return -1;
   if (start < resp.size() - 1 && resp[start + 1] == '\n') return start;
   return -1;
 }
 
-static ssize_t ParseString(const std::string& resp, size_t start,
-                           std::vector<std::string>* const reply) {
+ssize_t ParseString(const std::string& resp, size_t start,
+                    std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   reply->push_back(resp.substr(start + 1, i - start - 1));
   return i - start + 2;
 }
 
-static ssize_t ParseBulkString(const std::string& resp, size_t start,
-                               std::vector<std::string>* const reply) {
+ssize_t ParseBulkString(const std::string& resp, size_t start,
+                        std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   size_t len = 0;
@@ -77,8 +77,8 @@ static ssize_t ParseBulkString(const std::string& resp, size_t start,
   return j - start + 2;
 }
 
-static ssize_t ParseInt64(const std::string& resp, size_t start,
-                          std::vector<std::string>* const reply) {
+ssize_t ParseInt64(const std::string& resp, size_t start,
+                   std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   int sign = 1;
@@ -95,8 +95,8 @@ static ssize_t ParseInt64(const std::string& resp, size_t start,
   return i - start + 2;
 }
 
-static ssize_t ParseArray(const std::string& resp, size_t start,
-                          std::vector<std::string>* const reply) {
+ssize_t ParseArray(const std::string& resp, size_t start,
+                   std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   std::string len_str;

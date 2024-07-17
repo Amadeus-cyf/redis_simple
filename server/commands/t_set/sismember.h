@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 
-#include "server/client.h"
 #include "server/commands/t_set/sadd.h"
 #include "server/reply/reply.h"
 

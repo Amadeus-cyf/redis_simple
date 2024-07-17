@@ -11,8 +11,7 @@
 namespace redis_simple {
 namespace cli {
 namespace {
-static std::string ReadFromConnection(
-    const connection::Connection* connection) {
+std::string ReadFromConnection(const connection::Connection* connection) {
   std::string reply;
   ssize_t nread = 0;
   char buf[4096];
@@ -30,8 +29,8 @@ static std::string ReadFromConnection(
   return reply;
 }
 
-static ssize_t WriteToConnection(const connection::Connection* connection,
-                                 const std::string& cmds) {
+ssize_t WriteToConnection(const connection::Connection* connection,
+                          const std::string& cmds) {
   ssize_t nwritten = 0;
   printf("client write %s\n", cmds.c_str());
   while (nwritten < cmds.size()) {
@@ -44,7 +43,7 @@ static ssize_t WriteToConnection(const connection::Connection* connection,
   return nwritten;
 }
 
-static std::string ReplyListToString(const std::vector<std::string>& reply) {
+std::string ReplyListToString(const std::vector<std::string>& reply) {
   std::string reply_str;
   for (const std::string& r : reply) {
     reply_str.append(r).push_back('\n');
