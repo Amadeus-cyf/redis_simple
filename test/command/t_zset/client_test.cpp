@@ -16,15 +16,16 @@ void Run() {
   const std::string& cmd4 = "ZRANK key1 ele1\r\n";
   const std::string& cmd5 = "ZRANK key1 ele2\r\n";
   const std::string& cmd6 = "ZRANK key1 ele3\r\n";
-  const std::string& cmd7 = "ZRANGE key1 0 1\r\n";
-  const std::string& cmd8 = "ZRANGE key1 -inf +inf\r\n";
-  const std::string& cmd9 = "ZRANGE key1 1.0 2.0 BYSCORE\r\n";
-  const std::string& cmd10 = "ZRANGE key1 -inf +inf BYSCORE\r\n";
-  const std::string& cmd11 = "ZREM key1 ele1\r\n";
+  const std::string& cmd7 = "ZCARD key1\r\n";
+  const std::string& cmd8 = "ZRANGE key1 0 1\r\n";
+  const std::string& cmd9 = "ZRANGE key1 -inf +inf\r\n";
+  const std::string& cmd10 = "ZRANGE key1 1.0 2.0 BYSCORE\r\n";
+  const std::string& cmd11 = "ZRANGE key1 -inf +inf BYSCORE\r\n";
+  const std::string& cmd12 = "ZREM key1 ele1\r\n";
 
   std::vector<std::string> commands = {
-      cmd1,  cmd2,  cmd3,  cmd4, cmd5, cmd6, cmd7, cmd8, cmd9,
-      cmd10, cmd11, cmd11, cmd4, cmd5, cmd7, cmd8, cmd9, cmd10,
+      cmd1,  cmd2,  cmd3, cmd4, cmd5, cmd6, cmd7, cmd8,  cmd9,  cmd10,
+      cmd12, cmd12, cmd4, cmd5, cmd7, cmd8, cmd9, cmd10, cmd11,
   };
 
   for (const std::string& command : commands) {

@@ -9,6 +9,7 @@
 #include "server/commands/t_string/get.h"
 #include "server/commands/t_string/set.h"
 #include "server/commands/t_zset/zadd.h"
+#include "server/commands/t_zset/zcard.h"
 #include "server/commands/t_zset/zrange.h"
 #include "server/commands/t_zset/zrank.h"
 #include "server/commands/t_zset/zrem.h"
@@ -26,6 +27,7 @@ const std::unordered_map<std::string, std::shared_ptr<const Command>>&
         {"SMEMBERS", std::make_shared<const t_set::SMembersCommand>()},
         {"SISMEMBER", std::make_shared<const t_set::SIsMemberCommand>()},
         {"ZADD", std::make_shared<const t_zset::ZAddCommand>()},
+        {"ZCARD", std::make_shared<const t_zset::ZCardCommand>()},
         {"ZREM", std::make_shared<const t_zset::ZRemCommand>()},
         {"ZRANK", std::make_shared<const t_zset::ZRankCommand>()},
         {"ZRANGE", std::make_shared<const t_zset::ZRangeCommand>()},

@@ -55,7 +55,7 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   try {
-    zset::ZSet* const zset = obj->ZSet();
+    zset::ZSet* zset = obj->ZSet();
     int deleted = 0;
     for (const std::string& element : args->elements) {
       deleted += zset->Delete(element) ? 1 : 0;

@@ -66,7 +66,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
     }
   }
   try {
-    zset::ZSet* const zset = obj->ZSet();
+    zset::ZSet* zset = obj->ZSet();
     int added = 0;
     for (std::pair<std::string, double> ele_score : args->ele_score_list) {
       const std::string& element = ele_score.first;

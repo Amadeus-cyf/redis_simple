@@ -286,7 +286,7 @@ int ZRangeCommand::RangeByScore(
       return -1;
     }
     try {
-      zset::ZSet* const zset = obj->ZSet();
+      const zset::ZSet* zset = obj->ZSet();
       *result = zset->RangeByScore(&spec);
     } catch (const std::exception& e) {
       printf("catch exception %s", e.what());

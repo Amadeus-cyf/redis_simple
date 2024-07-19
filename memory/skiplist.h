@@ -87,7 +87,7 @@ class Skiplist {
   bool Gt(const Key& k1, const Key& k2) const;
   bool Gte(const Key& k1, const Key& k2) const;
   bool Eq(const Key& k1, const Key& k2) const;
-  void DeleteNode(const Key& key, SkiplistNode* prev[maxSkiplistLevel]);
+  void DeleteNode(const Key& key, SkiplistNode** const prev);
   const SkiplistNode* FindKey(size_t rank) const;
   const SkiplistNode* FindMinNodeByRangeRankSpec(
       const SkiplistRangeByRankSpec* spec) const;
@@ -474,7 +474,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::Insert(const Key& key) {
     node->Next(0)->SetPrev(node);
   }
   ++size_;
-  printf("skiplist: new Key inserted\n");
+  printf("skiplist: new key inserted\n");
   return node->key;
 }
 
@@ -747,21 +747,20 @@ Skiplist<Key, Comparator, Destructor>::FindKeyGreaterOrEqual(
  */
 template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::DeleteNode(
-    const Key& key, SkiplistNode* update[maxSkiplistLevel]) {
-  SkiplistNode* node_to_delete = update[0]->Next(0);
+    const Key& key, SkiplistNode** const prev) {
+  SkiplistNode* node_to_delete = prev[0]->Next(0);
   for (int i = level_ - 1; i >= 0; --i) {
-    const SkiplistNode* next = update[i]->Next(i);
+    const SkiplistNode* next = prev[i]->Next(i);
     if (next && Eq(next->key, key)) {
-      update[i]->SetNext(i, next ? next->Next(i) : nullptr);
-      update[i]->SetSpan(i,
-                         update[i]->Span(i) + (next ? next->Span(i) : 0) - 1);
-    } else if (update[i]) {
-      update[i]->SetSpan(i, update[i]->Span(i) - 1);
+      prev[i]->SetNext(i, next ? next->Next(i) : nullptr);
+      prev[i]->SetSpan(i, prev[i]->Span(i) + (next ? next->Span(i) : 0) - 1);
+    } else {
+      prev[i]->SetSpan(i, prev[i]->Span(i) - 1);
     }
   }
   /* for level 0, update backward pointer since it's a double linked list */
-  if (update[0]->Next(0)) {
-    update[0]->Next(0)->SetPrev(update[0]);
+  if (prev[0]->Next(0)) {
+    prev[0]->Next(0)->SetPrev(prev[0]);
   }
   delete node_to_delete;
   --size_;

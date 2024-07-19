@@ -38,6 +38,8 @@ PRIVATE
   "server/commands/t_string/delete.cpp"
   "server/commands/t_zset/zadd.h"
   "server/commands/t_zset/zadd.cpp"
+  "server/commands/t_zset/zcard.h"
+  "server/commands/t_zset/zcard.cpp"
   "server/commands/t_zset/zrem.h"
   "server/commands/t_zset/zrem.cpp"
   "server/commands/t_zset/zrank.h"
