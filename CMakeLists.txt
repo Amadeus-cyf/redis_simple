@@ -22,6 +22,8 @@ PRIVATE
   "server/commands/command.cpp"
   "server/commands/t_set/sadd.h"
   "server/commands/t_set/sadd.cpp"
+  "server/commands/t_set/scard.h"
+  "server/commands/t_set/scard.cpp"
   "server/commands/t_set/sismember.h"
   "server/commands/t_set/sismember.cpp"
   "server/commands/t_set/smembers.h"
