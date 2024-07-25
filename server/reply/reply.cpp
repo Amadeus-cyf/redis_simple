@@ -1,5 +1,7 @@
 #include "reply.h"
 
+#include <sstream>
+
 namespace redis_simple {
 namespace reply {
 static const std::string& CRLF = "\r\n";
@@ -9,6 +11,18 @@ static constexpr const char int64Prefix = ':';
 static constexpr const char arrayPrefix = '*';
 static constexpr const char doublePrefix = ',';
 static constexpr const char nullPrefix = '_';
+
+namespace {
+std::string FloatToString(double fl) {
+  std::stringstream ss;
+  if (fl >= 0.0001 && fl < 100000) {
+    ss << std::fixed << fl;
+  } else {
+    ss << std::scientific << fl;
+  }
+  return ss.str();
+}
+}  // namespace
 
 /*
  * Encode a simple string. The string could not contain \r or \n.
@@ -63,7 +77,7 @@ std::string FromArray(const std::vector<std::string>& array) {
 std::string FromFloat(const double fl) {
   std::string reply;
   reply.push_back(doublePrefix);
-  reply.append(std::to_string(fl)).append(CRLF);
+  reply.append(FloatToString(fl)).append(CRLF);
   return reply;
 }
 

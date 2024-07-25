@@ -142,7 +142,8 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   int sign = 1, exponential_sign = 1;
-  long integral = 0, fractional = 0, exponent = 0;
+  long integral = 0, exponent = 0;
+  std::string fractional;
   bool floating_point = false, exponential = false;
   for (size_t j = start + 1; j < i; ++j) {
     /* floating number sign */
@@ -170,7 +171,7 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
     if (!std::isdigit(resp[j])) return -1;
     if (floating_point && !exponential) {
       /* calculate fractional part */
-      fractional = fractional * 10 + (resp[j] - '0');
+      fractional.push_back(resp[j]);
     } else if (!floating_point && !exponential) {
       /* calculate integral part */
       integral = integral * 10 + (resp[j] - '0');
@@ -181,9 +182,14 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
   }
   std::string floating_num_str = std::move(std::to_string(sign * integral));
   /* fractional */
-  if (floating_point && fractional > 0) {
-    floating_num_str.push_back('.');
-    floating_num_str.append(std::to_string(fractional));
+  if (floating_point) {
+    /* remove trailing zero */
+    while (!fractional.empty() && fractional.back() == '0')
+      fractional.pop_back();
+    if (!fractional.empty()) {
+      floating_num_str.push_back('.');
+      floating_num_str.append(fractional);
+    }
   }
   /* exponent */
   if (exponential && exponent > 0) {

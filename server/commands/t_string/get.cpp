@@ -1,5 +1,7 @@
 #include "server/commands/t_string/get.h"
 
+#include <optional>
+
 #include "server/client.h"
 #include "server/reply/reply.h"
 

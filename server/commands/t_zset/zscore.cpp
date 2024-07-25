@@ -1,5 +1,7 @@
 #include "server/commands/t_zset/zscore.h"
 
+#include <optional>
+
 #include "server/client.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"

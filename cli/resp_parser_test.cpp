@@ -79,10 +79,10 @@ TEST(ReplyParseTest, ParseNull) {
 
 TEST(ReplyParserTest, ParseFloat) {
   std::vector<std::string> reply;
-  ASSERT_EQ(resp_parser::Parse(",123.23\r\n", reply), 9);
-  ASSERT_EQ(reply.back(), "123.23");
-  ASSERT_EQ(resp_parser::Parse(",-123.23\r\n", reply), 10);
-  ASSERT_EQ(reply.back(), "-123.23");
+  ASSERT_EQ(resp_parser::Parse(",123.000002300000\r\n", reply), 19);
+  ASSERT_EQ(reply.back(), "123.0000023");
+  ASSERT_EQ(resp_parser::Parse(",-123.000230000\r\n", reply), 17);
+  ASSERT_EQ(reply.back(), "-123.00023");
   ASSERT_EQ(resp_parser::Parse(",123.456e12\r\n", reply), 13);
   ASSERT_EQ(reply.back(), "123.456e12");
   ASSERT_EQ(resp_parser::Parse(",-123.456e12\r\n", reply), 14);
