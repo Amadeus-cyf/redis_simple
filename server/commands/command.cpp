@@ -13,6 +13,7 @@
 #include "server/commands/t_zset/zrange.h"
 #include "server/commands/t_zset/zrank.h"
 #include "server/commands/t_zset/zrem.h"
+#include "server/commands/t_zset/zscore.h"
 
 namespace redis_simple {
 namespace command {
@@ -31,6 +32,7 @@ const std::unordered_map<std::string, std::shared_ptr<const Command>>&
         {"ZREM", std::make_shared<const t_zset::ZRemCommand>()},
         {"ZRANK", std::make_shared<const t_zset::ZRankCommand>()},
         {"ZRANGE", std::make_shared<const t_zset::ZRangeCommand>()},
+        {"ZSCORE", std::make_shared<const t_zset::ZScoreCommand>()},
 };
 
 std::weak_ptr<const Command> Command::Create(const std::string& name) {

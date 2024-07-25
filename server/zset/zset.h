@@ -48,7 +48,10 @@ class ZSet {
   static ZSet* Init() { return new ZSet(); }
   bool InsertOrUpdate(const std::string& key, const double score);
   bool Delete(const std::string& key);
-  int GetRankOfKey(const std::string& key) const;
+  std::optional<double> GetScoreOfKey(const std::string& key) const {
+    return dict_->Get(key);
+  }
+  std::optional<size_t> GetRankOfKey(const std::string& key) const;
   const std::vector<const ZSetEntry*> RangeByRank(
       const RangeByRankSpec* spec) const;
   const std::vector<const ZSetEntry*> RangeByScore(

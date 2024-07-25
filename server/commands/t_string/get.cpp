@@ -14,17 +14,11 @@ void GetCommand::Exec(Client* const client) const {
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const db::RedisObj* robj = Get(db, &args);
-    if (!robj) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
-      return;
-    }
-    try {
-      const std::string& s = robj->String();
-      client->AddReply(reply::FromBulkString(s));
-    } catch (const std::exception& e) {
-      printf("catch type exception %s", e.what());
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    const std::optional<std::string>& opt_val = Get(db, &args);
+    if (opt_val.has_value()) {
+      client->AddReply(reply::FromBulkString(opt_val.value()));
+    } else {
+      client->AddReply(reply::Null());
     }
   } else {
     printf("db pointer expired\n");
@@ -42,16 +36,18 @@ int GetCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-const db::RedisObj* GetCommand::Get(std::shared_ptr<const db::RedisDb> db,
-                                    const StrArgs* args) const {
+const std::optional<std::string> GetCommand::Get(
+    std::shared_ptr<const db::RedisDb> db, const StrArgs* args) const {
   if (!db || !args) {
-    return nullptr;
+    return std::nullopt;
   }
   const db::RedisObj* obj = db->LookupKey(args->key);
   if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingString) {
-    return nullptr;
+    return std::nullopt;
+  } else if (obj) {
+    return std::optional<std::string>(obj->String());
   }
-  return obj;
+  return std::nullopt;
 }
 }  // namespace t_string
 }  // namespace command

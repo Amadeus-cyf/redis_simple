@@ -7,6 +7,8 @@ static constexpr const char stringPrefix = '+';
 static constexpr const char bulkStringPrefix = '$';
 static constexpr const char int64Prefix = ':';
 static constexpr const char arrayPrefix = '*';
+static constexpr const char doublePrefix = ',';
+static constexpr const char nullPrefix = '_';
 
 /*
  * Encode a simple string. The string could not contain \r or \n.
@@ -54,5 +56,20 @@ std::string FromArray(const std::vector<std::string>& array) {
   }
   return reply;
 }
+
+/*
+ * Encode float
+ */
+std::string FromFloat(const double fl) {
+  std::string reply;
+  reply.push_back(doublePrefix);
+  reply.append(std::to_string(fl)).append(CRLF);
+  return reply;
+}
+
+/*
+ * Encode null
+ */
+std::string Null() { return "_\r\n"; }
 }  // namespace reply
 }  // namespace redis_simple

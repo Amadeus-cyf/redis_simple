@@ -58,10 +58,10 @@ bool ZSet::Delete(const std::string& key) {
   return skiplist_->Delete(&ze);
 }
 
-int ZSet::GetRankOfKey(const std::string& key) const {
+std::optional<size_t> ZSet::GetRankOfKey(const std::string& key) const {
   const std::optional<double>& opt = dict_->Get(key);
   if (!opt.has_value()) {
-    return -1;
+    return std::nullopt;
   }
   const double score = opt.value();
   const ZSetEntry ze(key, score);

@@ -36,28 +36,28 @@ TEST_F(ZSetTest, Add) {
 }
 
 TEST_F(ZSetTest, GetRankOfKey) {
-  int r1 = zset->GetRankOfKey("key1");
-  ASSERT_EQ(r1, 3);
+  std::optional<size_t> r1 = zset->GetRankOfKey("key1");
+  ASSERT_EQ(r1.value_or(10), 3);
 
-  int r2 = zset->GetRankOfKey("key2");
-  ASSERT_EQ(r2, 2);
+  std::optional<size_t> r2 = zset->GetRankOfKey("key2");
+  ASSERT_EQ(r2.value_or(10), 2);
 
-  int r3 = zset->GetRankOfKey("key3");
-  ASSERT_EQ(r3, 0);
+  std::optional<size_t> r3 = zset->GetRankOfKey("key3");
+  ASSERT_EQ(r3.value_or(10), 0);
 
-  int r4 = zset->GetRankOfKey("key4");
-  ASSERT_EQ(r4, 1);
+  std::optional<size_t> r4 = zset->GetRankOfKey("key4");
+  ASSERT_EQ(r4.value_or(10), 1);
 
-  int r5 = zset->GetRankOfKey("key_not_exist");
-  ASSERT_EQ(r5, -1);
+  std::optional<size_t> r5 = zset->GetRankOfKey("key_not_exist");
+  ASSERT_FALSE(r5.has_value());
 }
 
 TEST_F(ZSetTest, Update) {
   /* update score with no change in rank */
   ASSERT_FALSE(zset->InsertOrUpdate("key1", 10.0));
   ASSERT_EQ(zset->Size(), 4);
-  int r0 = zset->GetRankOfKey("key1");
-  ASSERT_EQ(r0, 3);
+  std::optional<size_t> r0 = zset->GetRankOfKey("key1");
+  ASSERT_EQ(r0.value_or(10), 3);
 
   /* update score with change in rank */
   ASSERT_FALSE(zset->InsertOrUpdate("key1", 1.0));
@@ -65,17 +65,17 @@ TEST_F(ZSetTest, Update) {
   ASSERT_FALSE(zset->InsertOrUpdate("key3", 4.0));
   ASSERT_EQ(zset->Size(), 4);
 
-  int r1 = zset->GetRankOfKey("key1");
-  ASSERT_EQ(r1, 0);
+  std::optional<size_t> r1 = zset->GetRankOfKey("key1");
+  ASSERT_EQ(r1.value_or(10), 0);
 
-  int r2 = zset->GetRankOfKey("key2");
-  ASSERT_EQ(r2, 2);
+  std::optional<size_t> r2 = zset->GetRankOfKey("key2");
+  ASSERT_EQ(r2.value_or(10), 2);
 
-  int r3 = zset->GetRankOfKey("key3");
-  ASSERT_EQ(r3, 3);
+  std::optional<size_t> r3 = zset->GetRankOfKey("key3");
+  ASSERT_EQ(r3.value_or(10), 3);
 
-  int r4 = zset->GetRankOfKey("key4");
-  ASSERT_EQ(r4, 1);
+  std::optional<size_t> r4 = zset->GetRankOfKey("key4");
+  ASSERT_EQ(r4.value_or(10), 1);
 
   ASSERT_FALSE(zset->InsertOrUpdate("key1", 5.0));
   ASSERT_EQ(zset->Size(), 4);
@@ -623,8 +623,8 @@ TEST_F(ZSetTest, Delete) {
   ASSERT_TRUE(r1);
   ASSERT_EQ(zset->Size(), 3);
 
-  int rank = zset->GetRankOfKey("key1");
-  ASSERT_EQ(rank, -1);
+  std::optional<size_t> rank = zset->GetRankOfKey("key1");
+  ASSERT_FALSE(rank.has_value());
 
   bool r2 = zset->Delete("key not exist");
   ASSERT_FALSE(r2);

@@ -38,6 +38,8 @@ TEST(RespParserTest, ParseInt64) {
   std::vector<std::string> reply;
   ASSERT_EQ(resp_parser::Parse(":123456\r\n", reply), 9);
   ASSERT_EQ(reply.back(), "123456");
+  ASSERT_EQ(resp_parser::Parse(":+1234567\r\n", reply), 11);
+  ASSERT_EQ(reply.back(), "1234567");
   ASSERT_EQ(resp_parser::Parse(":-123456\r\n", reply), 10);
   ASSERT_EQ(reply.back(), "-123456");
   ASSERT_EQ(resp_parser::Parse(":--123456\r\n", reply), -1);
@@ -66,6 +68,61 @@ TEST(ReplyParserTest, ParseArray) {
   ASSERT_EQ(reply3, std::vector<std::string>(
                         {"key1", "hello", "hello\r\n", "123456", "-12345", "\n",
                          "\n", "key2", "hello\r\n", "123456", "\n", "\n"}));
+}
+
+TEST(ReplyParseTest, ParseNull) {
+  std::vector<std::string> reply;
+  ASSERT_EQ(resp_parser::Parse("_\r\n", reply), 3);
+  ASSERT_EQ(reply.back(), "(nil)");
+  ASSERT_EQ(resp_parser::Parse("_123\r\n", reply), -1);
+}
+
+TEST(ReplyParserTest, ParseFloat) {
+  std::vector<std::string> reply;
+  ASSERT_EQ(resp_parser::Parse(",123.23\r\n", reply), 9);
+  ASSERT_EQ(reply.back(), "123.23");
+  ASSERT_EQ(resp_parser::Parse(",-123.23\r\n", reply), 10);
+  ASSERT_EQ(reply.back(), "-123.23");
+  ASSERT_EQ(resp_parser::Parse(",123.456e12\r\n", reply), 13);
+  ASSERT_EQ(reply.back(), "123.456e12");
+  ASSERT_EQ(resp_parser::Parse(",-123.456e12\r\n", reply), 14);
+  ASSERT_EQ(reply.back(), "-123.456e12");
+  ASSERT_EQ(resp_parser::Parse(",-123.456e-12\r\n", reply), 15);
+  ASSERT_EQ(reply.back(), "-123.456e-12");
+  ASSERT_EQ(resp_parser::Parse(",.456\r\n", reply), 7);
+  ASSERT_EQ(reply.back(), "0.456");
+  ASSERT_EQ(resp_parser::Parse(",0.4567\r\n", reply), 9);
+  ASSERT_EQ(reply.back(), "0.4567");
+  ASSERT_EQ(resp_parser::Parse(",.456e12\r\n", reply), 10);
+  ASSERT_EQ(reply.back(), "0.456e12");
+  ASSERT_EQ(resp_parser::Parse(",+123.456e+4567\r\n", reply), 17);
+  ASSERT_EQ(reply.back(), "123.456e4567");
+  ASSERT_EQ(resp_parser::Parse(",+123.456e-4567\r\n", reply), 17);
+  ASSERT_EQ(reply.back(), "123.456e-4567");
+  ASSERT_EQ(resp_parser::Parse(",-123.456e+4567\r\n", reply), 17);
+  ASSERT_EQ(reply.back(), "-123.456e4567");
+  ASSERT_EQ(resp_parser::Parse(",+123\r\n", reply), 7);
+  ASSERT_EQ(reply.back(), "123");
+  ASSERT_EQ(resp_parser::Parse(",+12.\r\n", reply), 7);
+  ASSERT_EQ(reply.back(), "12");
+  ASSERT_EQ(resp_parser::Parse(",+12.e14\r\n", reply), 10);
+  ASSERT_EQ(reply.back(), "12e14");
+  ASSERT_EQ(resp_parser::Parse(",+123e12\r\n", reply), 10);
+  ASSERT_EQ(reply.back(), "123e12");
+  ASSERT_EQ(resp_parser::Parse(",-123\r\n", reply), 7);
+  ASSERT_EQ(reply.back(), "-123");
+  ASSERT_EQ(resp_parser::Parse(",-1234.\r\n", reply), 9);
+  ASSERT_EQ(reply.back(), "-1234");
+  ASSERT_EQ(resp_parser::Parse(",-123.e12\r\n", reply), 11);
+  ASSERT_EQ(reply.back(), "-123e12");
+  ASSERT_EQ(resp_parser::Parse(",123.456e\r\n", reply), 11);
+  ASSERT_EQ(reply.back(), "123.456");
+  ASSERT_EQ(resp_parser::Parse(",-123.456e\r\n", reply), 12);
+  ASSERT_EQ(reply.back(), "-123.456");
+  ASSERT_EQ(resp_parser::Parse(",123.2.34\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(",123.34e1.23\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(",123.2abc34\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(",e123.34\r\n", reply), -1);
 }
 }  // namespace resp_parser
 }  // namespace cli

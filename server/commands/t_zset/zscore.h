@@ -6,20 +6,20 @@
 namespace redis_simple {
 namespace command {
 namespace t_zset {
-class ZRankCommand : public Command {
+class ZScoreCommand : public Command {
  public:
-  ZRankCommand() : Command("ZRANK"){};
+  ZScoreCommand() : Command("ZSCORE"){};
   void Exec(Client* const client) const override;
 
  private:
-  struct ZRankArgs {
+  struct ZScoreArgs {
     std::string key;
-    std::string ele;
+    std::string element;
   };
   int ParseArgs(const std::vector<std::string>& args,
-                ZRankArgs* const zrank_args) const;
-  const std::optional<size_t> ZRank(std::shared_ptr<const db::RedisDb> db,
-                                    const ZRankArgs* args) const;
+                ZScoreArgs* const zscore_args) const;
+  const std::optional<double> ZScore(std::shared_ptr<const db::RedisDb> db,
+                                     const ZScoreArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

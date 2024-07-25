@@ -10,14 +10,12 @@ void Run() {
     return;
   }
 
-  const std::string& cmd1 = "SET key val 1000\r\n";
-  const std::string& cmd2 = "GET key\r\n";
+  const std::string& cmd0 = "SET key val 1000\r\n";
+  const std::string& cmd1 = "GET key\r\n";
+  const std::string& cmd2 = "GET key2\r\n";
   const std::string& cmd3 = "SET key val1 3000\r\n";
   std::vector<std::string> commands = {
-      cmd1,
-      cmd2,
-      cmd3,
-      cmd2,
+      cmd0, cmd1, cmd2, cmd3, cmd0,
   };
 
   for (const std::string& command : commands) {

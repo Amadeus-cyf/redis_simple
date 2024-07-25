@@ -1,21 +1,22 @@
-#include "server/commands/t_zset/zrank.h"
+#include "server/commands/t_zset/zscore.h"
 
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple {
 namespace command {
 namespace t_zset {
-void ZRankCommand::Exec(Client* const client) const {
-  ZRankArgs args;
+void ZScoreCommand::Exec(Client* const client) const {
+  ZScoreArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::optional<size_t>& opt_rank = ZRank(db, &args);
-    if (opt_rank.has_value()) {
-      client->AddReply(reply::FromInt64(opt_rank.value()));
+    const std::optional<double>& opt_score = ZScore(db, &args);
+    if (opt_score.has_value()) {
+      client->AddReply(reply::FromFloat(opt_score.value()));
     } else {
       client->AddReply(reply::Null());
     }
@@ -25,35 +26,26 @@ void ZRankCommand::Exec(Client* const client) const {
   }
 }
 
-int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZRankArgs* const zset_args) const {
+int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
+                             ZScoreArgs* const zscore_args) const {
   if (args.size() < 2) {
     printf("invalid number of args\n");
     return -1;
   }
-  const std::string& key = args[0];
-  const std::string& ele = args[1];
-  zset_args->key = key, zset_args->ele = ele;
+  zscore_args->key = args[0];
+  zscore_args->element = args[1];
   return 0;
 }
 
-const std::optional<size_t> ZRankCommand::ZRank(
-    std::shared_ptr<const db::RedisDb> db, const ZRankArgs* args) const {
-  if (!db || !args) {
-    return std::nullopt;
-  }
+const std::optional<double> ZScoreCommand::ZScore(
+    std::shared_ptr<const db::RedisDb> db, const ZScoreArgs* args) const {
   const db::RedisObj* obj = db->LookupKey(args->key);
-  if (!obj) {
-    printf("key not found\n");
-    return std::nullopt;
-  }
-  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
-    printf("incorrect value type\n");
+  if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     return std::nullopt;
   }
   try {
     const zset::ZSet* zset = obj->ZSet();
-    return zset->GetRankOfKey(args->ele);
+    return zset->GetScoreOfKey(args->element);
   } catch (const std::exception& e) {
     printf("catch exception %s", e.what());
     return std::nullopt;

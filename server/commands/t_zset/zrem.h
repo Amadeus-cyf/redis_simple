@@ -18,7 +18,6 @@ class ZRemCommand : public Command {
     std::string key;
     std::vector<std::string> elements;
   };
-
   int ParseArgs(const std::vector<std::string>& args,
                 ZRemArgs* const zset_args) const;
   int ZRem(std::shared_ptr<const db::RedisDb> db, const ZRemArgs* args) const;

@@ -10,7 +10,11 @@ struct Prefix {
   static constexpr const char bulkStringPrefix = '$';
   static constexpr const char int64Prefix = ':';
   static constexpr const char arrayPrefix = '*';
+  static constexpr const char doublePrefix = ',';
+  static constexpr const char nullPrefix = '_';
 };
+
+const std::string& nil_resp("(nil)");
 
 ssize_t Parse(const std::string& resp, size_t start,
               std::vector<std::string>* const reply);
@@ -23,6 +27,12 @@ ssize_t ParseInt64(const std::string& resp, size_t start,
                    std::vector<std::string>* const reply);
 ssize_t ParseArray(const std::string& resp, size_t start,
                    std::vector<std::string>* const reply);
+ssize_t ParseNull(const std::string& resp, size_t start,
+                  std::vector<std::string>* const reply);
+ssize_t ParseFloat(const std::string& resp, size_t start,
+                   std::vector<std::string>* const reply);
+
+bool IsSign(const char c) { return c == '+' || c == '-'; }
 
 ssize_t Parse(const std::string& resp, size_t start,
               std::vector<std::string>* const reply) {
@@ -39,6 +49,10 @@ ssize_t Parse(const std::string& resp, size_t start,
       return ParseInt64(resp, start, reply);
     case Prefix::arrayPrefix:
       return ParseArray(resp, start, reply);
+    case Prefix::nullPrefix:
+      return ParseNull(resp, start, reply);
+    case Prefix::doublePrefix:
+      return ParseFloat(resp, start, reply);
     default:
       return -1;
   }
@@ -82,16 +96,16 @@ ssize_t ParseInt64(const std::string& resp, size_t start,
   ssize_t i = FindCRLF(resp, start);
   if (i < 0) return -1;
   int sign = 1;
-  long r = 0;
+  long num = 0;
   for (size_t j = start + 1; j < i; ++j) {
-    if (j == start + 1 && resp[j] == '-') {
-      sign = -1;
+    if (j == start + 1 && IsSign(resp[j])) {
+      sign = resp[j] == '+' ? 1 : -1;
       continue;
     }
     if (!std::isdigit(resp[j])) return -1;
-    r = r * 10 + (resp[j] - '0');
+    num = num * 10 + (resp[j] - '0');
   }
-  reply->push_back(std::to_string(sign * r));
+  reply->push_back(std::to_string(sign * num));
   return i - start + 2;
 }
 
@@ -113,6 +127,71 @@ ssize_t ParseArray(const std::string& resp, size_t start,
   // indicate the end of the array
   reply->push_back("\n");
   return parsed;
+}
+
+ssize_t ParseNull(const std::string& resp, size_t start,
+                  std::vector<std::string>* const reply) {
+  ssize_t i = FindCRLF(resp, start);
+  if (i < 0 || i - start != 1) return -1;
+  reply->push_back(nil_resp);
+  return 3;
+}
+
+ssize_t ParseFloat(const std::string& resp, size_t start,
+                   std::vector<std::string>* const reply) {
+  ssize_t i = FindCRLF(resp, start);
+  if (i < 0) return -1;
+  int sign = 1, exponential_sign = 1;
+  long integral = 0, fractional = 0, exponent = 0;
+  bool floating_point = false, exponential = false;
+  for (size_t j = start + 1; j < i; ++j) {
+    /* floating number sign */
+    if (j == start + 1 && IsSign(resp[j])) {
+      sign = resp[j] == '+' ? 1 : -1;
+      continue;
+    }
+    if (!floating_point && resp[j] == '.') {
+      /* exponent should be an integer */
+      if (exponent > 0) return -1;
+      floating_point = true;
+      continue;
+    }
+    if (!exponential && std::tolower(resp[j]) == 'e') {
+      /* exponent */
+      if (j < i - 1 && !IsSign(resp[j + 1]) && !std::isdigit(resp[j + 1])) {
+        return -1;
+      } else if (IsSign(resp[j + 1])) {
+        exponential_sign = resp[j + 1] == '+' ? 1 : -1;
+        ++j;
+      }
+      exponential = true;
+      continue;
+    }
+    if (!std::isdigit(resp[j])) return -1;
+    if (floating_point && !exponential) {
+      /* calculate fractional part */
+      fractional = fractional * 10 + (resp[j] - '0');
+    } else if (!floating_point && !exponential) {
+      /* calculate integral part */
+      integral = integral * 10 + (resp[j] - '0');
+    } else {
+      /* calculate exponent */
+      exponent = exponent * 10 + (resp[j] - '0');
+    }
+  }
+  std::string floating_num_str = std::move(std::to_string(sign * integral));
+  /* fractional */
+  if (floating_point && fractional > 0) {
+    floating_num_str.push_back('.');
+    floating_num_str.append(std::to_string(fractional));
+  }
+  /* exponent */
+  if (exponential && exponent > 0) {
+    floating_num_str.push_back('e');
+    floating_num_str.append(std::to_string(exponential_sign * exponent));
+  }
+  reply->push_back(floating_num_str);
+  return i - start + 2;
 }
 }  // namespace
 
