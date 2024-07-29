@@ -12,7 +12,7 @@ template <typename T, typename std::string ToString(const T&)>
 std::optional<const std::string> EncodeList(const std::vector<T>& list) {
   std::vector<std::string> encode_elements;
   for (const T& element : list) {
-    if constexpr (std::is_integral_v<T> == true) {
+    if constexpr (std::is_integral_v<T>) {
       encode_elements.push_back(reply::FromInt64(element));
     } else {
       encode_elements.push_back(reply::FromBulkString(ToString(element)));

@@ -4,10 +4,14 @@
 
 namespace redis_simple {
 namespace reply {
-TEST(ReplyTest, FromSimpleString) { ASSERT_EQ(FromString("OK"), "+OK\r\n"); }
+TEST(ReplyTest, FromSimpleString) {
+  ASSERT_EQ(FromString("OK"), "+OK\r\n");
+  ASSERT_EQ(FromString(""), "+\r\n");
+}
 
 TEST(ReplyTest, FromBulkString) {
   ASSERT_EQ(FromBulkString("test bulk string"), "$16\r\ntest bulk string\r\n");
+  ASSERT_EQ(FromBulkString(""), "$0\r\n\r\n");
 }
 
 TEST(ReplyTest, From64BitsInt) {
