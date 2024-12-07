@@ -73,5 +73,82 @@ TEST(StringUtilsTest, ToUppercase) {
   ToUppercase(s5);
   ASSERT_EQ(s5, "123456_**&&&||||%%%%");
 }
+
+TEST(StringUtilsTest, ToInt64) {
+  std::string s1("100234567");
+  int64_t v1;
+  ASSERT_TRUE(ToInt64(s1, &v1));
+  ASSERT_EQ(v1, 100234567);
+
+  std::string s2("-100234567");
+  int64_t v2;
+  ASSERT_TRUE(ToInt64(s2, &v2));
+  ASSERT_EQ(v2, -100234567);
+
+  std::string s3("+100234567");
+  int64_t v3;
+  ASSERT_TRUE(ToInt64(s3, &v3));
+  ASSERT_EQ(v3, 100234567);
+
+  std::string s4("0");
+  int64_t v4;
+  ASSERT_TRUE(ToInt64(s4, &v4));
+  ASSERT_EQ(v4, 0);
+
+  std::string s5(" -1234545   ");
+  ASSERT_FALSE(ToInt64(s5, nullptr));
+
+  std::string s6(" -1234 abcde");
+  ASSERT_FALSE(ToInt64(s6, nullptr));
+
+  std::string s7("-12345-123");
+  ASSERT_FALSE(ToInt64(s7, nullptr));
+
+  std::string s8("-12345 56778");
+  ASSERT_FALSE(ToInt64(s8, nullptr));
+
+  std::string s9("0000000");
+  ASSERT_FALSE(ToInt64(s9, nullptr));
+
+  std::string s10("+0");
+  int64_t v10;
+  ASSERT_TRUE(ToInt64(s10, &v10));
+  ASSERT_EQ(v10, 0);
+
+  std::string s11("-0");
+  int64_t v11;
+  ASSERT_TRUE(ToInt64(s11, &v11));
+  ASSERT_EQ(v11, 0);
+
+  std::string s12("0123456");
+  ASSERT_FALSE(ToInt64(s12, nullptr));
+
+  std::string s13("1002345670000000");
+  int64_t v13;
+  ASSERT_TRUE(ToInt64(s13, &v13));
+  ASSERT_EQ(v13, 1002345670000000);
+
+  std::string s14("9223372036854775807");
+  int64_t v14;
+  ASSERT_TRUE(ToInt64(s14, &v14));
+  ASSERT_EQ(v14, INT64_MAX);
+
+  std::string s15("-9223372036854775808");
+  int64_t v15;
+  ASSERT_TRUE(ToInt64(s15, &v15));
+  ASSERT_EQ(v15, INT64_MIN);
+
+  std::string s16("9223372036854775808");
+  ASSERT_FALSE(ToInt64(s16, nullptr));
+
+  std::string s17("-9223372036854775809");
+  ASSERT_FALSE(ToInt64(s17, nullptr));
+
+  std::string s18("-922337203685477580812312");
+  ASSERT_FALSE(ToInt64(s18, nullptr));
+
+  std::string s19("");
+  ASSERT_FALSE(ToInt64(s19, nullptr));
+}
 }  // namespace utils
 }  // namespace redis_simple

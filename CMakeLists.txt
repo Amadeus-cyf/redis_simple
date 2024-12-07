@@ -84,6 +84,8 @@ PRIVATE
   "memory/dynamic_buffer.cpp"
   "memory/intset.h"
   "memory/intset.cpp"
+  "memory/listpack.h"
+  "memory/listpack.cpp"
   "memory/reply_buffer.h"
   "memory/reply_buffer.cpp"
   "memory/skiplist.h"
