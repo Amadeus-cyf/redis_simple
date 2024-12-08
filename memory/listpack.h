@@ -42,11 +42,10 @@ class ListPack {
     Size4BytesBacklenMax = (1 << 28) - 1,
     Size5BytesBacklenMax = (1 << 35) - 1,
   };
-  unsigned char* Resize(size_t size);
   size_t Next(size_t idx);
   void Insert(size_t idx, ListPack::Position where, const std::string* elestr,
               int64_t* eleint);
-  void Delete(size_t idx, const std::string& elestr, int64_t* eleint);
+  void Delete(size_t idx);
   size_t EncodeString(unsigned char* const buf, const std::string* s);
   size_t EncodeInteger(unsigned char* const buf, int64_t ele);
   void EncodeBacklen(unsigned char* buf, size_t backlen);
@@ -54,6 +53,9 @@ class ListPack {
   size_t DecodeStrLen(size_t idx);
   size_t DecodeBacklen(size_t idx);
   uint8_t GetBacklenBytes(size_t backlen);
+  unsigned char* Malloc(size_t size);
+  void Realloc(size_t size);
+  void Free();
   unsigned char* lp_;
   size_t total_bytes_;
   size_t num_of_elements_;

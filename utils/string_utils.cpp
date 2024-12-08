@@ -48,7 +48,6 @@ bool ToInt64(const std::string& s, int64_t* const v) {
       int64_t tmp = val * 10 + sign * (s[i] - '0');
       /* check integer overflow */
       if ((tmp < 0 && val > 0) || (tmp > 0 && val < 0)) {
-        printf("%lld, %lld\n", tmp, val);
         return false;
       }
       val = tmp;

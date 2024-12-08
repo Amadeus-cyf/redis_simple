@@ -7,10 +7,6 @@
 
 namespace redis_simple {
 namespace in_memory {
-unsigned char* ListPack::Resize(size_t bytes) {
-  return reinterpret_cast<unsigned char*>(std::realloc(lp_, bytes));
-}
-
 /*
  * Return the beginning index of the next element based on that of the current
  * element at the given index.
@@ -26,6 +22,7 @@ size_t ListPack::Next(size_t idx) {
  */
 void ListPack::Insert(size_t idx, ListPack::Position where,
                       const std::string* elestr, int64_t* eleint) {
+  if (!elestr && !eleint) return;
   if (where == Position::InsertAfter) {
     idx = Next(idx);
     where = Position::InsertBefore;
@@ -44,7 +41,7 @@ void ListPack::Insert(size_t idx, ListPack::Position where,
   size_t new_listpack_bytes = total_bytes_ + backlen + backlen_bytes;
   if (where == Position::InsertBefore) {
     /* insert a new  element before the existing element at the idx */
-    lp_ = Resize(new_listpack_bytes);
+    Realloc(new_listpack_bytes);
     std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx,
                  total_bytes_ - idx);
     ++num_of_elements_;
@@ -53,11 +50,12 @@ void ListPack::Insert(size_t idx, ListPack::Position where,
     size_t cur_backlen = DecodeBacklen(idx);
     size_t cur_backlen_bytes = GetBacklenBytes(cur_backlen);
     new_listpack_bytes -= (cur_backlen + cur_backlen_bytes);
-    unsigned char* buf = Resize(new_listpack_bytes);
+    unsigned char* buf = Malloc(new_listpack_bytes);
     std::memcpy(buf, lp_, idx);
     std::memcpy(buf + idx + backlen + backlen_bytes,
                 lp_ + idx + cur_backlen + cur_backlen_bytes,
                 total_bytes_ - idx - cur_backlen - cur_backlen_bytes);
+    Free();
     lp_ = buf;
   }
   total_bytes_ = new_listpack_bytes;
@@ -66,6 +64,22 @@ void ListPack::Insert(size_t idx, ListPack::Position where,
   } else {
     EncodeString(lp_ + idx, elestr);
   }
+}
+
+void ListPack::Delete(size_t idx) {
+  if (idx >= num_of_elements_) return;
+  EncodingType encoding_type = GetEncodingType(idx);
+  size_t backlen = DecodeBacklen(idx);
+  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  size_t new_listpack_bytes = total_bytes_ - backlen - backlen_bytes;
+  unsigned char* buf = Malloc(new_listpack_bytes);
+  std::memcpy(buf, lp_, idx);
+  std::memcpy(buf + idx, lp_ + idx + backlen + backlen_bytes,
+              total_bytes_ - idx - backlen - backlen_bytes);
+  Free();
+  lp_ = buf;
+  total_bytes_ = new_listpack_bytes;
+  --num_of_elements_;
 }
 
 /*
@@ -278,5 +292,18 @@ uint8_t ListPack::GetBacklenBytes(size_t backlen) {
     return 5;
   }
 }
+
+unsigned char* ListPack::Malloc(size_t bytes) {
+  return new unsigned char[bytes];
+}
+
+void ListPack::Realloc(size_t bytes) {
+  unsigned char* buf = new unsigned char[bytes];
+  std::copy(lp_, lp_ + total_bytes_, buf);
+  delete[] lp_;
+  lp_ = buf;
+}
+
+void ListPack::Free() { delete[] lp_; }
 }  // namespace in_memory
 }  // namespace redis_simple
