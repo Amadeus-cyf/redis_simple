@@ -21,5 +21,9 @@ void ToUppercase(std::string& s);
  * for the string "0" representing the zero number.
  */
 bool ToInt64(const std::string& s, int64_t* const v);
+/*  Convert long long to string and store it in the buffer dst */
+int ll2string(char* dst, size_t dstlen, long long svalue);
+/* Convert unsigned long long to string and store it in the buffer dst */
+int ull2string(char* dst, size_t dstlen, unsigned long long value);
 }  // namespace utils
 }  // namespace redis_simple
