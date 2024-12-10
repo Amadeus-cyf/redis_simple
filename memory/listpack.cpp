@@ -62,9 +62,10 @@ bool ListPack::AppendInteger(int64_t eleint) {
 
 /*
  * Return the beginning index of the next element based on that of the current
- * element at the given index.
+ * element at the given index. If there is no more element, return -1.
  */
-size_t ListPack::Next(size_t idx) {
+ssize_t ListPack::Next(size_t idx) {
+  if (lp_[idx] == lpEOF) return -1;
   size_t backlen = DecodeBacklen(idx);
   uint8_t backlen_bytes = GetBacklenBytes(backlen);
   return idx + backlen + backlen_bytes;
@@ -138,7 +139,7 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
   }
   if (dst) {
     *len =
-        utils::ll2string(reinterpret_cast<char*>(dst), ListPackIntBufSize, val);
+        utils::LL2String(reinterpret_cast<char*>(dst), ListPackIntBufSize, val);
     return dst;
   } else {
     /* if dst is null, return the integer instead of the int buffer */
@@ -170,7 +171,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     encoding_type = EncodingGeneralType::typeStr;
   }
   uint8_t backlen_bytes = GetBacklenBytes(backlen);
-  uint32_t new_listpack_bytes = listpack_bytes + backlen + backlen_bytes;
+  size_t new_listpack_bytes = listpack_bytes + backlen + backlen_bytes;
   /* total bytes is a 4 byte unsigned integer, so the maximum bytes for the
    * listpack is UINT32_MAX */
   if (new_listpack_bytes > std::numeric_limits<uint32_t>::max()) return false;

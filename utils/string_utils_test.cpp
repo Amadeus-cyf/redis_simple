@@ -150,5 +150,75 @@ TEST(StringUtilsTest, ToInt64) {
   std::string s19("");
   ASSERT_FALSE(ToInt64(s19, nullptr));
 }
+
+TEST(StringUtilsTest, LL2String) {
+  char dst1[21];
+  std::string s1("1234567");
+  ASSERT_EQ(LL2String(dst1, 21, 1234567), 7);
+  ASSERT_TRUE(std::equal(dst1, dst1 + 7, s1.c_str()));
+
+  char dst2[21];
+  std::string s2("-1234567");
+  ASSERT_EQ(LL2String(dst2, 21, -1234567), 8);
+  ASSERT_TRUE(std::equal(dst2, dst2 + 8, s2.c_str()));
+
+  char dst3[21];
+  std::string s3("9223372036854775807");
+  ASSERT_EQ(LL2String(dst3, 21, INT64_MAX), 19);
+  ASSERT_TRUE(std::equal(dst3, dst3 + 19, s3.c_str()));
+
+  char dst4[21];
+  std::string s4("-9223372036854775808");
+  ASSERT_EQ(LL2String(dst4, 21, INT64_MIN), 20);
+  ASSERT_TRUE(std::equal(dst4, dst4 + 20, s4.c_str()));
+
+  char dst5[21];
+  std::string s5("0");
+  ASSERT_EQ(LL2String(dst5, 21, 0), 1);
+  ASSERT_TRUE(std::equal(dst5, dst5 + 1, s5.c_str()));
+
+  char dst6[1];
+  std::string s6("1000");
+  ASSERT_EQ(LL2String(dst6, 1, 0), 0);
+  ASSERT_EQ(dst6[0], '\0');
+
+  char dst7[7];
+  std::string s7("10000000");
+  ASSERT_EQ(LL2String(dst7, 7, 10000000), 0);
+  ASSERT_EQ(dst7[0], '\0');
+
+  char dst8[7];
+  std::string s8("-10000000");
+  ASSERT_EQ(LL2String(dst8, 7, -10000000), 0);
+  ASSERT_EQ(dst8[0], '-');
+  ASSERT_EQ(dst8[1], '\0');
+}
+
+TEST(StringUtilsTest, Ull2String) {
+  char dst1[21];
+  std::string s1("1234567");
+  ASSERT_EQ(Ull2String(dst1, 21, 1234567), 7);
+  ASSERT_TRUE(std::equal(dst1, dst1 + 7, s1.c_str()));
+
+  char dst2[21];
+  std::string s2("9223372036854775807");
+  ASSERT_EQ(Ull2String(dst2, 21, INT64_MAX), 19);
+  ASSERT_TRUE(std::equal(dst2, dst2 + 19, s2.c_str()));
+
+  char dst3[21];
+  std::string s3("18446744073709551615");
+  ASSERT_EQ(Ull2String(dst3, 21, UINT64_MAX), 20);
+  ASSERT_TRUE(std::equal(dst3, dst3 + 20, s3.c_str()));
+
+  char dst4[21];
+  std::string s4("0");
+  ASSERT_EQ(Ull2String(dst4, 21, 0), 1);
+  ASSERT_TRUE(std::equal(dst4, dst4 + 1, s4.c_str()));
+
+  char dst5[7];
+  std::string s5("10000000");
+  ASSERT_EQ(Ull2String(dst5, 7, 10000000), 0);
+  ASSERT_EQ(dst5[0], '\0');
+}
 }  // namespace utils
 }  // namespace redis_simple

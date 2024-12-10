@@ -15,7 +15,7 @@ class ListPack {
   int64_t GetInteger(size_t idx);
   bool Append(const std::string& elestr);
   bool AppendInteger(int64_t eleint);
-  size_t Next(size_t idx);
+  ssize_t Next(size_t idx);
   uint16_t GetNumOfElements();
 
  private:

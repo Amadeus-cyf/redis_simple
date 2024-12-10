@@ -22,11 +22,11 @@ void ToUppercase(std::string& s);
  */
 bool ToInt64(const std::string& s, int64_t* const v);
 /*  Convert long long to string and store it in the buffer dst */
-int ll2string(char* dst, size_t dstlen, long long svalue);
+int LL2String(char* dst, size_t dstlen, long long svalue);
 /* Convert unsigned long long to string and store it in the buffer dst. Ref to
  * the following article.
  * https://engineering.fb.com/2013/03/15/developer-tools/three-optimization-tips-for-c/
  */
-int ull2string(char* dst, size_t dstlen, unsigned long long value);
+int Ull2String(char* dst, size_t dstlen, unsigned long long value);
 }  // namespace utils
 }  // namespace redis_simple

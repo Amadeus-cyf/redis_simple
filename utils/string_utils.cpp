@@ -5,7 +5,7 @@
 namespace redis_simple {
 namespace utils {
 namespace {
-uint32_t digits10(uint64_t v) {
+uint32_t Digits10(uint64_t v) {
   if (v < 10) return 1;
   if (v < 100) return 2;
   if (v < 1000) return 3;
@@ -22,7 +22,7 @@ uint32_t digits10(uint64_t v) {
     }
     return 11 + (v >= 100000000000UL);
   }
-  return 12 + digits10(v / 1000000000000UL);
+  return 12 + Digits10(v / 1000000000000UL);
 }
 }  // namespace
 
@@ -83,7 +83,7 @@ bool ToInt64(const std::string& s, int64_t* const v) {
   return true;
 }
 
-int ll2string(char* dst, size_t dstlen, long long svalue) {
+int LL2String(char* dst, size_t dstlen, long long svalue) {
   unsigned long long value;
   int negative = 0;
   if (svalue < 0) {
@@ -103,12 +103,12 @@ int ll2string(char* dst, size_t dstlen, long long svalue) {
   } else {
     value = svalue;
   }
-  int length = ull2string(dst, dstlen, value);
+  int length = Ull2String(dst, dstlen, value);
   if (length == 0) return 0;
   return length + negative;
 }
 
-int ull2string(char* dst, size_t dstlen, unsigned long long value) {
+int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
   static const char digits[201] =
       "0001020304050607080910111213141516171819"
       "2021222324252627282930313233343536373839"
@@ -116,7 +116,7 @@ int ull2string(char* dst, size_t dstlen, unsigned long long value) {
       "6061626364656667686970717273747576777879"
       "8081828384858687888990919293949596979899";
   /* Check length */
-  uint32_t length = digits10(value);
+  uint32_t length = Digits10(value);
   if (length >= dstlen) {
     if (dstlen > 0) {
       dst[0] = '\0';
