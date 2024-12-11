@@ -11,7 +11,7 @@ IntSet::IntSet()
 /*
  * Add the value to the intset. Return true if succeeded.
  */
-bool IntSet::Add(const int64_t value) {
+bool IntSet::Add(int64_t value) {
   unsigned int value_encode = ValueEncoding(value);
   if (value_encode > encoding_) {
     UpgradeAndAdd(value);
@@ -29,11 +29,11 @@ bool IntSet::Add(const int64_t value) {
 /*
  * Return the value at the index. Return true if succeeded.
  */
-int64_t IntSet::Get(const unsigned int index) const {
+int64_t IntSet::Get(unsigned int index) const {
   return GetEncoded(index, encoding_);
 }
 
-bool IntSet::Find(const int64_t value) const {
+bool IntSet::Find(int64_t value) const {
   EncodingType encoding = ValueEncoding(value);
   return encoding <= encoding_ && Search(value, nullptr);
 }
@@ -41,7 +41,7 @@ bool IntSet::Find(const int64_t value) const {
 /*
  * Remove the value from the intset. Return true if succeeded.
  */
-bool IntSet::Remove(const int64_t value) {
+bool IntSet::Remove(int64_t value) {
   unsigned int index = 0;
   bool exist = Search(value, &index);
   if (!exist) return false;
@@ -64,14 +64,14 @@ IntSet::EncodingType IntSet::ValueEncoding(const int64_t value) const {
   }
 }
 
-void IntSet::Resize(const unsigned int length) {
+void IntSet::Resize(unsigned int length) {
   contents_ = static_cast<int*>(std::realloc(contents_, length * encoding_));
 }
 
 /*
  * Upgrade the encoding and add the value.
  */
-void IntSet::UpgradeAndAdd(const int64_t value) {
+void IntSet::UpgradeAndAdd(int64_t value) {
   EncodingType cur_encode = encoding_;
   encoding_ = ValueEncoding(value);
   unsigned int length = length_;
@@ -92,7 +92,7 @@ void IntSet::UpgradeAndAdd(const int64_t value) {
  * Search for the value and set index to the index of the value if the value is
  * found. return true if the value is found.
  */
-bool IntSet::Search(const int64_t value, unsigned int* const index) const {
+bool IntSet::Search(int64_t value, unsigned int* const index) const {
   if (length_ > 0 && value < GetEncoded(0, encoding_)) {
     if (index) *index = 0;
     return false;
@@ -120,8 +120,7 @@ bool IntSet::Search(const int64_t value, unsigned int* const index) const {
 /*
  * Get the value at the index based on the encoding.
  */
-int64_t IntSet::GetEncoded(const unsigned int index,
-                           EncodingType encoding) const {
+int64_t IntSet::GetEncoded(unsigned int index, EncodingType encoding) const {
   if (index >= length_) throw std::out_of_range("index out of bound");
   if (encoding == intsetEncoding64) {
     int64_t v64;
@@ -141,7 +140,7 @@ int64_t IntSet::GetEncoded(const unsigned int index,
   }
 }
 
-void IntSet::Set(const unsigned int index, const int64_t value) {
+void IntSet::Set(unsigned int index, int64_t value) {
   if (encoding_ == intsetEncoding64) {
     reinterpret_cast<int64_t*>(contents_)[index] = value;
   } else if (encoding_ == intsetEncoding32) {
@@ -154,7 +153,7 @@ void IntSet::Set(const unsigned int index, const int64_t value) {
 /*
  * Move all data from one index to another.
  */
-void IntSet::MoveTail(const unsigned int from, const unsigned int to) {
+void IntSet::MoveTail(unsigned int from, unsigned int to) {
   void *src, *dst;
   unsigned int bytes = length_ - from;
   if (encoding_ == intsetEncoding64) {
@@ -170,7 +169,7 @@ void IntSet::MoveTail(const unsigned int from, const unsigned int to) {
     dst = reinterpret_cast<int16_t*>(contents_) + to;
     bytes *= sizeof(int16_t);
   }
-  memmove(dst, src, bytes);
+  std::memmove(dst, src, bytes);
 }
 }  // namespace in_memory
 }  // namespace redis_simple

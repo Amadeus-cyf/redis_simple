@@ -45,10 +45,10 @@ void ShiftCStr(char* s, size_t len, size_t offset) {
     return;
   }
   if (offset >= len) {
-    memset(s, '\0', len);
+    std::memset(s, '\0', len);
     return;
   }
-  memmove(s, s + offset, len - offset);
+  std::memmove(s, s + offset, len - offset);
 }
 
 void ToUppercase(std::string& s) {

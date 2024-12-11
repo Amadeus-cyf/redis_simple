@@ -3,11 +3,16 @@
 #include <unistd.h>
 
 #include <string>
+#include <vector>
 
 namespace redis_simple {
 namespace in_memory {
 class ListPack {
  public:
+  struct ListPackEntry {
+    std::string* const str;
+    int64_t sval;
+  };
   /* listpack header size. 32 bit total length + 16 bit number of elements */
   static constexpr int ListPackHeaderSize = 6;
   ListPack(size_t capacity);
@@ -64,12 +69,20 @@ class ListPack {
     Size4BytesBacklenMax = (1 << 28) - 1,
     Size5BytesBacklenMax = (1 << 35) - 1,
   };
+  struct Encoding {
+    std::string* const str;
+    int64_t sval;
+    EncodingGeneralType encoding_type;
+    size_t backlen_bytes;
+  };
   unsigned char* GetString(size_t idx, size_t* const len,
                            EncodingType encoding_type);
   unsigned char* GetInteger(size_t idx, unsigned char* dst, size_t* const len,
                             int64_t* val, EncodingType encoding_type);
   bool Insert(size_t idx, ListPack::Position where, const std::string* elestr,
               int64_t* eleint);
+  bool BatchInsert(size_t idx, ListPack::Position where,
+                   const std::vector<ListPackEntry*>& entries);
   void Delete(size_t idx);
   uint32_t GetTotalBytes();
   void SetTotalBytes(uint32_t total_bytes_);

@@ -12,9 +12,9 @@ class IntSet {
   class Iterator;
   IntSet();
   bool Add(const int64_t value);
-  int64_t Get(const unsigned int index) const;
-  bool Find(const int64_t value) const;
-  bool Remove(const int64_t value);
+  int64_t Get(unsigned int index) const;
+  bool Find(int64_t value) const;
+  bool Remove(int64_t value);
   unsigned int Size() const { return length_; }
   ~IntSet() {
     delete[] contents_;
@@ -29,12 +29,12 @@ class IntSet {
     intsetEncoding64 = sizeof(int64_t),
   };
   EncodingType ValueEncoding(const int64_t value) const;
-  void Resize(const unsigned int length_);
-  int64_t GetEncoded(const unsigned int index, EncodingType encoding) const;
-  void UpgradeAndAdd(const int64_t value);
-  bool Search(const int64_t value, unsigned int* const index) const;
-  void Set(const unsigned int index, const int64_t value);
-  void MoveTail(const unsigned int from, const unsigned int to);
+  void Resize(unsigned int length_);
+  int64_t GetEncoded(unsigned int index, EncodingType encoding) const;
+  void UpgradeAndAdd(int64_t value);
+  bool Search(int64_t value, unsigned int* const index) const;
+  void Set(unsigned int index, const int64_t value);
+  void MoveTail(unsigned int from, unsigned int to);
   int* contents_;
   unsigned int length_;
   EncodingType encoding_;
