@@ -11,6 +11,7 @@ class ListPack {
  public:
   struct ListPackEntry {
     std::string* const str;
+    /* if list pack has an integer value, str should be null */
     int64_t sval;
   };
   /* listpack header size. 32 bit total length + 16 bit number of elements */
@@ -20,7 +21,9 @@ class ListPack {
   int64_t GetInteger(size_t idx);
   bool Append(const std::string& elestr);
   bool AppendInteger(int64_t eleint);
+  bool BatchAppend(const std::vector<ListPackEntry*>& entries);
   ssize_t Next(size_t idx);
+  uint32_t GetTotalBytes();
   uint16_t GetNumOfElements();
 
  private:
@@ -70,7 +73,7 @@ class ListPack {
     Size5BytesBacklenMax = (1 << 35) - 1,
   };
   struct Encoding {
-    std::string* const str;
+    std::string* str;
     int64_t sval;
     EncodingGeneralType encoding_type;
     size_t backlen_bytes;
@@ -84,7 +87,6 @@ class ListPack {
   bool BatchInsert(size_t idx, ListPack::Position where,
                    const std::vector<ListPackEntry*>& entries);
   void Delete(size_t idx);
-  uint32_t GetTotalBytes();
   void SetTotalBytes(uint32_t total_bytes_);
   void SetNumOfElements(uint16_t num_of_elements);
   size_t EncodeString(unsigned char* const buf, const std::string* s);

@@ -61,6 +61,14 @@ bool ListPack::AppendInteger(int64_t eleint) {
 }
 
 /*
+ * Batch append elements to the end of the listpack.
+ */
+bool ListPack::BatchAppend(const std::vector<ListPackEntry*>& entries) {
+  uint32_t listpack_bytes = GetTotalBytes();
+  return BatchInsert(listpack_bytes - 1, Position::InsertBefore, entries);
+}
+
+/*
  * Return the beginning index of the next element based on that of the current
  * element at the given index. If there is no more element, return -1.
  */
@@ -219,30 +227,27 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   uint32_t listpack_bytes = GetTotalBytes();
   if (idx >= listpack_bytes) return false;
   if (where == Position::InsertAfter) idx = Next(idx);
-  std::vector<const Encoding*> encodings(entries.size());
+  std::vector<Encoding> encodings;
   size_t inserted_bytes = 0;
   /* Get general encoding type (string/int) and backlen from each entry */
   for (ListPackEntry* entry : entries) {
-    int64_t sval;
     size_t backlen = 0;
-    if (!entry->str || utils::ToInt64(*(entry->str), &sval)) {
-      backlen = EncodeInteger(nullptr, sval);
-      Encoding encoding{
-          .sval = sval,
+    if (!entry->str || utils::ToInt64(*(entry->str), &(entry->sval))) {
+      backlen = EncodeInteger(nullptr, entry->sval);
+      encodings.push_back({
+          .sval = entry->sval,
           .encoding_type = EncodingGeneralType::typeInt,
           .backlen_bytes = GetBacklenBytes(backlen),
-      };
-      encodings.push_back(&encoding);
+      });
     } else {
       backlen = EncodeString(nullptr, entry->str);
-      Encoding encoding{
+      encodings.push_back({
           .str = entry->str,
           .encoding_type = EncodingGeneralType::typeStr,
           .backlen_bytes = GetBacklenBytes(backlen),
-      };
-      encodings.push_back(&encoding);
+      });
     }
-    inserted_bytes += GetBacklenBytes(backlen);
+    inserted_bytes += (backlen + GetBacklenBytes(backlen));
   }
   size_t new_listpack_bytes = listpack_bytes + inserted_bytes;
   /* total bytes is a 4 byte unsigned integer, so the maximum bytes for the
@@ -255,14 +260,13 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   SetNumOfElements(num_of_elements + entries.size());
   SetTotalBytes(new_listpack_bytes);
   /* Insert elements based on encoding types. */
-  for (const Encoding* encoding : encodings) {
-    if (encoding->encoding_type == EncodingGeneralType::typeInt) {
-      idx += EncodeInteger(lp_ + idx, encoding->sval);
-      idx += encoding->backlen_bytes;
+  for (const Encoding& encoding : encodings) {
+    if (encoding.encoding_type == EncodingGeneralType::typeInt) {
+      idx += EncodeInteger(lp_ + idx, encoding.sval);
     } else {
-      idx += EncodeString(lp_ + idx, encoding->str);
-      idx += encoding->backlen_bytes;
+      idx += EncodeString(lp_ + idx, encoding.str);
     }
+    idx += encoding.backlen_bytes;
   }
   return true;
 }
