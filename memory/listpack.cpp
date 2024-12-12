@@ -63,7 +63,7 @@ bool ListPack::AppendInteger(int64_t eleint) {
 /*
  * Batch append elements to the end of the listpack.
  */
-bool ListPack::BatchAppend(const std::vector<ListPackEntry*>& entries) {
+bool ListPack::BatchAppend(const std::vector<ListPackEntry>& entries) {
   uint32_t listpack_bytes = GetTotalBytes();
   return BatchInsert(listpack_bytes - 1, Position::InsertBefore, entries);
 }
@@ -118,13 +118,13 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
       break;
     case EncodingType::type24BitInt:
       uval = (lp_[idx + 1] << 16) | ((lp_[idx + 2]) << 8) | lp_[idx + 3];
-      negstart = 1 << 23;
+      negstart = 1L << 23;
       negmax = std::numeric_limits<uint32_t>::max() >> 8;
       break;
     case EncodingType::type32BitInt:
       uval = ((uint64_t)lp_[idx + 1] << 24) | ((uint64_t)lp_[idx + 2] << 16) |
              ((uint64_t)lp_[idx + 3] << 8) | (uint64_t)lp_[idx + 3];
-      negstart = 1 << 31;
+      negstart = 1UL << 31;
       negmax = std::numeric_limits<uint32_t>::max();
       break;
     case EncodingType::type64BitInt:
@@ -136,7 +136,7 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
       negmax = std::numeric_limits<uint64_t>::max();
       break;
     default:
-      return 0;
+      return nullptr;
   }
   if (uval >= negstart) {
     uval = negmax - uval;
@@ -222,7 +222,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
  * Batch insert elements before/after the given position of the listpack.
  */
 bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
-                           const std::vector<ListPackEntry*>& entries) {
+                           const std::vector<ListPackEntry>& entries) {
   if (entries.empty()) return false;
   uint32_t listpack_bytes = GetTotalBytes();
   if (idx >= listpack_bytes) return false;
@@ -230,19 +230,20 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   std::vector<Encoding> encodings;
   size_t inserted_bytes = 0;
   /* Get general encoding type (string/int) and backlen from each entry */
-  for (ListPackEntry* entry : entries) {
+  for (const ListPackEntry& entry : entries) {
     size_t backlen = 0;
-    if (!entry->str || utils::ToInt64(*(entry->str), &(entry->sval))) {
-      backlen = EncodeInteger(nullptr, entry->sval);
+    int64_t sval = entry.sval;
+    if (!entry.str || utils::ToInt64(*(entry.str), &sval)) {
+      backlen = EncodeInteger(nullptr, sval);
       encodings.push_back({
-          .sval = entry->sval,
+          .sval = sval,
           .encoding_type = EncodingGeneralType::typeInt,
           .backlen_bytes = GetBacklenBytes(backlen),
       });
     } else {
-      backlen = EncodeString(nullptr, entry->str);
+      backlen = EncodeString(nullptr, entry.str);
       encodings.push_back({
-          .str = entry->str,
+          .str = entry.str,
           .encoding_type = EncodingGeneralType::typeStr,
           .backlen_bytes = GetBacklenBytes(backlen),
       });

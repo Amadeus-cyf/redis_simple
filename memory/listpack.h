@@ -21,7 +21,7 @@ class ListPack {
   int64_t GetInteger(size_t idx);
   bool Append(const std::string& elestr);
   bool AppendInteger(int64_t eleint);
-  bool BatchAppend(const std::vector<ListPackEntry*>& entries);
+  bool BatchAppend(const std::vector<ListPackEntry>& entries);
   ssize_t Next(size_t idx);
   uint32_t GetTotalBytes();
   uint16_t GetNumOfElements();
@@ -85,7 +85,7 @@ class ListPack {
   bool Insert(size_t idx, ListPack::Position where, const std::string* elestr,
               int64_t* eleint);
   bool BatchInsert(size_t idx, ListPack::Position where,
-                   const std::vector<ListPackEntry*>& entries);
+                   const std::vector<ListPackEntry>& entries);
   void Delete(size_t idx);
   void SetTotalBytes(uint32_t total_bytes_);
   void SetNumOfElements(uint16_t num_of_elements);
