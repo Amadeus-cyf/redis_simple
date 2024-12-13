@@ -21,6 +21,8 @@ class ListPack {
   int64_t GetInteger(size_t idx);
   bool Append(const std::string& elestr);
   bool AppendInteger(int64_t eleint);
+  bool Prepend(const std::string& elestr);
+  bool PrependInteger(int64_t eleint);
   bool BatchAppend(const std::vector<ListPackEntry>& entries);
   ssize_t Next(size_t idx);
   uint32_t GetTotalBytes();

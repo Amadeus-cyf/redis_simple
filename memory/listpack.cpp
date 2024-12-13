@@ -61,6 +61,20 @@ bool ListPack::AppendInteger(int64_t eleint) {
 }
 
 /*
+ * Prepend a string at the beginning of the listpack.
+ */
+bool ListPack::Prepend(const std::string& elestr) {
+  return Insert(ListPackHeaderSize, Position::InsertBefore, &elestr, nullptr);
+}
+
+/*
+ * Prepend an integer at the beginning of the listpack.
+ */
+bool ListPack::PrependInteger(int64_t eleint) {
+  return Insert(ListPackHeaderSize, Position::InsertBefore, nullptr, &eleint);
+}
+
+/*
  * Batch append elements to the end of the listpack.
  */
 bool ListPack::BatchAppend(const std::vector<ListPackEntry>& entries) {
@@ -123,7 +137,7 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
       break;
     case EncodingType::type32BitInt:
       uval = ((uint64_t)lp_[idx + 1] << 24) | ((uint64_t)lp_[idx + 2] << 16) |
-             ((uint64_t)lp_[idx + 3] << 8) | (uint64_t)lp_[idx + 3];
+             ((uint64_t)lp_[idx + 3] << 8) | (uint64_t)lp_[idx + 4];
       negstart = 1UL << 31;
       negmax = std::numeric_limits<uint32_t>::max();
       break;
@@ -171,9 +185,10 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   }
   size_t backlen = 0;
   EncodingGeneralType encoding_type;
-  if (eleint || (elestr && utils::ToInt64(*elestr, eleint))) {
+  int64_t sval = eleint ? *eleint : 0;
+  if (eleint || utils::ToInt64(*elestr, &sval)) {
     /* turn string to int64 value if applicable */
-    backlen = EncodeInteger(nullptr, *eleint);
+    backlen = EncodeInteger(nullptr, sval);
     encoding_type = EncodingGeneralType::typeInt;
   } else {
     backlen = EncodeString(nullptr, elestr);
@@ -211,7 +226,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   }
   SetTotalBytes(new_listpack_bytes);
   if (encoding_type == EncodingGeneralType::typeInt) {
-    EncodeInteger(lp_ + idx, *eleint);
+    EncodeInteger(lp_ + idx, sval);
   } else {
     EncodeString(lp_ + idx, elestr);
   }
