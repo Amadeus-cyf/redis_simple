@@ -23,7 +23,11 @@ class ListPack {
   bool AppendInteger(int64_t eleint);
   bool Prepend(const std::string& elestr);
   bool PrependInteger(int64_t eleint);
+  bool Insert(size_t idx, const std::string& elestr);
+  bool InsertInteger(size_t idx, int64_t eleint);
   bool BatchAppend(const std::vector<ListPackEntry>& entries);
+  bool BatchPrepend(const std::vector<ListPackEntry>& entries);
+  bool BatchInsert(size_t idx, const std::vector<ListPackEntry>& entries);
   ssize_t Next(size_t idx);
   uint32_t GetTotalBytes();
   uint16_t GetNumOfElements();
