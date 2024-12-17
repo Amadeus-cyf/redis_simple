@@ -2,6 +2,7 @@
 
 #include "server/client.h"
 #include "server/reply/reply.h"
+#include "utils/string_utils.h"
 #include "utils/time_utils.h"
 
 namespace redis_simple {
@@ -34,8 +35,13 @@ int SetCommand::ParseArgs(const std::vector<std::string>& args,
   }
   str_args->key = args[0], str_args->val = args[1], str_args->expire = 0;
   if (args.size() >= 3) {
-    int64_t now = utils::GetNowInMilliseconds();
-    str_args->expire = now + std::stoll(args[2]);
+    int64_t now = utils::GetNowInMilliseconds(), ttl = 0;
+    if (utils::ToInt64(args[2], &ttl)) {
+      str_args->expire = now + ttl;
+    } else {
+      printf("invalid args\n");
+      return -1;
+    }
   }
   return 0;
 }

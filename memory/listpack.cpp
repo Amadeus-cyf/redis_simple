@@ -127,11 +127,34 @@ bool ListPack::BatchPrepend(const std::vector<ListPackEntry>& entries) {
 }
 
 /*
- * Batch insert elements at the given index
+ * Batch insert elements at the given index.
  */
 bool ListPack::BatchInsert(size_t idx,
                            const std::vector<ListPackEntry>& entries) {
   return BatchInsert(idx, Position::InsertBefore, entries);
+}
+
+/*
+ * Delete the element at the given index.
+ */
+void ListPack::Delete(size_t idx) {
+  uint32_t listpack_bytes = GetTotalBytes();
+  /* cannot insert into the listpack header or out of the listpack bound */
+  if (idx < ListPackHeaderSize || idx >= listpack_bytes)
+    throw std::out_of_range("index out of bound");
+  EncodingType encoding_type = GetEncodingType(idx);
+  size_t backlen = GetBacklen(idx);
+  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
+  unsigned char* buf = Malloc(new_listpack_bytes);
+  std::memcpy(buf, lp_, idx);
+  std::memcpy(buf + idx, lp_ + idx + backlen + backlen_bytes,
+              listpack_bytes - idx - backlen - backlen_bytes);
+  Free();
+  lp_ = buf;
+  SetTotalBytes(new_listpack_bytes);
+  uint16_t num_of_elements = GetNumOfElements();
+  SetNumOfElements(num_of_elements - 1);
 }
 
 /*
@@ -392,26 +415,6 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
     idx += encoding.backlen_bytes;
   }
   return true;
-}
-
-void ListPack::Delete(size_t idx) {
-  uint32_t listpack_bytes = GetTotalBytes();
-  /* cannot insert into the listpack header or out of the listpack bound */
-  if (idx < ListPackHeaderSize || idx >= listpack_bytes)
-    throw std::out_of_range("index out of bound");
-  EncodingType encoding_type = GetEncodingType(idx);
-  size_t backlen = GetBacklen(idx);
-  uint8_t backlen_bytes = GetBacklenBytes(backlen);
-  size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
-  unsigned char* buf = Malloc(new_listpack_bytes);
-  std::memcpy(buf, lp_, idx);
-  std::memcpy(buf + idx, lp_ + idx + backlen + backlen_bytes,
-              listpack_bytes - idx - backlen - backlen_bytes);
-  Free();
-  lp_ = buf;
-  SetTotalBytes(new_listpack_bytes);
-  uint16_t num_of_elements = GetNumOfElements();
-  SetNumOfElements(num_of_elements - 1);
 }
 
 uint32_t ListPack::GetTotalBytes() const {

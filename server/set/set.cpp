@@ -15,11 +15,11 @@ Set::Set()
  * Add the value to the set. Return true if succeeded.
  */
 bool Set::Add(const std::string& value) {
+  int64_t int_val = 0;
   if (encoding_ == SetEncodingType::setEncodingIntSet &&
-      utils::ToInt64(value, nullptr)) {
+      utils::ToInt64(value, &int_val)) {
     if (!intset_) intset_ = std::make_unique<in_memory::IntSet>();
-    int64_t int64_value = std::stoll(value);
-    bool success = intset_->Add(int64_value);
+    bool success = intset_->Add(int_val);
     if (success) MaybeConvertIntset();
     return success;
   }
@@ -39,9 +39,9 @@ bool Set::Add(const std::string& value) {
 bool Set::HasMember(const std::string& value) const {
   if (Size() == 0) return false;
   if (encoding_ == SetEncodingType::setEncodingIntSet) {
-    if (!utils::ToInt64(value, nullptr)) return false;
-    int64_t int64_value = std::stoll(value);
-    return intset_->Find(int64_value);
+    int64_t int_val = 0;
+    if (!utils::ToInt64(value, &int_val)) return false;
+    return intset_->Find(int_val);
   }
   return dict_->Get(value).has_value();
 }
@@ -62,11 +62,12 @@ std::vector<std::string> Set::ListAllMembers() const {
  */
 bool Set::Remove(const std::string& value) {
   if (Size() == 0) return false;
-  if (encoding_ == SetEncodingType::setEncodingIntSet &&
-      utils::ToInt64(value, nullptr)) {
-    if (!utils::ToInt64(value, nullptr)) return false;
-    int64_t int64_value = std::stoll(value);
-    return intset_->Remove(int64_value);
+  if (encoding_ == SetEncodingType::setEncodingIntSet) {
+    int64_t int_val = 0;
+    if (utils::ToInt64(value, &int_val)) {
+      return intset_->Remove(int_val);
+    }
+    return false;
   }
   return dict_->Delete(value);
 }
