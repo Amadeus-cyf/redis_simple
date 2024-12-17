@@ -186,8 +186,9 @@ TEST_F(ListPackTest, Insert) {
   ASSERT_TRUE(listpack->Insert(i4, s2));
 
   /* Insert out of bound */
-  ASSERT_FALSE(listpack->Insert(0, "test invalid insert"));
-  ASSERT_FALSE(listpack->Insert(listpack->GetTotalBytes(), 1));
+  ASSERT_THROW(listpack->Insert(0, "test invalid insert"), std::out_of_range);
+  ASSERT_THROW(listpack->Insert(listpack->GetTotalBytes(), 123456),
+               std::out_of_range);
 
   ASSERT_EQ(listpack->GetNumOfElements(), 21);
 
@@ -302,6 +303,12 @@ TEST_F(ListPackTest, Replace) {
   unsigned char* c7_next = listpack->Get(next7, &l7_next);
   ASSERT_EQ(l7_next, l6_next);
   ASSERT_TRUE(std::equal(c7_next, c7_next + l7_next, c6_next));
+
+  /* Replace out of bound */
+  ASSERT_THROW(listpack->Replace(0, "test replace out of bound"),
+               std::out_of_range);
+  ASSERT_THROW(listpack->Replace(listpack->GetTotalBytes(), 123456789),
+               std::out_of_range);
 }
 
 TEST_F(ListPackTest, BatchAppend) {
@@ -484,11 +491,21 @@ TEST_F(ListPackTest, BatchInsert) {
   }
 
   /* Insert out of bound */
-  ASSERT_FALSE(listpack->BatchInsert(0, entries));
-  ASSERT_FALSE(listpack->BatchInsert(listpack->GetTotalBytes(), entries));
+  ASSERT_THROW(listpack->BatchInsert(0, entries), std::out_of_range);
+  ASSERT_THROW(listpack->BatchInsert(listpack->GetTotalBytes(), entries),
+               std::out_of_range);
 
   /* Insert an empty list */
   ASSERT_FALSE(listpack->BatchInsert(0, {}));
+}
+
+TEST_F(ListPackTest, InvalidGet) {
+  ASSERT_THROW(listpack->Get(0, nullptr), std::out_of_range);
+  ASSERT_THROW(listpack->Get(listpack->GetTotalBytes(), nullptr),
+               std::out_of_range);
+  ASSERT_THROW(listpack->GetInteger(0), std::out_of_range);
+  ASSERT_THROW(listpack->GetInteger(listpack->GetTotalBytes()),
+               std::out_of_range);
 }
 }  // namespace in_memory
 }  // namespace redis_simple

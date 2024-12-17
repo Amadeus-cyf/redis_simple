@@ -61,7 +61,7 @@ class IntSet::Iterator {
 
  private:
   const IntSet* intset_;
-  unsigned int idx_;
+  size_t idx_;
 };
 }  // namespace in_memory
 }  // namespace redis_simple

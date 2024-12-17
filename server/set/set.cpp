@@ -1,24 +1,33 @@
 #include "set.h"
 
+#include <cassert>
+
+#include "utils/string_utils.h"
+
 namespace redis_simple {
 namespace set {
-Set::Set() : encoding_(SetEncodingType::setEncodingIntSet) {}
+Set::Set()
+    : encoding_(SetEncodingType::setEncodingIntSet),
+      intset_(nullptr),
+      dict_(nullptr) {}
 
 /*
  * Add the value to the set. Return true if succeeded.
  */
 bool Set::Add(const std::string& value) {
-  if (encoding_ == SetEncodingType::setEncodingIntSet && IsInt64(value)) {
+  if (encoding_ == SetEncodingType::setEncodingIntSet &&
+      utils::ToInt64(value, nullptr)) {
     if (!intset_) intset_ = std::make_unique<in_memory::IntSet>();
     int64_t int64_value = std::stoll(value);
-    return intset_->Add(int64_value);
+    bool success = intset_->Add(int64_value);
+    if (success) MaybeConvertIntset();
+    return success;
   }
   if (!dict_) {
     dict_ = std::unique_ptr<in_memory::Dict<std::string, nullptr_t>>(
         in_memory::Dict<std::string, nullptr_t>::Init());
     ConvertIntSetToDict();
   }
-  encoding_ = SetEncodingType::setEncodingDict;
   if (dict_->Get(value).has_value()) return false;
   dict_->Set(value, nullptr);
   return true;
@@ -30,7 +39,7 @@ bool Set::Add(const std::string& value) {
 bool Set::HasMember(const std::string& value) const {
   if (Size() == 0) return false;
   if (encoding_ == SetEncodingType::setEncodingIntSet) {
-    if (!IsInt64(value)) return false;
+    if (!utils::ToInt64(value, nullptr)) return false;
     int64_t int64_value = std::stoll(value);
     return intset_->Find(int64_value);
   }
@@ -53,8 +62,9 @@ std::vector<std::string> Set::ListAllMembers() const {
  */
 bool Set::Remove(const std::string& value) {
   if (Size() == 0) return false;
-  if (encoding_ == SetEncodingType::setEncodingIntSet && IsInt64(value)) {
-    if (!IsInt64(value)) return false;
+  if (encoding_ == SetEncodingType::setEncodingIntSet &&
+      utils::ToInt64(value, nullptr)) {
+    if (!utils::ToInt64(value, nullptr)) return false;
     int64_t int64_value = std::stoll(value);
     return intset_->Remove(int64_value);
   }
@@ -72,21 +82,19 @@ size_t Set::Size() const {
 }
 
 /*
- * Return true if the value could be converted to int64
+ * Convert set encoding from intset to dict if inset size exceed the max entries
  */
-bool Set::IsInt64(const std::string& value) const {
-  try {
-    std::stoll(value);
-    return true;
-  } catch (const std::exception& e) {
-    return false;
-  }
+void Set::MaybeConvertIntset() {
+  assert(encoding_ == SetEncodingType::setEncodingIntSet);
+  if (intset_ && intset_->Size() > IntSetMaxEntries) ConvertIntSetToDict();
 }
 
 /*
  * Convert set encoding from intset to dict and migrate all data.
  */
 void Set::ConvertIntSetToDict() {
+  assert(encoding_ == SetEncodingType::setEncodingIntSet);
+  encoding_ = SetEncodingType::setEncodingDict;
   if (!intset_) return;
   for (unsigned int i = 0; i < intset_->Size(); ++i) {
     int64_t value = intset_->Get(i);

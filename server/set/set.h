@@ -23,8 +23,9 @@ class Set {
   size_t Size() const;
 
  private:
+  static constexpr size_t IntSetMaxEntries = 1 << 30;
   explicit Set();
-  bool IsInt64(const std::string& value) const;
+  void MaybeConvertIntset();
   void ConvertIntSetToDict();
   std::vector<std::string> ListIntSetMembers() const;
   std::vector<std::string> ListDictMembers() const;

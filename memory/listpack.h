@@ -17,8 +17,8 @@ class ListPack {
   /* listpack header size. 32 bit total length + 16 bit number of elements */
   static constexpr int ListPackHeaderSize = 6;
   ListPack(size_t capacity);
-  unsigned char* Get(size_t idx, size_t* const len);
-  int64_t GetInteger(size_t idx);
+  unsigned char* Get(size_t idx, size_t* const len) const;
+  int64_t GetInteger(size_t idx) const;
   bool Append(const std::string& elestr);
   bool Append(int64_t eleint);
   bool Prepend(const std::string& elestr);
@@ -30,12 +30,17 @@ class ListPack {
   bool BatchAppend(const std::vector<ListPackEntry>& entries);
   bool BatchPrepend(const std::vector<ListPackEntry>& entries);
   bool BatchInsert(size_t idx, const std::vector<ListPackEntry>& entries);
-  ssize_t First();
-  ssize_t Last();
-  ssize_t Next(size_t idx);
-  ssize_t Prev(size_t idx);
-  uint32_t GetTotalBytes();
-  uint16_t GetNumOfElements();
+  void Delete(size_t idx);
+  ssize_t First() const;
+  ssize_t Last() const;
+  ssize_t Next(size_t idx) const;
+  ssize_t Prev(size_t idx) const;
+  uint32_t GetTotalBytes() const;
+  uint16_t GetNumOfElements() const;
+  ~ListPack() {
+    delete[] lp_;
+    lp_ = nullptr;
+  }
 
  private:
   /* 20 digits of -2^63 + 1 digit of the null term = 21 */
@@ -90,29 +95,24 @@ class ListPack {
     size_t backlen_bytes;
   };
   unsigned char* GetString(size_t idx, size_t* const len,
-                           EncodingType encoding_type);
+                           EncodingType encoding_type) const;
   unsigned char* GetInteger(size_t idx, unsigned char* dst, size_t* const len,
-                            int64_t* val, EncodingType encoding_type);
+                            int64_t* val, EncodingType encoding_type) const;
   bool Insert(size_t idx, ListPack::Position where, const std::string* elestr,
               int64_t* eleint);
   bool BatchInsert(size_t idx, ListPack::Position where,
                    const std::vector<ListPackEntry>& entries);
-  void Delete(size_t idx);
   void SetTotalBytes(uint32_t total_bytes_);
   void SetNumOfElements(uint16_t num_of_elements);
-  EncodingType GetEncodingType(size_t idx);
-  size_t GetBacklen(size_t idx);
-  uint8_t GetBacklenBytes(size_t backlen);
-  bool isString(EncodingType encoding_type) {
-    return encoding_type == EncodingType::type6BitStr ||
-           encoding_type == EncodingType::type12BitStr ||
-           encoding_type == EncodingType::type32BitStr;
-  }
+  EncodingType GetEncodingType(size_t idx) const;
+  size_t GetBacklen(size_t idx) const;
+  uint8_t GetBacklenBytes(size_t backlen) const;
   size_t EncodeString(unsigned char* const buf, const std::string* s);
   size_t EncodeInteger(unsigned char* const buf, int64_t ele);
   void EncodeBacklen(unsigned char* const buf, size_t backlen);
-  size_t DecodeBacklen(size_t idx);
-  size_t DecodeStringLength(size_t idx);
+  size_t DecodeBacklen(size_t idx) const;
+  size_t DecodeStringLength(size_t idx) const;
+  bool isString(EncodingType encoding_type) const;
   unsigned char* Malloc(size_t size);
   void Realloc(size_t size);
   void Free();
