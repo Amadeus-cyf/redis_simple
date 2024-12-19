@@ -81,10 +81,8 @@ TEST_F(ListPackTest, Append) {
   unsigned char* c4 = listpack->Get(idx, &l4);
   ASSERT_EQ(l4, 10000);
   ASSERT_TRUE(std::equal(c4, c4 + l4, s3.c_str()));
-  idx = listpack->Next(idx);
 
-  /* Reach EOF */
-  ASSERT_EQ(idx, listpack->GetTotalBytes() - 1);
+  /* Reach the end of the listpack */
   ASSERT_EQ(listpack->Next(idx), -1);
 
   /* Invalid get for string type */
@@ -286,10 +284,7 @@ TEST_F(ListPackTest, Replace) {
 
   /* Replace the last element */
   idx = listpack->Last();
-  /* Get next element to check if it's not changed after the replace  */
-  size_t l6_next;
-  size_t next6 = listpack->Next(idx);
-  unsigned char* c6_next = listpack->Get(next6, &l6_next);
+  ASSERT_EQ(listpack->Next(idx), -1);
   /* Replace and get the element */
   listpack->Replace(idx, 217);
   ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements);
@@ -298,11 +293,8 @@ TEST_F(ListPackTest, Replace) {
   ASSERT_EQ(l7, 3);
   ASSERT_TRUE(std::equal(c7, c7 + l7, "217"));
   ASSERT_EQ(listpack->GetInteger(idx), 217);
-  /* Get the next element and check if it is not changed */
-  size_t next7 = listpack->Next(idx);
-  unsigned char* c7_next = listpack->Get(next7, &l7_next);
-  ASSERT_EQ(l7_next, l6_next);
-  ASSERT_TRUE(std::equal(c7_next, c7_next + l7_next, c6_next));
+  /* Check if the element is the last element */
+  ASSERT_EQ(listpack->Next(idx), -1);
 
   /* Replace out of bound */
   ASSERT_THROW(listpack->Replace(0, "test replace out of bound"),
@@ -364,9 +356,8 @@ TEST_F(ListPackTest, BatchAppend) {
     idx = listpack->Next(idx);
   }
 
-  /* Reach EOF */
-  ASSERT_EQ(idx, listpack->GetTotalBytes() - 1);
-  ASSERT_EQ(listpack->Next(idx), -1);
+  /* Reach the end the listpack */
+  ASSERT_EQ(idx, -1);
 
   /* Append an empty list */
   ASSERT_FALSE(listpack->BatchAppend({}));
@@ -506,6 +497,56 @@ TEST_F(ListPackTest, InvalidGet) {
   ASSERT_THROW(listpack->GetInteger(0), std::out_of_range);
   ASSERT_THROW(listpack->GetInteger(listpack->GetTotalBytes()),
                std::out_of_range);
+}
+
+TEST_F(ListPackTest, Delete) {
+  /* Delete the head */
+  size_t idx = listpack->First(), prev_idx = -1, next_idx = listpack->Next(idx);
+  size_t num_of_elements = listpack->GetNumOfElements();
+  size_t l0 = 0;
+  unsigned char* c0 = listpack->Get(next_idx, &l0);
+  listpack->Delete(idx);
+  idx = listpack->First();
+  size_t l1 = 0;
+  unsigned char* c1 = listpack->Get(idx, &l1);
+  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements - 1);
+  ASSERT_EQ(l0, l1);
+  ASSERT_TRUE(std::equal(c1, c1 + l1, c0));
+
+  /* Delete an element in the mid */
+  idx = listpack->Next(idx);
+  prev_idx = listpack->Next(idx);
+  idx = listpack->Next(prev_idx);
+  next_idx = listpack->Next(idx);
+  size_t l2 = 0;
+  unsigned char* c2 = listpack->Get(next_idx, &l2);
+  num_of_elements = listpack->GetNumOfElements();
+  listpack->Delete(idx);
+  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements - 1);
+  idx = listpack->Next(prev_idx);
+  size_t l3 = 0;
+  unsigned char* c3 = listpack->Get(idx, &l3);
+  ASSERT_EQ(l2, l3);
+  ASSERT_TRUE(std::equal(c3, c3 + l3, c2));
+
+  /* Delete the tail */
+  idx = listpack->Last();
+  ASSERT_EQ(listpack->Next(idx), -1);
+  size_t l4 = 0;
+  unsigned char* c4 = listpack->Get(next_idx, &l2);
+  prev_idx = listpack->Prev(idx);
+  num_of_elements = listpack->GetNumOfElements();
+  listpack->Delete(idx);
+  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements - 1);
+  size_t l5 = 0;
+  unsigned char* c5 = listpack->Get(next_idx, &l2);
+  ASSERT_EQ(l4, l5);
+  ASSERT_TRUE(std::equal(c5, c5 + l5, c4));
+
+  /* Delete out of bound */
+  ASSERT_THROW(listpack->Delete(ListPack::ListPackHeaderSize - 1),
+               std::out_of_range);
+  ASSERT_THROW(listpack->Delete(listpack->GetTotalBytes()), std::out_of_range);
 }
 }  // namespace in_memory
 }  // namespace redis_simple

@@ -14,7 +14,7 @@ ListPack::ListPack(size_t capacity)
   if (capacity < ListPackHeaderSize + 1) capacity = ListPackHeaderSize + 1;
   SetTotalBytes(capacity);
   SetNumOfElements(0);
-  lp_[ListPackHeaderSize] = lpEOF;
+  lp_[ListPackHeaderSize] = EncodingType::lpEOF;
 }
 
 /*
@@ -187,10 +187,12 @@ ssize_t ListPack::Next(size_t idx) const {
   /* Index out of bound, < header size or >= total bytes */
   if (idx < ListPackHeaderSize || idx >= GetTotalBytes())
     throw std::out_of_range("index out of bound");
-  if (lp_[idx] == lpEOF) return -1;
+  if (lp_[idx] == EncodingType::lpEOF) return -1;
   size_t backlen = GetBacklen(idx);
   uint8_t backlen_bytes = GetBacklenBytes(backlen);
-  return idx + backlen + backlen_bytes;
+  size_t next_idx = idx + backlen + backlen_bytes;
+  /* return -1 if the element is the last one */
+  return lp_[next_idx] != EncodingType::lpEOF ? next_idx : -1;
 }
 
 /*
@@ -202,8 +204,9 @@ ssize_t ListPack::Prev(size_t idx) const {
   /* Index out of bound, < header size or >= total bytes */
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
-  /* no element in the listpack */
-  if (listpack_bytes <= ListPackHeaderSize) return -1;
+  /* no element in the listpack or the element is the first one */
+  if (listpack_bytes <= ListPackHeaderSize || idx == ListPackHeaderSize)
+    return -1;
   /* Decode the backlen starting from the last byte of the previous element's
    * backlen */
   size_t backlen = DecodeBacklen(--idx);
