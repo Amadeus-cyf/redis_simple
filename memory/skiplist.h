@@ -175,11 +175,11 @@ class Skiplist<Key, Comparator, Destructor>::SkiplistNode {
 
  private:
   SkiplistNode(const Destructor& dtr) : prev_(nullptr), dtr_(dtr) {
-    memset(levels_, 0, sizeof levels_);
+    std::memset(levels_, 0, sizeof levels_);
   };
   explicit SkiplistNode(const Key& key, Destructor dtr)
       : key(key), prev_(nullptr), dtr_(dtr) {
-    memset(levels_, 0, sizeof levels_);
+    std::memset(levels_, 0, sizeof levels_);
   };
   SkiplistLevel* levels_[maxSkiplistLevel];
   SkiplistNode* prev_;
@@ -494,7 +494,7 @@ bool Skiplist<Key, Comparator, Destructor>::Contains(const Key& key) const {
 template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::Delete(const Key& key) {
   SkiplistNode* prev[level_];
-  memset(prev, 0, sizeof prev);
+  std::memset(prev, 0, sizeof prev);
   const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, nullptr);
   if (!n || !Eq(n->key, key)) {
     return false;
@@ -511,7 +511,7 @@ template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::Update(const Key& key,
                                                    const Key& new_key) {
   SkiplistNode* prev[level_];
-  memset(prev, 0, sizeof(prev));
+  std::memset(prev, 0, sizeof(prev));
   const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, nullptr);
   if (!n || !Eq(n->key, key)) {
     /* key not found */

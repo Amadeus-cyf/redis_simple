@@ -29,11 +29,11 @@ class BufNode {
   static constexpr const size_t ProtoNodeSize = 1024;
   explicit BufNode() : len_(ProtoNodeSize), used_(0), next_(nullptr) {
     buf_ = new char[ProtoNodeSize];
-    memset(buf_, '\0', ProtoNodeSize);
+    std::memset(buf_, '\0', ProtoNodeSize);
   };
   explicit BufNode(size_t len) : len_(len), used_(0), next_(nullptr) {
     buf_ = new char[len];
-    memset(buf_, '\0', len);
+    std::memset(buf_, '\0', len);
   }
 };
 }  // namespace in_memory

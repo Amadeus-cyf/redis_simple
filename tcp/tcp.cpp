@@ -86,7 +86,7 @@ int TCP_BindAndConnect(const TCPAddrInfo& remote,
                        const std::optional<const TCPAddrInfo>& local,
                        const bool non_block) {
   struct addrinfo hints, *info;
-  memset(&hints, 0, sizeof(hints));
+  std::memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(remote.ip.c_str(), std::to_string(remote.port).c_str(),
@@ -144,7 +144,7 @@ int TCP_Accept(const int socket_fd, TCPAddrInfo* const addrInfo) {
 
 int TCP_Bind(const int socket_fd, const TCPAddrInfo& addrInfo) {
   struct addrinfo hints, *info = nullptr;
-  memset(&hints, 0, sizeof(hints));
+  std::memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(addrInfo.ip.c_str(), std::to_string(addrInfo.port).c_str(),

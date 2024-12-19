@@ -536,7 +536,7 @@ size_t ListPack::EncodeString(unsigned char* const buf,
     backlen = 1 + len;
     if (buf) {
       buf[0] = EncodingType::type6BitStr | len;
-      memcpy(buf + 1, elestr, len);
+      std::memcpy(buf + 1, elestr, len);
     }
   } else if (len <= 4095) {
     /* 12 bit length string */
@@ -544,7 +544,7 @@ size_t ListPack::EncodeString(unsigned char* const buf,
     if (buf) {
       buf[0] = EncodingType::type12BitStr | (len >> 8);
       buf[1] = len & 0xff;
-      memcpy(buf + 2, elestr, len);
+      std::memcpy(buf + 2, elestr, len);
     }
   } else {
     /* 32 bit length string */
@@ -555,7 +555,7 @@ size_t ListPack::EncodeString(unsigned char* const buf,
       buf[2] = (len >> 16) & 0xff;
       buf[3] = (len >> 8) & 0xff;
       buf[4] = len & 0xff;
-      memcpy(buf + 5, elestr, len);
+      std::memcpy(buf + 5, elestr, len);
     }
   }
   if (buf) {

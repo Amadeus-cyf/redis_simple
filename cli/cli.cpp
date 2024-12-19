@@ -20,7 +20,7 @@ std::string ReadFromConnection(const connection::Connection* connection) {
       break;
     }
     reply.append(buf, nread);
-    memset(buf, 0, sizeof(buf));
+    std::memset(buf, 0, sizeof(buf));
     if (reply.size() > 0 && reply[reply.size() - 2] == '\r' &&
         reply[reply.size() - 1] == '\n') {
       break;

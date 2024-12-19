@@ -12,7 +12,7 @@ void ActiveExpireCycle() {
                             const int64_t& expire_time) {
     int64_t now = utils::GetNowInMilliseconds();
     if (expire_time < now) {
-      printf("activeExpireCycle: expired key deleted %s\n", key.c_str());
+      printf("activeExpireCycle: expired key \"%s\" deleted\n", key.c_str());
       if (std::shared_ptr<const db::RedisDb> db = Server::Get()->DB().lock()) {
         assert(db->DeleteKey(key) == db::DBStatus::dbOK);
       } else {

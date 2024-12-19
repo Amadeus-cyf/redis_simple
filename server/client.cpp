@@ -23,7 +23,7 @@ Client::Client(connection::Connection* connection)
 
 ssize_t Client::ReadQuery() {
   char buf[4096];
-  memset(buf, 0, sizeof buf);
+  std::memset(buf, 0, sizeof buf);
   ssize_t nread = connection_->Read(buf, 4096);
   printf("nread %zd, buf %s end\n", nread, buf);
   if (nread <= 0) {

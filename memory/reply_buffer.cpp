@@ -32,7 +32,7 @@ size_t ReplyBuffer::AddReplyToBuffer(const char* s, size_t len) {
   if (reply_len_ == 0) {
     size_t available = buf_usable_size_ - buf_pos_;
     size_t nwritten = len < available ? len : available;
-    memcpy(buf_ + buf_pos_, s, nwritten);
+    std::memcpy(buf_ + buf_pos_, s, nwritten);
     buf_pos_ += nwritten;
     return nwritten;
   }
@@ -102,7 +102,7 @@ ReplyBuffer::~ReplyBuffer() {
  * Clear the main buffer.
  */
 void ReplyBuffer::ClearBuffer() {
-  memset(buf_, '\0', buf_pos_);
+  std::memset(buf_, '\0', buf_pos_);
   buf_pos_ = 0;
   sent_len_ = 0;
 }
@@ -205,7 +205,7 @@ BufNode* ReplyBuffer::CreateReplyNode(const char* buffer, size_t len) {
 size_t ReplyBuffer::AppendToReplyNode(BufNode* node, const char* buffer,
                                       size_t len) {
   size_t nwritten = std::min(len, node->len_ - node->used_);
-  memcpy(node->buf_ + node->used_, buffer, nwritten);
+  std::memcpy(node->buf_ + node->used_, buffer, nwritten);
   node->used_ += nwritten;
   return nwritten;
 }

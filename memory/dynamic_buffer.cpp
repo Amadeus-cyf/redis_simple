@@ -17,7 +17,7 @@ void DynamicBuffer::WriteToBuffer(const char* buffer, size_t n) {
     if (len_ - nread_ < n) {
       Resize(n + nread_);
     }
-    memcpy(buf_ + nread_, buffer, n);
+    std::memcpy(buf_ + nread_, buffer, n);
     nread_ += n;
   }
 }
@@ -62,7 +62,7 @@ void DynamicBuffer::Resize(size_t n) {
     n += 1000;
   }
   char* newbuf = new char[n * 2];
-  memcpy(newbuf, buf_, len_);
+  std::memcpy(newbuf, buf_, len_);
   delete[] buf_;
   buf_ = newbuf;
   len_ = n;
@@ -72,7 +72,7 @@ void DynamicBuffer::Resize(size_t n) {
  * Clear all contents in the buffer.
  */
 void DynamicBuffer::Clear() {
-  memset(buf_, 0, len_);
+  std::memset(buf_, 0, len_);
   nread_ = 0;
   processed_offset_ = 0;
 }
