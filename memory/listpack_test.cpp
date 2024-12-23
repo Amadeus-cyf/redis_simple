@@ -6,7 +6,7 @@ namespace redis_simple {
 namespace in_memory {
 class ListPackTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { listpack = new ListPack(0); }
+  static void SetUpTestSuite() { listpack = new ListPack(); }
   static void TearDownTestSuite() {
     delete listpack;
     listpack = nullptr;
@@ -497,6 +497,17 @@ TEST_F(ListPackTest, InvalidGet) {
   ASSERT_THROW(listpack->GetInteger(0), std::out_of_range);
   ASSERT_THROW(listpack->GetInteger(listpack->GetTotalBytes()),
                std::out_of_range);
+}
+
+TEST_F(ListPackTest, Find) {
+  ssize_t i0 = listpack->Find("test string 0");
+  ASSERT_NE(i0, -1);
+  ssize_t i1 = listpack->Find("-1234567");
+  ASSERT_NE(i1, -1);
+  ssize_t i2 = listpack->Find("string not exist");
+  ASSERT_EQ(i2, -1);
+  ssize_t i3 = listpack->Find("-12345465657");
+  ASSERT_EQ(i3, -1);
 }
 
 TEST_F(ListPackTest, Delete) {

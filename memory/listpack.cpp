@@ -7,6 +7,12 @@
 
 namespace redis_simple {
 namespace in_memory {
+ListPack::ListPack() : lp_(new unsigned char[ListPackHeaderSize + 1]) {
+  SetTotalBytes(ListPackHeaderSize + 1);
+  SetNumOfElements(0);
+  lp_[ListPackHeaderSize] = ListPackEOF;
+}
+
 ListPack::ListPack(size_t capacity)
     : lp_(new unsigned char[capacity > ListPackHeaderSize + 1
                                 ? capacity
@@ -14,7 +20,7 @@ ListPack::ListPack(size_t capacity)
   if (capacity < ListPackHeaderSize + 1) capacity = ListPackHeaderSize + 1;
   SetTotalBytes(capacity);
   SetNumOfElements(0);
-  lp_[ListPackHeaderSize] = EncodingType::lpEOF;
+  lp_[ListPackHeaderSize] = ListPackEOF;
 }
 
 /*
@@ -51,6 +57,24 @@ int64_t ListPack::GetInteger(size_t idx) const {
   int64_t val;
   GetInteger(idx, nullptr, nullptr, &val, encoding_type);
   return val;
+}
+
+/*
+ * Find the index of an element in the listpack. If the element does not exist,
+ * return -1.
+ */
+ssize_t ListPack::Find(const std::string& val) const {
+  ssize_t idx = First();
+  if (idx < 0) return -1;
+  while (lp_[idx] != ListPackEOF) {
+    size_t len = 0;
+    const unsigned char* buf = Get(idx, &len);
+    if (len == val.size() && std::equal(buf, buf + len, val.c_str())) {
+      return idx;
+    }
+    idx = Skip(idx);
+  }
+  return -1;
 }
 
 /*
@@ -187,12 +211,10 @@ ssize_t ListPack::Next(size_t idx) const {
   /* Index out of bound, < header size or >= total bytes */
   if (idx < ListPackHeaderSize || idx >= GetTotalBytes())
     throw std::out_of_range("index out of bound");
-  if (lp_[idx] == EncodingType::lpEOF) return -1;
-  size_t backlen = GetBacklen(idx);
-  uint8_t backlen_bytes = GetBacklenBytes(backlen);
-  size_t next_idx = idx + backlen + backlen_bytes;
+  if (lp_[idx] == ListPackEOF) return -1;
+  size_t next_idx = Skip(idx);
   /* return -1 if the element is the last one */
-  return lp_[next_idx] != EncodingType::lpEOF ? next_idx : -1;
+  return lp_[next_idx] != ListPackEOF ? next_idx : -1;
 }
 
 /*
@@ -311,7 +333,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
   if (where == Position::InsertAfter) {
-    idx = Next(idx);
+    idx = Skip(idx);
     where = Position::InsertBefore;
   }
   size_t backlen = 0;
@@ -374,7 +396,10 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   /* cannot insert into the listpack header or out of the listpack bound */
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
-  if (where == Position::InsertAfter) idx = Next(idx);
+  if (where == Position::InsertAfter) {
+    idx = Skip(idx);
+    where = Position::InsertBefore;
+  }
   std::vector<Encoding> encodings;
   size_t inserted_bytes = 0;
   /* Get general encoding type (string/int) and backlen from each entry */
@@ -436,6 +461,34 @@ uint16_t ListPack::GetNumOfElements() const { return (lp_[4] << 8) | lp_[5]; }
 void ListPack::SetNumOfElements(uint16_t num_of_elements) {
   lp_[4] = (num_of_elements >> 8) & 0xff;
   lp_[5] = num_of_elements & 0xff;
+}
+
+/*
+ * Return the beginning index of the next element of the current element at the
+ * given index. If the index is pointing to the EOF, return the current index.
+ */
+size_t ListPack::Skip(size_t idx) const {
+  if (lp_[idx] == ListPackEOF) return idx;
+  size_t backlen = GetBacklen(idx);
+  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  size_t next_idx = idx + backlen + backlen_bytes;
+  return next_idx;
+}
+
+/*
+ * Estimate number of bytes needed to store an integer for repetive times.
+ */
+size_t ListPack::EstimateBytes(int64_t lval, size_t repetive) {
+  return ListPack::ListPackHeaderSize +
+         EncodeInteger(nullptr, lval) * repetive + 1;
+}
+
+/*
+ * Estimate number of bytes needed to store an integer for repetive times.
+ */
+bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
+  size_t len = lp ? lp->GetTotalBytes() : 0;
+  return len + bytes < ListPack::ListPackMaxSafetySize;
 }
 
 /*
@@ -504,7 +557,7 @@ size_t ListPack::GetBacklen(size_t idx) const {
 /*
  * Get number of bytes required to encode the back length.
  */
-uint8_t ListPack::GetBacklenBytes(size_t backlen) const {
+uint8_t ListPack::GetBacklenBytes(size_t backlen) {
   if (backlen >= 0 && backlen <= BacklenThreshold::Size1ByteBacklenMax) {
     return 1;
   } else if (backlen > BacklenThreshold::Size1ByteBacklenMax &&
@@ -686,7 +739,7 @@ size_t ListPack::DecodeStringLength(size_t idx) const {
   }
 }
 
-bool ListPack::isString(EncodingType encoding_type) const {
+bool ListPack::isString(EncodingType encoding_type) {
   return encoding_type == EncodingType::type6BitStr ||
          encoding_type == EncodingType::type12BitStr ||
          encoding_type == EncodingType::type32BitStr;

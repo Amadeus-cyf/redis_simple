@@ -15,6 +15,8 @@ class IntSet {
   int64_t Get(unsigned int index) const;
   bool Find(int64_t value) const;
   bool Remove(int64_t value);
+  int64_t Max() const;
+  int64_t Min() const;
   unsigned int Size() const { return length_; }
   ~IntSet() {
     delete[] contents_;

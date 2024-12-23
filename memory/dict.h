@@ -16,6 +16,7 @@ class Dict {
   struct DictType;
   using dictScanFunc = void (*)(const K& key, const V& value);
   static std::unique_ptr<Dict<K, V>> Init();
+  static std::unique_ptr<Dict<K, V>> Init(size_t capacity);
   static std::unique_ptr<Dict<K, V>> Init(const DictType& type);
   std::optional<V> Get(const K& key);
   std::optional<V> Get(K&& key);
@@ -66,12 +67,12 @@ class Dict {
   void Clear(int i);
   void Reset(int i);
   /* hashtable initial size */
-  static constexpr const int htInitSize = 2;
+  static constexpr const int HtInitSize = 2;
   /* hashtable initial exponential */
-  static constexpr const int htInitExp = 1;
+  static constexpr const int HtInitExp = 1;
   /* the threshold for rehashing. The ratio is calculated from (num of elements
    * / hashtable size) */
-  static constexpr const double dictForceResizeRatio = 2.0;
+  static constexpr const double DictForceResizeRatio = 2.0;
   /* specify hash function, key constructor and destructor in type */
   DictType type_;
   /* containing 2 hastables, the second one is used for rehash */
@@ -245,7 +246,23 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
-  if (!dict->Expand(htInitSize)) {
+  if (!dict->Expand(HtInitSize)) {
+    return nullptr;
+  }
+  dict->type_.hashFunction = [](const K& key) {
+    std::hash<K> h;
+    return h(key);
+  };
+  return dict;
+}
+
+/*
+ * Initialize the dict with default functions and custom capacity.
+ */
+template <typename K, typename V>
+std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(size_t capacity) {
+  std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
+  if (!dict->Expand(capacity)) {
     return nullptr;
   }
   dict->type_.hashFunction = [](const K& key) {
@@ -262,7 +279,7 @@ template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
     const typename Dict<K, V>::DictType& type) {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>(type));
-  if (!dict->Expand(htInitSize)) {
+  if (!dict->Expand(HtInitSize)) {
     return nullptr;
   }
   return dict;
@@ -538,7 +555,7 @@ size_t Dict<K, V>::KeyHashIndex(const K& key, int i) const {
  */
 template <typename K, typename V>
 int Dict<K, V>::NextExp(ssize_t size) const {
-  if (size < 0) return htInitExp;
+  if (size < 0) return HtInitExp;
   int i = 1;
   while ((1 << i) < size) ++i;
   return i;
@@ -649,7 +666,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
  */
 template <typename K, typename V>
 void Dict<K, V>::ExpandIfNeeded() {
-  if ((double)ht_used_[0] / HtSize(ht_size_exp_[0]) >= dictForceResizeRatio) {
+  if ((double)ht_used_[0] / HtSize(ht_size_exp_[0]) >= DictForceResizeRatio) {
     Expand(ht_used_[0] + 1);
   }
 }

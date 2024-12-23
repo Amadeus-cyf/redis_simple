@@ -59,7 +59,7 @@ TEST_F(SetTest, AddAndList) {
                                       "-65536", "1", "65535", "4294967295",
                                       "9223372036854775807"}));
 
-  /* convert to dict encoding */
+  /* convert to listpack */
   ASSERT_TRUE(set->Add("test_str_0"));
   ASSERT_EQ(set->Size(), 8);
   ASSERT_TRUE(set->HasMember("test_str_0"));

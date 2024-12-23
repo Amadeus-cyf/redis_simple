@@ -16,9 +16,12 @@ class ListPack {
   };
   /* listpack header size. 32 bit total length + 16 bit number of elements */
   static constexpr int ListPackHeaderSize = 6;
-  ListPack(size_t capacity);
+  static constexpr size_t ListPackElementMaxLength = 1UL << 32;
+  ListPack();
+  explicit ListPack(size_t capacity);
   unsigned char* Get(size_t idx, size_t* const len) const;
   int64_t GetInteger(size_t idx) const;
+  ssize_t Find(const std::string& val) const;
   bool Append(const std::string& elestr);
   bool Append(int64_t eleint);
   bool Prepend(const std::string& elestr);
@@ -37,6 +40,8 @@ class ListPack {
   ssize_t Prev(size_t idx) const;
   uint32_t GetTotalBytes() const;
   uint16_t GetNumOfElements() const;
+  static size_t EstimateBytes(int64_t lval, size_t repetive);
+  static bool SafeToAdd(const ListPack* const lp, size_t bytes);
   ~ListPack() {
     delete[] lp_;
     lp_ = nullptr;
@@ -48,7 +53,10 @@ class ListPack {
   static constexpr int Uint7BitIntMax_ = 127;
   static constexpr int Int24BitIntMax = (1 << 23) - 1;
   static constexpr int Int24BitIntMin = -(1 << 23);
-  static constexpr uint32_t ListPackSize = UINT32_MAX;
+  /* max safety bytes of the listpack */
+  static constexpr uint32_t ListPackMaxSafetySize = 1 << 30;
+  /* the end of the listpack */
+  static constexpr int64_t ListPackEOF = 0xff;
   enum class EncodingGeneralType {
     typeInt = 0,
     typeStr = 1,
@@ -63,7 +71,6 @@ class ListPack {
     type24BitInt = 0xf2,
     type32BitInt = 0xf3,
     type64BitInt = 0xf4,
-    lpEOF = 0xff,
   };
   enum EncodingTypeMask {
     type7BitUIntMask = 0x80,
@@ -104,15 +111,16 @@ class ListPack {
                    const std::vector<ListPackEntry>& entries);
   void SetTotalBytes(uint32_t total_bytes_);
   void SetNumOfElements(uint16_t num_of_elements);
+  size_t Skip(size_t idx) const;
   EncodingType GetEncodingType(size_t idx) const;
   size_t GetBacklen(size_t idx) const;
-  uint8_t GetBacklenBytes(size_t backlen) const;
-  size_t EncodeString(unsigned char* const buf, const std::string* s);
-  size_t EncodeInteger(unsigned char* const buf, int64_t ele);
-  void EncodeBacklen(unsigned char* const buf, size_t backlen);
+  static uint8_t GetBacklenBytes(size_t backlen);
+  static size_t EncodeString(unsigned char* const buf, const std::string* s);
+  static size_t EncodeInteger(unsigned char* const buf, int64_t ele);
+  static void EncodeBacklen(unsigned char* const buf, size_t backlen);
   size_t DecodeBacklen(size_t idx) const;
   size_t DecodeStringLength(size_t idx) const;
-  bool isString(EncodingType encoding_type) const;
+  static bool isString(EncodingType encoding_type);
   unsigned char* Malloc(size_t size);
   void Realloc(size_t size);
   void Free();

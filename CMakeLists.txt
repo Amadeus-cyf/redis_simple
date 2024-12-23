@@ -93,6 +93,8 @@ PRIVATE
   "tcp/tcp.cpp"
   "event_loop/ae.h"
   "event_loop/ae.cpp"
+  "utils/int_utils.h"
+  "utils/int_utils.cpp"
   "utils/string_utils.h"
   "utils/string_utils.cpp"
 )
@@ -105,6 +107,8 @@ add_subdirectory("third_party/googletest")
 add_executable(redis_simple_tests "") 
 target_sources(redis_simple_tests
   PRIVATE
+    "utils/int_utils.h"
+    "utils/int_utils.cpp"
     "utils/string_utils.h"
     "utils/string_utils.cpp"
     "utils/string_utils_test.cpp"
@@ -226,6 +230,8 @@ target_sources(${source}
     "tcp/tcp.cpp"
     "memory/dynamic_buffer.h"
     "memory/dynamic_buffer.cpp"
+    "utils/int_utils.h"
+    "utils/int_utils.cpp"
     "utils/string_utils.h"
     "utils/string_utils.cpp"
 )
@@ -241,6 +247,8 @@ add_subdirectory("third_party/benchmark")
 add_executable(memory_benchmark "")
 target_sources(memory_benchmark
   PRIVATE
+    "utils/int_utils.h"
+    "utils/int_utils.cpp"
     "utils/string_utils.h"
     "utils/string_utils.cpp"
     "memory/buf_node.h"

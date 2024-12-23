@@ -52,6 +52,16 @@ bool IntSet::Remove(int64_t value) {
 }
 
 /*
+ * Return the maximum element from the intset.
+ */
+int64_t IntSet::Max() const { return Get(length_ - 1); }
+
+/*
+ * Return the minimum element from the intset.
+ */
+int64_t IntSet::Min() const { return Get(0); }
+
+/*
  * Get encoding type of the value.
  */
 IntSet::EncodingType IntSet::ValueEncoding(const int64_t value) const {
