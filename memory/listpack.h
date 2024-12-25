@@ -22,6 +22,7 @@ class ListPack {
   unsigned char* Get(size_t idx, size_t* const len) const;
   int64_t GetInteger(size_t idx) const;
   ssize_t Find(const std::string& val) const;
+  ssize_t FindAndSkip(const std::string& val, size_t skip) const;
   bool Append(const std::string& elestr);
   bool Append(int64_t eleint);
   bool Prepend(const std::string& elestr);

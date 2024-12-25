@@ -64,13 +64,27 @@ int64_t ListPack::GetInteger(size_t idx) const {
  * return -1.
  */
 ssize_t ListPack::Find(const std::string& val) const {
+  return FindAndSkip(val, 0);
+}
+
+/*
+ * Find the index of an element in the listpack skipping `skip` entries between
+ * each comparison. If the element does not exist, return -1.
+ */
+ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
   ssize_t idx = First();
   if (idx < 0) return -1;
+  size_t skipcnt = 0;
   while (lp_[idx] != ListPackEOF) {
-    size_t len = 0;
-    const unsigned char* buf = Get(idx, &len);
-    if (len == val.size() && std::equal(buf, buf + len, val.c_str())) {
-      return idx;
+    if (skipcnt == 0) {
+      size_t len = 0;
+      const unsigned char* buf = Get(idx, &len);
+      if (len == val.size() && std::equal(buf, buf + len, val.c_str())) {
+        return idx;
+      }
+      skipcnt = skip;
+    } else {
+      --skipcnt;
     }
     idx = Skip(idx);
   }

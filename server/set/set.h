@@ -10,12 +10,6 @@
 namespace redis_simple {
 namespace set {
 class Set {
-  enum class SetEncodingType {
-    setEncodingIntSet = 1,
-    setEncodingListPack = 2,
-    setEncodingDict = 3,
-  };
-
  public:
   static Set* Init() { return new Set(); }
   bool Add(const std::string& value);
@@ -25,9 +19,17 @@ class Set {
   size_t Size() const;
 
  private:
+  enum class SetEncodingType {
+    IntSet = 1,
+    ListPack = 2,
+    Dict = 3,
+  };
   static constexpr size_t IntSetMaxEntries = 512;
   static constexpr size_t ListPackMaxEntries = 128;
-  explicit Set();
+  Set();
+  bool IntSetAddAndMaybeConvert(const std::string& value);
+  bool ListPackAddAndMaybeConvert(const std::string& value);
+  bool DictAdd(const std::string& value);
   void MaybeConvertIntsetToDict();
   void ConvertIntSetToDict(size_t capacity);
   bool MaybeConvertIntSetToListPack(const std::string& val);

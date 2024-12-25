@@ -510,6 +510,21 @@ TEST_F(ListPackTest, Find) {
   ASSERT_EQ(i3, -1);
 }
 
+TEST_F(ListPackTest, Iterate) {
+  ssize_t idx = listpack->First();
+  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+
+  ssize_t prev = -1;
+  size_t len = 0;
+  while (idx != -1) {
+    ++len;
+    prev = idx;
+    idx = listpack->Next(idx);
+  }
+  ASSERT_EQ(prev, listpack->Last());
+  ASSERT_EQ(len, listpack->GetNumOfElements());
+}
+
 TEST_F(ListPackTest, Delete) {
   /* Delete the head */
   size_t idx = listpack->First(), prev_idx = -1, next_idx = listpack->Next(idx);
