@@ -1,6 +1,7 @@
 #include "set.h"
 
 #include <cassert>
+#include <optional>
 
 #include "utils/int_utils.h"
 #include "utils/string_utils.h"
@@ -8,7 +9,10 @@
 namespace redis_simple {
 namespace set {
 Set::Set()
-    : encoding_(SetEncodingType::IntSet), intset_(nullptr), dict_(nullptr) {}
+    : encoding_(SetEncodingType::IntSet),
+      intset_(nullptr),
+      dict_(nullptr),
+      listpack_(nullptr) {}
 
 /*
  * Add the value to the set. Return true if succeeded.
@@ -231,9 +235,8 @@ void Set::ConvertListPackToDict(const std::string& val) {
   if (!listpack_) return;
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    size_t len = 0;
-    unsigned char* buf = listpack_->Get(idx, &len);
-    dict_->Set(std::string(reinterpret_cast<char*>(buf), len), nullptr);
+    const std::optional<std::string>& opt_str = listpack_->Get(idx);
+    if (opt_str.has_value()) dict_->Set(opt_str.value(), nullptr);
     idx = listpack_->Next(idx);
   }
   dict_->Set(val, nullptr);
@@ -261,8 +264,8 @@ std::vector<std::string> Set::ListListPackMembers() const {
   ssize_t idx = listpack_->First();
   while (idx != -1) {
     size_t len = 0;
-    unsigned char* buf = listpack_->Get(idx, &len);
-    members.push_back(std::string(reinterpret_cast<char*>(buf), len));
+    const std::optional<std::string>& opt_str = listpack_->Get(idx);
+    if (opt_str.has_value()) members.push_back(opt_str.value());
     idx = listpack_->Next(idx);
   }
   return members;

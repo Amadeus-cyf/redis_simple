@@ -4,100 +4,36 @@
 #include <optional>
 #include <string>
 
-#include "memory/dict.h"
-#include "memory/skiplist.h"
+#include "server/zset/zset_entry.h"
+#include "server/zset/zset_range_spec.h"
+#include "server/zset/zset_storage.h"
 
 namespace redis_simple {
 namespace zset {
 class ZSet {
  public:
-  /* spec for LIMIT flag */
-  struct LimitSpec {
-    size_t offset;
-    ssize_t count;
-    LimitSpec() : offset(0), count(0){};
-    LimitSpec(size_t offset, size_t count) : offset(offset), count(count){};
-  };
-  /* spec for range by rank */
-  struct RangeByRankSpec {
-    long min, max;
-    /* are min or max exclusive? */
-    bool minex, maxex;
-    /* starting offset and count */
-    std::unique_ptr<LimitSpec> limit;
-    /* reverse order ? */
-    bool reverse;
-  };
-  /* spec for range by score */
-  struct RangeByScoreSpec {
-    double min, max;
-    /* are min or max exclusive? */
-    bool minex, maxex;
-    /* starting offset and count */
-    std::unique_ptr<LimitSpec> limit;
-    /* reverse order ? */
-    bool reverse;
-  };
-  /* entry storing key and score */
-  struct ZSetEntry {
-    ZSetEntry(const std::string& key, const double score)
-        : key(key), score(score){};
-    std::string key;
-    mutable double score;
-  };
   static ZSet* Init() { return new ZSet(); }
   bool InsertOrUpdate(const std::string& key, const double score);
   bool Delete(const std::string& key);
-  std::optional<double> GetScoreOfKey(const std::string& key) const {
-    return dict_->Get(key);
-  }
+  std::optional<double> GetScoreOfKey(const std::string& key) const;
   std::optional<size_t> GetRankOfKey(const std::string& key) const;
   const std::vector<const ZSetEntry*> RangeByRank(
       const RangeByRankSpec* spec) const;
   const std::vector<const ZSetEntry*> RangeByScore(
       const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
-  size_t Size() const { return skiplist_->Size(); }
+  size_t Size() const { return storage_->Size(); };
 
  private:
-  struct Comparator {
-    int operator()(const ZSetEntry* s1, const ZSetEntry* s2) const {
-      if (s1->score < s2->score) return -1;
-      if (s1->score > s2->score) return 1;
-      return s1->key.compare(s2->key);
-    }
+  enum class ZSetEncodingType {
+    ListPack = 1,
+    Skiplist = 2,
   };
-
-  struct Destructor {
-    void operator()(const ZSetEntry* se) const {
-      printf("delete %s %f\n", se->key.c_str(), se->score);
-      delete se;
-      se = nullptr;
-    }
-  };
-
-  explicit ZSet();
-  const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                            Destructor>::SkiplistRangeByRankSpec*
-  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
-  const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                            Destructor>::SkiplistRangeByKeySpec*
-  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
-  void FreeSkiplistRangeByRankSpec(
-      const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                                Destructor>::SkiplistRangeByRankSpec*
-          skiplist_spec) const;
-  void FreeSkiplistRangeByKeySpec(
-      const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                                Destructor>::SkiplistRangeByKeySpec*
-          skiplist_spec) const;
-  /* dict mapping key to score */
-  std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
-  /* skiplist storing key score pairs ordered by score */
-  std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
-      skiplist_;
-  /* min and max key value, used for RangeByScore */
-  mutable std::optional<std::string> max_key_, min_key_;
+  ZSet();
+  /* zset encoding, could either be listpack or skiplist */
+  ZSetEncodingType encoding_;
+  /* data structure storing the data */
+  std::unique_ptr<ZSetStorage> storage_;
 };
 }  // namespace zset
 }  // namespace redis_simple

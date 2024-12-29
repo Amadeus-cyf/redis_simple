@@ -18,9 +18,9 @@ class ZRangeCommand : public Command {
   static const std::string& flagLimit;
   static const std::string& flagWithScores;
   int RangeByRank(Client* const client, const std::vector<std::string>& args,
-                  std::vector<const zset::ZSet::ZSetEntry*>* result) const;
+                  std::vector<const zset::ZSetEntry*>* result) const;
   int RangeByScore(Client* const client, const std::vector<std::string>& args,
-                   std::vector<const zset::ZSet::ZSetEntry*>* result) const;
+                   std::vector<const zset::ZSetEntry*>* result) const;
 };
 }  // namespace t_zset
 }  // namespace command

@@ -17,6 +17,9 @@ class ListPackTest : public testing::Test {
 ListPack* ListPackTest::listpack = nullptr;
 
 TEST_F(ListPackTest, Append) {
+  ASSERT_EQ(listpack->First(), -1);
+  ASSERT_EQ(listpack->Last(), -1);
+
   ASSERT_TRUE(listpack->Append(-1234));
   std::string s0("test string 0");
   ASSERT_TRUE(listpack->Append(s0));
@@ -491,6 +494,7 @@ TEST_F(ListPackTest, BatchInsert) {
 }
 
 TEST_F(ListPackTest, InvalidGet) {
+  /* out of bound */
   ASSERT_THROW(listpack->Get(0, nullptr), std::out_of_range);
   ASSERT_THROW(listpack->Get(listpack->GetTotalBytes(), nullptr),
                std::out_of_range);
