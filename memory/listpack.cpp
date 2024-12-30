@@ -54,8 +54,8 @@ std::optional<std::string> ListPack::Get(size_t idx) const {
 }
 
 /*
- * Get an integer from the listpack. The function assumes the index is the
- * beginning of an element if valid.
+ * Get integer from the listpack at the given index. The function assumes the
+ * index is the beginning of an element if valid.
  */
 std::optional<int64_t> ListPack::GetInteger(size_t idx) const {
   size_t listpack_bytes = GetTotalBytes();
@@ -283,7 +283,7 @@ unsigned char* ListPack::GetString(size_t idx, size_t* const len,
 }
 
 /*
- * Get string from the given index based on the encoding type.
+ * Get integer from the given index based on the encoding type.
  * The function assumes that the element at the index is a valid 64 bit integer.
  */
 unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,

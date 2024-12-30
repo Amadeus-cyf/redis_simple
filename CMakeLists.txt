@@ -159,7 +159,7 @@ target_sources(redis_simple_tests
     "server/zset/zset_skiplist_test.cpp"
     "server/zset/zset.h"
     "server/zset/zset.cpp"
-    # "server/zset/zset_test.cpp"
+    "server/zset/zset_test.cpp"
     "cli/resp_parser.h"
     "cli/resp_parser.cpp"
     "cli/resp_parser_test.cpp"

@@ -19,12 +19,10 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
   bool inserted = false;
   if (opt.has_value()) {
     /* update the score */
-    printf("update %s's val from %f to %f\n", key.c_str(), opt.value(), score);
     const ZSetEntry old(key, opt.value());
     assert(skiplist_->Update(&old, ze));
   } else {
     /* insert a new key */
-    printf("insert %s %f\n", key.c_str(), score);
     const ZSetEntry* inserted_entry = skiplist_->Insert(ze);
     assert(inserted_entry);
     inserted = true;

@@ -29,7 +29,9 @@ class ZSet {
     ListPack = 1,
     Skiplist = 2,
   };
+  static constexpr size_t ListPackMaxEntries = 128;
   ZSet();
+  void ConvertAndExpand();
   /* zset encoding, could either be listpack or skiplist */
   ZSetEncodingType encoding_;
   /* data structure storing the data */
