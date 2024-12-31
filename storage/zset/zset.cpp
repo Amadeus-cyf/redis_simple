@@ -1,7 +1,7 @@
 #include "zset.h"
 
-#include "server/zset/zset_listpack.h"
-#include "server/zset/zset_skiplist.h"
+#include "storage/zset/zset_listpack.h"
+#include "storage/zset/zset_skiplist.h"
 
 namespace redis_simple {
 namespace zset {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "memory/listpack.h"
-#include "server/zset/zset_storage.h"
+#include "storage/zset/zset_storage.h"
 
 namespace redis_simple {
 namespace zset {

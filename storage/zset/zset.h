@@ -4,9 +4,9 @@
 #include <optional>
 #include <string>
 
-#include "server/zset/zset_entry.h"
-#include "server/zset/zset_range_spec.h"
-#include "server/zset/zset_storage.h"
+#include "storage/zset/zset_entry.h"
+#include "storage/zset/zset_range_spec.h"
+#include "storage/zset/zset_storage.h"
 
 namespace redis_simple {
 namespace zset {

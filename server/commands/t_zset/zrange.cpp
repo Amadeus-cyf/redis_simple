@@ -6,7 +6,7 @@
 #include "server/client.h"
 #include "server/reply/reply.h"
 #include "server/reply_utils/reply_utils.h"
-#include "server/zset/zset.h"
+#include "storage/zset/zset.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple {

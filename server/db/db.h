@@ -3,7 +3,7 @@
 #include <string>
 
 #include "memory/dict.h"
-#include "redis_obj.h"
+#include "server/db/redis_obj.h"
 
 namespace redis_simple {
 namespace db {

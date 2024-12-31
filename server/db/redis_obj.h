@@ -3,8 +3,8 @@
 #include <string>
 #include <variant>
 
-#include "server/set/set.h"
-#include "server/zset/zset.h"
+#include "storage/set/set.h"
+#include "storage/zset/zset.h"
 
 namespace redis_simple {
 namespace db {

@@ -3,7 +3,7 @@
 #include "server/commands/command.h"
 #include "server/db/db.h"
 #include "server/db/redis_obj.h"
-#include "server/zset/zset.h"
+#include "storage/zset/zset.h"
 
 namespace redis_simple {
 namespace command {
