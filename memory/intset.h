@@ -4,9 +4,7 @@
 
 namespace redis_simple {
 namespace in_memory {
-/*
- * An in memory set storing integers in ascending order.
- */
+// An in memory set storing integers in ascending order.
 class IntSet {
  public:
   class Iterator;
@@ -49,15 +47,15 @@ class IntSet::Iterator {
     return intset_ == it.intset_ && idx_ == it.idx_;
   }
   bool operator!=(const Iterator& it) { return !((*this) == it); }
-  /* Return true if the iterator is positioned at a valid element */
+  // Return true if the iterator is positioned at a valid element.
   bool Valid() const { return idx_ >= 0 && idx_ < intset_->Size(); }
-  /* Position at the first element */
+  // Position at the first element.
   void SeekToFirst() { idx_ = 0; }
-  /* Position at the last element */
+  // Position at the last element.
   void SeekToLast() { idx_ = intset_->Size() - 1; }
-  /* Advance to the next element */
+  // Advance to the next element.
   void Next() { ++idx_; }
-  /* Advance to the previous element */
+  // Advance to the previous element.
   void Prev() { --idx_; }
   int64_t Value() { return intset_->Get(idx_); }
 

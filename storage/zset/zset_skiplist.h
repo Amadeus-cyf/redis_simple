@@ -53,12 +53,12 @@ class ZSetSkiplist : public ZSetStorage {
       const in_memory::Skiplist<const ZSetEntry*, Comparator,
                                 Destructor>::SkiplistRangeByKeySpec*
           skiplist_spec) const;
-  /* dict mapping key to score, used with the skiplist */
+  // Dict mapping key to score, used with the skiplist
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
-  /* skiplist storing key score pairs ordered by score */
+  // Skiplist storing key score pairs ordered by score
   std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
       skiplist_;
-  /* min and max key value, used for RangeByScore */
+  // Min and max key value, used for RangeByScore
   mutable std::optional<std::string> max_key_, min_key_;
 };
 }  // namespace zset

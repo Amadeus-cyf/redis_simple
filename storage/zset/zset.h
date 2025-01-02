@@ -32,9 +32,9 @@ class ZSet {
   static constexpr size_t ListPackMaxEntries = 128;
   ZSet();
   void ConvertAndExpand();
-  /* zset encoding, could either be listpack or skiplist */
+  // Zset encoding, could either be listpack or skiplis
   ZSetEncodingType encoding_;
-  /* data structure storing the data */
+  // Data structure storing the data
   std::unique_ptr<ZSetStorage> storage_;
 };
 }  // namespace zset

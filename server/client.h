@@ -42,18 +42,18 @@ class Client {
   void SetCmdArgs(const std::vector<std::string>& args) { args_ = args; }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
-  /* client flags */
+  // Client flags
   int flags;
   std::weak_ptr<const db::RedisDb> db_;
-  /* current command */
+  // Current command
   std::weak_ptr<const command::Command> cmd_;
-  /* current command args*/
+  // Current command args
   std::vector<std::string> args_;
-  /* connection */
+  // Connection
   std::unique_ptr<connection::Connection> connection_;
-  /* in memory buffer used to store incoming query */
+  // In memory buffer used to store incoming query.
   std::unique_ptr<in_memory::DynamicBuffer> query_buf_;
-  /* in memory buffer used to store reply of command */
+  // In memory buffer used to store reply of command.
   std::unique_ptr<in_memory::ReplyBuffer> buf_;
 };
 }  // namespace redis_simple

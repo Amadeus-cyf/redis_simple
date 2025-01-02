@@ -87,8 +87,8 @@ void RedisCli::AddCommand(const std::string& cmd) {
 }
 
 std::string RedisCli::GetReply() {
-  /* try to Get reply from local buffer first. If failed, get reply through
-   * sending queries to the server */
+  // Try to get reply from local buffer first. If failed, get reply through
+  // sending queries to the server
   const std::optional<const std::string>& opt = MaybeGetReply();
   return opt.value_or(GetReplyFromConnection());
 }
@@ -124,8 +124,8 @@ std::string RedisCli::GetReplyFromConnection() {
     if (sent <= 0) {
       return ErrResp;
     }
-    /* Clear sent queries. Clear the entire query buffer if all queries have
-     * been sent. */
+    // Clear sent queries. Clear the entire query buffer if all queries have
+    // been sent.
     if (sent == query_buf_->NRead()) {
       query_buf_->Clear();
     } else {

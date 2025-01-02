@@ -18,8 +18,8 @@ class ZSetListPack : public ZSetStorage {
       const RangeByScoreSpec* spec) const override;
   size_t Count(const RangeByScoreSpec* spec) const override;
   size_t Size() const override {
-    /* Since listpack include both keys and scores, the actual size should be
-     * divided by 2. */
+    // Since listpack include both keys and scores, the actual size should be
+    // divided by 2.
     return listpack_->GetNumOfElements() / 2;
   };
 
@@ -41,7 +41,7 @@ class ZSetListPack : public ZSetStorage {
   static bool IsInRange(const std::string& score, const RangeByScoreSpec* spec);
   static bool LessOrEqual(const std::string& score,
                           const RangeByScoreSpec* spec);
-  /* listpack storing key score pairs */
+  // Listpack storing key score pairs
   std::unique_ptr<in_memory::ListPack> listpack_;
 };
 }  // namespace zset

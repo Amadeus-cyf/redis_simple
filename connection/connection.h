@@ -72,8 +72,8 @@ class Connection {
   ~Connection() { Close(); }
 
  private:
-  /* if this flag is set, then write handler will be called before the read
-   * handler */
+  // If this flag is set, then write handler will be called before the read
+  // handler.
   static constexpr int connFlagWriteBarrier = 1;
 
   static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
@@ -87,19 +87,19 @@ class Connection {
   }
   int Wait(ae::AeFlags flag, long timeout) const;
   int fd_;
-  /* flags used to judge connFlagWriteBarrier is set */
+  // Flags used to judge connFlagWriteBarrier is set
   int flags_;
-  /* connection state */
+  // Connection state
   mutable ConnState state_;
-  /* data used by connetion handlers */
+  // Data used by connetion handlers
   std::any private_data_;
-  /* event loop */
+  // Event loop
   std::weak_ptr<ae::AeEventLoop> el_;
-  /* connection read handler */
+  // Connection read handler
   std::unique_ptr<ConnHandler> read_handler_;
-  /* connection write handler */
+  // Connection write handler
   std::unique_ptr<ConnHandler> write_handler_;
-  /* connection accepted handler */
+  // Connection accepted handler
   std::unique_ptr<ConnHandler> accept_handler_;
 };
 }  // namespace connection

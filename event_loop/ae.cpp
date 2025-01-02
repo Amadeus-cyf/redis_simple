@@ -30,7 +30,7 @@ int AeWait(int fd, int mask, long timeout) {
     return r;
   }
   if (r == 0) {
-    /* the file descriptor is not readable/writeable */
+    // The file descriptor is not readable/writeable.
     return r;
   }
   int retmask = 0;
@@ -70,7 +70,7 @@ AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
     return aeErr;
   }
   if (ae_api_state_->AeApiAddEvent(fd, fe->GetMask()) < 0) {
-    /* free the event if failed to add */
+    // Free the event if failed to add.
     delete fe;
     return aeErr;
   }

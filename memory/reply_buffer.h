@@ -34,22 +34,22 @@ class ReplyBuffer {
   void DeleteNodeFromReplyList(BufNode* node, BufNode* prev);
   BufNode* CreateReplyNode(const char* buffer, size_t len);
   size_t AppendToReplyNode(BufNode* node, const char* buffer, size_t len);
-  /* output main buffer */
+  // Output main buffer
   char* buf_;
-  /* the end index of the main buffer which is already in use */
+  // The end index of the main buffer which is already in use
   size_t buf_pos_;
-  /* remaining bytes in main buffer */
+  // Remaining bytes in main buffer
   size_t buf_usable_size_;
-  /* head of the reply list */
+  // Head of the reply list
   BufNode* reply_head_;
-  /* tail of the reply list */
+  // Tail of the reply list
   BufNode* reply_tail_;
-  /* number of buf nodes */
+  // Number of buf nodes
   size_t reply_len_;
-  /* total size of buf nodes */
+  // Total size of buf nodes
   size_t reply_bytes_;
-  /* bytes sent to the client for current buffer (main buffer / node of reply
-   * list) */
+  // Bytes sent to the client for current buffer (main buffer / node of reply
+  // list.
   size_t sent_len_;
 };
 }  // namespace in_memory

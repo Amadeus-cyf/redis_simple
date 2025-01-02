@@ -16,13 +16,13 @@ class BufNode {
       next_ = nullptr;
     }
   }
-  /* buffer */
+  // Buffer
   char* buf_;
-  /* size already written with reply */
+  // Size already written with reply
   size_t used_;
-  /* total buffer len */
+  // Total buffer length.
   size_t len_;
-  /* pointer to next buffer */
+  // Pointer to next buffer.
   BufNode* next_;
 
  private:

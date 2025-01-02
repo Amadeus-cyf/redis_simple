@@ -4,7 +4,7 @@
 
 namespace redis_simple {
 namespace zset {
-/* entry storing key and score */
+// Entry storing key and score
 struct ZSetEntry {
   ZSetEntry(const std::string& key, const double score)
       : key(key), score(score){};

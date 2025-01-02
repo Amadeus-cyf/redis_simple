@@ -12,7 +12,7 @@ template <typename K, typename V>
 class Dict {
  public:
   class Iterator;
-  /* specify key-value related functions */
+  // Specify key-value related functions
   struct DictType;
   using dictScanFunc = void (*)(const K& key, const V& value);
   static std::unique_ptr<Dict<K, V>> Init();
@@ -32,7 +32,7 @@ class Dict {
   ~Dict();
 
  private:
-  /* Entry storing the key-value pair */
+  // Entry storing the key-value pair
   struct DictEntry;
   Dict();
   Dict(const DictType& type);
@@ -66,24 +66,24 @@ class Dict {
   bool Rehash(int n);
   void Clear(int i);
   void Reset(int i);
-  /* hashtable initial size */
+  // Hashtable initial size
   static constexpr const int HtInitSize = 2;
-  /* hashtable initial exponential */
+  // Hashtable initial exponential
   static constexpr const int HtInitExp = 1;
-  /* the threshold for rehashing. The ratio is calculated from (num of elements
-   * / hashtable size) */
+  // The threshold for rehashing. The ratio is calculated from (num of elements
+  // / hashtable size)
   static constexpr const double DictForceResizeRatio = 2.0;
-  /* specify hash function, key constructor and destructor in type */
+  // Specify hash function, key constructor and destructor in type
   DictType type_;
-  /* containing 2 hastables, the second one is used for rehash */
+  // Containing 2 hastables, the second one is used for rehash
   std::vector<std::vector<DictEntry*>> ht_;
-  /* number of elements in each hashtable */
+  // Number of elements in each hashtable
   size_t ht_used_[2];
-  /* exponential used to calculate the size of the 2 hashtables */
+  // Exponential used to calculate the size of the 2 hashtables
   int ht_size_exp_[2];
-  /* the idx that the rehash will start at, -1 if no rehash happened */
+  // The idx that the rehash will start at, -1 if no rehash happened
   ssize_t rehash_idx_;
-  /* larger than 0 if rehash is paused */
+  // Larger than 0 if rehash is paused
   size_t pause_rehash_;
 };
 
@@ -97,24 +97,22 @@ struct Dict<K, V>::DictEntry {
 
 template <typename K, typename V>
 struct Dict<K, V>::DictType {
-  /* used to get the hash index of the key. Use std::hash by default. */
+  // Used to get the hash index of the key. Use std::hash by default.
   std::function<const size_t(const K& key)> hashFunction;
-  /* if set, all keys will be copied while being inserted into the dict. */
+  // If set, all keys will be copied while being inserted into the dict.
   std::function<K(const K& key)> keyDup;
-  /* if set, all values will be copied while being inserted into the dict. */
+  // If set, all values will be copied while being inserted into the dict.
   std::function<V(const V& val)> valDup;
-  /* callback function when the key is freed from the dict. */
+  // Callback function when the key is freed from the dict.
   std::function<void(K& key)> keyDestructor;
-  /* callback function when the value is freed from the dict. */
+  // Callback function when the value is freed from the dict.
   std::function<void(V& val)> valDestructor;
-  /* comparator for keys. Used to check whether two keys are equal. Use operator
-   * = by default.*/
+  // Comparator for keys. Used to check whether two keys are equal. Use operator
+  // by default.
   std::function<int(const K& key1, const K& key2)> keyCompare;
 };
 
-/*
- * Dict Iterator
- */
+// Dict Iterator
 template <typename K, typename V>
 class Dict<K, V>::Iterator {
  public:
@@ -123,13 +121,13 @@ class Dict<K, V>::Iterator {
   Iterator& operator=(const Iterator& it);
   bool operator==(const Iterator& it);
   bool operator!=(const Iterator& it);
-  /* Returns true if the iterator is positioned to a valid entry */
+  // Returns true if the iterator is positioned to a valid entry.
   bool Valid() const;
-  /* Position to the first entry in the dict */
+  // Position to the first entry in the dict.
   void SeekToFirst();
-  /* Position to the Last entry in the dict */
+  // Position to the Last entry in the dict.
   void SeekToLast();
-  /* Advance to the next entry */
+  // Advance to the next entry.
   void Next();
   void operator++();
   K Key() { return entry_->key; }
@@ -222,7 +220,7 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
     return;
   }
   ++idx_;
-  /* find next non empty table entry list */
+  // Find next non empty table entry list.
   while (idx_ < dict_->ht_[table_].size() && !dict_->ht_[table_][idx_]) {
     ++idx_;
   }
@@ -234,7 +232,7 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
     entry_ = nullptr;
     return;
   }
-  /* find the next element in the rehashed table */
+  // Find the next element in the rehashed table.
   idx_ = -1;
   table_ = 1;
   SeekToNextEntry();
@@ -390,8 +388,8 @@ ssize_t Dict<K, V>::Scan(size_t cursor, dictScanFunc callback) {
       de = next;
     }
   }
-  /* if a rehashing is in progress, scan all dict entries at the corresponding
-   * index in the rehashed table */
+  // If a rehashing is in progress, scan all dict entries at the corresponding
+  // index in the rehashed table.
   if (IsRehashing() && cursor < ht_[1].size()) {
     const DictEntry* de = ht_[1][cursor];
     while (de) {
@@ -400,7 +398,7 @@ ssize_t Dict<K, V>::Scan(size_t cursor, dictScanFunc callback) {
       de = next;
     }
   }
-  /* scan finished, return -1 */
+  // Scan finished, return -1.
   if (++cursor >= std::max(ht_[0].size(), ht_[1].size())) {
     cursor = -1;
   }
@@ -441,12 +439,12 @@ Dict<K, V>::Dict(const DictType& type)
  */
 template <typename K, typename V>
 void Dict<K, V>::InitTables() {
-  /* init 2 tables, table 0 is the current table and table 1 is used for
-   * rehashing */
+  // Init 2 tables, table 0 is the current table and table 1 is used for
+  // rehashing.
   ht_.resize(2);
-  /* init the table 0 */
+  // Init the table 0.
   Reset(0);
-  /* init the table 1 used for rehashing */
+  // Init the table 1 used for rehashing.
   Reset(1);
 }
 
@@ -457,13 +455,10 @@ void Dict<K, V>::InitTableWithSize(int i, int exp, size_t size) {
   ht_used_[i] = 0;
 }
 
-/**
+/*
  * Insert the Dict Entry into the hash table.
  * The function assumes the dict entry has the key set and the key is not
- *duplicated. Should call SetKey and KeyIndex before calling this function.
- *
- * @param entry the entry to insert.
- * @param i the hash table index, 0 or 1.
+ * duplicated. Should call SetKey and KeyIndex before calling this function.
  */
 template <typename K, typename V>
 void Dict<K, V>::InsertEntry(DictEntry* de, int i) {
@@ -498,13 +493,9 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
   return nullptr;
 }
 
-/**
+/*
  * Unlink the entry from the hash table.
  * The function does not free the entry. Should call FreeUnlinkedEntry.
- *
- * @param entry the entry to unlink.
- * @param entry its previous entry.
- * @param i the hash table index, 0 or 1.
  */
 template <typename K, typename V>
 void Dict<K, V>::UnlinkEntry(DictEntry* de, DictEntry* prev, int i) {
@@ -518,12 +509,8 @@ void Dict<K, V>::UnlinkEntry(DictEntry* de, DictEntry* prev, int i) {
   --ht_used_[i];
 }
 
-/**
+/*
  * Delete the entry from the hash table and frees the memory.
- *
- * @param entry the entry to unlink.
- * @param entry its previous entry.
- * @param i the hash table index, 0 or 1.
  */
 template <typename K, typename V>
 void Dict<K, V>::DeleteEntry(DictEntry* de, DictEntry* prev, int i) {
@@ -620,7 +607,7 @@ ssize_t Dict<K, V>::KeyIndex(const K& key, Dict<K, V>::DictEntry** existing) {
     while (entry) {
       if (IsEqual(entry->key, key)) {
         if (existing) {
-          /* key already exists in the dict */
+          // Key already exists in the dict.
           *existing = entry;
           return -1;
         }
@@ -641,18 +628,17 @@ ssize_t Dict<K, V>::KeyIndex(const K& key, Dict<K, V>::DictEntry** existing) {
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
     const K& key, Dict<K, V>::DictEntry** existing) {
-  /* check if the dict needs to be expanded */
+  // Check if the dict needs to be expanded.
   ExpandIfNeeded();
-  /* perform a single step of rehash if rehashing is in progress */
+  // Perform a single step of rehash if rehashing is in progress.
   RehashStepIfNeeded();
   ssize_t idx = KeyIndex(key, existing);
-  /* key already exists */
+  // Key already exists.
   if (idx < 0) {
     return nullptr;
   }
-  /* if a rehashing is in progress, directly insert the key to the rehashed
-   * table
-   */
+  // If a rehashing is in progress, directly insert the key to the rehashed
+  // table.
   int i = IsRehashing() ? 1 : 0;
   DictEntry* de = new DictEntry();
   SetKey(de, key);
@@ -677,32 +663,32 @@ void Dict<K, V>::ExpandIfNeeded() {
  */
 template <typename K, typename V>
 bool Dict<K, V>::Expand(size_t size) {
-  /* do not expand the dict if a rehashing is in progress */
+  // Do not expand the dict if a rehashing is in progress.
   if (IsRehashing() || size < ht_used_[0]) {
     return false;
   }
   int new_exp = NextExp(size);
-  /* fail to expand if the new exponential value is less or equal to the current
-   * one */
+  // Fail to expand if the new exponential value is less or equal to the current
+  // one.
   if (new_exp <= ht_size_exp_[0]) {
     return false;
   }
-  /* get the new dict size */
+  // Get the new dict size.
   size_t new_size = HtSize(new_exp);
   printf("dict expand to %zu %d\n", new_size, new_exp);
-  /* check for overflow */
+  // Check for overflow.
   if (new_size < size ||
       new_size * sizeof(DictEntry*) < size * sizeof(DictEntry*)) {
     return false;
   }
-  /* Set the table 0 if it has not been initialized. This happened when the dict
-   * has just been created and its size has not been initialized. */
+  // Set the table 0 if it has not been initialized. This happened when the dict
+  // has just been created and its size has not been initialized.
   if (ht_size_exp_[0] < 0) {
     InitTableWithSize(0, new_exp, new_size);
     rehash_idx_ = -1;
     return true;
   }
-  /* initialize the rehashed table */
+  // Initialize the rehashed table.
   InitTableWithSize(1, new_exp, new_size);
   rehash_idx_ = 0;
   return true;
@@ -719,11 +705,11 @@ void Dict<K, V>::RehashStepIfNeeded() {
   }
 }
 
-/* Perform n steps of rehashing. Returns true if the rehashing is still not
- * completed and vice versa */
+// Perform n steps of rehashing. Returns true if the rehashing is still not
+// completed and vice versa.
 template <typename K, typename V>
 bool Dict<K, V>::Rehash(int n) {
-  /* do not rehash if a rehashing is in progress */
+  // Do not rehash if a rehashing is in progress.
   if (!IsRehashing()) {
     return false;
   }
@@ -745,17 +731,17 @@ bool Dict<K, V>::Rehash(int n) {
     ht_[0][rehash_idx_] = nullptr;
     --n, ++rehash_idx_;
   }
-  /* rehash completes, copy all the states of the table 1 to table 0 and reset
-   * the table 1 to the initial state. */
+  // Rehash completes, copy all the states of the table 1 to table 0 and reset
+  // the table 1 to the initial state.
   if (ht_used_[0] == 0) {
     MigrateRehashedTable();
     return false;
   }
-  /* still exists keys to rehash */
+  // Still exists keys to rehash.
   return true;
 }
 
-/**
+/*
  * Migrate the rehashed table to the current table. Called when the rehashing
  * completes.
  */

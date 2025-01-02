@@ -7,9 +7,7 @@
 
 namespace redis_simple {
 namespace utils {
-/*
- * Convert floating number to string.
- */
+// Convert floating number to string.
 std::string FloatToString(double fl);
 }  // namespace utils
 }  // namespace redis_simple

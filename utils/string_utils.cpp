@@ -36,7 +36,7 @@ void ToUppercase(std::string& s) {
 }
 
 bool ToInt64(const std::string& s, int64_t* const v) {
-  /* directly return false if the string is empty or the number is overflow */
+  // Directly return false if the string is empty or the number is overflow.
   if (s.empty() || s.size() > 20) return false;
   int sign = 1;
   int64_t val = 0;
@@ -50,7 +50,7 @@ bool ToInt64(const std::string& s, int64_t* const v) {
       return false;
     } else if (s[i] >= '0' && s[i] <= '9') {
       int64_t tmp = val * 10 + sign * (s[i] - '0');
-      /* check integer overflow */
+      // Check integer overflow.
       if ((tmp < 0 && val > 0) || (tmp > 0 && val < 0)) {
         return false;
       }
@@ -95,7 +95,7 @@ int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
       "4041424344454647484950515253545556575859"
       "6061626364656667686970717273747576777879"
       "8081828384858687888990919293949596979899";
-  /* Check length */
+  // Check length.
   uint32_t length = Digits10(value);
   if (length >= dstlen) {
     if (dstlen > 0) {
@@ -103,7 +103,7 @@ int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
     }
     return 0;
   }
-  /* Null term */
+  // Null term.
   uint32_t next = length - 1;
   dst[next + 1] = '\0';
   while (value >= 100) {
@@ -113,7 +113,7 @@ int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
     dst[next - 1] = digits[i];
     next -= 2;
   }
-  /* Handle last 1-2 digits */
+  // Handle the last 1-2 digits.
   if (value < 10) {
     dst[next] = '0' + static_cast<uint32_t>(value);
   } else {

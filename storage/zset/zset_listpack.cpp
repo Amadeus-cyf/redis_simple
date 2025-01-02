@@ -49,10 +49,10 @@ bool ZSetListPack::Delete(const std::string& key) {
 
 std::optional<double> ZSetListPack::GetScoreOfKey(
     const std::string& key) const {
-  /* find the index of the key */
+  // Find the index of the key.
   ssize_t idx = listpack_->FindAndSkip(key, 1);
   if (idx < 0) return std::nullopt;
-  /* score is the next element of the key */
+  // Score is the next element of the key.
   idx = listpack_->Next(idx);
   const std::optional<std::string>& score = listpack_->Get(idx);
   return std::stod(score.value_or("0"));
@@ -65,7 +65,7 @@ std::optional<size_t> ZSetListPack::GetRankOfKey(const std::string& key) const {
   size_t rank = 0;
   while (idx != key_idx) {
     idx = listpack_->Next(idx);
-    /* skip the element score entry */
+    // Skip the element score entry.
     idx = listpack_->Next(idx);
     ++rank;
   }
@@ -74,7 +74,7 @@ std::optional<size_t> ZSetListPack::GetRankOfKey(const std::string& key) const {
 
 std::vector<const ZSetEntry*> ZSetListPack::RangeByRank(
     const RangeByRankSpec* spec) const {
-  /* turn negative index to positive */
+  // Turn negative index to positive.
   RangeByRankSpec rank_spec;
   rank_spec.min = spec->min < 0 ? (spec->min + Size()) : spec->min;
   rank_spec.max = spec->max < 0 ? (spec->max + Size()) : spec->max;
@@ -106,7 +106,7 @@ size_t ZSetListPack::Count(const RangeByScoreSpec* spec) const {
     } else if (opt_score.has_value() && !LessOrEqual(opt_score.value(), spec)) {
       break;
     }
-    /* proceed to the next key score pair */
+    // Proceed to the next key score pair.
     idx = listpack_->Next(idx);
     if (idx < 0) break;
     idx = listpack_->Next(idx);
@@ -115,9 +115,9 @@ size_t ZSetListPack::Count(const RangeByScoreSpec* spec) const {
 }
 
 void ZSetListPack::DeleteKeyScorePair(size_t idx) {
-  /* delete the key */
+  // Delete the key.
   listpack_->Delete(idx);
-  /* delete the score */
+  // Delete the score.
   listpack_->Delete(idx);
 }
 
@@ -151,7 +151,7 @@ std::vector<const ZSetEntry*> ZSetListPack::RangeByRankUtil(
       }
       idx = listpack_->Next(score_idx);
     } else {
-      /* skip the key score pair */
+      // Skip the key score pair.
       idx = listpack_->Next(idx);
       idx = listpack_->Next(idx);
     }
@@ -181,7 +181,7 @@ std::vector<const ZSetEntry*> ZSetListPack::RevRangeByRankUtil(
       }
       idx = listpack_->Prev(key_idx);
     } else {
-      /* skip the key score pair */
+      // Skip the key score pair.
       idx = listpack_->Prev(idx);
       idx = listpack_->Prev(idx);
     }
@@ -247,7 +247,7 @@ ssize_t ZSetListPack::FindKeyGreaterOrEqual(
   double min_score = spec->min;
   ssize_t key_idx = listpack_->First();
   if (key_idx < 0) return -1;
-  /* score is the next element of the key */
+  // Score is the next element of the key.
   ssize_t score_idx = listpack_->Next(key_idx);
   while (key_idx != -1) {
     const std::optional<std::string>& score_opt = listpack_->Get(score_idx);
@@ -269,7 +269,7 @@ ssize_t ZSetListPack::FindKeyLessOrEqual(const RangeByScoreSpec* spec) const {
   double max_score = spec->max;
   ssize_t score_idx = listpack_->Last();
   if (score_idx < 0) return -1;
-  /* key is the previous element of the score */
+  // Key is the previous element of the score.
   ssize_t key_idx = listpack_->Prev(score_idx);
   while (key_idx != -1) {
     const std::optional<std::string>& score_opt = listpack_->Get(score_idx);

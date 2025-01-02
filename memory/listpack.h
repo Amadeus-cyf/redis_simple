@@ -12,10 +12,10 @@ class ListPack {
  public:
   struct ListPackEntry {
     std::string* const str;
-    /* if list pack has an integer value, str should be null */
+    // If list pack has an integer value, str should be null.
     int64_t sval;
   };
-  /* listpack header size. 32 bit total length + 16 bit number of elements */
+  // Listpack header size, 32 bit total length + 16 bit number of elements
   static constexpr int ListPackHeaderSize = 6;
   static constexpr size_t ListPackElementMaxLength = 1UL << 32;
   ListPack();
@@ -51,14 +51,14 @@ class ListPack {
   }
 
  private:
-  /* 20 digits of -2^63 + 1 digit of the null term = 21 */
+  // 20 digits of -2^63 + 1 digit of the null term = 21
   static constexpr int ListPackIntBufSize = 21;
   static constexpr int Uint7BitIntMax_ = 127;
   static constexpr int Int24BitIntMax = (1 << 23) - 1;
   static constexpr int Int24BitIntMin = -(1 << 23);
-  /* max safety bytes of the listpack */
+  // Max safety bytes of the listpack.
   static constexpr uint32_t ListPackMaxSafetySize = 1 << 30;
-  /* the end of the listpack */
+  // The end of the listpack
   static constexpr int64_t ListPackEOF = 0xff;
   enum class EncodingGeneralType {
     typeInt = 0,

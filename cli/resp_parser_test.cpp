@@ -47,19 +47,19 @@ TEST(RespParserTest, ParseInt64) {
 }
 
 TEST(ReplyParserTest, ParseArray) {
-  // base
+  // Base
   std::vector<std::string> reply1;
   const std::string& s1 =
       "*5\r\n+key1\r\n$5\r\nhello\r\n$7\r\nhello\r\n\r\n:123456\r\n:-12345\r\n";
   ASSERT_EQ(resp_parser::Parse(s1, reply1), s1.size());
   ASSERT_EQ(reply1, std::vector<std::string>({"key1", "hello", "hello\r\n",
                                               "123456", "-12345", "\n"}));
-  // empty array
+  // Empty array
   std::vector<std::string> reply2;
   const std::string& s2 = "*0\r\n";
   ASSERT_EQ(resp_parser::Parse(s2, reply2), 4);
   ASSERT_EQ(reply2, std::vector<std::string>({"\n"}));
-  // nested array
+  // Nested array
   std::vector<std::string> reply3;
   const std::string& s3 =
       "*3\r\n*5\r\n+key1\r\n$5\r\nhello\r\n$7\r\nhello\r\n\r\n:123456\r\n:-"

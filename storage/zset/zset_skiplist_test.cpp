@@ -53,13 +53,13 @@ TEST_F(ZSetSkiplistTest, GetRankOfKey) {
 }
 
 TEST_F(ZSetSkiplistTest, Update) {
-  /* update score with no change in rank */
+  // Update score with no change in rank.
   ASSERT_FALSE(zset_skiplist->InsertOrUpdate("key1", 10.0));
   ASSERT_EQ(zset_skiplist->Size(), 4);
   std::optional<size_t> r0 = zset_skiplist->GetRankOfKey("key1");
   ASSERT_EQ(r0.value_or(-1), 3);
 
-  /* update score with change in rank */
+  // Update score with change in rank.
   ASSERT_FALSE(zset_skiplist->InsertOrUpdate("key1", 1.0));
   ASSERT_EQ(zset_skiplist->Size(), 4);
   ASSERT_FALSE(zset_skiplist->InsertOrUpdate("key3", 4.0));
@@ -88,7 +88,7 @@ TEST_F(ZSetSkiplistTest, Update) {
 }
 
 TEST_F(ZSetSkiplistTest, RangeByRank) {
-  /* base */
+  // Base
   const RangeByRankSpec& spec0 = {
       .min = 0,
       .max = 3,
@@ -103,7 +103,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p0, e0);
 
-  /* min exclusive */
+  // Min exclusive
   const RangeByRankSpec& spec1 = {
       .min = 1,
       .max = 3,
@@ -117,7 +117,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e1 = {{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p1, e1);
 
-  /* max exclusive */
+  // Max exclusive
   const RangeByRankSpec& spec2 = {
       .min = 1,
       .max = 3,
@@ -131,7 +131,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e2 = {{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p2, e2);
 
-  /* min and max exclusive */
+  // Min and max exclusive
   const RangeByRankSpec& spec3 = {
       .min = 1,
       .max = 3,
@@ -145,7 +145,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e3 = {{"key3", 4.0}};
   ASSERT_EQ(p3, e3);
 
-  /* limit */
+  // Limit
   const RangeByRankSpec& spec4 = {
       .min = 0,
       .max = 3,
@@ -159,7 +159,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e4 = {{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p4, e4);
 
-  /* reverse */
+  // Reverse
   const RangeByRankSpec& spec5 = {
       .min = 0,
       .max = 3,
@@ -174,7 +174,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
   ASSERT_EQ(p5, e5);
 
-  /* reverse with limit */
+  // Reverse with limit
   const RangeByRankSpec& spec6 = {
       .min = 0,
       .max = 3,
@@ -188,7 +188,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e6 = {{"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p6, e6);
 
-  /* count = 0 */
+  // Count = 0
   const RangeByRankSpec& spec7 = {
       .min = 0,
       .max = 3,
@@ -201,7 +201,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec7));
   ASSERT_EQ(p7.size(), 0);
 
-  /* invalid spec non-exclusive, min > max */
+  // Invalid spec non-exclusive, min > max.
   const RangeByRankSpec& spec8 = {
       .min = 2,
       .max = 1,
@@ -214,7 +214,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& p8 = ToKeyScorePairs(k8);
   ASSERT_EQ(p8.size(), 0);
 
-  /* invalid spec exclusive, min >= max */
+  // Invalid spec exclusive, min >= max.
   const RangeByRankSpec& spec9 = {
       .min = 1,
       .max = 1,
@@ -227,7 +227,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec9));
   ASSERT_EQ(p9.size(), 0);
 
-  /* min out of range */
+  // Min out of range
   const RangeByRankSpec& spec10 = {
       .min = 10,
       .max = 12,
@@ -240,7 +240,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec10));
   ASSERT_EQ(p10.size(), 0);
 
-  /* offset out of range */
+  // Offset out of range.
   const RangeByRankSpec& spec11 = {
       .min = 0,
       .max = 3,
@@ -253,7 +253,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec11));
   ASSERT_EQ(p11.size(), 0);
 
-  /* negative index */
+  // Negative index
   const RangeByRankSpec& spec12 = {
       .min = -3,
       .max = -1,
@@ -268,7 +268,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p12, e12);
 
-  /* negative index, min exclusive */
+  // Negative index, min exclusive
   const RangeByRankSpec& spec13 = {
       .min = -3,
       .max = -1,
@@ -282,7 +282,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e13 = {{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p13, e13);
 
-  /* negative index, max exclusive */
+  // Negative index, max exclusive
   const RangeByRankSpec& spec14 = {
       .min = -3,
       .max = -1,
@@ -296,7 +296,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
   const std::vector<KeyScorePair>& e14 = {{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p14, e14);
 
-  /* negative index, reverse */
+  // Negative index, reverse
   const RangeByRankSpec& spec15 = {
       .min = -3,
       .max = -1,
@@ -311,7 +311,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
   ASSERT_EQ(p15, e15);
 
-  /* negative index, invalid spec non-exclusive, min > max */
+  // Negative index, invalid spec non-exclusive, min > max
   const RangeByRankSpec& spec16 = {
       .min = -1,
       .max = -3,
@@ -324,7 +324,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec16));
   ASSERT_EQ(p16.size(), 0);
 
-  /* negative index, invalid spec exclusive, min >= max */
+  // Negative index, invalid spec exclusive, min >= max
   const RangeByRankSpec& spec17 = {
       .min = -1,
       .max = -1,
@@ -337,7 +337,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec17));
   ASSERT_EQ(p17.size(), 0);
 
-  /* negative index, invalid spec, min out of range */
+  // Negative index, invalid spec, min out of range
   const RangeByRankSpec& spec18 = {
       .min = -10,
       .max = 3,
@@ -350,7 +350,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
       ToKeyScorePairs(zset_skiplist->RangeByRank(&spec18));
   ASSERT_EQ(p18.size(), 0);
 
-  /* negative index, invalid spec, max out of range */
+  // Negative index, invalid spec, max out of range
   const RangeByRankSpec& spec19 = {
       .min = -1,
       .max = -6,
@@ -365,7 +365,7 @@ TEST_F(ZSetSkiplistTest, RangeByRank) {
 }
 
 TEST_F(ZSetSkiplistTest, RangeByScore) {
-  /* base */
+  // Base
   const RangeByScoreSpec& spec0 = {
       .min = 1.0,
       .max = 5.0,
@@ -380,7 +380,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p0, e0);
 
-  /* infinity */
+  // Infinity.
   const RangeByScoreSpec& spec1 = {
       .min = -std::numeric_limits<double>::infinity(),
       .max = std::numeric_limits<double>::infinity(),
@@ -395,7 +395,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p1, e1);
 
-  /* min exclusive */
+  // Min exclusive
   const RangeByScoreSpec& spec2 = {
       .min = 2.0,
       .max = 5.0,
@@ -409,7 +409,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
   const std::vector<KeyScorePair>& e2 = {{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p2, e2);
 
-  /* max exclusive */
+  // Max exclusive
   const RangeByScoreSpec& spec3 = {
       .min = 2.0,
       .max = 5.0,
@@ -423,7 +423,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
   const std::vector<KeyScorePair>& e3 = {{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p3, e3);
 
-  /* min and max exclusive */
+  // Min and max exclusive
   const RangeByScoreSpec& spec4 = {
       .min = 2.0,
       .max = 5.0,
@@ -437,7 +437,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
   const std::vector<KeyScorePair>& e4 = {{"key3", 4.0}};
   ASSERT_EQ(p4, e4);
 
-  /* with limit */
+  // With limit
   const RangeByScoreSpec& spec5 = {
       .min = 1.0,
       .max = 6.0,
@@ -451,7 +451,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
   const std::vector<KeyScorePair>& e5 = {{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p5, e5);
 
-  /* reverse */
+  // Reverse
   const RangeByScoreSpec& spec6 = {
       .min = 2.0,
       .max = 6.0,
@@ -466,7 +466,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p6, e6);
 
-  /* reverse with limit */
+  // Reverse with limit
   const RangeByScoreSpec& spec7 = {
       .min = 1.0,
       .max = 6.0,
@@ -480,7 +480,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
   const std::vector<KeyScorePair>& e7 = {{"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p7, e7);
 
-  /* count = 0 */
+  // Count = 0
   const RangeByScoreSpec& spec8 = {
       .min = 1.0,
       .max = 6.0,
@@ -493,7 +493,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       ToKeyScorePairs(zset_skiplist->RangeByScore(&spec8));
   ASSERT_EQ(p8.size(), 0);
 
-  /* invalid spec, non-exclusive, min >= max */
+  // Invalid spec, non-exclusive, min >= max.
   const RangeByScoreSpec& spec9 = {
       .min = 6.0,
       .max = 1.0,
@@ -506,7 +506,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       ToKeyScorePairs(zset_skiplist->RangeByScore(&spec9));
   ASSERT_EQ(p9.size(), 0);
 
-  /* invalid spec, min exclusive, min >= max */
+  // Invalid spec, min exclusive, min >= max.
   const RangeByScoreSpec& spec10 = {
       .min = 1.0,
       .max = 1.0,
@@ -519,7 +519,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       ToKeyScorePairs(zset_skiplist->RangeByScore(&spec10));
   ASSERT_EQ(p10.size(), 0);
 
-  /* invalid spec, max exclusive, min >= max */
+  // Invalid spec, max exclusive, min >= max.
   const RangeByScoreSpec& spec11 = {
       .min = 1.0,
       .max = 1.0,
@@ -532,7 +532,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
       ToKeyScorePairs(zset_skiplist->RangeByScore(&spec11));
   ASSERT_EQ(p11.size(), 0);
 
-  /* invalid spec, offset out of range */
+  // Invalid spec, offset out of range.
   const RangeByScoreSpec& spec12 = {
       .min = 1.0,
       .max = 6.0,
@@ -547,7 +547,7 @@ TEST_F(ZSetSkiplistTest, RangeByScore) {
 }
 
 TEST_F(ZSetSkiplistTest, Count) {
-  /* base */
+  // Base
   const RangeByScoreSpec& spec1 = {
       .min = 1.0,
       .max = 6.0,
@@ -557,7 +557,7 @@ TEST_F(ZSetSkiplistTest, Count) {
   const size_t c1 = zset_skiplist->Count(&spec1);
   ASSERT_EQ(c1, 4);
 
-  /* min exclusive */
+  // Min exclusive
   const RangeByScoreSpec& spec2 = {
       .min = 2.0,
       .max = 5.0,
@@ -567,7 +567,7 @@ TEST_F(ZSetSkiplistTest, Count) {
   const size_t c2 = zset_skiplist->Count(&spec2);
   ASSERT_EQ(c2, 2);
 
-  /* max exclusive */
+  // Max exclusive
   const RangeByScoreSpec& spec3 = {
       .min = 2.0,
       .max = 5.0,
@@ -577,7 +577,7 @@ TEST_F(ZSetSkiplistTest, Count) {
   const size_t c3 = zset_skiplist->Count(&spec3);
   ASSERT_EQ(c3, 2);
 
-  /* min and max exclusive */
+  // Min and max exclusive
   const RangeByScoreSpec& spec4 = {
       .min = 1.0,
       .max = 5.0,
@@ -587,7 +587,7 @@ TEST_F(ZSetSkiplistTest, Count) {
   const size_t c4 = zset_skiplist->Count(&spec4);
   ASSERT_EQ(c4, 2);
 
-  /* invalid spec non-exclusive, min > max */
+  // Invalid spec non-exclusive, min > max.
   const RangeByScoreSpec& spec5 = {
       .min = 6.0,
       .max = 1.0,
@@ -597,7 +597,7 @@ TEST_F(ZSetSkiplistTest, Count) {
   const size_t c5 = zset_skiplist->Count(&spec5);
   ASSERT_EQ(c5, 0);
 
-  /* invalid spec min exclusive, min >= max */
+  // Invalid spec min exclusive, min >= max.
   const RangeByScoreSpec& spec6 = {
       .min = 1.0,
       .max = 1.0,
@@ -607,7 +607,7 @@ TEST_F(ZSetSkiplistTest, Count) {
   const size_t c6 = zset_skiplist->Count(&spec6);
   ASSERT_EQ(c6, 0);
 
-  /* invalid spec max exclusive, min >= max */
+  // Invalid spec max exclusive, min >= max.
   const RangeByScoreSpec& spec7 = {
       .min = 1.0,
       .max = 1.0,

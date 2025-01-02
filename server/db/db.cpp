@@ -50,7 +50,7 @@ const RedisObj* RedisDb::LookupKey(const std::string& key) const {
   const RedisObj* val = opt.value();
   if (IsKeyExpired(key)) {
     printf("look up key: key %s expired\n", key.c_str());
-    /* if key is already expired, delete the key and return nullptr */
+    // If key is already expired, delete the key and return a null pointer.
     val = nullptr;
     assert(dict_->Delete(key));
     assert(expires_->Delete(key));

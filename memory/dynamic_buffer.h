@@ -28,11 +28,11 @@ class DynamicBuffer {
   static const constexpr size_t resizeThreshold = 1024 * 32;
   void Resize(size_t n);
   char* buf_;
-  /* total length of the query buffer */
+  // Total length of the query buffer
   size_t len_;
-  /* offset of which we have already read into the query_buffer */
+  // Mark the end of the buffer already been read.
   size_t nread_;
-  /* offset of which we have processed the command */
+  // Mark the end of the buffer already been processed.
   size_t processed_offset_;
 };
 }  // namespace in_memory

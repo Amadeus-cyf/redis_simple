@@ -7,7 +7,7 @@ namespace redis_simple {
 class Client;
 
 namespace networking {
-/* for testing */
+// For testing
 class RedisCommand {
  public:
   explicit RedisCommand(

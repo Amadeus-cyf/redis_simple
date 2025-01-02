@@ -19,7 +19,7 @@ bool SendStringInline(const connection::Connection* conn, std::string s) {
 }
 }  // namespace
 
-/* for testing */
+// For testing
 static const std::string& ErrorRecvResp = "+error";
 bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return SendStringInline(conn, cmd->String());
@@ -31,8 +31,8 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
     printf("invalid server / event loop\n");
     return ae::AeEventStatus::aeEventErr;
   }
-  /* should use server->EventLoop() method to get the shared pointer of event
-   * loop instead of using the raw pointer passed as arg */
+  // Should use server->EventLoop() method to get the shared pointer of event
+  // loop instead of using the raw pointer passed as arg.
   const connection::Context& ctx = {
       .fd = fd,
       .event_loop = server->EventLoop(),
@@ -48,13 +48,13 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
     printf("invalid connection state\n");
     return ae::AeEventStatus::aeEventErr;
   }
-  /* create client based on the connection */
+  // Create client based on the connection.
   printf("accept connection from %s:%d with fd = %d\n", addrInfo.ip.c_str(),
          addrInfo.port, conn->Fd());
   printf("start create client\n");
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
-  /* install the read handler for the client connection */
+  // Install the read handler for the client connection.
   if (!conn->SetReadHandler(CreateConnHandler(
           connection::ConnHandlerType::readQueryFromClient))) {
     printf("AcceptHandler: failed to set the read handler\n");

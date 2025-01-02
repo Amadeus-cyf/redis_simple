@@ -28,13 +28,13 @@ TEST_F(DictStrTest, Insert) {
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
 
-  // insert a new key
+  // Insert a new key.
   const std::optional<std::string>& opt1 = dict_str->Get("key");
   ASSERT_TRUE(opt1.has_value());
   ASSERT_EQ(opt1.value_or(""), "val");
   ASSERT_EQ(dict_str->Size(), 1);
 
-  // update the key
+  // Update the key.
   dict_str->Set("key", "val_update");
   ASSERT_EQ(dict_str->Size(), 1);
 

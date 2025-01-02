@@ -38,8 +38,8 @@ const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                 const std::string& key);
 
 bool FlaggedByScore(const std::vector<std::string>& args) {
-  /* start searching at the 3rd index(0-based). Arguments before are key, start
-   * and end */
+  // Start searching at the 3rd index(0-based). The first 3 arguments specify
+  // key, start and end offsets.
   for (int i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
     std::transform(upper.begin(), upper.end(), upper.begin(), toupper);
@@ -56,16 +56,16 @@ int ParseRangeToRankSpec(const std::vector<std::string>& args,
     return -1;
   }
   const std::string &start = args[1], &end = args[2];
-  /* parse range */
+  // Parse range.
   if (ParseRankRange(start, end, spec) < 0) {
     return -1;
   }
   spec->limit = std::make_unique<zset::LimitSpec>();
-  /* parse limit */
+  // Parse limit.
   if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
     return -1;
   }
-  /* parse reverse */
+  // Parse reverse.
   spec->reverse = IsReverse(args);
   return 0;
 }
@@ -110,16 +110,16 @@ int ParseRangeToScoreSpec(const std::vector<std::string>& args,
     return -1;
   }
   const std::string &start = args[1], &end = args[2];
-  /* parse score range */
+  // Parse score range.
   if (ParseScoreRange(start, end, spec) < 0) {
     return -1;
   }
   spec->limit = std::make_unique<zset::LimitSpec>();
-  /* parse limit */
+  // Parse limit.
   if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
     return -1;
   }
-  /* parse reverse */
+  // Parse reverse.
   spec->reverse = IsReverse(args);
   return 0;
 }
@@ -160,8 +160,8 @@ int ParseScoreTerm(const std::string& term, double* const dst) {
 
 int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
                              const std::unique_ptr<zset::LimitSpec>& spec) {
-  /* start searching at the 3rd index(0-based). Rankes before are key, start,
-   * end offsets */
+  // Start searching at the 3rd index(0-based). The first 3 arguments specify
+  // key, start and end offsets.
   int i = 3;
   for (; i < args.size(); ++i) {
     std::string upper;
@@ -171,7 +171,7 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
     }
   }
   if (i > args.size() - 3) {
-    /* limit flag not found or missing offset count info, set to default */
+    // Limit flag not found or missing offset count info, set to default.
     spec->offset = 0, spec->count = -1;
     return 0;
   }
@@ -189,8 +189,8 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
 }
 
 bool IsReverse(const std::vector<std::string>& args) {
-  /* start searching at the 3rd index(0-based). Rankes before are key, start,
-   * end offsets */
+  // Start searching at the 3rd index(0-based). The first 3 arguments specify
+  // key, start and end offsets.
   for (int i = 3; i < args.size(); ++i) {
     std::string upper;
     std::transform(args[i].begin(), args[i].end(), upper.begin(), toupper);

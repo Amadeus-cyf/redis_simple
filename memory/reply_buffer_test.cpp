@@ -34,7 +34,7 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->ReplyLen(), 1);
 
-  // add a new node to the reply list
+  // Add a new node to the reply list.
   std::string s2(1000, 'c');
   r = buf->AddReplyToBufferOrList(s2.c_str(), 1000);
   ASSERT_EQ(r, 1000);
@@ -46,15 +46,15 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(r, 24);
   ASSERT_EQ(buf->ReplyLen(), 2);
 
-  // add a new node with available space remained
+  // Add a new node with available space remained.
   std::string s4(1024, 'c');
   r = buf->AddReplyToBufferOrList(s4.c_str(), 1000);
   ASSERT_EQ(r, 1000);
   ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->ReplyLen(), 3);
 
-  // partially append to the last node and add a new node for the remaining
-  // memory
+  // Partially append to the last node and add a new node for the remaining
+  // memory.
   std::string s5(1024, 'd');
   r = buf->AddReplyToBufferOrList(s5.c_str(), 1024);
   ASSERT_EQ(r, 1024);
@@ -81,12 +81,12 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
 }
 
 TEST_F(ReplyBufferTest, ClearProcessed) {
-  /* Partially clear the main buffer */
+  // Partially clear the main buffer.
   buf->ClearProcessed(2047);
   ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->SentLen(), 2047);
 
-  /* clear the entire buffer and one list node */
+  // Clear the entire buffer and one list node.
   buf->ClearProcessed(5000);
   ASSERT_EQ(buf->BufPosition(), 0);
   ASSERT_EQ(buf->SentLen(), 5000 - (4096 - 2047) - 2000);

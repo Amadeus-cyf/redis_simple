@@ -115,7 +115,7 @@ bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
     if (success) MaybeConvertIntsetToDict();
     return success;
   } else if (!MaybeConvertIntSetToListPack(value)) {
-    /* Convert intset to dict if cannot convert it to listpack */
+    // Convert intset to dict if cannot convert it to listpack.
     ConvertIntSetToDict((intset_ ? intset_->Size() : 0) + 1);
     dict_->Set(value, nullptr);
   }
@@ -169,7 +169,7 @@ void Set::ConvertIntSetToDict(size_t capacity) {
   assert(encoding_ == SetEncodingType::IntSet);
   encoding_ = SetEncodingType::Dict;
   dict_ = in_memory::Dict<std::string, nullptr_t>::Init(capacity);
-  /* migrate all elements from intset to dict */
+  // Migrate all elements from intset to dict.
   if (!intset_) return;
   for (unsigned int i = 0; i < intset_->Size(); ++i) {
     int64_t value = intset_->Get(i);
@@ -191,9 +191,9 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
     size_t maxint_len = utils::Digits10(maxint);
     size_t minint_len = utils::Digits10(minint);
     int_maxlen = std::max(maxint_len, minint_len);
-    /* take the integer with larger length for estimation */
+    // Take the integer with larger length for estimation.
     est_int = maxint_len > minint_len ? maxint : minint;
-    /* calculate estimate total bytes */
+    // Calculate estimate total bytes.
     est_bytes = in_memory::ListPack::EstimateBytes(est_int, intset_->Size());
   }
   if (!intset_ ||

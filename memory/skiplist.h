@@ -4,16 +4,16 @@
 
 namespace redis_simple {
 namespace in_memory {
-/* initial skiplist height */
+// Initial skiplist height
 static constexpr const int InitSkiplistLevel = 2;
 
-/* default comparator */
+// Default comparator
 template <typename Key>
 const auto default_compare = [](const Key& k1, const Key& k2) {
   return k1 < k2 ? -1 : (k1 == k2 ? 0 : 1);
 };
 
-/* default destructor */
+// Default destructor
 template <typename Key>
 const auto default_dtr = [](const Key& k) {};
 
@@ -26,35 +26,35 @@ class Skiplist {
   class SkiplistNode;
 
  public:
-  /* spec for LIMIT flag */
+  // Spec for LIMIT flag
   struct SkiplistLimitSpec {
-    /* starting offset */
+    // Starting offset
     size_t offset;
-    /* number of keys to return */
+    // Number of keys to return
     ssize_t count;
   };
-  /* spec for range by rank */
+  // Spec for range by rank
   struct SkiplistRangeByRankSpec {
-    /* min and max index */
+    // Min and max index
     size_t min, max;
-    /* are min or max exclusive? */
+    // Are min or max exclusive?
     bool minex, maxex;
-    /* set if LIMIT flag is included */
+    // Set if LIMIT flag is included
     const SkiplistLimitSpec* limit;
   };
-  /* spec for range by key */
+  // Spec for range by key
   struct SkiplistRangeByKeySpec {
     SkiplistRangeByKeySpec(const Key& min, bool minex, const Key& max,
                            bool maxex, const SkiplistLimitSpec* limit)
         : min(min), max(max), minex(minex), maxex(maxex), limit(limit){};
-    /* min and max key */
+    // Min and max key
     const Key min, max;
-    /* are min or max exclusive? */
+    // Min or max exclusive?
     bool minex, maxex;
-    /* set if LIMIT flag is included */
+    // Set if LIMIT flag is included
     const SkiplistLimitSpec* limit;
   };
-  /* skiplist iterator */
+  // Skiplist iterator
   class Iterator;
   Skiplist();
   explicit Skiplist(const size_t level);
@@ -115,19 +115,19 @@ class Skiplist {
   const SkiplistNode* FindKeyLess(const Key& key, bool eq) const;
   const SkiplistNode* FindLast() const;
   void Reset();
-  /* skiplist node head */
+  // Skiplist node head
   SkiplistNode* head_;
-  /* key comparator */
+  // Key comparator
   const Comparator compare_;
-  /* key destructor */
+  // Key destructor
   const Destructor dtr_;
-  /* number of levels */
+  // Number of levels
   size_t level_;
-  /* number of nodes */
+  // Number of nodes
   size_t size_;
 };
 
-/* SkiplistLevel */
+// SkiplistLevel
 template <typename Key, typename Comparator, typename Destructor>
 struct Skiplist<Key, Comparator, Destructor>::SkiplistLevel {
   explicit SkiplistLevel(SkiplistNode* next, size_t span)
@@ -144,7 +144,7 @@ void Skiplist<Key, Comparator, Destructor>::SkiplistLevel::Reset() {
   span_ = 0;
 }
 
-/* SkiplistNode */
+// SkiplistNode
 template <typename Key, typename Comparator, typename Destructor>
 class Skiplist<Key, Comparator, Destructor>::SkiplistNode {
  public:
@@ -225,27 +225,27 @@ Skiplist<Key, Comparator, Destructor>::SkiplistNode::~SkiplistNode() {
   dtr_(key);
 }
 
-/* Iterator */
+// Iterator
 template <typename Key, typename Comparator, typename Destructor>
 class Skiplist<Key, Comparator, Destructor>::Iterator {
  public:
   explicit Iterator(const Skiplist* skiplist);
   explicit Iterator(const Skiplist* skiplist, const SkiplistNode* node);
   Iterator(const Iterator& it);
-  /* Return true if the iterator is positioned to a valid node */
+  // Return true if the iterator is positioned to a valid node.
   bool Valid() const;
-  /* Position at the first node in the list */
+  // Position at the first node in the list.
   void SeekToFirst();
-  /* Position at the last node in the list */
+  // Position at the last node in the list.
   void SeekToLast();
-  /* Advance to the next node in the list */
+  // Advance to the next node in the list.
   void Next();
-  /* Advance to the previous node in the list */
+  // Advance to the previous node in the list.
   void Prev();
   Iterator& operator=(const Iterator& it);
-  /* move to the next node in the list */
+  // Move to the next node in the list.
   void operator--();
-  /* move to the previous node in the list */
+  // Move to the previous node in the list.
   void operator++();
   bool operator==(const Iterator& it);
   bool operator!=(const Iterator& it);
@@ -331,7 +331,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::Iterator::operator*() {
   return node_->key;
 }
 
-/* Skiplist */
+// Skiplist
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist()
     : level_(InitSkiplistLevel),
@@ -436,9 +436,8 @@ bool Skiplist<Key, Comparator, Destructor>::Eq(const Key& k1,
 template <typename Key, typename Comparator, typename Destructor>
 const Key& Skiplist<Key, Comparator, Destructor>::Insert(const Key& key) {
   int insert_level = RandomLevel();
-  /* if the random level is larger than level
-   * init empty skiplist level for extra levels and update level to the random
-   * level*/
+  // If the random level is larger than level, init empty skiplist level for
+  // extra levels and update level to the random level.
   for (int i = level_; i < insert_level; ++i) {
     head_->InitLevel(i);
     head_->SetSpan(i, size_);
@@ -446,31 +445,31 @@ const Key& Skiplist<Key, Comparator, Destructor>::Insert(const Key& key) {
   if (insert_level > level_) {
     level_ = insert_level;
   }
-  /* find previous key at each level having the next key greater than or equal
-   * to the given key */
+  // Find previous key at each level having the next key greater than or equal
+  // to the given key.
   SkiplistNode* prev[level_];
   size_t rank[level_];
   const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, rank);
   if (n && Eq(n->key, key)) {
-    /* key already exists, do not insert */
+    // If key already exists, do not insert,
     return n->key;
   }
-  /* insert the key and update span */
+  // Insert the key and update span.
   SkiplistNode* node = SkiplistNode::Create(key, level_, dtr_);
   for (int i = 0; i < level_; ++i) {
     if (i < insert_level) {
-      /* need to insert the key */
+      // Need to insert the key
       size_t span = prev[i]->Span(i);
       node->SetNext(i, prev[i]->Next(i));
       node->SetSpan(i, span - rank[0] + rank[i]);
       prev[i]->SetNext(i, node);
       prev[i]->SetSpan(i, rank[0] - rank[i] + 1);
     } else {
-      /* only increase span by 1 */
+      // No need to insert key, only increase span by 1.
       prev[i]->SetSpan(i, prev[i]->Span(i) + 1);
     }
   }
-  /* for level 0, update backward pointer since it's a double linked list */
+  // For level 0, update backward pointer since it's a double linked list.
   node->SetPrev(prev[0]);
   if (node->Next(0)) {
     node->Next(0)->SetPrev(node);
@@ -516,19 +515,19 @@ bool Skiplist<Key, Comparator, Destructor>::Update(const Key& key,
   std::memset(prev, 0, sizeof(prev));
   const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, nullptr);
   if (!n || !Eq(n->key, key)) {
-    /* key not found */
+    // Key not found.
     return false;
   }
   const SkiplistNode* next = n->Next(0);
   if ((prev[0] == head_ || Gte(new_key, prev[0]->key)) &&
       (!next || Lte(new_key, next->key))) {
-    /* if in the key's position is not changed, update the key directly */
+    // If in the key's position is not changed, update the key directly.
     SkiplistNode* next = prev[0]->Next(0);
-    /* delete the old key */
+    // Delete the old key.
     dtr_(next->key);
     next->key = new_key;
   } else {
-    /* otherwise, delete the original node and insert a new one */
+    // Otherwise, delete the original node and insert a new one.
     DeleteNode(key, prev);
     const Key& k = Insert(new_key);
   }
@@ -760,7 +759,7 @@ void Skiplist<Key, Comparator, Destructor>::DeleteNode(
       prev[i]->SetSpan(i, prev[i]->Span(i) - 1);
     }
   }
-  /* for level 0, update backward pointer since it's a double linked list */
+  // For level 0, update backward pointer since it's a double linked list.
   if (prev[0]->Next(0)) {
     prev[0]->Next(0)->SetPrev(prev[0]);
   }
@@ -801,7 +800,7 @@ const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
 Skiplist<Key, Comparator, Destructor>::FindMinNodeByRangeRankSpec(
     const SkiplistRangeByRankSpec* spec) const {
   const SkiplistNode* node = FindKey(spec->min);
-  /* if min rank is excluded, start at the next node */
+  // If min rank is excluded, start at the next node.
   if (node && spec->minex) {
     node = node->Next(0);
   }
@@ -818,7 +817,7 @@ const typename Skiplist<Key, Comparator, Destructor>::SkiplistNode*
 Skiplist<Key, Comparator, Destructor>::FindRevMinNodeByRangeRankSpec(
     const SkiplistRangeByRankSpec* spec) const {
   const SkiplistNode* node = FindKey(size_ - 1 - spec->min);
-  /* if min rank is excluded, start at the previous node */
+  // If min rank is excluded, start at the previous node.
   if (node && spec->minex) {
     node = node->Prev();
   }
@@ -871,12 +870,12 @@ Skiplist<Key, Comparator, Destructor>::RangeByRankWithValidSpec(
   if (count == 0) return {};
   while (node && start <= end) {
     ++start;
-    /* add the key if the current rank is larger of equal to the specified
-     * offset */
+    // Add the key if the current rank is larger of equal to the specified
+    // offset.
     if (i++ >= offset) {
       keys.push_back(node->key);
-      /* return the keys if the number reach the limit, only works when the
-       * limit is a non-negative value */
+      // Return the keys if the number reach the limit, only works when the
+      // limit is a non-negative value.
       if (count >= 0 && keys.size() >= count) {
         return keys;
       }
@@ -907,14 +906,14 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByRankWithValidSpec(
          end = spec->max + (spec->maxex ? -1 : 0),
          offset = spec->limit ? spec->limit->offset : 0;
   while (node && start <= end) {
-    /* return the keys if the number reach the limit, only works when the limit
-     * is a non-negative value */
+    // Return the keys if the number reach the limit, only works when the limit
+    // is a non-negative value.
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
     ++start;
-    /* add the key if the current rank is larger of equal to the specified
-     * offset */
+    // Add the key if the current rank is larger of equal to the specified
+    // offset
     if (i++ >= offset) {
       keys.push_back(node->key);
     }
@@ -937,8 +936,7 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
   if (!node) {
     return {};
   }
-  /* if min exclusive and the node is equal to min, then move to the next node
-   */
+  // If min exclusive and the node is equal to min, then move to the next node.
   if (spec->minex && Eq(node->key, spec->min)) {
     node = node->Next(0);
   }
@@ -946,13 +944,13 @@ std::vector<Key> Skiplist<Key, Comparator, Destructor>::RangeByKeyWithValidSpec(
   std::vector<Key> keys;
   while (node &&
          (spec->maxex ? Lt(node->key, spec->max) : Lte(node->key, spec->max))) {
-    /* return the keys if the number reach the limit, only works when the limit
-     * is a non-negative value */
+    // Return the keys if the number reach the limit, only works when the limit
+    // is a non-negative value.
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
-    /* add the key if the current rank is larger of equal to the specified
-     * offset */
+    // Add the key if the current rank is larger of equal to the specified
+    // offset.
     if (i++ >= offset) {
       keys.push_back(node->key);
     }
@@ -976,8 +974,8 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
   if (!node) {
     return {};
   }
-  /* if max exclusive and the node is equal to max, then move to the previous
-   * node */
+  // If max exclusive and the node is equal to max, then move to the previous
+  // node
   if (spec->maxex && Eq(node->key, spec->max)) {
     node = node->Prev();
   }
@@ -985,13 +983,13 @@ Skiplist<Key, Comparator, Destructor>::RevRangeByKeyWithValidSpec(
   std::vector<Key> keys;
   while (node != head_ &&
          (spec->minex ? Gt(node->key, spec->min) : Gte(node->key, spec->min))) {
-    /* return the keys if the number reach the limit, only works when the limit
-     * is a non-negative value */
+    // Return the keys if the number reach the limit, only works when the limit
+    // is a non-negative value.
     if (count >= 0 && keys.size() >= count) {
       return keys;
     }
-    /* add the key if the current rank is larger of equal to the specified
-     * offset */
+    // Add the key if the current rank is larger of equal to the specified
+    // offset.
     if (i++ >= offset) {
       keys.push_back(node->key);
     }
@@ -1013,8 +1011,7 @@ size_t Skiplist<Key, Comparator, Destructor>::CountWithValidSpec(
   if (!node) {
     return 0;
   }
-  /* if min exclusive and the node is equal to min, then move to the next node.
-   */
+  // If min exclusive and the node is equal to min, then move to the next node.
   if (spec->minex && Eq(node->key, spec->min)) {
     node = node->Next(0);
   }

@@ -4,35 +4,35 @@
 
 namespace redis_simple {
 namespace zset {
-/* spec for LIMIT flag */
+// Spec for LIMIT flag
 struct LimitSpec {
-  /* 0-based index */
+  // 0-based index
   size_t offset;
   ssize_t count;
   LimitSpec() : offset(0), count(0){};
   LimitSpec(size_t offset, size_t count) : offset(offset), count(count){};
 };
 
-/* spec for range by rank */
+// Spec for range by rank
 struct RangeByRankSpec {
-  /* 0-based index */
+  // 0-based index
   long min, max;
-  /* are min or max exclusive? */
+  // Are min or max exclusive?
   bool minex, maxex;
-  /* starting offset and count */
+  // Starting offset and count
   std::unique_ptr<LimitSpec> limit;
-  /* reverse order ? */
+  // Reverse order?
   bool reverse;
 };
 
-/* spec for range by score */
+// Spec for range by score
 struct RangeByScoreSpec {
   double min, max;
-  /* are min or max exclusive? */
+  // Are min or max exclusive?
   bool minex, maxex;
-  /* starting offset and count */
+  // Starting offset and count
   std::unique_ptr<LimitSpec> limit;
-  /* reverse order ? */
+  // Reverse order?
   bool reverse;
 };
 }  // namespace zset

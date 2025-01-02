@@ -11,23 +11,23 @@ ZSetSkiplist::ZSetSkiplist()
 bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
   const std::optional<double>& opt = dict_->Get(key);
   if (opt.has_value() && opt.value() == score) {
-    /* if the key exists and there is no change in score, do nothing. */
+    // If the key exists and there is no change in score, do nothing.
     return false;
   }
   dict_->Set(key, score);
   const ZSetEntry* ze = new ZSetEntry(key, score);
   bool inserted = false;
   if (opt.has_value()) {
-    /* update the score */
+    // Update the score.
     const ZSetEntry old(key, opt.value());
     assert(skiplist_->Update(&old, ze));
   } else {
-    /* insert a new key */
+    // Insert a new key.
     const ZSetEntry* inserted_entry = skiplist_->Insert(ze);
     assert(inserted_entry);
     inserted = true;
   }
-  /* update min and max key */
+  // Update min and max key.
   if (!min_key_.has_value() || key < min_key_.value()) {
     min_key_.emplace(key);
   }
@@ -91,10 +91,10 @@ ZSetSkiplist::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
   auto skiplist_spec =
       new in_memory::Skiplist<const ZSetEntry*, Comparator,
                               Destructor>::SkiplistRangeByRankSpec();
-  /* use overflow to check if the index is still negative after rebase */
+  // Use overflow to check if the index is still negative after rebase.
   if ((spec->min < 0 && spec->min + Size() > Size()) ||
       (spec->max < 0 && spec->max + Size() > Size())) {
-    /* the index is still negative after rebase */
+    // The index is still negative after rebase.
     return nullptr;
   }
   skiplist_spec->min = spec->min < 0 ? (spec->min + Size()) : spec->min;
@@ -121,12 +121,12 @@ ZSetSkiplist::ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const {
     limit->offset = spec->limit->offset, limit->count = spec->limit->count;
   }
 
-  /* if min score exclusive, set the zset entry key to be the max_key to exclude
-   * all keys with the same score */
+  // If min score exclusive, set the zset entry key to be the max_key to exclude
+  // all keys with the same score.
   const ZSetEntry* min_entry = new ZSetEntry(
       spec->minex ? max_key_.value() : min_key_.value(), spec->min);
-  /* if max score exclusive, set the zset entry key to be the min_key to exclude
-   * all keys with the same score */
+  // If max score exclusive, set the zset entry key to be the min_key to exclude
+  // all keys with the same score.
   const ZSetEntry* max_entry = new ZSetEntry(
       spec->maxex ? min_key_.value() : max_key_.value(), spec->max);
   auto skiplist_spec =

@@ -255,7 +255,7 @@ ssize_t Connection::BatchRead(std::string& s) const {
 }
 
 ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
-  /* optimistically tried to read first */
+  // Optimistically tried to read first.
   ssize_t r = read(fd_, buffer, readlen);
   if (r > 0) {
     return r;
@@ -314,7 +314,7 @@ ssize_t Connection::Write(const char* buffer, size_t len) const {
 
 ssize_t Connection::SyncWrite(const char* buffer, size_t len,
                               long timeout) const {
-  /* optimistically tried to write first */
+  // Optimistically tried to write first.
   ssize_t r = write(fd_, buffer, len);
   if (r > 0) {
     buffer += r;
@@ -322,7 +322,7 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len,
   } else if (r < 0 && errno != EAGAIN) {
     return -1;
   }
-  /* Return if write completes */
+  // Return if write completes.
   if (len == 0) {
     return r;
   }
@@ -361,8 +361,8 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
   if (conn == nullptr) {
     return ae::AeEventStatus::aeEventErr;
   }
-  /* update connection state to connected if the current state is connecting and
-   * the socket is available for read */
+  // Udate connection state to connected if the current state is connecting and
+  // the socket is available for read.
   printf("state: %d\n", conn->State());
   if (conn->State() == ConnState::connStateConnecting &&
       (mask & ae::AeFlags::aeWritable)) {
@@ -375,7 +375,7 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
       conn->SetState(ConnState::connStateConnected);
     }
   }
-  /* call read/write handlers */
+  // Call read/write handlers.
   int invert = conn->flags_ & connFlagWriteBarrier;
   if (!invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
     conn->read_handler_->Handle(conn);

@@ -38,7 +38,7 @@ class Set {
   std::vector<std::string> ListIntSetMembers() const;
   std::vector<std::string> ListListPackMembers() const;
   std::vector<std::string> ListDictMembers() const;
-  /* set encoding, could either be intset or dict */
+  // Set encoding, could either be intset or dict
   SetEncodingType encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;
   std::unique_ptr<in_memory::ListPack> listpack_;
