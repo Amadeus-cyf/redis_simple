@@ -515,7 +515,7 @@ size_t ListPack::EstimateBytes(int64_t lval, size_t repetive) {
  */
 bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
   size_t len = lp ? lp->GetTotalBytes() : 0;
-  return len + bytes < ListPack::ListPackMaxSafetySize;
+  return len + bytes <= ListPack::ListPackMaxSafetySize;
 }
 
 /*
