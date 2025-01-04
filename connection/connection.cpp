@@ -361,8 +361,8 @@ ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
   if (conn == nullptr) {
     return ae::AeEventStatus::aeEventErr;
   }
-  // Udate connection state to connected if the current state is connecting and
-  // the socket is available for read.
+  // Update the connection state to connected if the current state is connecting
+  // and the socket is available for read.
   printf("state: %d\n", conn->State());
   if (conn->State() == ConnState::connStateConnecting &&
       (mask & ae::AeFlags::aeWritable)) {
