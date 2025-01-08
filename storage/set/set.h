@@ -26,6 +26,8 @@ class Set {
   };
   static constexpr size_t IntSetMaxEntries = 512;
   static constexpr size_t ListPackMaxEntries = 128;
+  // Max length of the element
+  static constexpr size_t ListPackElementMaxLength = 64;
   Set();
   bool IntSetAddAndMaybeConvert(const std::string& value);
   bool ListPackAddAndMaybeConvert(const std::string& value);

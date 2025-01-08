@@ -206,7 +206,9 @@ void ListPack::Delete(size_t idx) {
   lp_ = buf;
   SetTotalBytes(new_listpack_bytes);
   uint16_t num_of_elements = GetNumOfElements();
-  SetNumOfElements(num_of_elements - 1);
+  if (num_of_elements != ListPackNumEleUnknown) {
+    SetNumOfElements(num_of_elements - 1);
+  }
 }
 
 /*
@@ -393,7 +395,9 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx,
                  listpack_bytes - idx);
     uint16_t num_of_elements = GetNumOfElements();
-    SetNumOfElements(num_of_elements + 1);
+    if (num_of_elements != ListPackNumEleUnknown) {
+      SetNumOfElements(num_of_elements + 1);
+    }
   } else if (where == Position::Replace) {
     // Replace an existing element.
     unsigned char* buf = Malloc(new_listpack_bytes);
@@ -458,7 +462,13 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   std::memmove(lp_ + idx + inserted_bytes, lp_ + idx, listpack_bytes - idx);
   // Update number of elements and total bytes.
   uint16_t num_of_elements = GetNumOfElements();
-  SetNumOfElements(num_of_elements + entries.size());
+  if (num_of_elements != ListPackNumEleUnknown) {
+    if (encodings.size() > ListPackNumEleUnknown - num_of_elements) {
+      SetNumOfElements(ListPackNumEleUnknown);
+    } else {
+      SetNumOfElements(num_of_elements + entries.size());
+    }
+  }
   SetTotalBytes(new_listpack_bytes);
   // Insert elements based on encoding types.
   for (const Encoding& encoding : encodings) {
@@ -483,9 +493,26 @@ void ListPack::SetTotalBytes(uint32_t listpack_bytes) {
   lp_[3] = listpack_bytes & 0xff;
 }
 
+size_t ListPack::Size() const {
+  uint16_t num_of_elements = GetNumOfElements();
+  if (num_of_elements != ListPackNumEleUnknown) {
+    return num_of_elements;
+  }
+  // Too many elements in the listpack, need to scan the entire listpack to get
+  // the total number.
+  size_t count = 0;
+  ssize_t idx = First();
+  while (idx != -1) {
+    idx = Next(idx);
+    ++count;
+  }
+  if (count < ListPackNumEleUnknown) SetNumOfElements(count);
+  return count;
+}
+
 uint16_t ListPack::GetNumOfElements() const { return (lp_[4] << 8) | lp_[5]; }
 
-void ListPack::SetNumOfElements(uint16_t num_of_elements) {
+void ListPack::SetNumOfElements(uint16_t num_of_elements) const {
   lp_[4] = (num_of_elements >> 8) & 0xff;
   lp_[5] = num_of_elements & 0xff;
 }

@@ -20,7 +20,7 @@ class ZSetListPack : public ZSetStorage {
   size_t Size() const override {
     // Since listpack include both keys and scores, the actual size should be
     // divided by 2.
-    return listpack_->GetNumOfElements() / 2;
+    return listpack_->Size() / 2;
   };
 
  private:

@@ -23,7 +23,7 @@ TEST_F(ListPackTest, Append) {
   ASSERT_TRUE(listpack->Append(-1234));
   std::string s0("test string 0");
   ASSERT_TRUE(listpack->Append(s0));
-  ASSERT_EQ(listpack->GetNumOfElements(), 2);
+  ASSERT_EQ(listpack->Size(), 2);
   size_t bytes = listpack->GetTotalBytes();
 
   size_t idx = listpack->First();
@@ -55,7 +55,7 @@ TEST_F(ListPackTest, Append) {
   // std::string s4(UINT32_MAX, 'f');
   // ASSERT_FALSE(listpack->Append(s4));
 
-  ASSERT_EQ(listpack->GetNumOfElements(), 10);
+  ASSERT_EQ(listpack->Size(), 10);
   idx = listpack->Next(idx);
   ASSERT_EQ(listpack->GetInteger(idx), INT16_MAX >> 3);
   idx = listpack->Next(idx);
@@ -111,7 +111,7 @@ TEST_F(ListPackTest, Prepend) {
   listpack->Prepend(INT16_MIN + 3);
   listpack->Prepend(s2);
   listpack->Prepend(s3);
-  ASSERT_EQ(listpack->GetNumOfElements(), 16);
+  ASSERT_EQ(listpack->Size(), 16);
 
   size_t idx = listpack->First();
   ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
@@ -191,7 +191,7 @@ TEST_F(ListPackTest, Insert) {
   ASSERT_THROW(listpack->Insert(listpack->GetTotalBytes(), 123456),
                std::out_of_range);
 
-  ASSERT_EQ(listpack->GetNumOfElements(), 21);
+  ASSERT_EQ(listpack->Size(), 21);
 
   size_t l0 = 0;
   unsigned char* c0 = listpack->Get(i0, &l0);
@@ -227,14 +227,14 @@ TEST_F(ListPackTest, Replace) {
   size_t idx = listpack->First();
   ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
   for (int i = 0; i < 10; ++i) idx = listpack->Next(idx);
-  size_t num_of_elements = listpack->GetNumOfElements();
+  size_t num_of_elements = listpack->Size();
   // Get next element to check if it's not changed after the replace.
   size_t l0_next;
   size_t next0 = listpack->Next(idx);
   unsigned char* c0_next = listpack->Get(next0, &l0_next);
   // Replace and get the element.
   listpack->Replace(idx, s0);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements);
+  ASSERT_EQ(listpack->Size(), num_of_elements);
   size_t l1, l1_next;
   unsigned char* c1 = listpack->Get(idx, &l1);
   ASSERT_EQ(l1, s0.size());
@@ -253,7 +253,7 @@ TEST_F(ListPackTest, Replace) {
   unsigned char* c2_next = listpack->Get(next2, &l2_next);
   // Replace and get the element.
   listpack->Replace(idx, 17);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements);
+  ASSERT_EQ(listpack->Size(), num_of_elements);
   size_t l3, l3_next;
   unsigned char* c3 = listpack->Get(idx, &l3);
   ASSERT_EQ(l3, 2);
@@ -274,7 +274,7 @@ TEST_F(ListPackTest, Replace) {
   unsigned char* c4_next = listpack->Get(next4, &l4_next);
   // Replace and get the element.
   listpack->Replace(idx, s1);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements);
+  ASSERT_EQ(listpack->Size(), num_of_elements);
   size_t l5, l5_next;
   unsigned char* c5 = listpack->Get(idx, &l5);
   ASSERT_EQ(l5, s1.size());
@@ -290,7 +290,7 @@ TEST_F(ListPackTest, Replace) {
   ASSERT_EQ(listpack->Next(idx), -1);
   // Replace and get the element.
   listpack->Replace(idx, 217);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements);
+  ASSERT_EQ(listpack->Size(), num_of_elements);
   size_t l7, l7_next;
   unsigned char* c7 = listpack->Get(idx, &l7);
   ASSERT_EQ(l7, 3);
@@ -341,7 +341,7 @@ TEST_F(ListPackTest, BatchAppend) {
   };
   ssize_t idx = listpack->GetTotalBytes() - 1;
   listpack->BatchAppend(entries);
-  ASSERT_EQ(listpack->GetNumOfElements(), 30);
+  ASSERT_EQ(listpack->Size(), 30);
   for (const ListPack::ListPackEntry& entry : entries) {
     size_t len = 0;
     unsigned char* c = listpack->Get(idx, &len);
@@ -400,7 +400,7 @@ TEST_F(ListPackTest, BatchPrepend) {
       },
   };
   ASSERT_TRUE(listpack->BatchPrepend(entries));
-  ASSERT_EQ(listpack->GetNumOfElements(), 39);
+  ASSERT_EQ(listpack->Size(), 39);
   size_t idx = listpack->First();
   ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
   for (const ListPack::ListPackEntry& entry : entries) {
@@ -466,7 +466,7 @@ TEST_F(ListPackTest, BatchInsert) {
   idx = listpack->Next(idx);
   idx = listpack->Next(idx);
   ASSERT_TRUE(listpack->BatchInsert(idx, entries));
-  ASSERT_EQ(listpack->GetNumOfElements(), 49);
+  ASSERT_EQ(listpack->Size(), 49);
   for (const ListPack::ListPackEntry& entry : entries) {
     size_t len = 0;
     unsigned char* c = listpack->Get(idx, &len);
@@ -526,20 +526,20 @@ TEST_F(ListPackTest, Iterate) {
     idx = listpack->Next(idx);
   }
   ASSERT_EQ(prev, listpack->Last());
-  ASSERT_EQ(len, listpack->GetNumOfElements());
+  ASSERT_EQ(len, listpack->Size());
 }
 
 TEST_F(ListPackTest, Delete) {
   // Delete the head.
   size_t idx = listpack->First(), prev_idx = -1, next_idx = listpack->Next(idx);
-  size_t num_of_elements = listpack->GetNumOfElements();
+  size_t num_of_elements = listpack->Size();
   size_t l0 = 0;
   unsigned char* c0 = listpack->Get(next_idx, &l0);
   listpack->Delete(idx);
   idx = listpack->First();
   size_t l1 = 0;
   unsigned char* c1 = listpack->Get(idx, &l1);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements - 1);
+  ASSERT_EQ(listpack->Size(), num_of_elements - 1);
   ASSERT_EQ(l0, l1);
   ASSERT_TRUE(std::equal(c1, c1 + l1, c0));
 
@@ -550,9 +550,9 @@ TEST_F(ListPackTest, Delete) {
   next_idx = listpack->Next(idx);
   size_t l2 = 0;
   unsigned char* c2 = listpack->Get(next_idx, &l2);
-  num_of_elements = listpack->GetNumOfElements();
+  num_of_elements = listpack->Size();
   listpack->Delete(idx);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements - 1);
+  ASSERT_EQ(listpack->Size(), num_of_elements - 1);
   idx = listpack->Next(prev_idx);
   size_t l3 = 0;
   unsigned char* c3 = listpack->Get(idx, &l3);
@@ -565,9 +565,9 @@ TEST_F(ListPackTest, Delete) {
   size_t l4 = 0;
   unsigned char* c4 = listpack->Get(next_idx, &l2);
   prev_idx = listpack->Prev(idx);
-  num_of_elements = listpack->GetNumOfElements();
+  num_of_elements = listpack->Size();
   listpack->Delete(idx);
-  ASSERT_EQ(listpack->GetNumOfElements(), num_of_elements - 1);
+  ASSERT_EQ(listpack->Size(), num_of_elements - 1);
   size_t l5 = 0;
   unsigned char* c5 = listpack->Get(next_idx, &l2);
   ASSERT_EQ(l4, l5);

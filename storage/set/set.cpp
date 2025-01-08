@@ -95,9 +95,9 @@ size_t Set::Size() const {
     case SetEncodingType::IntSet:
       return intset_ ? intset_->Size() : 0;
     case SetEncodingType::ListPack:
-      return listpack_ ? listpack_->GetNumOfElements() : 0;
+      return listpack_ ? listpack_->Size() : 0;
     case SetEncodingType::Dict:
-      return listpack_ ? listpack_->GetNumOfElements() : 0;
+      return listpack_ ? listpack_->Size() : 0;
     default:
       throw std::invalid_argument("unknown encoding type");
   }
@@ -129,8 +129,8 @@ bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
 bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
   size_t len = value.size();
   if (listpack_->Find(value) != -1) return false;
-  if (listpack_->GetNumOfElements() < ListPackMaxEntries &&
-      len <= in_memory::ListPack::ListPackElementMaxLength &&
+  if (listpack_->Size() < ListPackMaxEntries &&
+      len <= ListPackElementMaxLength &&
       in_memory::ListPack::SafeToAdd(listpack_.get(), len)) {
     return listpack_->Append(value);
   } else {
@@ -196,11 +196,10 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
     // Calculate estimate total bytes.
     est_bytes = in_memory::ListPack::EstimateBytes(est_int, intset_->Size());
   }
-  if (!intset_ ||
-      (intset_->Size() < ListPackMaxEntries &&
-       len <= in_memory::ListPack::ListPackElementMaxLength &&
-       int_maxlen <= in_memory::ListPack::ListPackElementMaxLength &&
-       in_memory::ListPack::SafeToAdd(nullptr, est_bytes + len))) {
+  if (!intset_ || (intset_->Size() < ListPackMaxEntries &&
+                   len <= ListPackElementMaxLength &&
+                   int_maxlen <= ListPackElementMaxLength &&
+                   in_memory::ListPack::SafeToAdd(nullptr, est_bytes + len))) {
     ConvertIntSetToListPack(val);
     return true;
   }
@@ -228,10 +227,9 @@ void Set::ConvertIntSetToListPack(const std::string& val) {
  */
 void Set::ConvertListPackToDict(const std::string& val) {
   assert(encoding_ == SetEncodingType::ListPack &&
-         listpack_->GetNumOfElements() >= ListPackMaxEntries);
+         listpack_->Size() >= ListPackMaxEntries);
   encoding_ = SetEncodingType::Dict;
-  dict_ = in_memory::Dict<std::string, nullptr_t>::Init(
-      listpack_->GetNumOfElements() + 1);
+  dict_ = in_memory::Dict<std::string, nullptr_t>::Init(listpack_->Size() + 1);
   if (!listpack_) return;
   ssize_t idx = listpack_->First();
   while (idx != -1) {

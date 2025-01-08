@@ -8,6 +8,7 @@
 
 namespace redis_simple {
 namespace in_memory {
+// refer to https://github.com/antirez/listpack/blob/master/listpack.md
 class ListPack {
  public:
   struct ListPackEntry {
@@ -17,7 +18,6 @@ class ListPack {
   };
   // Listpack header size, 32 bit total length + 16 bit number of elements
   static constexpr int ListPackHeaderSize = 6;
-  static constexpr size_t ListPackElementMaxLength = 1UL << 32;
   ListPack();
   explicit ListPack(size_t capacity);
   unsigned char* Get(size_t idx, size_t* const len) const;
@@ -42,7 +42,7 @@ class ListPack {
   ssize_t Next(size_t idx) const;
   ssize_t Prev(size_t idx) const;
   uint32_t GetTotalBytes() const;
-  uint16_t GetNumOfElements() const;
+  size_t Size() const;
   static size_t EstimateBytes(int64_t lval, size_t repetive);
   static bool SafeToAdd(const ListPack* const lp, size_t bytes);
   ~ListPack() {
@@ -53,6 +53,7 @@ class ListPack {
  private:
   // 20 digits of -2^63 + 1 digit of the null term = 21
   static constexpr int ListPackIntBufSize = 21;
+  static constexpr uint16_t ListPackNumEleUnknown = UINT16_MAX;
   static constexpr int Uint7BitIntMax_ = 127;
   static constexpr int Int24BitIntMax = (1 << 23) - 1;
   static constexpr int Int24BitIntMin = -(1 << 23);
@@ -113,7 +114,8 @@ class ListPack {
   bool BatchInsert(size_t idx, ListPack::Position where,
                    const std::vector<ListPackEntry>& entries);
   void SetTotalBytes(uint32_t total_bytes_);
-  void SetNumOfElements(uint16_t num_of_elements);
+  uint16_t GetNumOfElements() const;
+  void SetNumOfElements(uint16_t num_of_elements) const;
   size_t Skip(size_t idx) const;
   EncodingType GetEncodingType(size_t idx) const;
   size_t GetBacklen(size_t idx) const;
