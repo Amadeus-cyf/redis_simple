@@ -475,7 +475,6 @@ const Key& Skiplist<Key, Comparator, Destructor>::Insert(const Key& key) {
     node->Next(0)->SetPrev(node);
   }
   ++size_;
-  printf("skiplist: new key inserted\n");
   return node->key;
 }
 
