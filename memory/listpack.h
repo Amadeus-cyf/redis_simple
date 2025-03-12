@@ -126,7 +126,6 @@ class ListPack {
   size_t DecodeBacklen(size_t idx) const;
   size_t DecodeStringLength(size_t idx) const;
   static bool isString(EncodingType encoding_type);
-  unsigned char* Malloc(size_t size);
   void Realloc(size_t size);
   void Free();
   unsigned char* lp_;

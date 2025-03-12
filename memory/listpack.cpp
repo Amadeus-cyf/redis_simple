@@ -198,12 +198,10 @@ void ListPack::Delete(size_t idx) {
   size_t backlen = GetBacklen(idx);
   uint8_t backlen_bytes = GetBacklenBytes(backlen);
   size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
-  unsigned char* buf = Malloc(new_listpack_bytes);
-  std::memcpy(buf, lp_, idx);
-  std::memcpy(buf + idx, lp_ + idx + backlen + backlen_bytes,
-              listpack_bytes - idx - backlen - backlen_bytes);
-  Free();
-  lp_ = buf;
+  std::memmove(lp_ + idx, lp_ + idx + backlen + backlen_bytes,
+               listpack_bytes - idx - backlen - backlen_bytes);
+  // Realloc after to free space
+  Realloc(new_listpack_bytes);
   SetTotalBytes(new_listpack_bytes);
   uint16_t num_of_elements = GetNumOfElements();
   if (num_of_elements != ListPackNumEleUnknown) {
@@ -389,23 +387,18 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   // Total bytes is a 4 byte unsigned integer, so the maximum bytes for the
   // listpack is UINT32_MAX.
   if (new_listpack_bytes > std::numeric_limits<uint32_t>::max()) return false;
-  // realloc before if need more memory
+  // Realloc before if need more memory
   if (new_listpack_bytes > listpack_bytes) Realloc(new_listpack_bytes);
+  std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx + replaced_bytes,
+               listpack_bytes - idx - replaced_bytes);
   if (where == Position::InsertBefore) {
     // Insert a new  element before the existing element at the idx.
-    std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx,
-                 listpack_bytes - idx);
     uint16_t num_of_elements = GetNumOfElements();
     if (num_of_elements != ListPackNumEleUnknown) {
       SetNumOfElements(num_of_elements + 1);
     }
-  } else if (where == Position::Replace) {
-    // Replace an existing element.
-    std::memmove(lp_ + idx + backlen + backlen_bytes,
-                 lp_ + idx + replaced_bytes,
-                 listpack_bytes - idx - replaced_bytes);
   }
-  // realloc after to free space
+  // Realloc after to free space
   if (new_listpack_bytes < listpack_bytes) Realloc(new_listpack_bytes);
   SetTotalBytes(new_listpack_bytes);
   if (encoding_type == EncodingGeneralType::typeInt) {
@@ -796,10 +789,6 @@ bool ListPack::isString(EncodingType encoding_type) {
   return encoding_type == EncodingType::type6BitStr ||
          encoding_type == EncodingType::type12BitStr ||
          encoding_type == EncodingType::type32BitStr;
-}
-
-unsigned char* ListPack::Malloc(size_t bytes) {
-  return new unsigned char[bytes];
 }
 
 void ListPack::Realloc(size_t bytes) {
