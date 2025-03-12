@@ -389,9 +389,10 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   // Total bytes is a 4 byte unsigned integer, so the maximum bytes for the
   // listpack is UINT32_MAX.
   if (new_listpack_bytes > std::numeric_limits<uint32_t>::max()) return false;
+  // realloc before if need more memory
+  if (new_listpack_bytes > listpack_bytes) Realloc(new_listpack_bytes);
   if (where == Position::InsertBefore) {
     // Insert a new  element before the existing element at the idx.
-    Realloc(new_listpack_bytes);
     std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx,
                  listpack_bytes - idx);
     uint16_t num_of_elements = GetNumOfElements();
@@ -400,14 +401,12 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     }
   } else if (where == Position::Replace) {
     // Replace an existing element.
-    unsigned char* buf = Malloc(new_listpack_bytes);
-    std::memcpy(buf, lp_, idx);
-    std::memcpy(buf + idx + backlen + backlen_bytes, lp_ + idx + replaced_bytes,
-                listpack_bytes - idx - replaced_bytes);
-    // Release the old listpack.
-    Free();
-    lp_ = buf;
+    std::memmove(lp_ + idx + backlen + backlen_bytes,
+                 lp_ + idx + replaced_bytes,
+                 listpack_bytes - idx - replaced_bytes);
   }
+  // realloc after to free space
+  if (new_listpack_bytes < listpack_bytes) Realloc(new_listpack_bytes);
   SetTotalBytes(new_listpack_bytes);
   if (encoding_type == EncodingGeneralType::typeInt) {
     EncodeInteger(lp_ + idx, sval);
@@ -804,11 +803,7 @@ unsigned char* ListPack::Malloc(size_t bytes) {
 }
 
 void ListPack::Realloc(size_t bytes) {
-  unsigned char* buf = new unsigned char[bytes];
-  uint32_t listpack_bytes = GetTotalBytes();
-  std::memcpy(buf, lp_, listpack_bytes);
-  Free();
-  lp_ = buf;
+  lp_ = static_cast<unsigned char*>(std::realloc(lp_, bytes));
 }
 
 void ListPack::Free() { delete[] lp_; }

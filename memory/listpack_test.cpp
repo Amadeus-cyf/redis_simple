@@ -232,6 +232,7 @@ TEST_F(ListPackTest, Replace) {
   size_t l0_next;
   size_t next0 = listpack->Next(idx);
   unsigned char* c0_next = listpack->Get(next0, &l0_next);
+  std::string s0_next(reinterpret_cast<const char*>(c0_next), l0_next);
   // Replace and get the element.
   listpack->Replace(idx, s0);
   ASSERT_EQ(listpack->Size(), num_of_elements);
@@ -243,7 +244,7 @@ TEST_F(ListPackTest, Replace) {
   size_t next1 = listpack->Next(idx);
   unsigned char* c1_next = listpack->Get(next1, &l1_next);
   ASSERT_EQ(l1_next, l0_next);
-  ASSERT_TRUE(std::equal(c1_next, c1_next + l1_next, c0_next));
+  ASSERT_TRUE(std::equal(c1_next, c1_next + l1_next, s0_next.c_str()));
 
   // Replace integer.
   for (int i = 0; i < 7; ++i) idx = listpack->Next(idx);
@@ -251,6 +252,7 @@ TEST_F(ListPackTest, Replace) {
   size_t l2_next;
   size_t next2 = listpack->Next(idx);
   unsigned char* c2_next = listpack->Get(next2, &l2_next);
+  std::string s2_next(reinterpret_cast<const char*>(c2_next), l2_next);
   // Replace and get the element.
   listpack->Replace(idx, 17);
   ASSERT_EQ(listpack->Size(), num_of_elements);
@@ -263,7 +265,7 @@ TEST_F(ListPackTest, Replace) {
   size_t next3 = listpack->Next(idx);
   unsigned char* c3_next = listpack->Get(next3, &l3_next);
   ASSERT_EQ(l3_next, l2_next);
-  ASSERT_TRUE(std::equal(c3_next, c3_next + l3_next, c2_next));
+  ASSERT_TRUE(std::equal(c3_next, c3_next + l3_next, s2_next.c_str()));
 
   // Replace the first element.
   idx = listpack->First();
@@ -272,6 +274,7 @@ TEST_F(ListPackTest, Replace) {
   size_t l4_next;
   size_t next4 = listpack->Next(idx);
   unsigned char* c4_next = listpack->Get(next4, &l4_next);
+  std::string s4_next(reinterpret_cast<const char*>(c4_next), l4_next);
   // Replace and get the element.
   listpack->Replace(idx, s1);
   ASSERT_EQ(listpack->Size(), num_of_elements);
@@ -283,7 +286,7 @@ TEST_F(ListPackTest, Replace) {
   size_t next5 = listpack->Next(idx);
   unsigned char* c5_next = listpack->Get(next5, &l5_next);
   ASSERT_EQ(l5_next, l4_next);
-  ASSERT_TRUE(std::equal(c5_next, c5_next + l5_next, c4_next));
+  ASSERT_TRUE(std::equal(c5_next, c5_next + l5_next, s4_next.c_str()));
 
   // Replace the last element.
   idx = listpack->Last();
