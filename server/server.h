@@ -28,7 +28,7 @@ class Server {
  private:
   Server();
   void AcceptConnHandler();
-  int ServerCron(long long id, std::any clientData);
+  int ServerCron();
   int fd_;
   int flags_;
   std::shared_ptr<ae::AeEventLoop> el_;

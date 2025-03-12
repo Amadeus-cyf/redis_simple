@@ -32,10 +32,8 @@ void Server::Run(const std::string& ip, const int& port) {
   }
   fd_ = conn.Fd();
   AcceptConnHandler();
-  ae::AeTimeEventImpl<Server>::aeTimeProc time_proc = [](long long id,
-                                                         Server* server) {
-    return Get()->ServerCron(id, nullptr);
-  };
+  ae::AeTimeEventImpl<Server>::aeTimeProc time_proc =
+      [](long long id, Server* server) { return server->ServerCron(); };
   el_->AeCreateTimeEvent(
       ae::AeTimeEventImpl<Server>::Create(time_proc, nullptr, this));
   el_->AeMain();
@@ -60,7 +58,7 @@ void Server::AcceptConnHandler() {
   }
 }
 
-int Server::ServerCron(long long id, std::any clientData) {
+int Server::ServerCron() {
   ActiveExpireCycle();
   return 1;
 }
