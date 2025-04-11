@@ -39,7 +39,7 @@ int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
     printf("invalid number of args\n");
     return -1;
   }
-  smembers_args->key = args[0];
+  smembers_args->key = std::move(args[0]);
   return 0;
 }
 

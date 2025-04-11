@@ -33,9 +33,8 @@ int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
     printf("invalid number of args\n");
     return -1;
   }
-  const std::string& key = args[0];
-  const std::string& ele = args[1];
-  zset_args->key = key, zset_args->ele = ele;
+  zset_args->key = std::move(args[0]);
+  zset_args->ele = std::move(args[1]);
   return 0;
 }
 

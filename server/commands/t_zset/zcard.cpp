@@ -31,7 +31,7 @@ int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
     printf("invalid number of args\n");
     return -1;
   }
-  sadd_args->key = args[0];
+  sadd_args->key = std::move(args[0]);
   return 0;
 }
 

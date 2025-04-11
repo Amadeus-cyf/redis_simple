@@ -31,8 +31,7 @@ int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
     printf("invalid number of args\n");
     return -1;
   }
-  const std::string& key = args[0];
-  zset_args->key = key;
+  zset_args->key = std::move(args[0]);
   for (int i = 1; i < args.size() - 1; i += 2) {
     const std::string& ele = args[i + 1];
     double score = 0.0;

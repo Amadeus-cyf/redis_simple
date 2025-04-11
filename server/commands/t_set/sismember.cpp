@@ -31,8 +31,8 @@ int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
     printf("invalid number of args\n");
     return -1;
   }
-  sismember_args->key = args[0];
-  sismember_args->element = args[1];
+  sismember_args->key = std::move(args[0]);
+  sismember_args->element = std::move(args[1]);
   return 0;
 }
 

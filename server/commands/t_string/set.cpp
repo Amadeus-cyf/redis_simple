@@ -33,7 +33,9 @@ int SetCommand::ParseArgs(const std::vector<std::string>& args,
     printf("invalid args\n");
     return -1;
   }
-  str_args->key = args[0], str_args->val = args[1], str_args->expire = 0;
+  str_args->key = std::move(args[0]);
+  str_args->val = std::move(args[1]);
+  str_args->expire = 0;
   if (args.size() >= 3) {
     int64_t now = utils::GetNowInMilliseconds(), ttl = 0;
     if (utils::ToInt64(args[2], &ttl)) {

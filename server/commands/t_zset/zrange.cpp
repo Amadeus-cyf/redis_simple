@@ -250,7 +250,7 @@ int ZRangeCommand::RangeByRank(
     return -1;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::string& key = args[0];
+    const std::string& key = std::move(args[0]);
     const db::RedisObj* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
@@ -278,7 +278,7 @@ int ZRangeCommand::RangeByScore(
     return -1;
   }
   if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::string& key = args[0];
+    const std::string& key = std::move(args[0]);
     const db::RedisObj* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
