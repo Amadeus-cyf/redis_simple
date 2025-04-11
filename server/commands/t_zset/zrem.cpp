@@ -35,7 +35,7 @@ int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
   const std::string& key = args[0];
   zset_args->key = key;
   for (int i = 1; i < args.size(); ++i) {
-    zset_args->elements.push_back(args[i]);
+    zset_args->elements.push_back(std::move(args[i]));
   }
   return 0;
 }

@@ -33,7 +33,7 @@ int SRemCommand::ParseArgs(const std::vector<std::string>& args,
   }
   srem_args->key = args[0];
   for (int i = 1; i < args.size(); ++i) {
-    srem_args->elements.push_back(args[i]);
+    srem_args->elements.push_back(std::move(args[i]));
   }
   return 0;
 }

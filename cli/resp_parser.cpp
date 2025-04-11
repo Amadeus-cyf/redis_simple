@@ -196,7 +196,7 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
     floating_num_str.push_back('e');
     floating_num_str.append(std::to_string(exponential_sign * exponent));
   }
-  reply->push_back(floating_num_str);
+  reply->push_back(std::move(floating_num_str));
   return i - start + 2;
 }
 }  // namespace

@@ -46,7 +46,7 @@ ssize_t WriteToConnection(const connection::Connection* connection,
 std::string ReplyListToString(const std::vector<std::string>& reply) {
   std::string reply_str;
   for (const std::string& r : reply) {
-    reply_str.append(r).push_back('\n');
+    reply_str.append(std::move(r)).push_back('\n');
   }
   return reply_str;
 }
