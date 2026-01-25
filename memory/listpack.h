@@ -92,12 +92,12 @@ class ListPack {
     InsertBefore = 1,
     Replace = 2,
   };
-  enum BacklenThreshold {
-    Size1ByteBacklenMax = (1 << 7) - 1,
-    Size2BytesBacklenMax = (1 << 14) - 1,
-    Size3BytesBacklenMax = (1 << 21) - 1,
-    Size4BytesBacklenMax = (1 << 28) - 1,
-    Size5BytesBacklenMax = (1 << 35) - 1,
+  enum BacklenThreshold : uint64_t {
+    Size1ByteBacklenMax = (1ULL << 7) - 1,
+    Size2BytesBacklenMax = (1ULL << 14) - 1,
+    Size3BytesBacklenMax = (1ULL << 21) - 1,
+    Size4BytesBacklenMax = (1ULL << 28) - 1,
+    Size5BytesBacklenMax = (1ULL << 35) - 1,
   };
   struct Encoding {
     std::string* str;

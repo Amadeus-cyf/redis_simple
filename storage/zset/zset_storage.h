@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "storage/zset/zset_entry.h"
 #include "storage/zset/zset_range_spec.h"

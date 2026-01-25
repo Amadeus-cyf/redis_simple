@@ -153,7 +153,7 @@ template <typename K, typename V>
 typename Dict<K, V>::Iterator& Dict<K, V>::Iterator::operator=(
     const Iterator& it) {
   dict_ = it.dict_;
-  table_ = it.table;
+  table_ = it.table_;
   idx_ = it.idx_;
   entry_ = it.entry_;
 }

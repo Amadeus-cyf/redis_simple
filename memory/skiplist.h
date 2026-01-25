@@ -268,7 +268,7 @@ Skiplist<Key, Comparator, Destructor>::Iterator::Iterator(
 
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Iterator::Iterator(const Iterator& it)
-    : skiplist_(it.skiplist), node_(it.node) {}
+    : skiplist_(it.skiplist_), node_(it.node_) {}
 
 template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::Iterator::Valid() const {
@@ -299,8 +299,8 @@ void Skiplist<Key, Comparator, Destructor>::Iterator::Prev() {
 template <typename Key, typename Comparator, typename Destructor>
 typename Skiplist<Key, Comparator, Destructor>::Iterator&
 Skiplist<Key, Comparator, Destructor>::Iterator::operator=(const Iterator& it) {
-  skiplist_ = it.skiplist;
-  node_ = it.node;
+  skiplist_ = it.skiplist_;
+  node_ = it.node_;
   return *this;
 }
 

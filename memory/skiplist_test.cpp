@@ -31,8 +31,8 @@ struct RangeByKeySpecTestCase {
   const ssize_t count;
 };
 
-const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases();
-const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases();
+const std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
+const std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases();
 void ScanSkiplist(const Skiplist<std::string>* skiplist);
 
 Skiplist<std::string>* SkiplistTest::skiplist;
@@ -138,7 +138,7 @@ TEST_F(SkiplistTest, ArrayAccess) {
 }
 
 TEST_F(SkiplistTest, RangeByRank) {
-  const std::vector<const RangeByRankSpecTestCase>& tests =
+  const std::vector<RangeByRankSpecTestCase>& tests =
       RangeByRankSpecTestCases();
   for (const RangeByRankSpecTestCase& test : tests) {
     ASSERT_EQ(skiplist->RangeByRank(&test.spec), test.keys);
@@ -146,7 +146,7 @@ TEST_F(SkiplistTest, RangeByRank) {
 }
 
 TEST_F(SkiplistTest, RevRangeByRank) {
-  const std::vector<const RangeByRankSpecTestCase>& tests =
+  const std::vector<RangeByRankSpecTestCase>& tests =
       RangeByRankSpecTestCases();
   for (const RangeByRankSpecTestCase& test : tests) {
     ASSERT_EQ(skiplist->RevRangeByRank(&test.spec), test.revkeys);
@@ -154,30 +154,27 @@ TEST_F(SkiplistTest, RevRangeByRank) {
 }
 
 TEST_F(SkiplistTest, RangeByKey) {
-  const std::vector<const RangeByKeySpecTestCase>& tests =
-      RangeByKeySpecTestCases();
+  const std::vector<RangeByKeySpecTestCase>& tests = RangeByKeySpecTestCases();
   for (const RangeByKeySpecTestCase& test : tests) {
     ASSERT_EQ(skiplist->RangeByKey(&test.spec), test.keys);
   }
 }
 
 TEST_F(SkiplistTest, RevRangeByKey) {
-  const std::vector<const RangeByKeySpecTestCase>& tests =
-      RangeByKeySpecTestCases();
+  const std::vector<RangeByKeySpecTestCase>& tests = RangeByKeySpecTestCases();
   for (const RangeByKeySpecTestCase& test : tests) {
     ASSERT_EQ(skiplist->RevRangeByKey(&test.spec), test.revkeys);
   }
 }
 
 TEST_F(SkiplistTest, Count) {
-  const std::vector<const RangeByKeySpecTestCase>& tests =
-      RangeByKeySpecTestCases();
+  const std::vector<RangeByKeySpecTestCase>& tests = RangeByKeySpecTestCases();
   for (const RangeByKeySpecTestCase& test : tests) {
     ASSERT_EQ(skiplist->Count(&test.spec), test.count);
   }
 }
 
-const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
+const std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
           new Skiplist<std::string>::SkiplistLimitSpec({
@@ -339,7 +336,7 @@ const std::vector<const RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
           }};
 }
 
-const std::vector<const RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
+const std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
           new Skiplist<std::string>::SkiplistLimitSpec({
