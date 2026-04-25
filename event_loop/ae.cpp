@@ -113,7 +113,7 @@ void AeEventLoop::AeCreateTimeEvent(AeTimeEvent* te) {
     time_event_head_ = te;
     return;
   }
-  te->SetNext(te);
+  te->SetNext(time_event_head_);
   time_event_head_ = te;
 }
 
