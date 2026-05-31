@@ -31,8 +31,8 @@ struct RangeByKeySpecTestCase {
   const ssize_t count;
 };
 
-const std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
-const std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases();
+std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
+std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases();
 void ScanSkiplist(const Skiplist<std::string>* skiplist);
 
 Skiplist<std::string>* SkiplistTest::skiplist;
@@ -174,7 +174,7 @@ TEST_F(SkiplistTest, Count) {
   }
 }
 
-const std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
+std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
           new Skiplist<std::string>::SkiplistLimitSpec({
@@ -336,7 +336,7 @@ const std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
           }};
 }
 
-const std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
+std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
           new Skiplist<std::string>::SkiplistLimitSpec({

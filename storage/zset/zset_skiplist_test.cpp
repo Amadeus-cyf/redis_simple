@@ -18,7 +18,7 @@ class ZSetSkiplistTest : public testing::Test {
 
 ZSetSkiplist* ZSetSkiplistTest::zset_skiplist;
 using KeyScorePair = std::pair<std::string, double>;
-const std::vector<std::pair<std::string, double>> ToKeyScorePairs(
+std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSetEntry*>& keys);
 
 TEST_F(ZSetSkiplistTest, Add) {
@@ -630,7 +630,7 @@ TEST_F(ZSetSkiplistTest, Delete) {
   ASSERT_FALSE(r2);
 }
 
-const std::vector<KeyScorePair> ToKeyScorePairs(
+std::vector<KeyScorePair> ToKeyScorePairs(
     const std::vector<const ZSetEntry*>& keys) {
   std::vector<std::pair<std::string, double>> pairs;
   for (int i = 0; i < keys.size(); ++i) {

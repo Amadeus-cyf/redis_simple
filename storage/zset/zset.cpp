@@ -32,12 +32,12 @@ std::optional<size_t> ZSet::GetRankOfKey(const std::string& key) const {
   return storage_->GetRankOfKey(key);
 }
 
-const std::vector<const ZSetEntry*> ZSet::RangeByRank(
+std::vector<const ZSetEntry*> ZSet::RangeByRank(
     const RangeByRankSpec* spec) const {
   return storage_->RangeByRank(spec);
 }
 
-const std::vector<const ZSetEntry*> ZSet::RangeByScore(
+std::vector<const ZSetEntry*> ZSet::RangeByScore(
     const RangeByScoreSpec* spec) const {
   return storage_->RangeByScore(spec);
 }
@@ -56,7 +56,7 @@ void ZSet::ConvertAndExpand() {
     storage_ = std::make_unique<ZSetSkiplist>();
     return;
   }
-  ZSetStorage* zset_skiplist = new ZSetSkiplist();
+  auto zset_skiplist = std::make_unique<ZSetSkiplist>();
   const RangeByRankSpec& spec = {
       .min = 0,
       .max = static_cast<long>(storage_->Size()),
@@ -65,7 +65,7 @@ void ZSet::ConvertAndExpand() {
   for (const ZSetEntry* entry : entries) {
     zset_skiplist->InsertOrUpdate(entry->key, entry->score);
   }
-  storage_.reset(zset_skiplist);
+  storage_ = std::move(zset_skiplist);
 }
 }  // namespace zset
 }  // namespace redis_simple

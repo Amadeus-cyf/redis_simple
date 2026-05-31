@@ -17,9 +17,8 @@ class ZSet {
   bool Delete(const std::string& key);
   std::optional<double> GetScoreOfKey(const std::string& key) const;
   std::optional<size_t> GetRankOfKey(const std::string& key) const;
-  const std::vector<const ZSetEntry*> RangeByRank(
-      const RangeByRankSpec* spec) const;
-  const std::vector<const ZSetEntry*> RangeByScore(
+  std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec) const;
+  std::vector<const ZSetEntry*> RangeByScore(
       const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
   size_t Size() const { return storage_->Size(); };

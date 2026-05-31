@@ -18,7 +18,7 @@ class ZSetListPackTest : public testing::Test {
 
 ZSetListPack* ZSetListPackTest::zset_listpack;
 using KeyScorePair = std::pair<std::string, double>;
-const std::vector<std::pair<std::string, double>> ToKeyScorePairs(
+std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSetEntry*>& keys);
 
 TEST_F(ZSetListPackTest, Add) {
