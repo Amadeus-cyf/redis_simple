@@ -431,18 +431,20 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
     int64_t sval = entry.sval;
     if (!entry.str || utils::ToInt64(*(entry.str), &sval)) {
       backlen = EncodeInteger(nullptr, sval);
-      encodings.push_back({
-          .sval = sval,
-          .encoding_type = EncodingGeneralType::typeInt,
-          .backlen_bytes = GetBacklenBytes(backlen),
-      });
+      Encoding encoding;
+      encoding.str = nullptr;
+      encoding.sval = sval;
+      encoding.encoding_type = EncodingGeneralType::typeInt;
+      encoding.backlen_bytes = GetBacklenBytes(backlen);
+      encodings.push_back(encoding);
     } else {
       backlen = EncodeString(nullptr, entry.str);
-      encodings.push_back({
-          .str = entry.str,
-          .encoding_type = EncodingGeneralType::typeStr,
-          .backlen_bytes = GetBacklenBytes(backlen),
-      });
+      Encoding encoding;
+      encoding.str = entry.str;
+      encoding.sval = 0;
+      encoding.encoding_type = EncodingGeneralType::typeStr;
+      encoding.backlen_bytes = GetBacklenBytes(backlen);
+      encodings.push_back(encoding);
     }
     inserted_bytes += (backlen + GetBacklenBytes(backlen));
   }
@@ -522,15 +524,15 @@ size_t ListPack::Skip(size_t idx) const {
 }
 
 /*
- * Estimate number of bytes needed to store an integer for repetive times.
+ * Estimate the bytes needed to store the same integer multiple times.
  */
-size_t ListPack::EstimateBytes(int64_t lval, size_t repetive) {
-  return ListPack::ListPackHeaderSize +
-         EncodeInteger(nullptr, lval) * repetive + 1;
+size_t ListPack::EstimateBytes(int64_t lval, size_t repeat) {
+  return ListPack::ListPackHeaderSize + EncodeInteger(nullptr, lval) * repeat +
+         1;
 }
 
 /*
- * Estimate number of bytes needed to store an integer for repetive times.
+ * Return whether adding bytes keeps the listpack within the safe size limit.
  */
 bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
   size_t len = lp ? lp->GetTotalBytes() : 0;

@@ -28,36 +28,35 @@ bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
 ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
                                 int mask) {
   if (!server) {
-    printf("invalid server / event loop\n");
+    RS_LOG_DEBUG("invalid server / event loop\n");
     return ae::AeEventStatus::aeEventErr;
   }
   // Should use server->EventLoop() method to get the shared pointer of event
   // loop instead of using the raw pointer passed as arg.
-  const connection::Context& ctx = {
-      .fd = fd,
-      .event_loop = server->EventLoop(),
-  };
+  connection::Context ctx;
+  ctx.event_loop = server->EventLoop();
+  ctx.fd = fd;
   connection::Connection* conn = new connection::Connection(ctx);
   conn->SetState(connection::ConnState::connStateAccepting);
   connection::AddressInfo addrInfo;
   if (conn->Accept(&addrInfo) == connection::StatusCode::connStatusErr) {
-    printf("connection accept failed\n");
+    RS_LOG_DEBUG("connection accept failed\n");
     return ae::AeEventStatus::aeEventErr;
   }
   if (conn->State() != connection::ConnState::connStateConnected) {
-    printf("invalid connection state\n");
+    RS_LOG_DEBUG("invalid connection state\n");
     return ae::AeEventStatus::aeEventErr;
   }
   // Create client based on the connection.
-  printf("accept connection from %s:%d with fd = %d\n", addrInfo.ip.c_str(),
-         addrInfo.port, conn->Fd());
-  printf("start create client\n");
+  RS_LOG_DEBUG("accept connection from %s:%d with fd = %d\n",
+               addrInfo.ip.c_str(), addrInfo.port, conn->Fd());
+  RS_LOG_DEBUG("start create client\n");
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
   // Install the read handler for the client connection.
   if (!conn->SetReadHandler(CreateConnHandler(
           connection::ConnHandlerType::readQueryFromClient))) {
-    printf("AcceptHandler: failed to set the read handler\n");
+    RS_LOG_DEBUG("AcceptHandler: failed to set the read handler\n");
     return ae::AeEventStatus::aeEventErr;
   }
   server->AddClient(client);

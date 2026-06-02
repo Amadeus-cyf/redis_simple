@@ -12,7 +12,7 @@ void SRemCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     int r = SRem(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -20,7 +20,7 @@ void SRemCommand::Exec(Client* const client) const {
     }
     client->AddReply(reply::FromInt64(r));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -28,12 +28,12 @@ void SRemCommand::Exec(Client* const client) const {
 int SRemCommand::ParseArgs(const std::vector<std::string>& args,
                            SRemArgs* const srem_args) const {
   if (args.size() < 2) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  srem_args->key = std::move(args[0]);
+  srem_args->key = args[0];
   for (int i = 1; i < args.size(); ++i) {
-    srem_args->elements.push_back(std::move(args[i]));
+    srem_args->elements.push_back(args[i]);
   }
   return 0;
 }
@@ -52,7 +52,7 @@ int SRemCommand::SRem(std::shared_ptr<const db::RedisDb> db,
     }
     return deleted;
   } catch (const std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }

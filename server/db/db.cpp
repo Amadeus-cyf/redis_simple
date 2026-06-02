@@ -23,33 +23,31 @@ RedisDb::RedisDb() : expire_cursor_(0) {
     }
   };
 
-  const in_memory::Dict<std::string, RedisObj*>::DictType& dbType = {
-      .keyCompare = key_compare,
-      .hashFunction = hash,
-      .keyDup = nullptr,
-      .keyDestructor = nullptr,
-      .valDup = nullptr,
-      .valDestructor = robj_dtr,
-  };
+  in_memory::Dict<std::string, RedisObj*>::DictType dbType;
+  dbType.hashFunction = hash;
+  dbType.keyDup = nullptr;
+  dbType.valDup = nullptr;
+  dbType.keyDestructor = nullptr;
+  dbType.valDestructor = robj_dtr;
+  dbType.keyCompare = key_compare;
   dict_ = in_memory::Dict<std::string, RedisObj*>::Init(dbType);
 
-  const in_memory::Dict<std::string, int64_t>::DictType& expiresType{
-      .keyCompare = nullptr,
-      .hashFunction = hash,
-      .keyDup = nullptr,
-      .keyDestructor = nullptr,
-      .valDup = nullptr,
-      .valDestructor = nullptr,
-  };
+  in_memory::Dict<std::string, int64_t>::DictType expiresType;
+  expiresType.hashFunction = hash;
+  expiresType.keyDup = nullptr;
+  expiresType.valDup = nullptr;
+  expiresType.keyDestructor = nullptr;
+  expiresType.valDestructor = nullptr;
+  expiresType.keyCompare = nullptr;
   expires_ = in_memory::Dict<std::string, int64_t>::Init(expiresType);
 }
 
 const RedisObj* RedisDb::LookupKey(const std::string& key) const {
-  const std::optional<RedisObj*>& opt = dict_->Get(key);
+  const auto opt = dict_->Get(key);
   if (!opt.has_value()) return nullptr;
   const RedisObj* val = opt.value();
   if (IsKeyExpired(key)) {
-    printf("look up key: key %s expired\n", key.c_str());
+    RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
     // If key is already expired, delete the key and return a null pointer.
     val = nullptr;
     assert(dict_->Delete(key));
@@ -71,7 +69,7 @@ DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
   }
   if (expire > 0) {
     expires_->Set(key, expire);
-    printf("add expire %lld\n", expire);
+    RS_LOG_DEBUG("add expire %lld\n", expire);
   }
   val->IncrRefCount();
   return DBStatus::dbOK;
@@ -103,7 +101,7 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
   if (expires_->Size() == 0) {
     return false;
   }
-  const std::optional<int64_t>& opt = expires_->Get(key);
+  const auto opt = expires_->Get(key);
   if (!opt.has_value()) {
     return false;
   }

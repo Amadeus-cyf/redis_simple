@@ -1,6 +1,11 @@
 #pragma once
 
+#include <array>
+#include <cassert>
 #include <iostream>
+#include <vector>
+
+#include "logging/logger.h"
 
 namespace redis_simple {
 namespace in_memory {
@@ -346,7 +351,9 @@ Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level)
       head_(SkiplistNode::Create(level, default_dtr<Key>)),
       compare_(default_compare<Key>),
       dtr_(default_dtr<Key>),
-      size_(0){};
+      size_(0) {
+  assert(level <= maxSkiplistLevel);
+};
 
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level,
@@ -355,7 +362,9 @@ Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level,
       head_(SkiplistNode::Create(level, default_dtr<Key>)),
       compare_(compare),
       dtr_(default_dtr<Key>),
-      size_(0){};
+      size_(0) {
+  assert(level <= maxSkiplistLevel);
+};
 
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level,
@@ -365,7 +374,9 @@ Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level,
       head_(SkiplistNode::Create(level, dtr)),
       compare_(compare),
       dtr_(dtr),
-      size_(0){};
+      size_(0) {
+  assert(level <= maxSkiplistLevel);
+};
 
 /*
  * Return an iterator pointing to the first node.
@@ -429,7 +440,7 @@ bool Skiplist<Key, Comparator, Destructor>::Eq(const Key& k1,
 
 /*
  * Insert a new key into the skiplist. If the key already exists, return the
- * node containg the key and skip the insertion. Otherwise, create a new node
+ * node containing the key and skip the insertion. Otherwise, create a new node
  * with the given key and insert it into the skiplist. Return the newly created
  * node as the result.
  */
@@ -447,9 +458,9 @@ const Key& Skiplist<Key, Comparator, Destructor>::Insert(const Key& key) {
   }
   // Find previous key at each level having the next key greater than or equal
   // to the given key.
-  SkiplistNode* prev[level_];
-  size_t rank[level_];
-  const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, rank);
+  std::array<SkiplistNode*, maxSkiplistLevel> prev{};
+  std::array<size_t, maxSkiplistLevel> rank{};
+  const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev.data(), rank.data());
   if (n && Eq(n->key, key)) {
     // If key already exists, do not insert,
     return n->key;
@@ -493,13 +504,12 @@ bool Skiplist<Key, Comparator, Destructor>::Contains(const Key& key) const {
  */
 template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::Delete(const Key& key) {
-  SkiplistNode* prev[level_];
-  std::memset(prev, 0, sizeof prev);
-  const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, nullptr);
+  std::array<SkiplistNode*, maxSkiplistLevel> prev{};
+  const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev.data(), nullptr);
   if (!n || !Eq(n->key, key)) {
     return false;
   }
-  DeleteNode(key, prev);
+  DeleteNode(key, prev.data());
   return true;
 }
 
@@ -510,9 +520,8 @@ bool Skiplist<Key, Comparator, Destructor>::Delete(const Key& key) {
 template <typename Key, typename Comparator, typename Destructor>
 bool Skiplist<Key, Comparator, Destructor>::Update(const Key& key,
                                                    const Key& new_key) {
-  SkiplistNode* prev[level_];
-  std::memset(prev, 0, sizeof(prev));
-  const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev, nullptr);
+  std::array<SkiplistNode*, maxSkiplistLevel> prev{};
+  const SkiplistNode* n = FindKeyGreaterOrEqual(key, prev.data(), nullptr);
   if (!n || !Eq(n->key, key)) {
     // Key not found.
     return false;
@@ -527,7 +536,7 @@ bool Skiplist<Key, Comparator, Destructor>::Update(const Key& key,
     next->key = new_key;
   } else {
     // Otherwise, delete the original node and insert a new one.
-    DeleteNode(key, prev);
+    DeleteNode(key, prev.data());
     const Key& k = Insert(new_key);
   }
   return true;
@@ -698,13 +707,13 @@ template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::Print() const {
   const SkiplistNode* node = head_;
   for (int i = level_ - 1; i >= 0; --i) {
-    printf("h%d", i);
+    RS_LOG_DEBUG("h%d", i);
     while (node) {
       std::cout << node->key;
-      printf("---%zu---", node->Span(i));
+      RS_LOG_DEBUG("---%zu---", node->Span(i));
       node = node->Next(i);
     }
-    printf("end\n");
+    RS_LOG_DEBUG("end\n");
     node = head_;
   }
 }

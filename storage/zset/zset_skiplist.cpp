@@ -9,7 +9,7 @@ ZSetSkiplist::ZSetSkiplist()
           in_memory::InitSkiplistLevel, Comparator(), Destructor())){};
 
 bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
-  const std::optional<double>& opt = dict_->Get(key);
+  const auto opt = dict_->Get(key);
   if (opt.has_value() && opt.value() == score) {
     // If the key exists and there is no change in score, do nothing.
     return false;
@@ -38,7 +38,7 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
 }
 
 bool ZSetSkiplist::Delete(const std::string& key) {
-  const std::optional<double>& opt = dict_->Get(key);
+  const auto opt = dict_->Get(key);
   if (!opt.has_value()) {
     return false;
   }
@@ -49,7 +49,7 @@ bool ZSetSkiplist::Delete(const std::string& key) {
 }
 
 std::optional<size_t> ZSetSkiplist::GetRankOfKey(const std::string& key) const {
-  const std::optional<double>& opt = dict_->Get(key);
+  const auto opt = dict_->Get(key);
   if (!opt.has_value()) {
     return std::nullopt;
   }

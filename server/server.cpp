@@ -24,7 +24,9 @@ Server* const Server::Get() {
 }
 
 void Server::Run(const std::string& ip, const int& port) {
-  const connection::Context& ctx = {.fd = -1, .event_loop = el_};
+  connection::Context ctx;
+  ctx.event_loop = el_;
+  ctx.fd = -1;
   connection::Connection conn(ctx);
   const connection::AddressInfo addrInfo(ip, port);
   if (conn.BindAndListen(addrInfo) == connection::StatusCode::connStatusErr) {
@@ -51,10 +53,10 @@ bool Server::RemoveClient(Client* c) {
 }
 
 void Server::AcceptConnHandler() {
-  ae::AeFileEvent* fe = ae::AeFileEventImpl<Server>::Create(
-      networking::AcceptHandler, nullptr, this, ae::aeReadable);
+  auto* fe = ae::AeFileEventImpl<Server>::Create(networking::AcceptHandler,
+                                                 nullptr, this, ae::aeReadable);
   if (el_->AeCreateFileEvent(fd_, fe) < 0) {
-    printf("error in adding client creation file event\n");
+    RS_LOG_DEBUG("error in adding client creation file event\n");
   }
 }
 

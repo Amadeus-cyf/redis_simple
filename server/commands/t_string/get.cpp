@@ -9,21 +9,21 @@ namespace redis_simple {
 namespace command {
 namespace t_string {
 void GetCommand::Exec(Client* const client) const {
-  printf("get command called\n");
+  RS_LOG_DEBUG("get command called\n");
   StrArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::optional<std::string>& opt_val = Get(db, &args);
+  if (auto db = client->DB().lock()) {
+    const auto opt_val = Get(db, &args);
     if (opt_val.has_value()) {
       client->AddReply(reply::FromBulkString(opt_val.value()));
     } else {
       client->AddReply(reply::Null());
     }
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -31,10 +31,10 @@ void GetCommand::Exec(Client* const client) const {
 int GetCommand::ParseArgs(const std::vector<std::string>& args,
                           StrArgs* str_args) const {
   if (args.empty()) {
-    printf("invalid args\n");
+    RS_LOG_DEBUG("invalid args\n");
     return -1;
   }
-  str_args->key = std::move(args[0]);
+  str_args->key = args[0];
   return 0;
 }
 

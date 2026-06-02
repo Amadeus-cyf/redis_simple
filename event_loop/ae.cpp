@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstring>
 #include <ctime>
 #include <unordered_map>
 
@@ -26,11 +27,11 @@ int AeWait(int fd, int mask, long timeout) {
   }
   int r = poll(pfds, nfds, timeout);
   if (r < 0) {
-    perror("Poll Error: ");
+    RS_LOG_DEBUG("poll error: %s\n", std::strerror(errno));
     return r;
   }
   if (r == 0) {
-    // The file descriptor is not readable/writeable.
+    // The file descriptor is not ready for the requested operation.
     return r;
   }
   int retmask = 0;
@@ -61,12 +62,12 @@ void AeEventLoop::AeMain() {
 }
 
 AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
-  printf("create events for fd = %d, mask = %d\n", fd, fe->GetMask());
+  RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd, fe->GetMask());
   if (fe == nullptr) {
     return aeErr;
   }
   if (fd < 0 || fd >= eventSize) {
-    printf("file descriptor out of range");
+    RS_LOG_DEBUG("file descriptor out of range");
     return aeErr;
   }
   if (ae_api_state_->AeApiAddEvent(fd, fe->GetMask()) < 0) {
@@ -75,7 +76,7 @@ AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
     return aeErr;
   }
   if (file_events_[fd] == nullptr) {
-    printf("add new event\n");
+    RS_LOG_DEBUG("add new event\n");
     max_fd_ = std::max(max_fd_, fd);
   } else {
     fe->Merge(file_events_[fd]);
@@ -87,14 +88,15 @@ AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
 
 AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
   if (ae_api_state_->AeApiDelEvent(fd, mask) < 0) {
-    printf(
+    RS_LOG_DEBUG(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
         fd, errno);
     return aeErr;
   }
-  printf("delete file event success for file descriptor = %d, mask = %d\n", fd,
-         mask);
+  RS_LOG_DEBUG(
+      "delete file event success for file descriptor = %d, mask = %d\n", fd,
+      mask);
   AeFileEvent* fe = file_events_[fd];
   if (fe->GetMask() == mask) {
     file_events_[fd] = nullptr;

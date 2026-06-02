@@ -32,7 +32,7 @@ std::string ReadFromConnection(const connection::Connection* connection) {
 ssize_t WriteToConnection(const connection::Connection* connection,
                           const std::string& cmds) {
   ssize_t nwritten = 0;
-  printf("client write %s\n", cmds.c_str());
+  RS_LOG_DEBUG("client write %s\n", cmds.c_str());
   while (nwritten < cmds.size()) {
     ssize_t n = connection->SyncWrite(cmds.c_str(), cmds.size(), 1000);
     if (n <= 0) {
@@ -46,7 +46,7 @@ ssize_t WriteToConnection(const connection::Connection* connection,
 std::string ReplyListToString(const std::vector<std::string>& reply) {
   std::string reply_str;
   for (const std::string& r : reply) {
-    reply_str.append(std::move(r)).push_back('\n');
+    reply_str.append(r).push_back('\n');
   }
   return reply_str;
 }
@@ -68,11 +68,12 @@ RedisCli::RedisCli(const std::string& ip, const int port)
       reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
 
 CliStatus RedisCli::Connect(const std::string& ip, const int port) {
-  const connection::Context& ctx = {
-      .fd = -1, .event_loop = std::shared_ptr<ae::AeEventLoop>()};
+  connection::Context ctx;
+  ctx.event_loop = std::shared_ptr<ae::AeEventLoop>();
+  ctx.fd = -1;
   connection_ = std::make_unique<connection::Connection>(ctx);
   const connection::AddressInfo remote(ip, port);
-  std::optional<const connection::AddressInfo> local = std::nullopt;
+  std::optional<connection::AddressInfo> local;
   if (ip_.has_value() && port_.has_value()) {
     local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
   }
@@ -89,12 +90,12 @@ void RedisCli::AddCommand(const std::string& cmd) {
 std::string RedisCli::GetReply() {
   // Try to get reply from local buffer first. If failed, get reply through
   // sending queries to the server
-  const std::optional<const std::string>& opt = MaybeGetReply();
+  const auto opt = MaybeGetReply();
   return opt.value_or(GetReplyFromConnection());
 }
 
 CompletableFuture<std::string> RedisCli::GetReplyAsync() {
-  std::future<std::string> future =
+  auto future =
       std::async(std::launch::async, [&]() { return GetReplyAsyncCallback(); });
   return CompletableFuture<std::string>(std::move(future));
 }
@@ -107,10 +108,9 @@ std::string RedisCli::GetReplyAsyncCallback() {
   return GetReply();
 }
 
-std::optional<const std::string> RedisCli::MaybeGetReply() {
+std::optional<std::string> RedisCli::MaybeGetReply() {
   std::vector<std::string> reply;
   if (reply_buf_ && !reply_buf_->Empty() && ProcessReply(reply)) {
-    const std::string& s = ReplyListToString(reply);
     return ReplyListToString(reply);
   }
   return std::nullopt;
@@ -132,7 +132,7 @@ std::string RedisCli::GetReplyFromConnection() {
       query_buf_->IncrProcessedOffset(sent);
       query_buf_->TrimProcessedBuffer();
     }
-    const std::string& replies = ReadFromConnection(connection_.get());
+    const auto replies = ReadFromConnection(connection_.get());
     reply_buf_->WriteToBuffer(replies.c_str(), replies.size());
     if (ProcessReply(reply)) {
       return ReplyListToString(reply);

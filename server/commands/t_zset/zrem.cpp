@@ -13,7 +13,7 @@ void ZRemCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     int r = ZRem(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -21,7 +21,7 @@ void ZRemCommand::Exec(Client* const client) const {
     }
     client->AddReply(reply::FromInt64(r));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -29,12 +29,12 @@ void ZRemCommand::Exec(Client* const client) const {
 int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
                            ZRemArgs* const zset_args) const {
   if (args.size() < 2) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  zset_args->key = std::move(args[0]);
+  zset_args->key = args[0];
   for (int i = 1; i < args.size(); ++i) {
-    zset_args->elements.push_back(std::move(args[i]));
+    zset_args->elements.push_back(args[i]);
   }
   return 0;
 }
@@ -46,11 +46,11 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
   }
   const db::RedisObj* obj = db->LookupKey(args->key);
   if (!obj) {
-    printf("key not found\n");
+    RS_LOG_DEBUG("key not found\n");
     return -1;
   }
   if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
-    printf("incorrect value type\n");
+    RS_LOG_DEBUG("incorrect value type\n");
     return -1;
   }
   try {
@@ -61,7 +61,7 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
     }
     return deleted;
   } catch (const std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }

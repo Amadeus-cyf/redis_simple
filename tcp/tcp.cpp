@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstring>
 #include <string>
 
 namespace redis_simple {
@@ -83,7 +84,7 @@ int TCP_CreateSocket(int domain, bool non_block) {
 }
 
 int TCP_BindAndConnect(const TCPAddrInfo& remote,
-                       const std::optional<const TCPAddrInfo>& local,
+                       const std::optional<TCPAddrInfo>& local,
                        const bool non_block) {
   struct addrinfo hints, *info;
   std::memset(&hints, 0, sizeof(hints));
@@ -101,19 +102,19 @@ int TCP_BindAndConnect(const TCPAddrInfo& remote,
       continue;
     }
     if (local.has_value() && TCP_Bind(socket_fd, local.value()) < 0) {
-      perror("bind error");
+      RS_LOG_DEBUG("bind error: %s\n", std::strerror(errno));
       close(socket_fd);
       socket_fd = -1;
       continue;
     }
     if (connect(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       if (!IsNonBlock(socket_fd) || errno != EINPROGRESS) {
-        perror("conn error");
+        RS_LOG_DEBUG("connect error: %s\n", std::strerror(errno));
         close(socket_fd);
         socket_fd = -1;
         continue;
       }
-      printf("connect in progress %d\n", socket_fd);
+      RS_LOG_DEBUG("connect in progress %d\n", socket_fd);
     }
     break;
   }
@@ -156,7 +157,7 @@ int TCP_Bind(const int socket_fd, const TCPAddrInfo& addrInfo) {
     if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       continue;
     }
-    printf("bind success\n");
+    RS_LOG_DEBUG("bind success\n");
     r = TCPStatusCode::tcpOK;
     break;
   }
@@ -180,7 +181,7 @@ bool IsSocketError(const int fd) {
   int sockerr = 0;
   socklen_t errlen;
   getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen);
-  printf("sock err %d\n", sockerr);
+  RS_LOG_DEBUG("sock err %d\n", sockerr);
   return sockerr;
 }
 }  // namespace tcp

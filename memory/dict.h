@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace redis_simple {
@@ -49,15 +50,17 @@ class Dict {
     if (pause_rehash_ > 0) --pause_rehash_;
   }
   size_t HtMask(int i) const;
-  size_t KeyHashIndex(const K& key, int i) const;
+  size_t HashIndex(size_t hash, int i) const;
+  size_t KeyHash(const K& key) const;
   int NextExp(ssize_t size) const;
   bool IsEqual(const K& key1, const K& key2) const;
   void SetKey(DictEntry* entry, const K& key);
   void SetVal(DictEntry* entry, const V& val);
+  void SetVal(DictEntry* entry, V&& val);
   void FreeKey(DictEntry* entry);
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
-  ssize_t KeyIndex(const K& key, DictEntry** existing);
+  ssize_t KeyIndex(const K& key, size_t hash, DictEntry** existing);
   DictEntry* InsertRaw(const K& key, DictEntry** existing);
   void ExpandIfNeeded();
   bool Expand(size_t size);
@@ -75,7 +78,7 @@ class Dict {
   static constexpr const double DictForceResizeRatio = 2.0;
   // Specify hash function, key constructor and destructor in type
   DictType type_;
-  // Containing 2 hastables, the second one is used for rehash
+  // Contains two hash tables. The second table is used during rehashing.
   std::vector<std::vector<DictEntry*>> ht_;
   // Number of elements in each hashtable
   size_t ht_used_[2];
@@ -89,9 +92,10 @@ class Dict {
 
 template <typename K, typename V>
 struct Dict<K, V>::DictEntry {
-  DictEntry() : next(nullptr){};
+  DictEntry() : hash(0), next(nullptr){};
   K key;
   V val;
+  size_t hash;
   DictEntry* next;
 };
 
@@ -289,11 +293,12 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
 template <typename K, typename V>
 std::optional<V> Dict<K, V>::Get(const K& key) {
   RehashStepIfNeeded();
+  size_t hash = KeyHash(key);
   for (size_t i = 0; i < ht_.size(); ++i) {
-    size_t idx = KeyHashIndex(key, i);
+    size_t idx = HashIndex(hash, i);
     DictEntry* entry = ht_[i][idx];
     while (entry) {
-      if (IsEqual(key, entry->key)) {
+      if (entry->hash == hash && IsEqual(key, entry->key)) {
         return entry->val;
       }
       entry = entry->next;
@@ -330,7 +335,15 @@ void Dict<K, V>::Set(const K& key, const V& val) {
 
 template <typename K, typename V>
 void Dict<K, V>::Set(K&& key, V&& val) {
-  Set(key, val);
+  DictEntry* existing;
+  DictEntry* entry = InsertRaw(key, &existing);
+  if (entry) {
+    SetVal(entry, std::move(val));
+  } else {
+    DictEntry auxentry = *existing;
+    SetVal(existing, std::move(val));
+    FreeVal(&auxentry);
+  }
 }
 
 /*
@@ -349,7 +362,12 @@ bool Dict<K, V>::Insert(const K& key, const V& val) {
 
 template <typename K, typename V>
 bool Dict<K, V>::Insert(K&& key, V&& val) {
-  return Insert(key, val);
+  DictEntry* entry = InsertRaw(key, nullptr);
+  if (!entry) {
+    return false;
+  }
+  SetVal(entry, std::move(val));
+  return true;
 }
 
 /*
@@ -462,7 +480,7 @@ void Dict<K, V>::InitTableWithSize(int i, int exp, size_t size) {
  */
 template <typename K, typename V>
 void Dict<K, V>::InsertEntry(DictEntry* de, int i) {
-  size_t key_idx = KeyHashIndex(de->key, i);
+  size_t key_idx = HashIndex(de->hash, i);
   de->next = ht_[i][key_idx];
   ht_[i][key_idx] = de;
   ++ht_used_[i];
@@ -476,11 +494,12 @@ void Dict<K, V>::InsertEntry(DictEntry* de, int i) {
 template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
   RehashStepIfNeeded();
+  size_t hash = KeyHash(key);
   for (size_t i = 0; i < ht_.size(); ++i) {
-    size_t idx = KeyHashIndex(key, i);
+    size_t idx = HashIndex(hash, i);
     DictEntry *entry = ht_[i][idx], *prev = nullptr;
     while (entry) {
-      if (IsEqual(key, entry->key)) {
+      if (entry->hash == hash && IsEqual(key, entry->key)) {
         UnlinkEntry(entry, prev, i);
         return entry;
       }
@@ -502,7 +521,7 @@ void Dict<K, V>::UnlinkEntry(DictEntry* de, DictEntry* prev, int i) {
   if (prev) {
     prev->next = de->next;
   } else {
-    size_t key_idx = KeyHashIndex(de->key, i);
+    size_t key_idx = HashIndex(de->hash, i);
     ht_[i][key_idx] = de->next;
   }
   de->next = nullptr;
@@ -527,13 +546,15 @@ size_t Dict<K, V>::HtMask(int i) const {
   return ht_size_exp_[i] == -1 ? 0 : (1 << ht_size_exp_[i]) - 1;
 }
 
-/*
- * Return the hash index of the key.
- */
 template <typename K, typename V>
-size_t Dict<K, V>::KeyHashIndex(const K& key, int i) const {
+size_t Dict<K, V>::HashIndex(size_t hash, int i) const {
+  return hash & HtMask(i);
+}
+
+template <typename K, typename V>
+size_t Dict<K, V>::KeyHash(const K& key) const {
   assert(type_.hashFunction);
-  return (type_.hashFunction(key)) & HtMask(i);
+  return type_.hashFunction(key);
 }
 
 /*
@@ -561,6 +582,11 @@ void Dict<K, V>::SetKey(DictEntry* entry, const K& key) {
 template <typename K, typename V>
 void Dict<K, V>::SetVal(DictEntry* entry, const V& val) {
   entry->val = type_.valDup ? type_.valDup(val) : val;
+}
+
+template <typename K, typename V>
+void Dict<K, V>::SetVal(DictEntry* entry, V&& val) {
+  entry->val = type_.valDup ? type_.valDup(val) : std::move(val);
 }
 
 template <typename K, typename V>
@@ -594,23 +620,24 @@ void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
 /*
  * Return the hash index to store the key, -1 if key already exists.
  * If the key already exists and existing is set, make the it point to the entry
- * containing the key. The function is called everytime when a key is trying to
+ * containing the key. The function is called every time a key is trying to
  * be inserted into the dict.
  */
 template <typename K, typename V>
-ssize_t Dict<K, V>::KeyIndex(const K& key, Dict<K, V>::DictEntry** existing) {
+ssize_t Dict<K, V>::KeyIndex(const K& key, size_t hash,
+                             Dict<K, V>::DictEntry** existing) {
   if (existing) *existing = nullptr;
   ssize_t idx = -1;
   for (size_t i = 0; i < ht_.size(); ++i) {
-    idx = KeyHashIndex(key, i);
+    idx = HashIndex(hash, i);
     DictEntry* entry = ht_[i][idx];
     while (entry) {
-      if (IsEqual(entry->key, key)) {
+      if (entry->hash == hash && IsEqual(entry->key, key)) {
+        // Key already exists in the dict.
         if (existing) {
-          // Key already exists in the dict.
           *existing = entry;
-          return -1;
         }
+        return -1;
       }
       entry = entry->next;
     }
@@ -632,7 +659,8 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
   ExpandIfNeeded();
   // Perform a single step of rehash if rehashing is in progress.
   RehashStepIfNeeded();
-  ssize_t idx = KeyIndex(key, existing);
+  size_t hash = KeyHash(key);
+  ssize_t idx = KeyIndex(key, hash, existing);
   // Key already exists.
   if (idx < 0) {
     return nullptr;
@@ -641,6 +669,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
   // table.
   int i = IsRehashing() ? 1 : 0;
   DictEntry* de = new DictEntry();
+  de->hash = hash;
   SetKey(de, key);
   InsertEntry(de, i);
   return de;
@@ -675,7 +704,6 @@ bool Dict<K, V>::Expand(size_t size) {
   }
   // Get the new dict size.
   size_t new_size = HtSize(new_exp);
-  printf("dict expand to %zu %d\n", new_size, new_exp);
   // Check for overflow.
   if (new_size < size ||
       new_size * sizeof(DictEntry*) < size * sizeof(DictEntry*)) {

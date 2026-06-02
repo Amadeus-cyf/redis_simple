@@ -26,13 +26,13 @@ void Run() {
     const std::string& applied_str =
         cli.GetReplyAsync()
             .ThenApply([](const std::string& reply) {
-              printf("receive resp: %s end\n", reply.c_str());
+              RS_LOG_DEBUG("receive resp: %s end\n", reply.c_str());
               return reply;
             })
             .ThenApply(
                 [](const std::string& reply) { return "processed: " + reply; })
             .Get();
-    printf("after processed, %s\n", applied_str.c_str());
+    RS_LOG_DEBUG("after processed, %s\n", applied_str.c_str());
   }
 }
 }  // namespace redis_simple

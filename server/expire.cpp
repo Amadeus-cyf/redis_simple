@@ -12,21 +12,22 @@ void ActiveExpireCycle() {
                             const int64_t& expire_time) {
     int64_t now = utils::GetNowInMilliseconds();
     if (expire_time < now) {
-      printf("activeExpireCycle: expired key \"%s\" deleted\n", key.c_str());
-      if (std::shared_ptr<const db::RedisDb> db = Server::Get()->DB().lock()) {
+      RS_LOG_DEBUG("activeExpireCycle: expired key \"%s\" deleted\n",
+                   key.c_str());
+      if (auto db = Server::Get()->DB().lock()) {
         assert(db->DeleteKey(key) == db::DBStatus::dbOK);
       } else {
-        printf("db pointer expired\n");
+        RS_LOG_DEBUG("db pointer expired\n");
       }
     }
   };
-  if (std::shared_ptr<const db::RedisDb> db = Server::Get()->DB().lock()) {
+  if (auto db = Server::Get()->DB().lock()) {
     int64_t start = utils::GetNowInMilliseconds(), timelimit = 1000;
     int iteration = 0;
     bool timeout = false;
     while (!timeout && db->ExpiredPercentage() > 0.5) {
       if (!db->ScanExpires(expire_callback)) {
-        printf("expire cycle break\n");
+        RS_LOG_DEBUG("expire cycle break\n");
         break;
       }
       ++iteration;
@@ -38,7 +39,7 @@ void ActiveExpireCycle() {
       }
     }
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
   }
 }
 }  // namespace redis_simple

@@ -12,7 +12,7 @@ void SCardCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     ssize_t r = SCard(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -20,7 +20,7 @@ void SCardCommand::Exec(Client* const client) const {
     }
     client->AddReply(reply::FromInt64(r));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -28,10 +28,10 @@ void SCardCommand::Exec(Client* const client) const {
 int SCardCommand::ParseArgs(const std::vector<std::string>& args,
                             SAddArgs* const sadd_args) const {
   if (args.size() < 1) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  sadd_args->key = std::move(args[0]);
+  sadd_args->key = args[0];
   return 0;
 }
 
@@ -45,7 +45,7 @@ ssize_t SCardCommand::SCard(std::shared_ptr<const db::RedisDb> db,
     const set::Set* set = obj->Set();
     return set->Size();
   } catch (const std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }

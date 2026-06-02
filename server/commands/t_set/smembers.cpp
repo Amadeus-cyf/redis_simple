@@ -13,22 +13,21 @@ void SMembersCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     std::vector<std::string> members;
     if (SMembers(db, &args, members) < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
     auto to_string = [](const std::string& member) { return member; };
-    const std::optional<const std::string>& opt =
-        reply_utils::EncodeList<std::string, to_string>(members);
+    const auto opt = reply_utils::EncodeList<std::string, to_string>(members);
     if (!opt.has_value()) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
     client->AddReply(opt.value());
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -36,10 +35,10 @@ void SMembersCommand::Exec(Client* const client) const {
 int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
                                SMembersArgs* const smembers_args) const {
   if (args.size() < 1) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  smembers_args->key = std::move(args[0]);
+  smembers_args->key = args[0];
   return 0;
 }
 

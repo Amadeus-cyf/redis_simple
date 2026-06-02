@@ -12,7 +12,7 @@ void SAddCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     int r = SAdd(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -20,7 +20,7 @@ void SAddCommand::Exec(Client* const client) const {
     }
     client->AddReply(reply::FromInt64(r));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -28,12 +28,12 @@ void SAddCommand::Exec(Client* const client) const {
 int SAddCommand::ParseArgs(const std::vector<std::string>& args,
                            SAddArgs* const sadd_args) const {
   if (args.size() < 2) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  sadd_args->key = std::move(args[0]);
+  sadd_args->key = args[0];
   for (int i = 1; i < args.size(); ++i) {
-    sadd_args->elements.push_back(std::move(args[i]));
+    sadd_args->elements.push_back(args[i]);
   }
   return 0;
 }
@@ -63,7 +63,7 @@ int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
     }
     return added;
   } catch (const std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }

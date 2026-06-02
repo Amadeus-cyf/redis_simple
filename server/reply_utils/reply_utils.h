@@ -4,12 +4,13 @@
 #include <string>
 #include <vector>
 
+#include "logging/logger.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple {
 namespace reply_utils {
 template <typename T, typename std::string ToString(const T&)>
-std::optional<const std::string> EncodeList(const std::vector<T>& list) {
+std::optional<std::string> EncodeList(const std::vector<T>& list) {
   std::vector<std::string> encode_elements;
   for (const T& element : list) {
     if constexpr (std::is_integral_v<T>) {
@@ -19,10 +20,9 @@ std::optional<const std::string> EncodeList(const std::vector<T>& list) {
     }
   }
   try {
-    const std::string& reply = reply::FromArray(encode_elements);
-    return std::optional<const std::string>(reply);
+    return reply::FromArray(encode_elements);
   } catch (const std::exception& e) {
-    printf("catch exception while encoding the list: %s", e.what());
+    RS_LOG_DEBUG("catch exception while encoding the list: %s", e.what());
     return std::nullopt;
   }
 }

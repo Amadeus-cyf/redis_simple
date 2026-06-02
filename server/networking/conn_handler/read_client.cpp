@@ -23,26 +23,26 @@ void ReadFromClientHandler::Handle(connection::Connection* conn) {
 }
 
 void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
-  printf("read query from client\n");
+  RS_LOG_DEBUG("read query from client\n");
   Client* c = std::any_cast<Client*>(conn->PrivateData());
   if (!c) {
-    printf("invalid client\n");
+    RS_LOG_DEBUG("invalid client\n");
     return;
   }
   ssize_t nread = c->ReadQuery();
   if (nread <= 0) {
     if (conn->State() != connection::ConnState::connStateConnected) {
-      printf("client free\n");
+      RS_LOG_DEBUG("client free\n");
       c->Free();
       Server::Get()->RemoveClient(c);
     }
     return;
   }
   if (c->ProcessInputBuffer() == ClientStatus::clientErr) {
-    printf("process query buffer failed\n");
+    RS_LOG_DEBUG("process query buffer failed\n");
   }
   if (c->HasPendingReplies() && !c->Connection()->HasWriteHandler()) {
-    printf("client has pending replies, install write handler\n");
+    RS_LOG_DEBUG("client has pending replies, install write handler\n");
     c->Connection()->SetWriteHandler(networking::CreateConnHandler(
         connection::ConnHandlerType::writeReplyToClient));
   }

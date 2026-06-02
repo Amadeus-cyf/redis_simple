@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logging/logger.h"
 #include "memory/dict.h"
 #include "memory/skiplist.h"
 #include "storage/zset/zset_storage.h"
@@ -33,7 +34,7 @@ class ZSetSkiplist : public ZSetStorage {
 
   struct Destructor {
     void operator()(const ZSetEntry* se) const {
-      printf("delete %s %f\n", se->key.c_str(), se->score);
+      RS_LOG_DEBUG("delete %s %f\n", se->key.c_str(), se->score);
       delete se;
       se = nullptr;
     }

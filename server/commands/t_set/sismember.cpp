@@ -12,7 +12,7 @@ void SIsMemberCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     int r = SIsMember(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -20,7 +20,7 @@ void SIsMemberCommand::Exec(Client* const client) const {
     }
     client->AddReply(reply::FromInt64(r));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -28,11 +28,11 @@ void SIsMemberCommand::Exec(Client* const client) const {
 int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
                                 SIsMemberArgs* const sismember_args) const {
   if (args.size() < 2) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  sismember_args->key = std::move(args[0]);
-  sismember_args->element = std::move(args[1]);
+  sismember_args->key = args[0];
+  sismember_args->element = args[1];
   return 0;
 }
 
@@ -46,7 +46,7 @@ int SIsMemberCommand::SIsMember(std::shared_ptr<const db::RedisDb> db,
     const set::Set* set = obj->Set();
     return set->HasMember(args->element) ? 1 : 0;
   } catch (std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }

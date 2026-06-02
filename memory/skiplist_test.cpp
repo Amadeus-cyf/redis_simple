@@ -484,11 +484,11 @@ TEST_F(SkiplistTest, Iteration) {
 }
 
 void ScanSkiplist(const Skiplist<std::string>* skiplist) {
-  printf("----start scanning skiplist----\n");
+  RS_LOG_DEBUG("----start scanning skiplist----\n");
   for (auto it = skiplist->Begin(); it != skiplist->End(); ++it) {
-    printf("%s\n", (*it).c_str());
+    RS_LOG_DEBUG("%s\n", (*it).c_str());
   }
-  printf("----end----\n");
+  RS_LOG_DEBUG("----end----\n");
 
   skiplist->Print();
 }

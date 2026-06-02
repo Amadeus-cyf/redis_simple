@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <sys/event.h>
 
 #include <unordered_map>
 #include <vector>
@@ -19,6 +20,7 @@ class AeKqueue {
   explicit AeKqueue(int fd, int nevents);
   int kqueue_fd_;
   int nevents_;
+  mutable std::vector<struct kevent> events_;
 };
 }  // namespace ae
 }  // namespace redis_simple

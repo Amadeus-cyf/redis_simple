@@ -43,7 +43,7 @@ class ListPack {
   ssize_t Prev(size_t idx) const;
   uint32_t GetTotalBytes() const;
   size_t Size() const;
-  static size_t EstimateBytes(int64_t lval, size_t repetive);
+  static size_t EstimateBytes(int64_t lval, size_t repeat);
   static bool SafeToAdd(const ListPack* const lp, size_t bytes);
   ~ListPack() {
     delete[] lp_;

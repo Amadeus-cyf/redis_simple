@@ -21,7 +21,7 @@ struct TCPAddrInfo {
 
 int TCP_CreateSocket(int domain, bool non_block);
 int TCP_BindAndConnect(const TCPAddrInfo& remote,
-                       const std::optional<const TCPAddrInfo>& local,
+                       const std::optional<TCPAddrInfo>& local,
                        const bool non_block = true);
 int TCP_Bind(const int socket_fd, const TCPAddrInfo& addrInfo);
 int TCP_Listen(const int socket_fd);

@@ -152,7 +152,7 @@ bool Set::DictAdd(const std::string& value) {
 }
 
 /*
- * Convert set encoding from intset to dict if inset size exceed the max
+ * Convert set encoding from intset to dict if intset size exceeds the max
  * entries. `val` is non-null if there is a new string element inserted.
  */
 void Set::MaybeConvertIntsetToDict() {

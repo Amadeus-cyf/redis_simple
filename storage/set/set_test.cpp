@@ -75,7 +75,7 @@ TEST_F(SetTest, AddAndList) {
   const std::vector<std::string>& members_dict = set->ListAllMembers();
   ASSERT_EQ(members_dict.size(), 9);
   for (const std::string& member : members_dict) {
-    printf("member: %s\n", member.c_str());
+    RS_LOG_DEBUG("member: %s\n", member.c_str());
   }
 }
 

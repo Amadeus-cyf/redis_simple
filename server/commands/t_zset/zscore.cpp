@@ -15,15 +15,15 @@ void ZScoreCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::optional<double>& opt_score = ZScore(db, &args);
+  if (auto db = client->DB().lock()) {
+    const auto opt_score = ZScore(db, &args);
     if (opt_score.has_value()) {
       client->AddReply(reply::FromFloat(opt_score.value()));
     } else {
       client->AddReply(reply::Null());
     }
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -31,11 +31,11 @@ void ZScoreCommand::Exec(Client* const client) const {
 int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
                              ZScoreArgs* const zscore_args) const {
   if (args.size() < 2) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  zscore_args->key = std::move(args[0]);
-  zscore_args->element = std::move(args[1]);
+  zscore_args->key = args[0];
+  zscore_args->element = args[1];
   return 0;
 }
 
@@ -49,7 +49,7 @@ const std::optional<double> ZScoreCommand::ZScore(
     const zset::ZSet* zset = obj->ZSet();
     return zset->GetScoreOfKey(args->element);
   } catch (const std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return std::nullopt;
   }
 }

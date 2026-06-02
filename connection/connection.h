@@ -5,6 +5,7 @@
 #include <any>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "connection/conn_handler.h"
 #include "event_loop/ae.h"
@@ -42,10 +43,10 @@ class Connection {
  public:
   explicit Connection(const Context& ctx);
   StatusCode BindAndConnect(const AddressInfo& remote,
-                            const std::optional<const AddressInfo>& local);
-  StatusCode BindAndBlockingConnect(
-      const AddressInfo& remote, const std::optional<const AddressInfo>& local,
-      long timeout);
+                            const std::optional<AddressInfo>& local);
+  StatusCode BindAndBlockingConnect(const AddressInfo& remote,
+                                    const std::optional<AddressInfo>& local,
+                                    long timeout);
   StatusCode BindAndListen(const AddressInfo& addrInfo);
   StatusCode Accept(AddressInfo* const addrInfo);
   bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
@@ -72,8 +73,7 @@ class Connection {
   ~Connection() { Close(); }
 
  private:
-  // If this flag is set, then write handler will be called before the read
-  // handler.
+  // Give pending writes priority over reads for this connection.
   static constexpr int connFlagWriteBarrier = 1;
 
   static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
@@ -91,7 +91,7 @@ class Connection {
   int flags_;
   // Connection state
   mutable ConnState state_;
-  // Data used by connetion handlers
+  // Data used by connection handlers
   std::any private_data_;
   // Event loop
   std::weak_ptr<ae::AeEventLoop> el_;

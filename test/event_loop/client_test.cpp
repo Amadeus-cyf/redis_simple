@@ -12,10 +12,10 @@ namespace redis_simple {
 static int i = 0;
 ae::AeEventStatus WriteProc(ae::AeEventLoop* el, int fd, int* client_data,
                             int mask) {
-  printf("write to %d\n", fd);
+  RS_LOG_DEBUG("write to %d\n", fd);
   const std::string& s = "hello world\n";
   ssize_t written = write(fd, s.c_str(), s.size());
-  printf("write %zu\n", written);
+  RS_LOG_DEBUG("write %zu\n", written);
   ++i;
   if (i == 10) {
     el->AeDeleteFileEvent(fd, ae::AeFlags::aeWritable);
@@ -26,12 +26,11 @@ ae::AeEventStatus WriteProc(ae::AeEventLoop* el, int fd, int* client_data,
 void Run() {
   std::shared_ptr<ae::AeEventLoop> el(ae::AeEventLoop::InitEventLoop());
   const tcp::TCPAddrInfo remote("localhost", 8080);
-  const std::optional<const tcp::TCPAddrInfo>& local =
-      std::make_optional<const tcp::TCPAddrInfo>("localhost", 8081);
+  const auto local = std::make_optional<tcp::TCPAddrInfo>("localhost", 8081);
   int fd = tcp::TCP_BindAndConnect(remote, local);
-  printf("conn result %d\n", fd);
+  RS_LOG_DEBUG("conn result %d\n", fd);
   if (fd == -1) {
-    printf("connection failed\n");
+    RS_LOG_DEBUG("connection failed\n");
     return;
   }
 

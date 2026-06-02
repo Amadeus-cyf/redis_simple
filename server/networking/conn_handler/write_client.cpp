@@ -23,7 +23,7 @@ void WriteToClientHandler::Handle(connection::Connection* conn) {
 
 void WriteToClientHandler::SendReplyToClient(connection::Connection* conn) {
   Client* c = std::any_cast<Client*>(conn->PrivateData());
-  printf("write reply called %d\n", c->HasPendingReplies());
+  RS_LOG_DEBUG("write reply called %d\n", c->HasPendingReplies());
   WriteToClient(c);
 }
 
@@ -43,7 +43,7 @@ ssize_t WriteToClientHandler::WriteToClient(Client* c) {
   }
   if (!c->HasPendingReplies() && !c->Connection()->UnsetWriteHandler()) {
     // Ignore the failure of uninstalling the write handler.
-    printf("failed to unset the write handler\n");
+    RS_LOG_DEBUG("failed to unset the write handler\n");
   }
   return nwritten;
 }

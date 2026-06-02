@@ -12,7 +12,7 @@ void ZAddCommand::Exec(Client* const client) const {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     int r = ZAdd(db, &args);
     if (r < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
@@ -20,7 +20,7 @@ void ZAddCommand::Exec(Client* const client) const {
     }
     client->AddReply(reply::FromInt64(r));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -28,17 +28,17 @@ void ZAddCommand::Exec(Client* const client) const {
 int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
                            ZAddArgs* const zset_args) const {
   if (args.size() < 3) {
-    printf("invalid number of args\n");
+    RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  zset_args->key = std::move(args[0]);
+  zset_args->key = args[0];
   for (int i = 1; i < args.size() - 1; i += 2) {
     const std::string& ele = args[i + 1];
     double score = 0.0;
     try {
       score = stod(args[i]);
     } catch (const std::exception&) {
-      printf("invalid args format\n");
+      RS_LOG_DEBUG("invalid args format\n");
       return -1;
     }
     zset_args->ele_score_list.push_back({ele, score});
@@ -53,7 +53,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
   }
   const db::RedisObj* obj = db->LookupKey(args->key);
   if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
-    printf("incorrect value type\n");
+    RS_LOG_DEBUG("incorrect value type\n");
     return -1;
   }
   if (!obj) {
@@ -74,7 +74,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
     }
     return added;
   } catch (const std::exception& e) {
-    printf("catch exception %s", e.what());
+    RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }

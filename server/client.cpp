@@ -8,7 +8,7 @@
 namespace redis_simple {
 namespace {
 static std::string GetCmdName(const std::vector<std::string>& args) {
-  std::string name = std::move(args[0]);
+  std::string name = args[0];
   utils::ToUppercase(name);
   return name;
 }
@@ -25,7 +25,7 @@ ssize_t Client::ReadQuery() {
   char buf[4096];
   std::memset(buf, 0, sizeof buf);
   ssize_t nread = connection_->Read(buf, 4096);
-  printf("nread %zd, buf %s end\n", nread, buf);
+  RS_LOG_DEBUG("nread %zd, buf %s end\n", nread, buf);
   if (nread <= 0) {
     return nread;
   }
@@ -38,8 +38,8 @@ ssize_t Client::SendReply() {
 }
 
 ssize_t Client::SendBufferReply() {
-  printf("_sendReply %s %zu\n", buf_->UnsentBuffer(),
-         buf_->UnsentBufferLength());
+  RS_LOG_DEBUG("_sendReply %s %zu\n", buf_->UnsentBuffer(),
+               buf_->UnsentBufferLength());
   ssize_t nwritten =
       connection_->Write(buf_->UnsentBuffer(), buf_->UnsentBufferLength());
   if (nwritten < 0) {
@@ -50,7 +50,7 @@ ssize_t Client::SendBufferReply() {
 }
 
 ssize_t Client::SendListReply() {
-  printf("_sendvReply\n");
+  RS_LOG_DEBUG("_sendvReply\n");
   const std::vector<std::pair<char*, size_t>>& memToWrite = buf_->Memvec();
   ssize_t nwritten = connection_->Writev(memToWrite);
   if (nwritten < 0) {
@@ -62,8 +62,8 @@ ssize_t Client::SendListReply() {
 
 ClientStatus Client::ProcessInputBuffer() {
   while (query_buf_->ProcessedOffset() < query_buf_->NRead()) {
-    printf("process loop %zu %zu\n", query_buf_->ProcessedOffset(),
-           query_buf_->NRead());
+    RS_LOG_DEBUG("process loop %zu %zu\n", query_buf_->ProcessedOffset(),
+                 query_buf_->NRead());
     if (ProcessInlineBuffer() == ClientStatus::clientErr) {
       break;
     }
@@ -80,7 +80,7 @@ ClientStatus Client::ProcessInlineBuffer() {
   if (cmdstr.length() == 0) {
     return ClientStatus::clientErr;
   }
-  printf("cmd str %s\n", cmdstr.c_str());
+  RS_LOG_DEBUG("cmd str %s\n", cmdstr.c_str());
   std::vector<std::string> args = utils::Split(cmdstr, " ");
   if (args.size() == 0) {
     return ClientStatus::clientErr;
@@ -90,11 +90,11 @@ ClientStatus Client::ProcessInlineBuffer() {
   std::weak_ptr<const command::Command> cmdptr = command::Command::Create(name);
   if (std::shared_ptr<const command::Command> cmd = cmdptr.lock()) {
     if (!cmd) {
-      printf("command not found\n");
+      RS_LOG_DEBUG("command not found\n");
       return ClientStatus::clientErr;
     }
   } else {
-    printf("command pointer expired\n");
+    RS_LOG_DEBUG("command pointer expired\n");
     return ClientStatus::clientErr;
   }
   SetCmd(cmdptr);
@@ -104,7 +104,7 @@ ClientStatus Client::ProcessInlineBuffer() {
 
 ClientStatus Client::ProcessCommand() {
   if (std::shared_ptr<const command::Command> command = cmd_.lock()) {
-    printf("process command: %s\n", command->Name().c_str());
+    RS_LOG_DEBUG("process command: %s\n", command->Name().c_str());
     if (command) {
       command->Exec(this);
     }

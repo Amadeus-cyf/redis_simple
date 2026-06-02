@@ -7,20 +7,20 @@ namespace redis_simple {
 namespace command {
 namespace t_string {
 void DeleteCommand::Exec(Client* const client) const {
-  printf("delete command called\n");
+  RS_LOG_DEBUG("delete command called\n");
   StrArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
     return;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
+  if (auto db = client->DB().lock()) {
     if (Delete(db, &args) < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
       return;
     }
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
   }
 }
@@ -28,10 +28,10 @@ void DeleteCommand::Exec(Client* const client) const {
 int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
                              StrArgs* str_args) const {
   if (args.empty()) {
-    printf("invalid args\n");
+    RS_LOG_DEBUG("invalid args\n");
     return -1;
   }
-  str_args->key = std::move(args[0]);
+  str_args->key = args[0];
   return 0;
 }
 

@@ -44,7 +44,22 @@ TEST_F(DictStrTest, Insert) {
   ASSERT_EQ(dict_str->Size(), 1);
 }
 
+TEST_F(DictStrTest, InsertDuplicate) {
+  dict_str = Dict<std::string, std::string>::Init();
+
+  ASSERT_TRUE(dict_str->Insert("key", "val"));
+  ASSERT_FALSE(dict_str->Insert("key", "new_val"));
+  ASSERT_EQ(dict_str->Size(), 1);
+
+  const std::optional<std::string>& opt = dict_str->Get("key");
+  ASSERT_TRUE(opt.has_value());
+  ASSERT_EQ(opt.value_or(""), "val");
+}
+
 TEST_F(DictStrTest, Delete) {
+  dict_str = Dict<std::string, std::string>::Init();
+  ASSERT_TRUE(dict_str->Insert("key", "val"));
+
   bool status = dict_str->Delete("key");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 0);

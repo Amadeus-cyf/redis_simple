@@ -55,7 +55,8 @@ int ParseRangeToRankSpec(const std::vector<std::string>& args,
   if (args.size() < 3) {
     return -1;
   }
-  const std::string &start = args[1], &end = args[2];
+  const std::string& start = args[1];
+  const std::string& end = args[2];
   // Parse range.
   if (ParseRankRange(start, end, spec) < 0) {
     return -1;
@@ -109,7 +110,8 @@ int ParseRangeToScoreSpec(const std::vector<std::string>& args,
   if (args.size() < 3) {
     return -1;
   }
-  const std::string &start = args[1], &end = args[2];
+  const std::string& start = args[1];
+  const std::string& end = args[2];
   // Parse score range.
   if (ParseScoreRange(start, end, spec) < 0) {
     return -1;
@@ -205,11 +207,11 @@ const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                 const std::string& key) {
   const db::RedisObj* obj = db->LookupKey(key);
   if (!obj) {
-    printf("key not found\n");
+    RS_LOG_DEBUG("key not found\n");
     return nullptr;
   }
   if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
-    printf("incorrect value type\n");
+    RS_LOG_DEBUG("incorrect value type\n");
     return nullptr;
   }
   return obj;
@@ -232,7 +234,7 @@ void ZRangeCommand::Exec(Client* const client) const {
   auto to_string = [](const zset::ZSetEntry* const& entry) {
     return entry->key;
   };
-  const std::optional<const std::string>& reply =
+  const auto reply =
       reply_utils::EncodeList<const zset::ZSetEntry*, to_string>(result);
   if (reply.has_value()) {
     client->AddReply(reply.value());
@@ -246,11 +248,11 @@ int ZRangeCommand::RangeByRank(
     std::vector<const zset::ZSetEntry*>* result) const {
   zset::RangeByRankSpec spec;
   if (ParseRangeToRankSpec(args, &spec) < 0) {
-    printf("invalid arguments for zrange rank\n");
+    RS_LOG_DEBUG("invalid arguments for zrange rank\n");
     return -1;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::string& key = std::move(args[0]);
+  if (auto db = client->DB().lock()) {
+    const std::string& key = args[0];
     const db::RedisObj* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
@@ -259,11 +261,11 @@ int ZRangeCommand::RangeByRank(
       zset::ZSet* const zset = obj->ZSet();
       *result = zset->RangeByRank(&spec);
     } catch (const std::exception& e) {
-      printf("catch exception %s", e.what());
+      RS_LOG_DEBUG("catch exception %s", e.what());
       return -1;
     }
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     return -1;
   }
   return 0;
@@ -274,11 +276,11 @@ int ZRangeCommand::RangeByScore(
     std::vector<const zset::ZSetEntry*>* result) const {
   zset::RangeByScoreSpec spec;
   if (ParseRangeToScoreSpec(args, &spec) < 0) {
-    printf("invalid arguments for zrange score\n");
+    RS_LOG_DEBUG("invalid arguments for zrange score\n");
     return -1;
   }
-  if (std::shared_ptr<const db::RedisDb> db = client->DB().lock()) {
-    const std::string& key = std::move(args[0]);
+  if (auto db = client->DB().lock()) {
+    const std::string& key = args[0];
     const db::RedisObj* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
@@ -287,11 +289,11 @@ int ZRangeCommand::RangeByScore(
       const zset::ZSet* zset = obj->ZSet();
       *result = zset->RangeByScore(&spec);
     } catch (const std::exception& e) {
-      printf("catch exception %s", e.what());
+      RS_LOG_DEBUG("catch exception %s", e.what());
       return -1;
     }
   } else {
-    printf("db pointer expired\n");
+    RS_LOG_DEBUG("db pointer expired\n");
     return -1;
   }
   return 0;

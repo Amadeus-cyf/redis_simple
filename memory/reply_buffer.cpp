@@ -110,7 +110,7 @@ void ReplyBuffer::ClearBuffer() {
  * Remove the processed content.
  */
 void ReplyBuffer::ClearProcessed(size_t nwritten) {
-  printf("clear processed: nwritten %zu\n", nwritten);
+  RS_LOG_DEBUG("clear processed: nwritten %zu\n", nwritten);
   // Clear main buffer first.
   size_t processed = ClearBufferProcessed(nwritten);
   // Clear the reply list if there are still bytes not processed.
@@ -142,8 +142,8 @@ size_t ReplyBuffer::ClearBufferProcessed(size_t nwritten) {
  * before calling this function.
  */
 void ReplyBuffer::ClearListProcessed(size_t nwritten) {
-  printf("nwritten remained after processing main buffer %zu %zu\n", nwritten,
-         reply_bytes_);
+  RS_LOG_DEBUG("nwritten remained after processing main buffer %zu %zu\n",
+               nwritten, reply_bytes_);
   // If there are still written bytes remained, clear the reply list.
   while (nwritten > 0 && reply_head_) {
     if (nwritten < reply_head_->used_) {
