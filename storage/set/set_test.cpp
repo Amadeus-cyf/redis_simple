@@ -109,5 +109,29 @@ TEST_F(SetTest, Remove) {
   ASSERT_FALSE(set->Remove("test_key_not_exist"));
   ASSERT_EQ(set->Size(), 3);
 }
+
+TEST(SetStandaloneTest, StringMembersKeepCardinality) {
+  std::unique_ptr<Set> set(Set::Init());
+  const std::vector<std::string> members = {"ele1", "ele2", "ele3", "ele4",
+                                            "ele5", "ele6", "ele7"};
+
+  for (size_t i = 0; i < members.size(); ++i) {
+    ASSERT_TRUE(set->Add(members[i]));
+    ASSERT_EQ(set->Size(), i + 1);
+    ASSERT_TRUE(set->HasMember(members[i]));
+  }
+
+  for (const std::string& member : members) {
+    ASSERT_FALSE(set->Add(member));
+  }
+  ASSERT_EQ(set->Size(), members.size());
+
+  ASSERT_TRUE(set->Remove("ele5"));
+  ASSERT_TRUE(set->Remove("ele6"));
+  ASSERT_TRUE(set->Remove("ele7"));
+  ASSERT_FALSE(set->Remove("ele7"));
+  ASSERT_EQ(set->Size(), 4);
+  ASSERT_FALSE(set->HasMember("ele7"));
+}
 }  // namespace set
 }  // namespace redis_simple

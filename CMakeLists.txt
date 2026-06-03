@@ -208,64 +208,91 @@ add_test(NAME redis_simple_tests COMMAND redis_simple_tests)
 
 redis_simple_add_executable(
   mock_tcp_server
-  "test/tcp/server_test.cpp"
+  "integration/tcp/server_test.cpp"
   ${REDIS_SIMPLE_TCP}
 )
 
 redis_simple_add_executable(
   mock_tcp_client
-  "test/tcp/client_test.cpp"
+  "integration/tcp/client_test.cpp"
   ${REDIS_SIMPLE_TCP}
 )
 
 redis_simple_add_executable(
   mock_event_loop_server
-  "test/event_loop/server_test.cpp"
+  "integration/event_loop/server_test.cpp"
   ${REDIS_SIMPLE_EVENT_LOOP}
   ${REDIS_SIMPLE_TCP}
 )
 
 redis_simple_add_executable(
   mock_event_loop_client
-  "test/event_loop/client_test.cpp"
+  "integration/event_loop/client_test.cpp"
   ${REDIS_SIMPLE_EVENT_LOOP}
   ${REDIS_SIMPLE_TCP}
 )
 
 redis_simple_add_executable(
   mock_server
-  "test/server/server_test.cpp"
+  "integration/server/server_test.cpp"
   ${REDIS_SIMPLE_CORE}
 )
 
 redis_simple_add_executable(
   mock_client
-  "test/server/client_test.cpp"
+  "integration/server/client_test.cpp"
   ${REDIS_SIMPLE_CORE}
 )
 
 redis_simple_add_executable(
   mock_command_server
-  "test/command/server_test.cpp"
+  "integration/command/server_test.cpp"
   ${REDIS_SIMPLE_CORE}
 )
 
 redis_simple_add_executable(
   mock_t_string_client
-  "test/command/t_string/client_test.cpp"
+  "integration/command/t_string/client_test.cpp"
   ${REDIS_SIMPLE_CLI}
 )
 
 redis_simple_add_executable(
   mock_t_set_client
-  "test/command/t_set/client_test.cpp"
+  "integration/command/t_set/client_test.cpp"
   ${REDIS_SIMPLE_CLI}
 )
 
 redis_simple_add_executable(
   mock_t_zset_client
-  "test/command/t_zset/client_test.cpp"
+  "integration/command/t_zset/client_test.cpp"
   ${REDIS_SIMPLE_CLI}
+)
+
+add_test(
+  NAME redis_simple_integration_tcp
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/integration/run_tcp_test.sh"
+    $<TARGET_FILE:mock_tcp_server>
+    $<TARGET_FILE:mock_tcp_client>
+)
+
+add_test(
+  NAME redis_simple_integration_commands
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/integration/run_command_tests.sh"
+    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:mock_t_string_client>
+    $<TARGET_FILE:mock_t_set_client>
+    $<TARGET_FILE:mock_t_zset_client>
+)
+
+set_tests_properties(
+  redis_simple_integration_tcp
+  redis_simple_integration_commands
+  PROPERTIES
+    RESOURCE_LOCK redis_simple_port_8080
 )
 
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark's tests" FORCE)

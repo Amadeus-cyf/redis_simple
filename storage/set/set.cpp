@@ -97,7 +97,7 @@ size_t Set::Size() const {
     case SetEncodingType::ListPack:
       return listpack_ ? listpack_->Size() : 0;
     case SetEncodingType::Dict:
-      return listpack_ ? listpack_->Size() : 0;
+      return dict_ ? dict_->Size() : 0;
     default:
       throw std::invalid_argument("unknown encoding type");
   }
@@ -213,10 +213,11 @@ void Set::ConvertIntSetToListPack(const std::string& val) {
   assert(encoding_ == SetEncodingType::IntSet);
   encoding_ = SetEncodingType::ListPack;
   listpack_ = std::make_unique<in_memory::ListPack>();
-  if (!intset_) return;
-  for (unsigned int i = 0; i < intset_->Size(); ++i) {
-    int64_t value = intset_->Get(i);
-    listpack_->Append(value);
+  if (intset_) {
+    for (unsigned int i = 0; i < intset_->Size(); ++i) {
+      int64_t value = intset_->Get(i);
+      listpack_->Append(value);
+    }
   }
   listpack_->Append(val);
   intset_.reset();

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "memory/dict.h"
 #include "memory/intset.h"
