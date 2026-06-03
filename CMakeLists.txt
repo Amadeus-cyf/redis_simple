@@ -205,6 +205,7 @@ redis_simple_add_executable(
 
 target_link_libraries(redis_simple_tests GTest::gtest_main)
 add_test(NAME redis_simple_tests COMMAND redis_simple_tests)
+set_tests_properties(redis_simple_tests PROPERTIES LABELS unit)
 
 redis_simple_add_executable(
   mock_tcp_server
@@ -216,32 +217,6 @@ redis_simple_add_executable(
   mock_tcp_client
   "integration/tcp/client_test.cpp"
   ${REDIS_SIMPLE_TCP}
-)
-
-redis_simple_add_executable(
-  mock_event_loop_server
-  "integration/event_loop/server_test.cpp"
-  ${REDIS_SIMPLE_EVENT_LOOP}
-  ${REDIS_SIMPLE_TCP}
-)
-
-redis_simple_add_executable(
-  mock_event_loop_client
-  "integration/event_loop/client_test.cpp"
-  ${REDIS_SIMPLE_EVENT_LOOP}
-  ${REDIS_SIMPLE_TCP}
-)
-
-redis_simple_add_executable(
-  mock_server
-  "integration/server/server_test.cpp"
-  ${REDIS_SIMPLE_CORE}
-)
-
-redis_simple_add_executable(
-  mock_client
-  "integration/server/client_test.cpp"
-  ${REDIS_SIMPLE_CORE}
 )
 
 redis_simple_add_executable(
@@ -272,7 +247,7 @@ add_test(
   NAME redis_simple_integration_tcp
   COMMAND
     /bin/sh
-    "${CMAKE_SOURCE_DIR}/integration/run_tcp_test.sh"
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_tcp.sh"
     $<TARGET_FILE:mock_tcp_server>
     $<TARGET_FILE:mock_tcp_client>
 )
@@ -281,7 +256,7 @@ add_test(
   NAME redis_simple_integration_commands
   COMMAND
     /bin/sh
-    "${CMAKE_SOURCE_DIR}/integration/run_command_tests.sh"
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
     $<TARGET_FILE:mock_command_server>
     $<TARGET_FILE:mock_t_string_client>
     $<TARGET_FILE:mock_t_set_client>
@@ -292,6 +267,7 @@ set_tests_properties(
   redis_simple_integration_tcp
   redis_simple_integration_commands
   PROPERTIES
+    LABELS integration
     RESOURCE_LOCK redis_simple_port_8080
 )
 

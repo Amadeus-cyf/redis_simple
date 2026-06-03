@@ -24,5 +24,7 @@ jobs:
         run: cmake --preset debug
       - name: Build
         run: cmake --build --preset debug
-      - name: Run tests
-        run: ctest --preset debug
+      - name: Run unit tests
+        run: ctest --preset debug -L unit
+      - name: Run integration tests
+        run: ctest --preset debug -L integration

@@ -49,6 +49,13 @@ Run the full test suite through CTest:
 ctest --preset debug
 ```
 
+Run unit and integration tests separately:
+
+```sh
+ctest --preset debug -L unit
+ctest --preset debug -L integration
+```
+
 This runs:
 
 - `redis_simple_tests`: unit tests compiled from `*_test.cpp` files colocated
@@ -81,15 +88,17 @@ above is the project benchmark executable.
 ```text
 cli/          Simple client and RESP parsing
 connection/   Connection abstraction
-event_loop/   Event loop and kqueue backend
-integration/  End-to-end runnable integration tests
-logging/      Project logging wrapper
-memory/       Core in-memory data structures
-server/       Server, database objects, command handlers, replies
-storage/      Redis-like higher-level storage types
-tcp/          TCP helpers
-utils/        Small shared utilities
-benchmarks/   Memory/data-structure benchmarks
+event_loop/          Event loop and kqueue backend
+integration/command/ Server/client command integration tests
+integration/tcp/     TCP client/server integration tests
+logging/             Project logging wrapper
+memory/              Core in-memory data structures
+scripts/             Project automation and CTest runner scripts
+server/              Server, database objects, command handlers, replies
+storage/             Redis-like higher-level storage types
+tcp/                 TCP helpers
+utils/               Small shared utilities
+benchmarks/          Memory/data-structure benchmarks
 ```
 
 ## Tooling
@@ -101,6 +110,7 @@ Project management files are checked in:
 - `.clang-tidy` for static-analysis defaults.
 - `.editorconfig` for editor consistency.
 - `.github/workflows/build.yml` for CI on push and pull request.
+- `AGENTS.md` for AI coding-agent project guidance.
 
 Format changed C++ files with:
 
@@ -115,5 +125,6 @@ GitHub Actions runs the same flow recommended locally:
 ```sh
 cmake --preset debug
 cmake --build --preset debug
-ctest --preset debug
+ctest --preset debug -L unit
+ctest --preset debug -L integration
 ```
