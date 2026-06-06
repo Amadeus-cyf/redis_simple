@@ -51,8 +51,8 @@ ssize_t Client::SendBufferReply() {
 
 ssize_t Client::SendListReply() {
   RS_LOG_DEBUG("_sendvReply\n");
-  const auto memToWrite = buf_->Memvec();
-  ssize_t nwritten = connection_->Writev(memToWrite);
+  const auto mem_to_write = buf_->Memvec();
+  ssize_t nwritten = connection_->Writev(mem_to_write);
   if (nwritten < 0) {
     return -1;
   }
@@ -64,26 +64,26 @@ ClientStatus Client::ProcessInputBuffer() {
   while (query_buf_->ProcessedOffset() < query_buf_->NRead()) {
     RS_LOG_DEBUG("process loop %zu %zu\n", query_buf_->ProcessedOffset(),
                  query_buf_->NRead());
-    if (ProcessInlineBuffer() == ClientStatus::clientErr) {
+    if (ProcessInlineBuffer() == ClientStatus::kError) {
       break;
     }
-    if (ProcessCommand() == ClientStatus::clientErr) {
-      return ClientStatus::clientErr;
+    if (ProcessCommand() == ClientStatus::kError) {
+      return ClientStatus::kError;
     }
   }
   query_buf_->TrimProcessedBuffer();
-  return ClientStatus::clientOK;
+  return ClientStatus::kOk;
 }
 
 ClientStatus Client::ProcessInlineBuffer() {
   const std::string& cmdstr = query_buf_->ProcessInlineBuffer();
   if (cmdstr.length() == 0) {
-    return ClientStatus::clientErr;
+    return ClientStatus::kError;
   }
   RS_LOG_DEBUG("cmd str %s\n", cmdstr.c_str());
   auto args = utils::Split(cmdstr, " ");
   if (args.size() == 0) {
-    return ClientStatus::clientErr;
+    return ClientStatus::kError;
   }
   const std::string& name = GetCmdName(args);
   args.erase(args.begin());
@@ -91,15 +91,15 @@ ClientStatus Client::ProcessInlineBuffer() {
   if (auto cmd = cmdptr.lock()) {
     if (!cmd) {
       RS_LOG_DEBUG("command not found\n");
-      return ClientStatus::clientErr;
+      return ClientStatus::kError;
     }
   } else {
     RS_LOG_DEBUG("command pointer expired\n");
-    return ClientStatus::clientErr;
+    return ClientStatus::kError;
   }
   SetCmd(cmdptr);
   SetCmdArgs(args);
-  return ClientStatus::clientOK;
+  return ClientStatus::kOk;
 }
 
 ClientStatus Client::ProcessCommand() {
@@ -108,9 +108,9 @@ ClientStatus Client::ProcessCommand() {
     if (command) {
       command->Exec(this);
     }
-    return ClientStatus::clientOK;
+    return ClientStatus::kOk;
   } else {
-    return ClientStatus::clientErr;
+    return ClientStatus::kError;
   }
 }
 }  // namespace redis_simple

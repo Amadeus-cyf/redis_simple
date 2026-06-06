@@ -15,7 +15,7 @@ class Dict {
   class Iterator;
   // Specify key-value related functions
   struct DictType;
-  using dictScanFunc = void (*)(const K& key, const V& value);
+  using DictScanFunc = void (*)(const K& key, const V& value);
   static std::unique_ptr<Dict<K, V>> Init();
   static std::unique_ptr<Dict<K, V>> Init(size_t capacity);
   static std::unique_ptr<Dict<K, V>> Init(const DictType& type);
@@ -27,7 +27,7 @@ class Dict {
   bool Insert(K&& key, V&& val);
   bool Delete(const K& key);
   bool Delete(K&& key);
-  ssize_t Scan(size_t cursor, dictScanFunc callback);
+  ssize_t Scan(size_t cursor, DictScanFunc callback);
   size_t Size() const { return ht_used_[0] + ht_used_[1]; }
   void Clear();
   ~Dict();
@@ -102,18 +102,18 @@ struct Dict<K, V>::DictEntry {
 template <typename K, typename V>
 struct Dict<K, V>::DictType {
   // Used to get the hash index of the key. Use std::hash by default.
-  std::function<const size_t(const K& key)> hashFunction;
+  std::function<const size_t(const K& key)> hash_function;
   // If set, all keys will be copied while being inserted into the dict.
-  std::function<K(const K& key)> keyDup;
+  std::function<K(const K& key)> key_dup;
   // If set, all values will be copied while being inserted into the dict.
-  std::function<V(const V& val)> valDup;
+  std::function<V(const V& val)> val_dup;
   // Callback function when the key is freed from the dict.
-  std::function<void(K& key)> keyDestructor;
+  std::function<void(K& key)> key_destructor;
   // Callback function when the value is freed from the dict.
-  std::function<void(V& val)> valDestructor;
+  std::function<void(V& val)> val_destructor;
   // Comparator for keys. Used to check whether two keys are equal. Use operator
   // by default.
-  std::function<int(const K& key1, const K& key2)> keyCompare;
+  std::function<int(const K& key1, const K& key2)> key_compare;
 };
 
 // Dict Iterator
@@ -252,7 +252,7 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   if (!dict->Expand(HtInitSize)) {
     return nullptr;
   }
-  dict->type_.hashFunction = [](const K& key) {
+  dict->type_.hash_function = [](const K& key) {
     std::hash<K> h;
     return h(key);
   };
@@ -268,7 +268,7 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(size_t capacity) {
   if (!dict->Expand(capacity)) {
     return nullptr;
   }
-  dict->type_.hashFunction = [](const K& key) {
+  dict->type_.hash_function = [](const K& key) {
     std::hash<K> h;
     return h(key);
   };
@@ -393,11 +393,13 @@ bool Dict<K, V>::Delete(K&& key) {
 /*
  * Scan dict with the given cursor and apply the callback function to
  * all scanned entries.
- * Return the cursor used for the next scanning. If all entries in the dict has
- * been scanned, return -1. The initial cursor is 0,.
+ * Return the cursor used for the next scan. If all entries in the dict have
+ * been scanned, return -1. The initial cursor is 0.
  */
 template <typename K, typename V>
-ssize_t Dict<K, V>::Scan(size_t cursor, dictScanFunc callback) {
+ssize_t Dict<K, V>::Scan(size_t cursor, DictScanFunc callback) {
+  // Scanning visits the same bucket index in both tables; pause incremental
+  // rehashing so entries do not move while this cursor position is processed.
   PauseRehashing();
   if (cursor < ht_[0].size()) {
     const DictEntry* de = ht_[0][cursor];
@@ -554,8 +556,8 @@ size_t Dict<K, V>::HashIndex(size_t hash, int i) const {
 
 template <typename K, typename V>
 size_t Dict<K, V>::KeyHash(const K& key) const {
-  assert(type_.hashFunction);
-  return type_.hashFunction(key);
+  assert(type_.hash_function);
+  return type_.hash_function(key);
 }
 
 /*
@@ -572,35 +574,36 @@ int Dict<K, V>::NextExp(ssize_t size) const {
 
 template <typename K, typename V>
 bool Dict<K, V>::IsEqual(const K& key1, const K& key2) const {
-  return key1 == key2 || (type_.keyCompare && !(type_.keyCompare(key1, key2)));
+  return key1 == key2 ||
+         (type_.key_compare && !(type_.key_compare(key1, key2)));
 }
 
 template <typename K, typename V>
 void Dict<K, V>::SetKey(DictEntry* entry, const K& key) {
-  entry->key = type_.keyDup ? type_.keyDup(key) : key;
+  entry->key = type_.key_dup ? type_.key_dup(key) : key;
 }
 
 template <typename K, typename V>
 void Dict<K, V>::SetVal(DictEntry* entry, const V& val) {
-  entry->val = type_.valDup ? type_.valDup(val) : val;
+  entry->val = type_.val_dup ? type_.val_dup(val) : val;
 }
 
 template <typename K, typename V>
 void Dict<K, V>::SetVal(DictEntry* entry, V&& val) {
-  entry->val = type_.valDup ? type_.valDup(val) : std::move(val);
+  entry->val = type_.val_dup ? type_.val_dup(val) : std::move(val);
 }
 
 template <typename K, typename V>
 void Dict<K, V>::FreeKey(DictEntry* entry) {
-  if (type_.keyDestructor) {
-    type_.keyDestructor(entry->key);
+  if (type_.key_destructor) {
+    type_.key_destructor(entry->key);
   }
 }
 
 template <typename K, typename V>
 void Dict<K, V>::FreeVal(DictEntry* entry) {
-  if (type_.valDestructor) {
-    type_.valDestructor(entry->val);
+  if (type_.val_destructor) {
+    type_.val_destructor(entry->val);
   }
 }
 
@@ -725,7 +728,7 @@ bool Dict<K, V>::Expand(size_t size) {
 
 /*
  * If a rehashing is in progress, perform rehash for at most one bucket. Called
- * in Insert, Update, Find, Delete.
+ * from regular mutating and lookup operations to amortize resize work.
  */
 template <typename K, typename V>
 void Dict<K, V>::RehashStepIfNeeded() {
@@ -734,11 +737,12 @@ void Dict<K, V>::RehashStepIfNeeded() {
   }
 }
 
-// Perform n steps of rehashing. Returns true if the rehashing is still not
-// completed and vice versa.
+// Perform at most n non-empty bucket migrations. Empty buckets are skipped with
+// a bounded visit count so sparse tables cannot stall one operation for too
+// long.
 template <typename K, typename V>
 bool Dict<K, V>::Rehash(int n) {
-  // Do not rehash if a rehashing is in progress.
+  // Do nothing unless a second table is active.
   if (!IsRehashing()) {
     return false;
   }

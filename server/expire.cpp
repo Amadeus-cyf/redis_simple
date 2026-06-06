@@ -15,7 +15,7 @@ void ActiveExpireCycle() {
       RS_LOG_DEBUG("activeExpireCycle: expired key \"%s\" deleted\n",
                    key.c_str());
       if (auto db = Server::Get()->DB().lock()) {
-        assert(db->DeleteKey(key) == db::DBStatus::dbOK);
+        assert(db->DeleteKey(key) == db::DbStatus::kOk);
       } else {
         RS_LOG_DEBUG("db pointer expired\n");
       }

@@ -31,20 +31,20 @@ void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
   }
   ssize_t nread = c->ReadQuery();
   if (nread <= 0) {
-    if (conn->State() != connection::ConnState::connStateConnected) {
+    if (conn->State() != connection::ConnectionState::kConnected) {
       RS_LOG_DEBUG("client free\n");
       c->Free();
       Server::Get()->RemoveClient(c);
     }
     return;
   }
-  if (c->ProcessInputBuffer() == ClientStatus::clientErr) {
+  if (c->ProcessInputBuffer() == ClientStatus::kError) {
     RS_LOG_DEBUG("process query buffer failed\n");
   }
   if (c->HasPendingReplies() && !c->Connection()->HasWriteHandler()) {
     RS_LOG_DEBUG("client has pending replies, install write handler\n");
     c->Connection()->SetWriteHandler(networking::CreateConnHandler(
-        connection::ConnHandlerType::writeReplyToClient));
+        connection::ConnectionHandlerType::kWriteReplyToClient));
   }
 }
 }  // namespace

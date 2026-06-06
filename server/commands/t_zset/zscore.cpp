@@ -12,7 +12,7 @@ namespace t_zset {
 void ZScoreCommand::Exec(Client* const client) const {
   ZScoreArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
@@ -24,7 +24,7 @@ void ZScoreCommand::Exec(Client* const client) const {
     }
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -42,7 +42,7 @@ int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
 const std::optional<double> ZScoreCommand::ZScore(
     std::shared_ptr<const db::RedisDb> db, const ZScoreArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     return std::nullopt;
   }
   try {

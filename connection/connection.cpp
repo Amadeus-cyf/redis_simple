@@ -13,126 +13,126 @@
 namespace redis_simple {
 namespace connection {
 namespace {
-int TCPBindAndConnect(const AddressInfo& remote,
+int BindAndConnectTcp(const AddressInfo& remote,
                       const std::optional<AddressInfo>& local) {
-  const tcp::TCPAddrInfo remote_addr(remote.ip, remote.port);
+  const tcp::TcpAddrInfo remote_addr(remote.ip, remote.port);
   const auto local_addr = local.has_value()
-                              ? std::make_optional<tcp::TCPAddrInfo>(
+                              ? std::make_optional<tcp::TcpAddrInfo>(
                                     local.value().ip, local.value().port)
                               : std::nullopt;
-  return tcp::TCP_BindAndConnect(remote_addr, local_addr);
+  return tcp::TcpBindAndConnect(remote_addr, local_addr);
 }
 }  // namespace
 
 Connection::Connection(const Context& ctx)
     : fd_(ctx.fd),
       el_(ctx.event_loop),
-      state_(ConnState::connStateConnect),
+      state_(ConnectionState::kConnect),
       read_handler_(nullptr),
       write_handler_(nullptr),
       accept_handler_(nullptr) {}
 
-StatusCode Connection::BindAndConnect(const AddressInfo& remote,
-                                      const std::optional<AddressInfo>& local) {
-  if (auto eventLoop = el_.lock()) {
-    if (!eventLoop) {
-      return StatusCode::connStatusErr;
+ConnectionStatus Connection::BindAndConnect(
+    const AddressInfo& remote, const std::optional<AddressInfo>& local) {
+  if (auto event_loop = el_.lock()) {
+    if (!event_loop) {
+      return ConnectionStatus::kError;
     }
-    int fd = TCPBindAndConnect(remote, local);
+    int fd = BindAndConnectTcp(remote, local);
     if (fd < 0) {
-      return StatusCode::connStatusErr;
+      return ConnectionStatus::kError;
     }
     fd_ = fd;
-    state_ = ConnState::connStateConnecting;
-    auto* e = ae::AeFileEventImpl<Connection>::Create(
-        nullptr, ConnSocketEventHandler, this, ae::AeFlags::aeWritable);
-    if (eventLoop->AeCreateFileEvent(fd_, e) < 0) {
+    state_ = ConnectionState::kConnecting;
+    auto* e = ae::FileEventImpl<Connection>::Create(
+        nullptr, ConnSocketEventHandler, this, ae::EventFlag::kWritable);
+    if (event_loop->CreateFileEvent(fd_, e) < 0) {
       RS_LOG_DEBUG("adding connection socket event handler error");
-      return StatusCode::connStatusErr;
+      return ConnectionStatus::kError;
     }
   } else {
     RS_LOG_DEBUG("event loop expired\n");
-    return StatusCode::connStatusErr;
+    return ConnectionStatus::kError;
   }
-  return StatusCode::connStatusOK;
+  return ConnectionStatus::kOk;
 }
 
-StatusCode Connection::BindAndBlockingConnect(
+ConnectionStatus Connection::BindAndBlockingConnect(
     const AddressInfo& remote, const std::optional<AddressInfo>& local,
     long timeout) {
-  int fd = TCPBindAndConnect(remote, local);
+  int fd = BindAndConnectTcp(remote, local);
   if (fd < 0) {
-    return StatusCode::connStatusErr;
+    return ConnectionStatus::kError;
   }
   fd_ = fd;
   if (WaitWrite(timeout) <= 0) {
     RS_LOG_DEBUG("wait failed\n");
     fd_ = -1;
-    return StatusCode::connStatusErr;
+    return ConnectionStatus::kError;
   }
-  state_ = ConnState::connStateConnected;
-  return StatusCode::connStatusOK;
+  state_ = ConnectionState::kConnected;
+  return ConnectionStatus::kOk;
 }
 
-StatusCode Connection::BindAndListen(const AddressInfo& addrInfo) {
-  int s = tcp::TCP_CreateSocket(AF_INET, true);
+ConnectionStatus Connection::BindAndListen(const AddressInfo& addr_info) {
+  int s = tcp::TcpCreateSocket(AF_INET, true);
   if (s < 0) {
     RS_LOG_DEBUG("create socket failed\n");
-    return StatusCode::connStatusErr;
+    return ConnectionStatus::kError;
   }
-  const tcp::TCPAddrInfo tcp_addr(addrInfo.ip, addrInfo.port);
-  if (tcp::TCP_Bind(s, tcp_addr) == tcp::TCPStatusCode::tcpError) {
-    return StatusCode::connStatusErr;
+  const tcp::TcpAddrInfo tcp_addr(addr_info.ip, addr_info.port);
+  if (tcp::TcpBind(s, tcp_addr) == tcp::TcpStatusCode::kTcpError) {
+    return ConnectionStatus::kError;
   }
-  if (tcp::TCP_Listen(s) == tcp::TCPStatusCode::tcpError) {
-    return StatusCode::connStatusErr;
+  if (tcp::TcpListen(s) == tcp::TcpStatusCode::kTcpError) {
+    return ConnectionStatus::kError;
   }
   fd_ = s;
-  return StatusCode::connStatusOK;
+  return ConnectionStatus::kOk;
 }
 
-StatusCode Connection::Accept(AddressInfo* const addrInfo) {
-  if (fd_ < 0 || state_ != ConnState::connStateAccepting) {
-    return StatusCode::connStatusErr;
+ConnectionStatus Connection::Accept(AddressInfo* const addr_info) {
+  if (fd_ < 0 || state_ != ConnectionState::kAccepting) {
+    return ConnectionStatus::kError;
   }
-  tcp::TCPAddrInfo tcp_addr;
-  int fd = tcp::TCP_Accept(fd_, &tcp_addr);
+  tcp::TcpAddrInfo tcp_addr;
+  int fd = tcp::TcpAccept(fd_, &tcp_addr);
   if (fd < 0) {
-    return StatusCode::connStatusErr;
+    return ConnectionStatus::kError;
   }
-  addrInfo->ip = tcp_addr.ip;
-  addrInfo->port = tcp_addr.port;
-  RS_LOG_DEBUG("accept %s %d\n", addrInfo->ip.c_str(), addrInfo->port);
-  state_ = ConnState::connStateConnected;
+  addr_info->ip = tcp_addr.ip;
+  addr_info->port = tcp_addr.port;
+  RS_LOG_DEBUG("accept %s %d\n", addr_info->ip.c_str(), addr_info->port);
+  state_ = ConnectionState::kConnected;
   fd_ = fd;
   if (accept_handler_) {
     accept_handler_->Handle(this);
   }
   RS_LOG_DEBUG("conn state accept %d\n", state_);
-  return StatusCode::connStatusOK;
+  return ConnectionStatus::kOk;
 }
 
 /*
  * Set connection read handler if the given handler is non-null. Otherwise,
  * uninstall the current read handler. Return true if succeeded.
  */
-bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> rHandler) {
-  if (!rHandler) {
+bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> read_handler) {
+  if (!read_handler) {
     return UnsetReadHandler();
   }
-  if (auto eventLoop = el_.lock()) {
-    if (!eventLoop) {
+  if (auto event_loop = el_.lock()) {
+    if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
       return false;
     }
-    auto* e = ae::AeFileEventImpl<Connection>::Create(
-        ConnSocketEventHandler, nullptr, this, ae::AeFlags::aeReadable);
-    if (eventLoop->AeCreateFileEvent(fd_, e) == ae::AeStatus::aeErr) {
+    auto* e = ae::FileEventImpl<Connection>::Create(
+        ConnSocketEventHandler, nullptr, this, ae::EventFlag::kReadable);
+    if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to set read handler\n");
       return false;
     }
-    read_handler_ = std::move(rHandler);
-    flags_ |= ae::AeFlags::aeReadable;
+    read_handler_ = std::move(read_handler);
+    flags_ |= ae::EventFlag::kReadable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
     return false;
@@ -144,18 +144,18 @@ bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> rHandler) {
  * Unset connection read handler. Return true if succeeded.
  */
 bool Connection::UnsetReadHandler() {
-  if (auto eventLoop = el_.lock()) {
-    if (!eventLoop) {
+  if (auto event_loop = el_.lock()) {
+    if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
       return false;
     }
-    if (eventLoop->AeDeleteFileEvent(fd_, ae::AeFlags::aeReadable) ==
-        ae::AeStatus::aeErr) {
+    if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kReadable) ==
+        ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to unset read handler\n");
       return false;
     }
     read_handler_ = nullptr;
-    flags_ &= ~ae::AeFlags::aeReadable;
+    flags_ &= ~ae::EventFlag::kReadable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
     return false;
@@ -170,26 +170,26 @@ bool Connection::UnsetReadHandler() {
 bool Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
                                  bool barrier) {
   if (barrier) {
-    flags_ |= connFlagWriteBarrier;
+    flags_ |= kWriteBarrier;
   } else {
-    flags_ &= ~connFlagWriteBarrier;
+    flags_ &= ~kWriteBarrier;
   }
   if (!handler) {
     return UnsetWriteHandler();
   }
-  if (auto eventLoop = el_.lock()) {
-    if (!eventLoop) {
+  if (auto event_loop = el_.lock()) {
+    if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
       return false;
     }
-    auto* e = ae::AeFileEventImpl<Connection>::Create(
-        nullptr, ConnSocketEventHandler, this, ae::AeFlags::aeWritable);
-    if (eventLoop->AeCreateFileEvent(fd_, e) == ae::AeStatus::aeErr) {
+    auto* e = ae::FileEventImpl<Connection>::Create(
+        nullptr, ConnSocketEventHandler, this, ae::EventFlag::kWritable);
+    if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to set write handler\n");
       return false;
     }
     write_handler_ = std::move(handler);
-    flags_ |= ae::AeFlags::aeWritable;
+    flags_ |= ae::EventFlag::kWritable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
     return false;
@@ -201,18 +201,18 @@ bool Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
  * Unset connection write handler. Return true if succeeded.
  */
 bool Connection::UnsetWriteHandler() {
-  if (auto eventLoop = el_.lock()) {
-    if (!eventLoop) {
+  if (auto event_loop = el_.lock()) {
+    if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
       return false;
     }
-    if (eventLoop->AeDeleteFileEvent(fd_, ae::AeFlags::aeWritable) ==
-        ae::AeStatus::aeErr) {
+    if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kWritable) ==
+        ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to unset write handler\n");
       return false;
     }
     write_handler_ = nullptr;
-    flags_ &= ~ae::AeFlags::aeWritable;
+    flags_ &= ~ae::EventFlag::kWritable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
     return false;
@@ -223,12 +223,12 @@ bool Connection::UnsetWriteHandler() {
 ssize_t Connection::Read(char* const buffer, size_t readlen) const {
   ssize_t r = read(fd_, buffer, readlen);
   if (r < 0 && errno != EAGAIN) {
-    if (errno != EINTR && state_ == ConnState::connStateConnected) {
-      state_ = ConnState::connStateError;
+    if (errno != EINTR && state_ == ConnectionState::kConnected) {
+      state_ = ConnectionState::kError;
     }
     return -1;
   } else if (r == 0) {
-    state_ = ConnState::connStateClosed;
+    state_ = ConnectionState::kClosed;
   }
   return r;
 }
@@ -245,18 +245,18 @@ ssize_t Connection::BatchRead(std::string& s) const {
     nread += r;
   }
   if (s.empty() && r < 0 && errno != EAGAIN) {
-    if (errno != EINTR && state_ == ConnState::connStateConnected) {
-      state_ = ConnState::connStateError;
+    if (errno != EINTR && state_ == ConnectionState::kConnected) {
+      state_ = ConnectionState::kError;
     }
     return -1;
   } else if (s.empty() && r == 0) {
-    state_ = ConnState::connStateClosed;
+    state_ = ConnectionState::kClosed;
   }
   return s.size();
 }
 
 ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
-  // Optimistically tried to read first.
+  // Try the syscall first so already-ready sockets avoid an extra poll().
   ssize_t r = read(fd_, buffer, readlen);
   if (r > 0) {
     return r;
@@ -291,12 +291,12 @@ ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
     s.push_back(buffer[0]);
   }
   if (r < 0 && errno != EAGAIN) {
-    if (errno != EINTR && state_ == ConnState::connStateConnected) {
-      state_ = ConnState::connStateError;
+    if (errno != EINTR && state_ == ConnectionState::kConnected) {
+      state_ = ConnectionState::kError;
     }
     return -1;
   } else if (s.empty() && r == 0) {
-    state_ = ConnState::connStateClosed;
+    state_ = ConnectionState::kClosed;
   }
   return s.size();
 }
@@ -304,8 +304,8 @@ ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
 ssize_t Connection::Write(const char* buffer, size_t len) const {
   ssize_t n = write(fd_, buffer, len);
   if (n < 0 && errno != EAGAIN) {
-    if (errno != EINTR && state_ == ConnState::connStateConnected) {
-      state_ = ConnState::connStateError;
+    if (errno != EINTR && state_ == ConnectionState::kConnected) {
+      state_ = ConnectionState::kError;
     }
     RS_LOG_DEBUG("write failed\n");
     return -1;
@@ -315,7 +315,7 @@ ssize_t Connection::Write(const char* buffer, size_t len) const {
 
 ssize_t Connection::SyncWrite(const char* buffer, size_t len,
                               long timeout) const {
-  // Optimistically tried to write first.
+  // Try the syscall first so already-ready sockets avoid an extra poll().
   ssize_t r = write(fd_, buffer, len);
   if (r > 0) {
     buffer += r;
@@ -345,8 +345,8 @@ ssize_t Connection::Writev(
   }
   ssize_t n = writev(fd_, vec.data(), static_cast<int>(vec.size()));
   if (n < 0 && errno != EAGAIN) {
-    if (errno != EINTR && state_ == ConnState::connStateConnected) {
-      state_ = ConnState::connStateError;
+    if (errno != EINTR && state_ == ConnectionState::kConnected) {
+      state_ = ConnectionState::kError;
     }
     RS_LOG_DEBUG("write failed\n");
     return -1;
@@ -354,48 +354,50 @@ ssize_t Connection::Writev(
   return n;
 }
 
-ae::AeEventStatus Connection::ConnSocketEventHandler(ae::AeEventLoop* el,
-                                                     int fd, Connection* conn,
-                                                     int mask) {
+ae::EventHandlerStatus Connection::ConnSocketEventHandler(ae::EventLoop* el,
+                                                          int fd,
+                                                          Connection* conn,
+                                                          int mask) {
   RS_LOG_DEBUG(
       "event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
-      fd, mask & ae::AeFlags::aeReadable, mask & ae::AeFlags::aeWritable);
+      fd, mask & ae::EventFlag::kReadable, mask & ae::EventFlag::kWritable);
   if (conn == nullptr) {
-    return ae::AeEventStatus::aeEventErr;
+    return ae::EventHandlerStatus::kError;
   }
   // Update the connection state to connected if the current state is connecting
   // and the socket is available for read.
   RS_LOG_DEBUG("state: %d\n", conn->State());
-  if (conn->State() == ConnState::connStateConnecting &&
-      (mask & ae::AeFlags::aeWritable)) {
+  if (conn->State() == ConnectionState::kConnecting &&
+      (mask & ae::EventFlag::kWritable)) {
     if (tcp::IsSocketError(fd)) {
       RS_LOG_DEBUG("socket error\n");
-      conn->SetState(ConnState::connStateError);
-      return ae::AeEventStatus::aeEventErr;
+      conn->SetState(ConnectionState::kError);
+      return ae::EventHandlerStatus::kError;
     } else {
       RS_LOG_DEBUG("connection state set to connected\n");
-      conn->SetState(ConnState::connStateConnected);
+      conn->SetState(ConnectionState::kConnected);
     }
   }
-  // Call read/write handlers.
-  int invert = conn->flags_ & connFlagWriteBarrier;
-  if (!invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
+  int invert = conn->flags_ & kWriteBarrier;
+  // Normal order is read-before-write. A write barrier lets command replies
+  // flush before another readable event queues more work on the same socket.
+  if (!invert && (mask & ae::EventFlag::kReadable) && conn->read_handler_) {
     conn->read_handler_->Handle(conn);
   }
-  if ((mask & ae::AeFlags::aeWritable) && conn->write_handler_) {
+  if ((mask & ae::EventFlag::kWritable) && conn->write_handler_) {
     conn->write_handler_->Handle(conn);
   }
-  if (invert && (mask & ae::AeFlags::aeReadable) && conn->read_handler_) {
+  if (invert && (mask & ae::EventFlag::kReadable) && conn->read_handler_) {
     conn->read_handler_->Handle(conn);
   }
-  return ae::AeEventStatus::aeEventOK;
+  return ae::EventHandlerStatus::kOk;
 }
 
-int Connection::Wait(ae::AeFlags flag, long timeout) const {
-  int r = ae::AeWait(fd_, flag, timeout);
+int Connection::Wait(ae::EventFlag flag, long timeout) const {
+  int r = ae::WaitForEvent(fd_, flag, timeout);
   if (r < 0) {
     RS_LOG_DEBUG("conn sync %s failed for connection %d\n",
-                 flag == ae::AeFlags::aeReadable ? "read" : "write", fd_);
+                 flag == ae::EventFlag::kReadable ? "read" : "write", fd_);
     return -1;
   } else if (r == 0) {
     RS_LOG_DEBUG("aeWait timeout\n");

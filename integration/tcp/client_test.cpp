@@ -27,9 +27,9 @@ ssize_t ReadWithTimeout(int fd, char* buffer, size_t len) {
 }  // namespace
 
 int Run() {
-  const tcp::TCPAddrInfo remote("localhost", 8080);
-  const auto local = std::make_optional<tcp::TCPAddrInfo>("localhost", 8081);
-  const int fd = tcp::TCP_BindAndConnect(remote, local, false);
+  const tcp::TcpAddrInfo remote("localhost", 8080);
+  const auto local = std::make_optional<tcp::TcpAddrInfo>("localhost", 8081);
+  const int fd = tcp::TcpBindAndConnect(remote, local, false);
   if (fd < 0) {
     RS_LOG_DEBUG("failed to connect to tcp integration server\n");
     return EXIT_FAILURE;

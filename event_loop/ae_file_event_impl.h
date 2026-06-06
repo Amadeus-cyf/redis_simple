@@ -4,59 +4,64 @@
 
 namespace redis_simple {
 namespace ae {
-class AeEventLoop;
+class EventLoop;
 
 template <typename T>
-class AeFileEventImpl : public AeFileEvent {
+class FileEventImpl : public FileEvent {
  public:
-  using aeFileProc = AeEventStatus (*)(AeEventLoop* el, int fd, T* client_data_,
-                                       int mask);
-  static AeFileEvent* Create(aeFileProc rfile_proc_, aeFileProc wfile_proc_,
-                             T* client_data_, int mask) {
-    return new AeFileEventImpl(rfile_proc_, wfile_proc_, client_data_, mask);
+  using FileCallback = EventHandlerStatus (*)(EventLoop* el, int fd,
+                                              T* client_data_, int mask);
+  static FileEvent* Create(FileCallback read_callback_,
+                           FileCallback write_callback_, T* client_data_,
+                           int mask) {
+    return new FileEventImpl(read_callback_, write_callback_, client_data_,
+                             mask);
   }
-  void CallReadProc(AeEventLoop* el, int fd, int mask) const override {
-    rfile_proc_(el, fd, client_data_, mask);
+  void CallReadCallback(EventLoop* el, int fd, int mask) const override {
+    read_callback_(el, fd, client_data_, mask);
   }
-  void CallWriteProc(AeEventLoop* el, int fd, int mask) const override {
-    wfile_proc_(el, fd, client_data_, mask);
+  void CallWriteCallback(EventLoop* el, int fd, int mask) const override {
+    write_callback_(el, fd, client_data_, mask);
   }
-  bool HasRFileProc() const override { return rfile_proc_ != nullptr; }
-  bool HasWFileProc() const override { return wfile_proc_ != nullptr; }
-  bool IsRWProcDiff() const override { return rfile_proc_ != wfile_proc_; }
-  void Merge(const AeFileEvent* fe) override;
-  aeFileProc RFileProc() const { return rfile_proc_; }
-  void SetRFileProc(aeFileProc p) { rfile_proc_ = p; }
-  aeFileProc WFileProc() const { return wfile_proc_; }
-  void SetWFileProc(aeFileProc p) { wfile_proc_ = p; }
+  bool HasReadCallback() const override { return read_callback_ != nullptr; }
+  bool HasWriteCallback() const override { return write_callback_ != nullptr; }
+  bool HasSeparateReadWriteCallbacks() const override {
+    return read_callback_ != write_callback_;
+  }
+  void Merge(const FileEvent* file_event) override;
+  FileCallback ReadCallback() const { return read_callback_; }
+  void SetReadCallback(FileCallback p) { read_callback_ = p; }
+  FileCallback WriteCallback() const { return write_callback_; }
+  void SetWriteCallback(FileCallback p) { write_callback_ = p; }
   T* ClientData() const { return client_data_; }
   void ClientData(const T* data) { client_data_ = data; }
 
  private:
-  explicit AeFileEventImpl(aeFileProc rfile_proc_, aeFileProc wfile_proc_,
-                           T* client_data_, int mask)
-      : rfile_proc_(rfile_proc_),
-        wfile_proc_(wfile_proc_),
+  explicit FileEventImpl(FileCallback read_callback_,
+                         FileCallback write_callback_, T* client_data_,
+                         int mask)
+      : read_callback_(read_callback_),
+        write_callback_(write_callback_),
         client_data_(client_data_),
-        AeFileEvent(mask) {}
-  aeFileProc rfile_proc_;
-  aeFileProc wfile_proc_;
+        FileEvent(mask) {}
+  FileCallback read_callback_;
+  FileCallback write_callback_;
   T* client_data_;
 };
 
 template <typename T>
-void AeFileEventImpl<T>::Merge(const AeFileEvent* fe) {
-  if (!fe) {
+void FileEventImpl<T>::Merge(const FileEvent* file_event) {
+  if (!file_event) {
     return;
   }
-  const AeFileEventImpl<T>* feImpl = static_cast<const AeFileEventImpl<T>*>(fe);
-  int mask = GetMask();
-  SetMask(mask | fe->GetMask());
-  if (!HasRFileProc() && fe->HasRFileProc()) {
-    rfile_proc_ = feImpl->RFileProc();
+  const FileEventImpl<T>* file_event_impl =
+      static_cast<const FileEventImpl<T>*>(file_event);
+  AddMask(file_event->Mask());
+  if (!HasReadCallback() && file_event->HasReadCallback()) {
+    read_callback_ = file_event_impl->ReadCallback();
   }
-  if (!HasWFileProc() && fe->HasWFileProc()) {
-    wfile_proc_ = feImpl->WFileProc();
+  if (!HasWriteCallback() && file_event->HasWriteCallback()) {
+    write_callback_ = file_event_impl->WriteCallback();
   }
 }
 }  // namespace ae

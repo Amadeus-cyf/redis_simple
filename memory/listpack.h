@@ -25,14 +25,14 @@ class ListPack {
   std::optional<int64_t> GetInteger(size_t idx) const;
   ssize_t Find(const std::string& val) const;
   ssize_t FindAndSkip(const std::string& val, size_t skip) const;
-  bool Append(const std::string& elestr);
-  bool Append(int64_t eleint);
-  bool Prepend(const std::string& elestr);
-  bool Prepend(int64_t eleint);
-  bool Insert(size_t idx, const std::string& elestr);
-  bool Insert(size_t idx, int64_t eleint);
-  bool Replace(size_t idx, const std::string& elestr);
-  bool Replace(size_t idx, int64_t eleint);
+  bool Append(const std::string& element_string);
+  bool Append(int64_t element_integer);
+  bool Prepend(const std::string& element_string);
+  bool Prepend(int64_t element_integer);
+  bool Insert(size_t idx, const std::string& element_string);
+  bool Insert(size_t idx, int64_t element_integer);
+  bool Replace(size_t idx, const std::string& element_string);
+  bool Replace(size_t idx, int64_t element_integer);
   bool BatchAppend(const std::vector<ListPackEntry>& entries);
   bool BatchPrepend(const std::vector<ListPackEntry>& entries);
   bool BatchInsert(size_t idx, const std::vector<ListPackEntry>& entries);
@@ -62,19 +62,19 @@ class ListPack {
   // The end of the listpack
   static constexpr int64_t ListPackEOF = 0xff;
   enum class EncodingGeneralType {
-    typeInt = 0,
-    typeStr = 1,
+    kInteger = 0,
+    kString = 1,
   };
   enum EncodingType {
-    type7BitUInt = 0,
-    type6BitStr = 0x80,
-    type13BitInt = 0xc0,
-    type12BitStr = 0xe0,
-    type32BitStr = 0xf0,
-    type16BitInt = 0xf1,
-    type24BitInt = 0xf2,
-    type32BitInt = 0xf3,
-    type64BitInt = 0xf4,
+    k7BitUnsignedInteger = 0,
+    k6BitString = 0x80,
+    k13BitInteger = 0xc0,
+    k12BitString = 0xe0,
+    k32BitString = 0xf0,
+    k16BitInteger = 0xf1,
+    k24BitInteger = 0xf2,
+    k32BitInteger = 0xf3,
+    k64BitInteger = 0xf4,
   };
   enum EncodingTypeMask {
     type7BitUIntMask = 0x80,
@@ -109,8 +109,8 @@ class ListPack {
                            EncodingType encoding_type) const;
   unsigned char* GetInteger(size_t idx, unsigned char* dst, size_t* const len,
                             int64_t* val, EncodingType encoding_type) const;
-  bool Insert(size_t idx, ListPack::Position where, const std::string* elestr,
-              int64_t* eleint);
+  bool Insert(size_t idx, ListPack::Position where,
+              const std::string* element_string, int64_t* element_integer);
   bool BatchInsert(size_t idx, ListPack::Position where,
                    const std::vector<ListPackEntry>& entries);
   void SetTotalBytes(uint32_t total_bytes_);
@@ -125,7 +125,7 @@ class ListPack {
   static void EncodeBacklen(unsigned char* const buf, size_t backlen);
   size_t DecodeBacklen(size_t idx) const;
   size_t DecodeStringLength(size_t idx) const;
-  static bool isString(EncodingType encoding_type);
+  static bool IsString(EncodingType encoding_type);
   void Realloc(size_t size);
   void Free();
   unsigned char* lp_;

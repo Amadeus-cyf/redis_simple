@@ -6,8 +6,8 @@
 namespace redis_simple {
 namespace reply {
 enum ReplyStatus {
-  replyOK = 1,
-  replyErr = -1,
+  kOk = 1,
+  kError = -1,
 };
 
 std::string FromString(const std::string& s);

@@ -12,8 +12,8 @@
 namespace redis_simple {
 namespace cli {
 enum CliStatus {
-  cliOK = 1,
-  cliErr = -1,
+  kOk = 1,
+  kError = -1,
 };
 
 class RedisCli {

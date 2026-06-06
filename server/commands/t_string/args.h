@@ -4,7 +4,7 @@
 namespace redis_simple {
 namespace command {
 namespace t_string {
-struct StrArgs {
+struct StringArgs {
   std::string key;
   std::string val;
   int64_t expire;

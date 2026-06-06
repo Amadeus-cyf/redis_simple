@@ -10,19 +10,19 @@ namespace t_zset {
 void ZRemCommand::Exec(Client* const client) const {
   ZRemArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     int r = ZRem(db, &args);
     if (r < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     client->AddReply(reply::FromInt64(r));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -49,7 +49,7 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
     RS_LOG_DEBUG("key not found\n");
     return -1;
   }
-  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
     return -1;
   }

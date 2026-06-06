@@ -27,7 +27,7 @@ bool ExpectReply(cli::RedisCli* cli, const Case& test_case) {
 
 int Run() {
   cli::RedisCli cli;
-  if (cli.Connect("localhost", 8080) == cli::CliStatus::cliErr) {
+  if (cli.Connect("localhost", 8080) == cli::CliStatus::kError) {
     RS_LOG_DEBUG("failed to connect to integration server\n");
     return EXIT_FAILURE;
   }

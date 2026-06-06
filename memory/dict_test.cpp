@@ -51,9 +51,9 @@ TEST_F(DictStrTest, InsertDuplicate) {
   ASSERT_FALSE(dict_str->Insert("key", "new_val"));
   ASSERT_EQ(dict_str->Size(), 1);
 
-  const auto opt = dict_str->Get("key");
-  ASSERT_TRUE(opt.has_value());
-  ASSERT_EQ(opt.value_or(""), "val");
+  const auto result = dict_str->Get("key");
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(result.value_or(""), "val");
 }
 
 TEST_F(DictStrTest, Delete) {
@@ -64,9 +64,9 @@ TEST_F(DictStrTest, Delete) {
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 0);
 
-  const auto opt = dict_str->Get("key");
-  ASSERT_FALSE(opt.has_value());
-  ASSERT_EQ(opt, std::nullopt);
+  const auto result = dict_str->Get("key");
+  ASSERT_FALSE(result.has_value());
+  ASSERT_EQ(result, std::nullopt);
   ASSERT_EQ(dict_str->Size(), 0);
 }
 
@@ -88,9 +88,9 @@ TEST_F(DictIntTest, BatchInsert) {
     dict_int->Insert(i, i);
   }
   ASSERT_EQ(dict_int->Size(), 129);
-  const auto opt = dict_int->Get(96);
-  ASSERT_TRUE(opt.has_value());
-  ASSERT_EQ(opt.value_or(0), 96);
+  const auto result = dict_int->Get(96);
+  ASSERT_TRUE(result.has_value());
+  ASSERT_EQ(result.value_or(0), 96);
 }
 
 TEST_F(DictIntTest, Iterator) {
@@ -128,9 +128,9 @@ TEST_F(DictIntTest, Clear) {
   dict_int->Clear();
   ASSERT_EQ(dict_int->Size(), 0);
 
-  const auto opt = dict_int->Get(96);
-  ASSERT_FALSE(opt.has_value());
-  ASSERT_EQ(opt, std::nullopt);
+  const auto result = dict_int->Get(96);
+  ASSERT_FALSE(result.has_value());
+  ASSERT_EQ(result, std::nullopt);
 }
 }  // namespace in_memory
 }  // namespace redis_simple

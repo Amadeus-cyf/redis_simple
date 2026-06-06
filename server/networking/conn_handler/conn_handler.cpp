@@ -6,11 +6,11 @@
 namespace redis_simple {
 namespace networking {
 std::unique_ptr<connection::ConnHandler> CreateConnHandler(
-    const connection::ConnHandlerType flag) {
+    const connection::ConnectionHandlerType flag) {
   switch (flag) {
-    case connection::ConnHandlerType::readQueryFromClient:
+    case connection::ConnectionHandlerType::kReadQueryFromClient:
       return NewReadFromClientHandler();
-    case connection::ConnHandlerType::writeReplyToClient:
+    case connection::ConnectionHandlerType::kWriteReplyToClient:
       return NewWriteToClientHandler();
     default:
       return nullptr;

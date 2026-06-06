@@ -8,28 +8,28 @@
 
 namespace redis_simple {
 namespace db {
-class RedisObj {
+class RedisObject {
  private:
   using DataType = std::variant<std::string, set::Set*, zset::ZSet*>;
 
  public:
   enum class ObjEncoding {
-    objEncodingString = 1,
-    objEncodingSet = 2,
-    objEncodingZSet = 3,
+    kString = 1,
+    kSet = 2,
+    kZSet = 3,
   };
 
-  static RedisObj* CreateWithString(const std::string& val) {
-    return Create(ObjEncoding::objEncodingString, val);
+  static RedisObject* CreateWithString(const std::string& val) {
+    return Create(ObjEncoding::kString, val);
   }
-  static RedisObj* CreateWithSet(set::Set* const set) {
-    return Create(ObjEncoding::objEncodingSet, set);
+  static RedisObject* CreateWithSet(set::Set* const set) {
+    return Create(ObjEncoding::kSet, set);
   }
-  static RedisObj* CreateWithZSet(zset::ZSet* const zset) {
-    return Create(ObjEncoding::objEncodingZSet, zset);
+  static RedisObject* CreateWithZSet(zset::ZSet* const zset) {
+    return Create(ObjEncoding::kZSet, zset);
   }
-  static RedisObj* Create(const ObjEncoding encoding, const DataType& val) {
-    return new RedisObj(encoding, val);
+  static RedisObject* Create(const ObjEncoding encoding, const DataType& val) {
+    return new RedisObject(encoding, val);
   }
   const std::string& String() const;
   set::Set* const Set() const;
@@ -39,7 +39,7 @@ class RedisObj {
   void DecrRefCount() const;
 
  private:
-  explicit RedisObj(const ObjEncoding encoding, const DataType& val)
+  explicit RedisObject(const ObjEncoding encoding, const DataType& val)
       : encoding_(encoding), val_(val), refcount_(1){};
   ObjEncoding encoding_;
   DataType val_;

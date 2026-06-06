@@ -9,19 +9,19 @@ namespace t_zset {
 void ZCardCommand::Exec(Client* const client) const {
   ZAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     ssize_t r = ZCard(db, &args);
     if (r < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     client->AddReply(reply::FromInt64(r));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -38,7 +38,7 @@ int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
 ssize_t ZCardCommand::ZCard(std::shared_ptr<const db::RedisDb> db,
                             const ZAddArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     return -1;
   }
   try {

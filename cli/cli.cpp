@@ -69,7 +69,7 @@ RedisCli::RedisCli(const std::string& ip, const int port)
 
 CliStatus RedisCli::Connect(const std::string& ip, const int port) {
   connection::Context ctx;
-  ctx.event_loop = std::shared_ptr<ae::AeEventLoop>();
+  ctx.event_loop = std::shared_ptr<ae::EventLoop>();
   ctx.fd = -1;
   connection_ = std::make_unique<connection::Connection>(ctx);
   const connection::AddressInfo remote(ip, port);
@@ -77,10 +77,10 @@ CliStatus RedisCli::Connect(const std::string& ip, const int port) {
   if (ip_.has_value() && port_.has_value()) {
     local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
   }
-  connection::StatusCode st =
+  connection::ConnectionStatus st =
       connection_->BindAndBlockingConnect(remote, local, 1000);
-  return st == connection::StatusCode::connStatusErr ? CliStatus::cliErr
-                                                     : CliStatus::cliOK;
+  return st == connection::ConnectionStatus::kError ? CliStatus::kError
+                                                    : CliStatus::kOk;
 }
 
 void RedisCli::AddCommand(const std::string& cmd) {
@@ -90,8 +90,8 @@ void RedisCli::AddCommand(const std::string& cmd) {
 std::string RedisCli::GetReply() {
   // Try to get reply from local buffer first. If failed, get reply through
   // sending queries to the server
-  const auto opt = MaybeGetReply();
-  return opt.value_or(GetReplyFromConnection());
+  const auto result = MaybeGetReply();
+  return result.value_or(GetReplyFromConnection());
 }
 
 CompletableFuture<std::string> RedisCli::GetReplyAsync() {

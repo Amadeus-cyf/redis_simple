@@ -13,9 +13,10 @@ class GetCommand : public Command {
   void Exec(Client* const client) const override;
 
  private:
-  int ParseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
+  int ParseArgs(const std::vector<std::string>& args,
+                StringArgs* string_args) const;
   const std::optional<std::string> Get(std::shared_ptr<const db::RedisDb> db,
-                                       const StrArgs* args) const;
+                                       const StringArgs* args) const;
 };
 }  // namespace t_string
 }  // namespace command

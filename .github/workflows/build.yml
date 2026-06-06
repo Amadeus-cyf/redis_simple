@@ -7,9 +7,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: >-
-      CI
-      ${{ matrix.os }}
+    name: Debug build and tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

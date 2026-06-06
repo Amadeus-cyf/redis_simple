@@ -12,7 +12,7 @@ class Server {
  public:
   static Server* const Get();
   void Run(const std::string& ip, const int& port);
-  std::weak_ptr<ae::AeEventLoop> EventLoop() { return el_; }
+  std::weak_ptr<ae::EventLoop> EventLoop() { return el_; }
   std::weak_ptr<const db::RedisDb> DB() { return db_; }
   void AddClient(Client* c) { clients_.push_back(c); }
   bool RemoveClient(Client* c);
@@ -31,7 +31,7 @@ class Server {
   int ServerCron();
   int fd_;
   int flags_;
-  std::shared_ptr<ae::AeEventLoop> el_;
+  std::shared_ptr<ae::EventLoop> el_;
   std::vector<Client*> clients_;
   std::shared_ptr<db::RedisDb> db_;
 };

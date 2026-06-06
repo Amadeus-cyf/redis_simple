@@ -4,42 +4,46 @@
 
 #include <ctime>
 
+#include "event_loop/ae_time_event.h"
+
 namespace redis_simple {
 namespace ae {
 template <typename T>
-class AeTimeEventImpl : public AeTimeEvent {
+class TimeEventImpl : public TimeEvent {
  public:
-  using aeTimeProc = int (*)(long long id, T* client_data);
-  using aeTimeFinalizeProc = int (*)(T* client_data);
-  static AeTimeEvent* Create(aeTimeProc time_proc,
-                             aeTimeFinalizeProc finalize_proc, T* client_data) {
+  using TimeCallback = int (*)(long long id, T* client_data);
+  using FinalizeCallback = int (*)(T* client_data);
+  static TimeEvent* Create(TimeCallback time_proc,
+                           FinalizeCallback finalize_proc, T* client_data) {
     static long long gen_id = 0;
-    return new AeTimeEventImpl(gen_id++, time_proc, finalize_proc, client_data);
+    return new TimeEventImpl(gen_id++, time_proc, finalize_proc, client_data);
   }
-  int CallTimeProc() const override { return time_proc_(Id(), client_data_); }
-  bool HasTimeFinalizeProc() const override {
+  int CallTimeCallback() const override {
+    return time_proc_(Id(), client_data_);
+  }
+  bool HasFinalizeCallback() const override {
     return finalize_proc_ != nullptr;
   }
-  int CallTimeFinalizeProc() const override {
+  int CallFinalizeCallback() const override {
     return finalize_proc_(client_data_);
   }
-  void SetTimeProc(aeTimeProc proc) { time_proc_ = proc; }
-  aeTimeFinalizeProc GetTimeFinalizeProc() const { return finalize_proc_; }
-  void SetTimeFinalizeProc(aeTimeFinalizeProc finalize_proc) {
+  void SetTimeCallback(TimeCallback proc) { time_proc_ = proc; }
+  FinalizeCallback GetFinalizeCallback() const { return finalize_proc_; }
+  void SetFinalizeCallback(FinalizeCallback finalize_proc) {
     finalize_proc_ = finalize_proc;
   }
   T* ClientData() const { return client_data_; }
   void SetClientData(T* client_data) { client_data_ = client_data; }
 
  private:
-  explicit AeTimeEventImpl(long long id, aeTimeProc time_proc,
-                           aeTimeFinalizeProc finalize_proc, T* client_data)
-      : AeTimeEvent(id),
+  explicit TimeEventImpl(long long id, TimeCallback time_proc,
+                         FinalizeCallback finalize_proc, T* client_data)
+      : TimeEvent(id),
         time_proc_(time_proc),
         finalize_proc_(finalize_proc),
         client_data_(client_data) {}
-  aeTimeProc time_proc_;
-  aeTimeFinalizeProc finalize_proc_;
+  TimeCallback time_proc_;
+  FinalizeCallback finalize_proc_;
   T* client_data_;
 };
 }  // namespace ae

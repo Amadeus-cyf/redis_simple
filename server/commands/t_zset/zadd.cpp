@@ -9,19 +9,19 @@ namespace t_zset {
 void ZAddCommand::Exec(Client* const client) const {
   ZAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     int r = ZAdd(db, &args);
     if (r < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     client->AddReply(reply::FromInt64(r));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -52,13 +52,13 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   const auto* obj = db->LookupKey(args->key);
-  if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj && obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
     return -1;
   }
   if (!obj) {
-    obj = db::RedisObj::CreateWithZSet(zset::ZSet::Init());
-    int r = db->SetKey(args->key, obj, 0) == db::DBStatus::dbErr;
+    obj = db::RedisObject::CreateWithZSet(zset::ZSet::Init());
+    int r = db->SetKey(args->key, obj, 0) == db::DbStatus::kError;
     obj->DecrRefCount();
     if (r < 0) {
       return -1;

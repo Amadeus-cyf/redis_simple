@@ -6,21 +6,21 @@
 
 namespace redis_simple {
 namespace reply {
-static const std::string& CRLF = "\r\n";
-static constexpr const char stringPrefix = '+';
-static constexpr const char bulkStringPrefix = '$';
-static constexpr const char int64Prefix = ':';
-static constexpr const char arrayPrefix = '*';
-static constexpr const char doublePrefix = ',';
-static constexpr const char nullPrefix = '_';
+static const std::string& kCrlf = "\r\n";
+static constexpr const char kStringPrefix = '+';
+static constexpr const char kBulkStringPrefix = '$';
+static constexpr const char kInt64Prefix = ':';
+static constexpr const char kArrayPrefix = '*';
+static constexpr const char kDoublePrefix = ',';
+static constexpr const char kNullPrefix = '_';
 
 /*
  * Encode a simple string. The string could not contain \r or \n.
  */
 std::string FromString(const std::string& s) {
   std::string reply;
-  reply.push_back(stringPrefix);
-  reply.append(s).append(CRLF);
+  reply.push_back(kStringPrefix);
+  reply.append(s).append(kCrlf);
   return reply;
 }
 
@@ -29,8 +29,8 @@ std::string FromString(const std::string& s) {
  */
 std::string FromBulkString(const std::string& s) {
   std::string reply;
-  reply.push_back(bulkStringPrefix);
-  reply.append(std::to_string(s.size())).append(CRLF).append(s).append(CRLF);
+  reply.push_back(kBulkStringPrefix);
+  reply.append(std::to_string(s.size())).append(kCrlf).append(s).append(kCrlf);
   return reply;
 }
 
@@ -39,8 +39,8 @@ std::string FromBulkString(const std::string& s) {
  */
 std::string FromInt64(const int64_t i64) {
   std::string reply;
-  reply.push_back(int64Prefix);
-  reply.append(std::to_string(i64)).append(CRLF);
+  reply.push_back(kInt64Prefix);
+  reply.append(std::to_string(i64)).append(kCrlf);
   return reply;
 }
 
@@ -50,10 +50,10 @@ std::string FromInt64(const int64_t i64) {
  */
 std::string FromArray(const std::vector<std::string>& array) {
   std::string reply;
-  reply.push_back(arrayPrefix);
-  reply.append(std::to_string(array.size())).append(CRLF);
+  reply.push_back(kArrayPrefix);
+  reply.append(std::to_string(array.size())).append(kCrlf);
   for (const std::string& str : array) {
-    if (str.size() < 2 || str.substr(str.size() - 2) != CRLF) {
+    if (str.size() < 2 || str.substr(str.size() - 2) != kCrlf) {
       throw std::invalid_argument("array element not encoded");
     }
     reply.append(str);
@@ -66,8 +66,8 @@ std::string FromArray(const std::vector<std::string>& array) {
  */
 std::string FromFloat(const double fl) {
   std::string reply;
-  reply.push_back(doublePrefix);
-  reply.append(utils::FloatToString(fl)).append(CRLF);
+  reply.push_back(kDoublePrefix);
+  reply.append(utils::FloatToString(fl)).append(kCrlf);
   return reply;
 }
 

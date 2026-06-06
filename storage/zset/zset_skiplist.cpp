@@ -8,17 +8,17 @@ ZSetSkiplist::ZSetSkiplist()
                                                Comparator(), Destructor())){};
 
 bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
-  const auto opt = dict_->Get(key);
-  if (opt.has_value() && opt.value() == score) {
+  const auto result = dict_->Get(key);
+  if (result.has_value() && result.value() == score) {
     // If the key exists and there is no change in score, do nothing.
     return false;
   }
   dict_->Set(key, score);
   const auto* ze = new ZSetEntry(key, score);
   bool inserted = false;
-  if (opt.has_value()) {
+  if (result.has_value()) {
     // Update the score.
-    const ZSetEntry old(key, opt.value());
+    const ZSetEntry old(key, result.value());
     assert(skiplist_->Update(&old, ze));
   } else {
     // Insert a new key.
@@ -37,22 +37,22 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
 }
 
 bool ZSetSkiplist::Delete(const std::string& key) {
-  const auto opt = dict_->Get(key);
-  if (!opt.has_value()) {
+  const auto result = dict_->Get(key);
+  if (!result.has_value()) {
     return false;
   }
-  const double score = opt.value();
+  const double score = result.value();
   const ZSetEntry ze(key, score);
   assert(dict_->Delete(key));
   return skiplist_->Delete(&ze);
 }
 
 std::optional<size_t> ZSetSkiplist::GetRankOfKey(const std::string& key) const {
-  const auto opt = dict_->Get(key);
-  if (!opt.has_value()) {
+  const auto result = dict_->Get(key);
+  if (!result.has_value()) {
     return std::nullopt;
   }
-  const double score = opt.value();
+  const double score = result.value();
   const ZSetEntry ze(key, score);
   return skiplist_->FindRankofKey(&ze);
 }

@@ -183,23 +183,26 @@ void Set::ConvertIntSetToDict(size_t capacity) {
  */
 bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
   if (encoding_ != SetEncodingType::IntSet) return false;
-  size_t len = val.size(), int_maxlen = 0, est_bytes = 0;
-  int64_t est_int = 0;
+  size_t len = val.size(), max_integer_length = 0, estimated_bytes = 0;
+  int64_t estimated_integer = 0;
   if (intset_) {
-    int64_t maxint = intset_->Max();
-    int64_t minint = intset_->Min();
-    size_t maxint_len = utils::Digits10(maxint);
-    size_t minint_len = utils::Digits10(minint);
-    int_maxlen = std::max(maxint_len, minint_len);
+    int64_t max_integer = intset_->Max();
+    int64_t min_integer = intset_->Min();
+    size_t max_integer_digits = utils::Digits10(max_integer);
+    size_t min_integer_digits = utils::Digits10(min_integer);
+    max_integer_length = std::max(max_integer_digits, min_integer_digits);
     // Take the integer with larger length for estimation.
-    est_int = maxint_len > minint_len ? maxint : minint;
+    estimated_integer =
+        max_integer_digits > min_integer_digits ? max_integer : min_integer;
     // Calculate estimate total bytes.
-    est_bytes = in_memory::ListPack::EstimateBytes(est_int, intset_->Size());
+    estimated_bytes =
+        in_memory::ListPack::EstimateBytes(estimated_integer, intset_->Size());
   }
-  if (!intset_ || (intset_->Size() < ListPackMaxEntries &&
-                   len <= ListPackElementMaxLength &&
-                   int_maxlen <= ListPackElementMaxLength &&
-                   in_memory::ListPack::SafeToAdd(nullptr, est_bytes + len))) {
+  if (!intset_ ||
+      (intset_->Size() < ListPackMaxEntries &&
+       len <= ListPackElementMaxLength &&
+       max_integer_length <= ListPackElementMaxLength &&
+       in_memory::ListPack::SafeToAdd(nullptr, estimated_bytes + len))) {
     ConvertIntSetToListPack(val);
     return true;
   }
@@ -234,8 +237,8 @@ void Set::ConvertListPackToDict(const std::string& val) {
   if (!listpack_) return;
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    const auto opt_str = listpack_->Get(idx);
-    if (opt_str.has_value()) dict_->Set(opt_str.value(), nullptr);
+    const auto string_result = listpack_->Get(idx);
+    if (string_result.has_value()) dict_->Set(string_result.value(), nullptr);
     idx = listpack_->Next(idx);
   }
   dict_->Set(val, nullptr);
@@ -262,8 +265,8 @@ std::vector<std::string> Set::ListListPackMembers() const {
   std::vector<std::string> members;
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    const auto opt_str = listpack_->Get(idx);
-    if (opt_str.has_value()) members.push_back(opt_str.value());
+    const auto string_result = listpack_->Get(idx);
+    if (string_result.has_value()) members.push_back(string_result.value());
     idx = listpack_->Next(idx);
   }
   return members;

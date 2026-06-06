@@ -13,8 +13,10 @@ class DeleteCommand : public Command {
   void Exec(Client* const client) const override;
 
  private:
-  int ParseArgs(const std::vector<std::string>& args, StrArgs* str_args) const;
-  int Delete(std::shared_ptr<const db::RedisDb> db, const StrArgs* args) const;
+  int ParseArgs(const std::vector<std::string>& args,
+                StringArgs* string_args) const;
+  int Delete(std::shared_ptr<const db::RedisDb> db,
+             const StringArgs* args) const;
 };
 }  // namespace t_string
 }  // namespace command

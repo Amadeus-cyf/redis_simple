@@ -17,35 +17,35 @@ RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
   auto key_compare = [](const std::string& k1, const std::string& k2) {
     return k1.compare(k2);
   };
-  auto robj_dtr = [this](const RedisObj* const robj) {
+  auto object_destructor = [this](const RedisObject* const object) {
     if (!free_async_) {
-      robj->DecrRefCount();
+      object->DecrRefCount();
     }
   };
 
-  in_memory::Dict<std::string, RedisObj*>::DictType dbType;
-  dbType.hashFunction = hash;
-  dbType.keyDup = nullptr;
-  dbType.valDup = nullptr;
-  dbType.keyDestructor = nullptr;
-  dbType.valDestructor = robj_dtr;
-  dbType.keyCompare = key_compare;
-  dict_ = in_memory::Dict<std::string, RedisObj*>::Init(dbType);
+  in_memory::Dict<std::string, RedisObject*>::DictType db_type;
+  db_type.hash_function = hash;
+  db_type.key_dup = nullptr;
+  db_type.val_dup = nullptr;
+  db_type.key_destructor = nullptr;
+  db_type.val_destructor = object_destructor;
+  db_type.key_compare = key_compare;
+  dict_ = in_memory::Dict<std::string, RedisObject*>::Init(db_type);
 
-  in_memory::Dict<std::string, int64_t>::DictType expiresType;
-  expiresType.hashFunction = hash;
-  expiresType.keyDup = nullptr;
-  expiresType.valDup = nullptr;
-  expiresType.keyDestructor = nullptr;
-  expiresType.valDestructor = nullptr;
-  expiresType.keyCompare = nullptr;
-  expires_ = in_memory::Dict<std::string, int64_t>::Init(expiresType);
+  in_memory::Dict<std::string, int64_t>::DictType expires_type;
+  expires_type.hash_function = hash;
+  expires_type.key_dup = nullptr;
+  expires_type.val_dup = nullptr;
+  expires_type.key_destructor = nullptr;
+  expires_type.val_destructor = nullptr;
+  expires_type.key_compare = nullptr;
+  expires_ = in_memory::Dict<std::string, int64_t>::Init(expires_type);
 }
 
-const RedisObj* RedisDb::LookupKey(const std::string& key) const {
-  const auto opt = dict_->Get(key);
-  if (!opt.has_value()) return nullptr;
-  const RedisObj* val = opt.value();
+const RedisObject* RedisDb::LookupKey(const std::string& key) const {
+  const auto result = dict_->Get(key);
+  if (!result.has_value()) return nullptr;
+  const RedisObject* val = result.value();
   if (IsKeyExpired(key)) {
     RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
     // If key is already expired, delete the key and return a null pointer.
@@ -56,15 +56,15 @@ const RedisObj* RedisDb::LookupKey(const std::string& key) const {
   return val;
 }
 
-DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
+DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
                          const int64_t expire) const {
   return SetKey(key, val, expire, 0);
 }
 
-DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
+DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
                          const int64_t expire, int flags) const {
-  dict_->Set(key, const_cast<RedisObj*>(val));
-  if (!(flags & SetKeyFlags::setKeyKeepTTL) && expire == 0) {
+  dict_->Set(key, const_cast<RedisObject*>(val));
+  if (!(flags & SetKeyFlags::kKeepTtl) && expire == 0) {
     expires_->Delete(key);
   }
   if (expire > 0) {
@@ -72,24 +72,24 @@ DBStatus RedisDb::SetKey(const std::string& key, const RedisObj* const val,
     RS_LOG_DEBUG("add expire %lld\n", expire);
   }
   val->IncrRefCount();
-  return DBStatus::dbOK;
+  return DbStatus::kOk;
 }
 
-DBStatus RedisDb::DeleteKey(const std::string& key) const {
+DbStatus RedisDb::DeleteKey(const std::string& key) const {
   if (!dict_->Delete(key)) {
-    return DBStatus::dbErr;
+    return DbStatus::kError;
   }
   if (expires_->Size() > 0) {
     expires_->Delete(key);
   }
-  return DBStatus::dbOK;
+  return DbStatus::kOk;
 }
 
 /*
  * Scan to delete expired keys. Return true if the scanning is not finished.
  */
 bool RedisDb::ScanExpires(
-    in_memory::Dict<std::string, int64_t>::dictScanFunc callback) const {
+    in_memory::Dict<std::string, int64_t>::DictScanFunc callback) const {
   if (expire_cursor_ < 0) {
     expire_cursor_ = 0;
   }
@@ -101,12 +101,12 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
   if (expires_->Size() == 0) {
     return false;
   }
-  const auto opt = expires_->Get(key);
-  if (!opt.has_value()) {
+  const auto result = expires_->Get(key);
+  if (!result.has_value()) {
     return false;
   }
   int64_t now = utils::GetNowInMilliseconds();
-  return opt.value() < now;
+  return result.value() < now;
 }
 }  // namespace db
 }  // namespace redis_simple

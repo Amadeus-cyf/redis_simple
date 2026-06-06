@@ -6,9 +6,9 @@ namespace redis_simple {
 namespace connection {
 class Connection;
 
-enum class ConnHandlerType {
-  readQueryFromClient = 1,
-  writeReplyToClient = 1 << 1,
+enum class ConnectionHandlerType {
+  kReadQueryFromClient = 1,
+  kWriteReplyToClient = 1 << 1,
 };
 
 class ConnHandler {

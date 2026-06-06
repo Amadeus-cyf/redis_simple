@@ -13,12 +13,12 @@ namespace redis_simple {
 namespace command {
 namespace t_zset {
 namespace {
-const std::string& flagByScore = "BYSCORE";
-const std::string& flagLimit = "LIMIT";
-const std::string& flagReverse = "REV";
-const std::string& flagWithScores = "WITHSCORES";
-const std::string& maxVal = "+inf";
-const std::string& minVal = "-inf";
+const std::string& kFlagByScore = "BYSCORE";
+const std::string& kFlagLimit = "LIMIT";
+const std::string& kFlagReverse = "REV";
+const std::string& kFlagWithScores = "WITHSCORES";
+const std::string& kMaxVal = "+inf";
+const std::string& kMinVal = "-inf";
 
 bool FlaggedByScore(const std::vector<std::string>& args);
 int ParseRangeToRankSpec(const std::vector<std::string>& args,
@@ -34,16 +34,16 @@ int ParseScoreTerm(const std::string& term, double* const dst);
 int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
                              const std::unique_ptr<zset::LimitSpec>& spec);
 bool IsReverse(const std::vector<std::string>& args);
-const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
-                                const std::string& key);
+const db::RedisObject* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
+                                   const std::string& key);
 
 bool FlaggedByScore(const std::vector<std::string>& args) {
-  // Start searching at the 3rd index(0-based). The first 3 arguments specify
-  // key, start and end offsets.
+  // The command parser stores args as key/start/end/options, so options begin
+  // after the first three entries.
   for (int i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
-    if (upper == flagByScore) {
+    if (upper == kFlagByScore) {
       return true;
     }
   }
@@ -79,15 +79,16 @@ int ParseRankRange(const std::string& start, const std::string& end,
   if (ParseRangeTerm(end, &(spec->max)) < 0) {
     return -1;
   }
+  // Redis uses a leading '(' to make a range endpoint exclusive.
   spec->minex = (start[0] == '(');
   spec->maxex = (end[0] == '(');
   return 0;
 }
 
 int ParseRangeTerm(const std::string& term, long* const dst) {
-  if (term == minVal) {
+  if (term == kMinVal) {
     *dst = 0;
-  } else if (term == maxVal) {
+  } else if (term == kMaxVal) {
     *dst = std::numeric_limits<long>::max();
   } else if (term[0] == '(') {
     try {
@@ -134,15 +135,16 @@ int ParseScoreRange(const std::string& start, const std::string& end,
   if (ParseScoreTerm(end, &(spec->max)) < 0) {
     return -1;
   }
+  // Redis uses a leading '(' to make a score endpoint exclusive.
   spec->minex = (start[0] == '(');
   spec->maxex = (end[0] == '(');
   return 0;
 }
 
 int ParseScoreTerm(const std::string& term, double* const dst) {
-  if (term == minVal) {
+  if (term == kMinVal) {
     *dst = -std::numeric_limits<double>::infinity();
-  } else if (term == maxVal) {
+  } else if (term == kMaxVal) {
     *dst = std::numeric_limits<double>::infinity();
   } else if (term[0] == '(') {
     try {
@@ -162,13 +164,13 @@ int ParseScoreTerm(const std::string& term, double* const dst) {
 
 int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
                              const std::unique_ptr<zset::LimitSpec>& spec) {
-  // Start searching at the 3rd index(0-based). The first 3 arguments specify
-  // key, start and end offsets.
+  // LIMIT is optional; missing or incomplete LIMIT falls back to the unbounded
+  // range used by the zset implementation.
   int i = 3;
   for (; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
-    if (upper == flagLimit) {
+    if (upper == kFlagLimit) {
       break;
     }
   }
@@ -191,26 +193,25 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
 }
 
 bool IsReverse(const std::vector<std::string>& args) {
-  // Start searching at the 3rd index(0-based). The first 3 arguments specify
-  // key, start and end offsets.
+  // REV is an option token, so it can appear after key/start/end.
   for (int i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
-    if (upper == flagReverse) {
+    if (upper == kFlagReverse) {
       return true;
     }
   }
   return false;
 }
 
-const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
-                                const std::string& key) {
+const db::RedisObject* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
+                                   const std::string& key) {
   const auto* obj = db->LookupKey(key);
   if (!obj) {
     RS_LOG_DEBUG("key not found\n");
     return nullptr;
   }
-  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
     return nullptr;
   }
@@ -228,7 +229,7 @@ void ZRangeCommand::Exec(Client* const client) const {
     r = RangeByRank(client, args, &result);
   }
   if (r < 0) {
-    client->AddReply(reply::FromInt64(reply::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   auto to_string = [](const zset::ZSetEntry* const& entry) {
@@ -239,7 +240,7 @@ void ZRangeCommand::Exec(Client* const client) const {
   if (reply.has_value()) {
     client->AddReply(reply.value());
   } else {
-    client->AddReply(reply::FromInt64(reply::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 

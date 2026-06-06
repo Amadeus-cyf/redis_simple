@@ -3,8 +3,8 @@
 namespace redis_simple {
 namespace in_memory {
 ReplyBuffer::ReplyBuffer()
-    : buf_usable_size_(defaultBufferSize),
-      buf_(new char[defaultBufferSize]),
+    : buf_usable_size_(kDefaultBufferSize),
+      buf_(new char[kDefaultBufferSize]),
       sent_len_(0),
       buf_pos_(0) {}
 

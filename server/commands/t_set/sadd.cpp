@@ -9,19 +9,19 @@ namespace t_set {
 void SAddCommand::Exec(Client* const client) const {
   SAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     int r = SAdd(db, &args);
     if (r < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     client->AddReply(reply::FromInt64(r));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -44,11 +44,11 @@ int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   const auto* obj = db->LookupKey(args->key);
-  if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
+  if (obj && obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   if (!obj) {
-    obj = db::RedisObj::CreateWithSet(set::Set::Init());
+    obj = db::RedisObject::CreateWithSet(set::Set::Init());
     int r = db->SetKey(args->key, obj, 0);
     obj->DecrRefCount();
     if (r < 0) {

@@ -15,17 +15,17 @@
 
 namespace redis_simple {
 namespace ae {
-int AeWait(int fd, int mask, long timeout) {
-  int nfds = 1;
-  struct pollfd pfds[1] = {};
-  pfds[0].fd = fd;
-  if (mask & AeFlags::aeReadable) {
-    pfds[0].events |= POLLIN;
+int WaitForEvent(int fd, int mask, long timeout) {
+  int fd_count = 1;
+  struct pollfd poll_fds[1] = {};
+  poll_fds[0].fd = fd;
+  if (mask & EventFlag::kReadable) {
+    poll_fds[0].events |= POLLIN;
   }
-  if (mask & AeFlags::aeWritable) {
-    pfds[0].events |= POLLOUT;
+  if (mask & EventFlag::kWritable) {
+    poll_fds[0].events |= POLLOUT;
   }
-  int r = poll(pfds, nfds, timeout);
+  int r = poll(poll_fds, fd_count, timeout);
   if (r < 0) {
     RS_LOG_DEBUG("poll error: %s\n", std::strerror(errno));
     return r;
@@ -34,134 +34,141 @@ int AeWait(int fd, int mask, long timeout) {
     // The file descriptor is not ready for the requested operation.
     return r;
   }
-  int retmask = 0;
-  if (pfds[0].revents & POLL_IN) {
-    retmask |= AeFlags::aeReadable;
+  int result_mask = 0;
+  if (poll_fds[0].revents & POLL_IN) {
+    result_mask |= EventFlag::kReadable;
   }
-  if ((pfds[0].revents & POLL_OUT) || (pfds[0].revents & POLL_HUP) ||
-      (pfds[0].revents & POLL_ERR)) {
-    retmask |= AeFlags::aeWritable;
+  if ((poll_fds[0].revents & POLL_OUT) || (poll_fds[0].revents & POLL_HUP) ||
+      (poll_fds[0].revents & POLL_ERR)) {
+    result_mask |= EventFlag::kWritable;
   }
-  return retmask;
+  return result_mask;
 }
 
-AeEventLoop::AeEventLoop(AeKqueue* kq)
-    : file_events_(std::vector<AeFileEvent*>(eventSize)),
+EventLoop::EventLoop(KqueueEventApi* kq)
+    : file_events_(std::vector<FileEvent*>(kEventSize)),
       time_event_head_(nullptr),
-      ae_api_state_(kq),
+      event_api_(kq),
       max_fd_(-1) {}
 
-AeEventLoop* AeEventLoop::InitEventLoop() {
-  AeKqueue* kq = AeKqueue::AeApiCreate(eventSize);
-  return new AeEventLoop(kq);
+EventLoop* EventLoop::Create() {
+  KqueueEventApi* kq = KqueueEventApi::Create(kEventSize);
+  return new EventLoop(kq);
 }
 
-void AeEventLoop::AeMain() {
+void EventLoop::Run() {
   while (true) {
-    AeProcessEvents();
+    ProcessEvents();
   }
 }
 
-AeStatus AeEventLoop::AeCreateFileEvent(int fd, AeFileEvent* fe) {
-  RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd, fe->GetMask());
-  if (fe == nullptr) {
-    return aeErr;
+EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
+  RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd,
+               file_event->Mask());
+  if (file_event == nullptr) {
+    return kError;
   }
-  if (fd < 0 || fd >= eventSize) {
+  if (fd < 0 || fd >= kEventSize) {
     RS_LOG_DEBUG("file descriptor out of range");
-    return aeErr;
+    return kError;
   }
-  if (ae_api_state_->AeApiAddEvent(fd, fe->GetMask()) < 0) {
+  if (event_api_->AddEvent(fd, file_event->Mask()) < 0) {
     // Free the event if failed to add.
-    delete fe;
-    return aeErr;
+    delete file_event;
+    return kError;
   }
   if (file_events_[fd] == nullptr) {
     RS_LOG_DEBUG("add new event\n");
     max_fd_ = std::max(max_fd_, fd);
   } else {
-    fe->Merge(file_events_[fd]);
+    // A file descriptor can register read and write callbacks separately; keep
+    // both interests in one FileEvent stored by descriptor.
+    file_event->Merge(file_events_[fd]);
     delete file_events_[fd];
   }
-  file_events_[fd] = fe;
-  return aeOK;
+  file_events_[fd] = file_event;
+  return kOk;
 }
 
-AeStatus AeEventLoop::AeDeleteFileEvent(int fd, int mask) {
-  if (ae_api_state_->AeApiDelEvent(fd, mask) < 0) {
+EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
+  if (event_api_->DeleteEvent(fd, mask) < 0) {
     RS_LOG_DEBUG(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
         fd, errno);
-    return aeErr;
+    return kError;
   }
   RS_LOG_DEBUG(
       "delete file event success for file descriptor = %d, mask = %d\n", fd,
       mask);
-  AeFileEvent* fe = file_events_[fd];
-  if (fe->GetMask() == mask) {
+  FileEvent* file_event = file_events_[fd];
+  if (file_event->Mask() == mask) {
     file_events_[fd] = nullptr;
-    delete fe;
-    fe = nullptr;
+    delete file_event;
+    file_event = nullptr;
   } else {
-    int m = fe->GetMask();
+    int m = file_event->Mask();
     m &= ~mask;
-    fe->SetMask(m);
+    file_event->SetMask(m);
   }
-  return aeOK;
+  return kOk;
 }
 
-void AeEventLoop::AeCreateTimeEvent(AeTimeEvent* te) {
+void EventLoop::CreateTimeEvent(TimeEvent* time_event) {
   if (!time_event_head_) {
-    time_event_head_ = te;
+    time_event_head_ = time_event;
     return;
   }
-  te->SetNext(time_event_head_);
-  time_event_head_ = te;
+  time_event->SetNext(time_event_head_);
+  time_event_head_ = time_event;
 }
 
-void AeEventLoop::AeProcessEvents() {
+void EventLoop::ProcessEvents() {
   ProcessFileEvents();
   ProcessTimeEvents();
 }
 
-void AeEventLoop::ProcessFileEvents() {
+void EventLoop::ProcessFileEvents() {
   if (max_fd_ == -1) {
     return;
   }
-  struct timespec tspec;
-  tspec.tv_sec = 1;
-  tspec.tv_nsec = 0;
-  const std::unordered_map<int, int>& fdToMask =
-      ae_api_state_->AeApiPoll(&tspec);
-  for (const auto& it : fdToMask) {
+  struct timespec timeout_spec;
+  timeout_spec.tv_sec = 1;
+  timeout_spec.tv_nsec = 0;
+  const std::unordered_map<int, int>& fd_to_mask =
+      event_api_->Poll(&timeout_spec);
+  for (const auto& it : fd_to_mask) {
     int fd = it.first, mask = it.second;
-    const AeFileEvent* fe = file_events_[fd];
-    int inverted = fe->GetMask() & AeFlags::aeBarrier;
+    const FileEvent* file_event = file_events_[fd];
+    int inverted = file_event->Mask() & EventFlag::kBarrier;
     bool fired = false;
-    if (!inverted && (mask & fe->GetMask() & AeFlags::aeReadable) &&
-        fe->HasRFileProc()) {
-      fe->CallReadProc(this, fd, mask);
+    // Normal order is read-before-write. kBarrier inverts that order so a
+    // pending write can flush before reads enqueue more output.
+    if (!inverted && (mask & file_event->Mask() & EventFlag::kReadable) &&
+        file_event->HasReadCallback()) {
+      file_event->CallReadCallback(this, fd, mask);
       fired = true;
     }
-    if ((mask & fe->GetMask() & AeFlags::aeWritable) && fe->HasWFileProc() &&
-        (!fired || fe->IsRWProcDiff())) {
-      fe->CallWriteProc(this, fd, mask);
+    if ((mask & file_event->Mask() & EventFlag::kWritable) &&
+        file_event->HasWriteCallback() &&
+        (!fired || file_event->HasSeparateReadWriteCallbacks())) {
+      file_event->CallWriteCallback(this, fd, mask);
       fired = true;
     }
-    if (inverted && (mask & fe->GetMask() & AeFlags::aeReadable) &&
-        fe->HasRFileProc() && (!fired || fe->IsRWProcDiff())) {
-      fe->CallReadProc(this, fd, mask);
+    if (inverted && (mask & file_event->Mask() & EventFlag::kReadable) &&
+        file_event->HasReadCallback() &&
+        (!fired || file_event->HasSeparateReadWriteCallbacks())) {
+      file_event->CallReadCallback(this, fd, mask);
     }
   }
 }
 
-void AeEventLoop::ProcessTimeEvents() const {
-  AeTimeEvent* te = time_event_head_;
-  while (te) {
-    long long id = te->Id();
-    if (id == AeFlags::aeDeleteEventId) {
-      AeTimeEvent *prev = te->Prev(), *next = te->Next();
+void EventLoop::ProcessTimeEvents() const {
+  TimeEvent* time_event = time_event_head_;
+  while (time_event) {
+    long long id = time_event->Id();
+    if (id == EventFlag::kDeleteEventId) {
+      TimeEvent *prev = time_event->Prev(), *next = time_event->Next();
       if (prev != nullptr) {
         prev->SetNext(next);
       } else {
@@ -170,30 +177,32 @@ void AeEventLoop::ProcessTimeEvents() const {
       if (next != nullptr) {
         next->SetPrev(prev);
       }
-      if (te->HasTimeFinalizeProc()) {
-        te->CallTimeFinalizeProc();
+      if (time_event->HasFinalizeCallback()) {
+        time_event->CallFinalizeCallback();
       }
-      delete te;
-      te = next;
+      delete time_event;
+      time_event = next;
     } else {
       int64_t now = utils::GetNowInMilliseconds();
-      if (te->When() <= now) {
-        int ret = te->CallTimeProc();
-        if (ret == AeFlags::aeNoMore) {
-          te->SetId(AeFlags::aeDeleteEventId);
+      if (time_event->When() <= now) {
+        int ret = time_event->CallTimeCallback();
+        if (ret == EventFlag::kNoMore) {
+          // Mark one-shot timers for deletion; unlinking is handled at the
+          // start of the next visit so finalize callbacks run consistently.
+          time_event->SetId(EventFlag::kDeleteEventId);
         } else {
-          te->SetWhen(now + ret * 1000);
+          time_event->SetWhen(now + ret * 1000);
         }
       }
-      te = te->Next();
+      time_event = time_event->Next();
     }
   }
 }
 
-AeEventLoop::~AeEventLoop() {
-  delete ae_api_state_;
-  ae_api_state_ = nullptr;
-  for (int i = 0; i < eventSize; ++i) {
+EventLoop::~EventLoop() {
+  delete event_api_;
+  event_api_ = nullptr;
+  for (int i = 0; i < kEventSize; ++i) {
     delete file_events_[i];
     file_events_[i] = nullptr;
   }

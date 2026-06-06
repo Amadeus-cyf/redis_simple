@@ -26,25 +26,25 @@ ssize_t ReadWithTimeout(int fd, char* buffer, size_t len) {
 }  // namespace
 
 int Run() {
-  int s = tcp::TCP_CreateSocket(AF_INET, false);
+  int s = tcp::TcpCreateSocket(AF_INET, false);
   if (s < 0) {
     RS_LOG_DEBUG("failed to create socket\n");
     return EXIT_FAILURE;
   }
-  const tcp::TCPAddrInfo local("localhost", 8080);
-  if (tcp::TCP_Bind(s, local) != tcp::TCPStatusCode::tcpOK) {
+  const tcp::TcpAddrInfo local("localhost", 8080);
+  if (tcp::TcpBind(s, local) != tcp::TcpStatusCode::kTcpOk) {
     RS_LOG_DEBUG("failed to bind tcp integration server\n");
     close(s);
     return EXIT_FAILURE;
   }
-  if (tcp::TCP_Listen(s) != tcp::TCPStatusCode::tcpOK) {
+  if (tcp::TcpListen(s) != tcp::TcpStatusCode::kTcpOk) {
     RS_LOG_DEBUG("failed to listen on tcp integration server\n");
     close(s);
     return EXIT_FAILURE;
   }
 
-  tcp::TCPAddrInfo remote_addr;
-  const int remote_fd = tcp::TCP_Accept(s, &remote_addr);
+  tcp::TcpAddrInfo remote_addr;
+  const int remote_fd = tcp::TcpAccept(s, &remote_addr);
   if (remote_fd < 0) {
     RS_LOG_DEBUG("failed to accept tcp integration client\n");
     close(s);

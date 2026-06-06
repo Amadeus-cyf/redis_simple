@@ -10,36 +10,36 @@ namespace command {
 namespace t_string {
 void SetCommand::Exec(Client* const client) const {
   RS_LOG_DEBUG("set command called\n");
-  StrArgs args;
+  StringArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     if (Set(db, &args) < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyOK));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kOk));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
 int SetCommand::ParseArgs(const std::vector<std::string>& args,
-                          StrArgs* str_args) const {
+                          StringArgs* string_args) const {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
   }
-  str_args->key = args[0];
-  str_args->val = args[1];
-  str_args->expire = 0;
+  string_args->key = args[0];
+  string_args->val = args[1];
+  string_args->expire = 0;
   if (args.size() >= 3) {
     int64_t now = utils::GetNowInMilliseconds(), ttl = 0;
     if (utils::ToInt64(args[2], &ttl)) {
-      str_args->expire = now + ttl;
+      string_args->expire = now + ttl;
     } else {
       RS_LOG_DEBUG("invalid args\n");
       return -1;
@@ -49,8 +49,8 @@ int SetCommand::ParseArgs(const std::vector<std::string>& args,
 }
 
 int SetCommand::Set(std::shared_ptr<const db::RedisDb> db,
-                    const StrArgs* args) const {
-  const auto* val = db::RedisObj::CreateWithString(args->val);
+                    const StringArgs* args) const {
+  const auto* val = db::RedisObject::CreateWithString(args->val);
   int r = db->SetKey(args->key, val, args->expire, 0);
   val->DecrRefCount();
   return r;

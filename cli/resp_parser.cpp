@@ -5,18 +5,18 @@
 namespace redis_simple {
 namespace cli {
 namespace resp_parser {
-static const std::string& Error = "error";
+static const std::string& kError = "error";
 namespace {
 struct Prefix {
-  static constexpr const char stringPrefix = '+';
-  static constexpr const char bulkStringPrefix = '$';
-  static constexpr const char int64Prefix = ':';
-  static constexpr const char arrayPrefix = '*';
-  static constexpr const char doublePrefix = ',';
-  static constexpr const char nullPrefix = '_';
+  static constexpr const char kStringPrefix = '+';
+  static constexpr const char kBulkStringPrefix = '$';
+  static constexpr const char kInt64Prefix = ':';
+  static constexpr const char kArrayPrefix = '*';
+  static constexpr const char kDoublePrefix = ',';
+  static constexpr const char kNullPrefix = '_';
 };
 
-const std::string& nil_resp("(nil)");
+const std::string& kNilResp("(nil)");
 
 ssize_t Parse(const std::string& resp, size_t start,
               std::vector<std::string>* const reply);
@@ -43,17 +43,17 @@ ssize_t Parse(const std::string& resp, size_t start,
     return -1;
   }
   switch (resp[start]) {
-    case Prefix::stringPrefix:
+    case Prefix::kStringPrefix:
       return ParseString(resp, start, reply);
-    case Prefix::bulkStringPrefix:
+    case Prefix::kBulkStringPrefix:
       return ParseBulkString(resp, start, reply);
-    case Prefix::int64Prefix:
+    case Prefix::kInt64Prefix:
       return ParseInt64(resp, start, reply);
-    case Prefix::arrayPrefix:
+    case Prefix::kArrayPrefix:
       return ParseArray(resp, start, reply);
-    case Prefix::nullPrefix:
+    case Prefix::kNullPrefix:
       return ParseNull(resp, start, reply);
-    case Prefix::doublePrefix:
+    case Prefix::kDoublePrefix:
       return ParseFloat(resp, start, reply);
     default:
       return -1;
@@ -135,7 +135,7 @@ ssize_t ParseNull(const std::string& resp, size_t start,
                   std::vector<std::string>* const reply) {
   ssize_t i = FindCRLF(resp, start);
   if (i < 0 || i - start != 1) return -1;
-  reply->push_back(nil_resp);
+  reply->push_back(kNilResp);
   return 3;
 }
 

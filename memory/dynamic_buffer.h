@@ -25,7 +25,7 @@ class DynamicBuffer {
   }
 
  private:
-  static const constexpr size_t resizeThreshold = 1024 * 32;
+  static const constexpr size_t kResizeThreshold = 1024 * 32;
   void Resize(size_t n);
   char* buf_;
   // Total length of the query buffer

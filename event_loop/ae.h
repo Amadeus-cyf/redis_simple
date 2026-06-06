@@ -8,48 +8,48 @@
 
 namespace redis_simple {
 namespace ae {
-enum AeFlags {
-  aeReadable = 1,
-  aeWritable = 1 << 1,
-  aeBarrier = 1 << 2,
-  aeNoMore = -1,
-  aeDeleteEventId = -1024,
+enum EventFlag {
+  kReadable = 1,
+  kWritable = 1 << 1,
+  kBarrier = 1 << 2,
+  kNoMore = -1,
+  kDeleteEventId = -1024,
 };
 
-enum AeStatus {
-  aeOK = 0,
-  aeErr = -1,
+enum EventLoopStatus {
+  kOk = 0,
+  kError = -1,
 };
 
-enum class AeEventStatus {
-  aeEventOK = 0,
-  aeEventErr = -1,
+enum class EventHandlerStatus {
+  kOk = 0,
+  kError = -1,
 };
 
 // Wait for milliseconds until the given file descriptor is
 // readable/writable/exception. Return the mask indicating if the given file
 // descriptor is ready for synchronous read/write in Connection.
-int AeWait(int fd, int mask, long timeout);
+int WaitForEvent(int fd, int mask, long timeout);
 
 // Event loop
-class AeEventLoop {
+class EventLoop {
  public:
-  static AeEventLoop* InitEventLoop();
-  void AeMain();
-  AeStatus AeCreateFileEvent(int fd, AeFileEvent* fe);
-  AeStatus AeDeleteFileEvent(int fd, int mask);
-  void AeCreateTimeEvent(AeTimeEvent* te);
-  void AeProcessEvents();
-  ~AeEventLoop();
+  static EventLoop* Create();
+  void Run();
+  EventLoopStatus CreateFileEvent(int fd, FileEvent* file_event);
+  EventLoopStatus DeleteFileEvent(int fd, int mask);
+  void CreateTimeEvent(TimeEvent* time_event);
+  void ProcessEvents();
+  ~EventLoop();
 
  private:
-  static constexpr const int eventSize = 1024;
-  explicit AeEventLoop(AeKqueue* kq);
+  static constexpr const int kEventSize = 1024;
+  explicit EventLoop(KqueueEventApi* kq);
   void ProcessFileEvents();
   void ProcessTimeEvents() const;
-  std::vector<AeFileEvent*> file_events_;
-  mutable AeTimeEvent* time_event_head_;
-  const AeKqueue* ae_api_state_;
+  std::vector<FileEvent*> file_events_;
+  mutable TimeEvent* time_event_head_;
+  const KqueueEventApi* event_api_;
   mutable int max_fd_;
 };
 }  // namespace ae

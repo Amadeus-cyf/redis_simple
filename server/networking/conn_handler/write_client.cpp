@@ -35,7 +35,7 @@ ssize_t WriteToClientHandler::WriteToClient(Client* c) {
     nwritten += r;
   }
   if (r == -1) {
-    if (c->Connection()->State() != connection::ConnState::connStateConnected) {
+    if (c->Connection()->State() != connection::ConnectionState::kConnected) {
       c->Free();
       Server::Get()->RemoveClient(c);
       return -1;

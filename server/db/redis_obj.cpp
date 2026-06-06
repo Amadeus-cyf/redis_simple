@@ -2,33 +2,33 @@
 
 namespace redis_simple {
 namespace db {
-const std::string& RedisObj::String() const {
-  if (encoding_ != ObjEncoding::objEncodingString) {
+const std::string& RedisObject::String() const {
+  if (encoding_ != ObjEncoding::kString) {
     throw std::invalid_argument("value type is not string");
   }
   return std::get<std::string>(val_);
 }
 
-set::Set* const RedisObj::Set() const {
-  if (encoding_ != ObjEncoding::objEncodingSet) {
+set::Set* const RedisObject::Set() const {
+  if (encoding_ != ObjEncoding::kSet) {
     throw std::invalid_argument("value type is not set");
   }
   return std::get<set::Set*>(val_);
 }
 
-zset::ZSet* const RedisObj::ZSet() const {
-  if (encoding_ != ObjEncoding::objEncodingZSet) {
+zset::ZSet* const RedisObject::ZSet() const {
+  if (encoding_ != ObjEncoding::kZSet) {
     throw std::invalid_argument("value type is not zset");
   }
   return std::get<zset::ZSet*>(val_);
 }
 
-void RedisObj::DecrRefCount() const {
+void RedisObject::DecrRefCount() const {
   if (refcount_ == 1) {
     // Free memory based on object type.
-    if (encoding_ == ObjEncoding::objEncodingZSet) {
+    if (encoding_ == ObjEncoding::kZSet) {
       delete std::get<zset::ZSet*>(val_);
-    } else if (encoding_ == ObjEncoding::objEncodingSet) {
+    } else if (encoding_ == ObjEncoding::kSet) {
       delete std::get<set::Set*>(val_);
     }
     // Free the object.

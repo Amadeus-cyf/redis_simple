@@ -56,7 +56,7 @@ std::string DynamicBuffer::ProcessInlineBuffer() {
  * Resize to 2 * n if less than the threshold, otherwise n + 1000.
  */
 void DynamicBuffer::Resize(size_t n) {
-  if (n * 2 < resizeThreshold) {
+  if (n * 2 < kResizeThreshold) {
     n *= 2;
   } else {
     n += 1000;

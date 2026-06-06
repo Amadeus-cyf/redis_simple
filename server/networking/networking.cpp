@@ -20,16 +20,16 @@ bool SendStringInline(const connection::Connection* conn, std::string s) {
 }  // namespace
 
 // For testing
-static const std::string& ErrorRecvResp = "+error";
+static const std::string& kErrorRecvResp = "+error";
 bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return SendStringInline(conn, cmd->String());
 }
 
-ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
-                                int mask) {
+ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
+                                     int mask) {
   if (!server) {
     RS_LOG_DEBUG("invalid server / event loop\n");
-    return ae::AeEventStatus::aeEventErr;
+    return ae::EventHandlerStatus::kError;
   }
   // Should use server->EventLoop() method to get the shared pointer of event
   // loop instead of using the raw pointer passed as arg.
@@ -37,30 +37,30 @@ ae::AeEventStatus AcceptHandler(ae::AeEventLoop* el, int fd, Server* server,
   ctx.event_loop = server->EventLoop();
   ctx.fd = fd;
   connection::Connection* conn = new connection::Connection(ctx);
-  conn->SetState(connection::ConnState::connStateAccepting);
-  connection::AddressInfo addrInfo;
-  if (conn->Accept(&addrInfo) == connection::StatusCode::connStatusErr) {
+  conn->SetState(connection::ConnectionState::kAccepting);
+  connection::AddressInfo addr_info;
+  if (conn->Accept(&addr_info) == connection::ConnectionStatus::kError) {
     RS_LOG_DEBUG("connection accept failed\n");
-    return ae::AeEventStatus::aeEventErr;
+    return ae::EventHandlerStatus::kError;
   }
-  if (conn->State() != connection::ConnState::connStateConnected) {
+  if (conn->State() != connection::ConnectionState::kConnected) {
     RS_LOG_DEBUG("invalid connection state\n");
-    return ae::AeEventStatus::aeEventErr;
+    return ae::EventHandlerStatus::kError;
   }
   // Create client based on the connection.
   RS_LOG_DEBUG("accept connection from %s:%d with fd = %d\n",
-               addrInfo.ip.c_str(), addrInfo.port, conn->Fd());
+               addr_info.ip.c_str(), addr_info.port, conn->Fd());
   RS_LOG_DEBUG("start create client\n");
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
   // Install the read handler for the client connection.
   if (!conn->SetReadHandler(CreateConnHandler(
-          connection::ConnHandlerType::readQueryFromClient))) {
+          connection::ConnectionHandlerType::kReadQueryFromClient))) {
     RS_LOG_DEBUG("AcceptHandler: failed to set the read handler\n");
-    return ae::AeEventStatus::aeEventErr;
+    return ae::EventHandlerStatus::kError;
   }
   server->AddClient(client);
-  return ae::AeEventStatus::aeEventOK;
+  return ae::EventHandlerStatus::kOk;
 }
 }  // namespace networking
 }  // namespace redis_simple

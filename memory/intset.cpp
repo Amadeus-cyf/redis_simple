@@ -7,7 +7,7 @@
 namespace redis_simple {
 namespace in_memory {
 IntSet::IntSet()
-    : contents_(new int[initSize]), length_(0), encoding_(intsetEncoding16) {}
+    : contents_(new int[kInitSize]), length_(0), encoding_(kInt16) {}
 /*
  * Add the value to the intset. Return true if succeeded.
  */
@@ -66,11 +66,11 @@ int64_t IntSet::Min() const { return Get(0); }
  */
 IntSet::EncodingType IntSet::ValueEncoding(const int64_t value) const {
   if (value < INT32_MIN || value > INT32_MAX) {
-    return intsetEncoding64;
+    return kInt64;
   } else if (value < INT16_MIN || value > INT16_MAX) {
-    return intsetEncoding32;
+    return kInt32;
   } else {
-    return intsetEncoding16;
+    return kInt16;
   }
 }
 
@@ -132,12 +132,12 @@ bool IntSet::Search(int64_t value, unsigned int* const index) const {
  */
 int64_t IntSet::GetEncoded(unsigned int index, EncodingType encoding) const {
   if (index >= length_) throw std::out_of_range("index out of bound");
-  if (encoding == intsetEncoding64) {
+  if (encoding == kInt64) {
     int64_t v64;
     std::memcpy(&v64, reinterpret_cast<int64_t*>(contents_) + index,
                 sizeof(v64));
     return v64;
-  } else if (encoding == intsetEncoding32) {
+  } else if (encoding == kInt32) {
     int32_t v32;
     std::memcpy(&v32, reinterpret_cast<int32_t*>(contents_) + index,
                 sizeof(v32));
@@ -151,9 +151,9 @@ int64_t IntSet::GetEncoded(unsigned int index, EncodingType encoding) const {
 }
 
 void IntSet::Set(unsigned int index, int64_t value) {
-  if (encoding_ == intsetEncoding64) {
+  if (encoding_ == kInt64) {
     reinterpret_cast<int64_t*>(contents_)[index] = value;
-  } else if (encoding_ == intsetEncoding32) {
+  } else if (encoding_ == kInt32) {
     reinterpret_cast<int32_t*>(contents_)[index] = value;
   } else {
     reinterpret_cast<int16_t*>(contents_)[index] = value;
@@ -166,11 +166,11 @@ void IntSet::Set(unsigned int index, int64_t value) {
 void IntSet::MoveTail(unsigned int from, unsigned int to) {
   void *src, *dst;
   unsigned int bytes = length_ - from;
-  if (encoding_ == intsetEncoding64) {
+  if (encoding_ == kInt64) {
     src = reinterpret_cast<int64_t*>(contents_) + from;
     dst = reinterpret_cast<int64_t*>(contents_) + to;
     bytes *= sizeof(int64_t);
-  } else if (encoding_ == intsetEncoding32) {
+  } else if (encoding_ == kInt32) {
     src = reinterpret_cast<int32_t*>(contents_) + from;
     dst = reinterpret_cast<int32_t*>(contents_) + to;
     bytes *= sizeof(int32_t);

@@ -10,25 +10,26 @@ namespace t_set {
 void SMembersCommand::Exec(Client* const client) const {
   SMembersArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     std::vector<std::string> members;
     if (SMembers(db, &args, members) < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     auto to_string = [](const std::string& member) { return member; };
-    const auto opt = reply_utils::EncodeList<std::string, to_string>(members);
-    if (!opt.has_value()) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    const auto result =
+        reply_utils::EncodeList<std::string, to_string>(members);
+    if (!result.has_value()) {
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(opt.value());
+    client->AddReply(result.value());
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -46,7 +47,7 @@ int SMembersCommand::SMembers(std::shared_ptr<const db::RedisDb> db,
                               const SMembersArgs* args,
                               std::vector<std::string>& members) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
+  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   const auto* set = obj->Set();

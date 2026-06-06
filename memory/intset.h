@@ -22,11 +22,11 @@ class IntSet {
   }
 
  private:
-  static constexpr unsigned initSize = 1;
+  static constexpr unsigned kInitSize = 1;
   enum EncodingType {
-    intsetEncoding16 = sizeof(int16_t),
-    intsetEncoding32 = sizeof(int32_t),
-    intsetEncoding64 = sizeof(int64_t),
+    kInt16 = sizeof(int16_t),
+    kInt32 = sizeof(int32_t),
+    kInt64 = sizeof(int64_t),
   };
   EncodingType ValueEncoding(const int64_t value) const;
   void Resize(unsigned int length_);

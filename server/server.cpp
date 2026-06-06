@@ -12,8 +12,7 @@
 #include "networking/networking.h"
 
 namespace redis_simple {
-Server::Server()
-    : db_(db::RedisDb::Init()), el_(ae::AeEventLoop::InitEventLoop()) {}
+Server::Server() : db_(db::RedisDb::Init()), el_(ae::EventLoop::Create()) {}
 
 Server* const Server::Get() {
   static std::unique_ptr<Server> server;
@@ -28,17 +27,17 @@ void Server::Run(const std::string& ip, const int& port) {
   ctx.event_loop = el_;
   ctx.fd = -1;
   connection::Connection conn(ctx);
-  const connection::AddressInfo addrInfo(ip, port);
-  if (conn.BindAndListen(addrInfo) == connection::StatusCode::connStatusErr) {
+  const connection::AddressInfo addr_info(ip, port);
+  if (conn.BindAndListen(addr_info) == connection::ConnectionStatus::kError) {
     return;
   }
   fd_ = conn.Fd();
   AcceptConnHandler();
-  ae::AeTimeEventImpl<Server>::aeTimeProc time_proc =
+  ae::TimeEventImpl<Server>::TimeCallback time_proc =
       [](long long id, Server* server) { return server->ServerCron(); };
-  el_->AeCreateTimeEvent(
-      ae::AeTimeEventImpl<Server>::Create(time_proc, nullptr, this));
-  el_->AeMain();
+  el_->CreateTimeEvent(
+      ae::TimeEventImpl<Server>::Create(time_proc, nullptr, this));
+  el_->Run();
 }
 
 bool Server::RemoveClient(Client* c) {
@@ -53,9 +52,9 @@ bool Server::RemoveClient(Client* c) {
 }
 
 void Server::AcceptConnHandler() {
-  auto* fe = ae::AeFileEventImpl<Server>::Create(networking::AcceptHandler,
-                                                 nullptr, this, ae::aeReadable);
-  if (el_->AeCreateFileEvent(fd_, fe) < 0) {
+  auto* file_event = ae::FileEventImpl<Server>::Create(
+      networking::AcceptHandler, nullptr, this, ae::EventFlag::kReadable);
+  if (el_->CreateFileEvent(fd_, file_event) < 0) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
   }
 }

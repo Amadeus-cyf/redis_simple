@@ -9,19 +9,19 @@ namespace t_set {
 void SIsMemberCommand::Exec(Client* const client) const {
   SIsMemberArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
     int r = SIsMember(db, &args);
     if (r < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     client->AddReply(reply::FromInt64(r));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -39,7 +39,7 @@ int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
 int SIsMemberCommand::SIsMember(std::shared_ptr<const db::RedisDb> db,
                                 const SIsMemberArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
+  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   try {

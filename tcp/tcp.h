@@ -7,25 +7,25 @@
 
 namespace redis_simple {
 namespace tcp {
-enum TCPStatusCode {
-  tcpError = -1,
-  tcpOK = 0,
+enum TcpStatusCode {
+  kTcpError = -1,
+  kTcpOk = 0,
 };
 
-struct TCPAddrInfo {
+struct TcpAddrInfo {
   std::string ip;
   int port;
-  TCPAddrInfo() : ip(""), port(-1){};
-  TCPAddrInfo(const std::string& ip, int port) : ip(ip), port(port){};
+  TcpAddrInfo() : ip(""), port(-1){};
+  TcpAddrInfo(const std::string& ip, int port) : ip(ip), port(port){};
 };
 
-int TCP_CreateSocket(int domain, bool non_block);
-int TCP_BindAndConnect(const TCPAddrInfo& remote,
-                       const std::optional<TCPAddrInfo>& local,
-                       const bool non_block = true);
-int TCP_Bind(const int socket_fd, const TCPAddrInfo& addrInfo);
-int TCP_Listen(const int socket_fd);
-int TCP_Accept(const int socket_fd, TCPAddrInfo* const addrInfo);
+int TcpCreateSocket(int domain, bool non_block);
+int TcpBindAndConnect(const TcpAddrInfo& remote,
+                      const std::optional<TcpAddrInfo>& local,
+                      const bool non_block = true);
+int TcpBind(const int socket_fd, const TcpAddrInfo& addr_info);
+int TcpListen(const int socket_fd);
+int TcpAccept(const int socket_fd, TcpAddrInfo* const addr_info);
 int Block(const int fd);
 int NonBlock(const int fd);
 bool IsSocketError(const int fd);

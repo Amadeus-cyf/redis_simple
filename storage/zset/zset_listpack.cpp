@@ -22,9 +22,9 @@ bool ZSetListPack::InsertOrUpdate(const std::string& key, const double score) {
   const std::string& score_str = utils::FloatToString(score);
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    const auto opt_str = listpack_->Get(idx);
-    if (!opt_str.has_value()) continue;
-    const std::string& ele = opt_str.value();
+    const auto string_result = listpack_->Get(idx);
+    if (!string_result.has_value()) continue;
+    const std::string& ele = string_result.value();
     ssize_t score_idx = listpack_->Next(idx);
     double ele_score = GetScore(score_idx);
     if (score < ele_score || (score == ele_score && key < ele)) {
@@ -128,8 +128,8 @@ void ZSetListPack::DeleteKeyScorePair(size_t idx) {
  */
 double ZSetListPack::GetScore(size_t idx) {
   size_t len = 0;
-  const auto opt_str = listpack_->Get(idx);
-  return std::stod(opt_str.value_or("0"));
+  const auto string_result = listpack_->Get(idx);
+  return std::stod(string_result.value_or("0"));
 }
 
 std::vector<const ZSetEntry*> ZSetListPack::RangeByRankUtil(

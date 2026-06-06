@@ -24,7 +24,7 @@ class ReplyBuffer {
   ~ReplyBuffer();
 
  private:
-  static constexpr const size_t defaultBufferSize = 4096;
+  static constexpr const size_t kDefaultBufferSize = 4096;
   size_t AddReplyToBuffer(const char* s, size_t len);
   size_t AddReplyProtoToList(const char* c, size_t len);
   size_t ClearBufferProcessed(size_t nwritten);

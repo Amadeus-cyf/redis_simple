@@ -11,8 +11,8 @@
 
 namespace redis_simple {
 enum class ClientStatus {
-  clientOK = 0,
-  clientErr = -1,
+  kOk = 0,
+  kError = -1,
 };
 
 class Client {

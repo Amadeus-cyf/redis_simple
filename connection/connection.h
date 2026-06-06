@@ -12,23 +12,23 @@
 
 namespace redis_simple {
 namespace connection {
-enum class StatusCode {
-  connStatusOK = 0,
-  connStatusErr = -1,
+enum class ConnectionStatus {
+  kOk = 0,
+  kError = -1,
 };
 
-enum class ConnState {
-  connStateConnect = 1,
-  connStateConnecting = 1 << 1,
-  connStateAccepting = 1 << 2,
-  connStateHandshake = 1 << 3,
-  connStateConnected = 1 << 4,
-  connStateError = 1 << 5,
-  connStateClosed = 1 << 6,
+enum class ConnectionState {
+  kConnect = 1,
+  kConnecting = 1 << 1,
+  kAccepting = 1 << 2,
+  kHandshake = 1 << 3,
+  kConnected = 1 << 4,
+  kError = 1 << 5,
+  kClosed = 1 << 6,
 };
 
 struct Context {
-  std::weak_ptr<ae::AeEventLoop> event_loop;
+  std::weak_ptr<ae::EventLoop> event_loop;
   int fd;
 };
 
@@ -42,13 +42,13 @@ struct AddressInfo {
 class Connection {
  public:
   explicit Connection(const Context& ctx);
-  StatusCode BindAndConnect(const AddressInfo& remote,
-                            const std::optional<AddressInfo>& local);
-  StatusCode BindAndBlockingConnect(const AddressInfo& remote,
-                                    const std::optional<AddressInfo>& local,
-                                    long timeout);
-  StatusCode BindAndListen(const AddressInfo& addrInfo);
-  StatusCode Accept(AddressInfo* const addrInfo);
+  ConnectionStatus BindAndConnect(const AddressInfo& remote,
+                                  const std::optional<AddressInfo>& local);
+  ConnectionStatus BindAndBlockingConnect(
+      const AddressInfo& remote, const std::optional<AddressInfo>& local,
+      long timeout);
+  ConnectionStatus BindAndListen(const AddressInfo& addr_info);
+  ConnectionStatus Accept(AddressInfo* const addr_info);
   bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
   bool UnsetReadHandler();
   bool HasReadHandler() const { return read_handler_ != nullptr; }
@@ -57,8 +57,8 @@ class Connection {
   bool UnsetWriteHandler();
   bool HasWriteHandler() const { return write_handler_ != nullptr; }
   int Fd() const { return fd_; }
-  ConnState State() const { return state_; }
-  void SetState(ConnState state) { state_ = state; }
+  ConnectionState State() const { return state_; }
+  void SetState(ConnectionState state) { state_ = state; }
   void SetPrivateData(std::any private_data) { private_data_ = private_data; }
   std::any PrivateData() const { return private_data_; }
   ssize_t Read(char* const buf, size_t readlen) const;
@@ -74,27 +74,28 @@ class Connection {
 
  private:
   // Give pending writes priority over reads for this connection.
-  static constexpr int connFlagWriteBarrier = 1;
+  static constexpr int kWriteBarrier = 1;
 
-  static ae::AeEventStatus ConnSocketEventHandler(ae::AeEventLoop* el, int fd,
-                                                  Connection* client_data,
-                                                  int mask);
+  static ae::EventHandlerStatus ConnSocketEventHandler(ae::EventLoop* el,
+                                                       int fd,
+                                                       Connection* client_data,
+                                                       int mask);
   int WaitRead(long timeout) const {
-    return Wait(ae::AeFlags::aeReadable, timeout);
+    return Wait(ae::EventFlag::kReadable, timeout);
   }
   int WaitWrite(long timeout) const {
-    return Wait(ae::AeFlags::aeWritable, timeout);
+    return Wait(ae::EventFlag::kWritable, timeout);
   }
-  int Wait(ae::AeFlags flag, long timeout) const;
+  int Wait(ae::EventFlag flag, long timeout) const;
   int fd_;
-  // Flags used to judge connFlagWriteBarrier is set
+  // Flags used to judge kWriteBarrier is set
   int flags_;
   // Connection state
-  mutable ConnState state_;
+  mutable ConnectionState state_;
   // Data used by connection handlers
   std::any private_data_;
   // Event loop
-  std::weak_ptr<ae::AeEventLoop> el_;
+  std::weak_ptr<ae::EventLoop> el_;
   // Connection read handler
   std::unique_ptr<ConnHandler> read_handler_;
   // Connection write handler

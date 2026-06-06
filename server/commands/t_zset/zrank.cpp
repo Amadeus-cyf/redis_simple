@@ -11,7 +11,7 @@ namespace t_zset {
 void ZRankCommand::Exec(Client* const client) const {
   ZRankArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   if (auto db = client->DB().lock()) {
@@ -23,7 +23,7 @@ void ZRankCommand::Exec(Client* const client) const {
     }
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::replyErr));
+    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
@@ -48,7 +48,7 @@ const std::optional<size_t> ZRankCommand::ZRank(
     RS_LOG_DEBUG("key not found\n");
     return std::nullopt;
   }
-  if (obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
     return std::nullopt;
   }
