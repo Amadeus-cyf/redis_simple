@@ -9,7 +9,7 @@ namespace redis_simple {
 namespace db {
 RedisDb* RedisDb::Init() { return new RedisDb(); }
 
-RedisDb::RedisDb() : expire_cursor_(0) {
+RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
   auto hash = [](const std::string& key) {
     std::hash<std::string> h;
     return h(key);
