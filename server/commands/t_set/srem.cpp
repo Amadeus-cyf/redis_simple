@@ -40,14 +40,14 @@ int SRemCommand::ParseArgs(const std::vector<std::string>& args,
 
 int SRemCommand::SRem(std::shared_ptr<const db::RedisDb> db,
                       const SRemArgs* args) const {
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
     return -1;
   }
   try {
-    set::Set* const set = obj->Set();
+    auto* const set = obj->Set();
     int deleted = 0;
-    for (const std::string& element : args->elements) {
+    for (const auto& element : args->elements) {
       deleted += set->Remove(element) ? 1 : 0;
     }
     return deleted;

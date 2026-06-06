@@ -45,12 +45,12 @@ int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
 int SMembersCommand::SMembers(std::shared_ptr<const db::RedisDb> db,
                               const SMembersArgs* args,
                               std::vector<std::string>& members) const {
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
     return -1;
   }
-  const set::Set* set = obj->Set();
-  const std::vector<std::string>& set_members = set->ListAllMembers();
+  const auto* set = obj->Set();
+  const auto set_members = set->ListAllMembers();
   members.insert(members.begin(), set_members.begin(), set_members.end());
   return 0;
 }

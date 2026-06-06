@@ -40,25 +40,24 @@ class ZSetSkiplist : public ZSetStorage {
     }
   };
 
-  const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                            Destructor>::SkiplistRangeByRankSpec*
-  ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
-  const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                            Destructor>::SkiplistRangeByKeySpec*
-  ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
+  using SkiplistType =
+      in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>;
+  using SkiplistLimitSpec = SkiplistType::SkiplistLimitSpec;
+  using SkiplistRangeByRankSpec = SkiplistType::SkiplistRangeByRankSpec;
+  using SkiplistRangeByKeySpec = SkiplistType::SkiplistRangeByKeySpec;
+
+  const SkiplistRangeByRankSpec* ToSkiplistRangeByRankSpec(
+      const RangeByRankSpec* spec) const;
+  const SkiplistRangeByKeySpec* ToSkiplistRangeByKeySpec(
+      const RangeByScoreSpec* spec) const;
   void FreeSkiplistRangeByRankSpec(
-      const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                                Destructor>::SkiplistRangeByRankSpec*
-          skiplist_spec) const;
+      const SkiplistRangeByRankSpec* skiplist_spec) const;
   void FreeSkiplistRangeByKeySpec(
-      const in_memory::Skiplist<const ZSetEntry*, Comparator,
-                                Destructor>::SkiplistRangeByKeySpec*
-          skiplist_spec) const;
+      const SkiplistRangeByKeySpec* skiplist_spec) const;
   // Dict mapping key to score, used with the skiplist
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
   // Skiplist storing key score pairs ordered by score
-  std::unique_ptr<in_memory::Skiplist<const ZSetEntry*, Comparator, Destructor>>
-      skiplist_;
+  std::unique_ptr<SkiplistType> skiplist_;
   // Min and max key value, used for RangeByScore
   mutable std::optional<std::string> max_key_, min_key_;
 };

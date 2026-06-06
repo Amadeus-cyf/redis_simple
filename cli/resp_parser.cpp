@@ -1,5 +1,7 @@
 #include "resp_parser.h"
 
+#include <cctype>
+
 namespace redis_simple {
 namespace cli {
 namespace resp_parser {
@@ -157,7 +159,8 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
       floating_point = true;
       continue;
     }
-    if (!exponential && std::tolower(resp[j]) == 'e') {
+    if (!exponential &&
+        std::tolower(static_cast<unsigned char>(resp[j])) == 'e') {
       // Exponent
       if (j < i - 1 && !IsSign(resp[j + 1]) && !std::isdigit(resp[j + 1])) {
         return -1;

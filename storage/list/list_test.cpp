@@ -7,7 +7,7 @@ namespace list {
 class ListTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { list = List::Init(); }
-  static void TearDownTestSuit() {
+  static void TearDownTestSuite() {
     delete list;
     list = nullptr;
   }

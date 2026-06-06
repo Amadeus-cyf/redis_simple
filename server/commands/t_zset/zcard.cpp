@@ -37,12 +37,12 @@ int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
 
 ssize_t ZCardCommand::ZCard(std::shared_ptr<const db::RedisDb> db,
                             const ZAddArgs* args) const {
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     return -1;
   }
   try {
-    const zset::ZSet* zset = obj->ZSet();
+    const auto* zset = obj->ZSet();
     return zset->Size();
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());

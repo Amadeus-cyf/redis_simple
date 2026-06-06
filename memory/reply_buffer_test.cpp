@@ -61,7 +61,7 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(buf->BufPosition(), 4096);
   ASSERT_EQ(buf->ReplyLen(), 4);
 
-  const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
+  const auto mem_vec = buf->Memvec();
   ASSERT_EQ(mem_vec.size(), 5);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(2000, 'a').append(4096 - 2000, 'b'));
@@ -92,7 +92,7 @@ TEST_F(ReplyBufferTest, ClearProcessed) {
   ASSERT_EQ(buf->SentLen(), 5000 - (4096 - 2047) - 2000);
   ASSERT_EQ(buf->ReplyLen(), 3);
 
-  const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
+  const auto mem_vec = buf->Memvec();
   ASSERT_EQ(mem_vec.size(), 3);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));
@@ -117,7 +117,7 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   ASSERT_EQ(buf->BufPosition(), 0);
   ASSERT_EQ(buf->ReplyLen(), 4);
 
-  const std::vector<std::pair<char*, size_t>>& mem_vec = buf->Memvec();
+  const auto mem_vec = buf->Memvec();
   ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));

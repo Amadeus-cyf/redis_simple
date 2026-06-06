@@ -101,7 +101,7 @@ TEST_F(IntSetTest, Remove) {
 }
 
 TEST_F(IntSetTest, Iterator) {
-  IntSet::Iterator it(intset);
+  auto it = IntSet::Iterator(intset);
   it.SeekToFirst();
   ASSERT_EQ(it.Value(), INT32_MIN);
   it.Next();

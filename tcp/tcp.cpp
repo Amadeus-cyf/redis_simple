@@ -54,7 +54,8 @@ int SetBlock(int fd, bool block) {
   if (flags < 0) {
     return TCPStatusCode::tcpError;
   }
-  if ((flags & O_NONBLOCK) == !block) {
+  const bool is_non_block = (flags & O_NONBLOCK) != 0;
+  if (is_non_block == !block) {
     return TCPStatusCode::tcpOK;
   }
   block ? flags &= ~O_NONBLOCK : flags |= O_NONBLOCK;
@@ -179,7 +180,7 @@ int Block(const int socket_fd) { return SetBlock(socket_fd, true); }
 
 bool IsSocketError(const int fd) {
   int sockerr = 0;
-  socklen_t errlen;
+  socklen_t errlen = sizeof(sockerr);
   getsockopt(fd, SOL_SOCKET, SO_ERROR, &sockerr, &errlen);
   RS_LOG_DEBUG("sock err %d\n", sockerr);
   return sockerr;

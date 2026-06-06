@@ -43,7 +43,7 @@ int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
   if (!db || !args) {
     return -1;
   }
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
     return -1;
   }
@@ -56,9 +56,9 @@ int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
     }
   }
   try {
-    set::Set* const set = obj->Set();
+    auto* const set = obj->Set();
     int added = 0;
-    for (const std::string& element : args->elements) {
+    for (const auto& element : args->elements) {
       added += set->Add(element) ? 1 : 0;
     }
     return added;

@@ -24,12 +24,12 @@ TEST_F(DictStrTest, Init) {
 }
 
 TEST_F(DictStrTest, Insert) {
-  bool status = dict_str->Insert("key", "val");
+  auto status = dict_str->Insert("key", "val");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
 
   // Insert a new key.
-  const std::optional<std::string>& opt1 = dict_str->Get("key");
+  const auto opt1 = dict_str->Get("key");
   ASSERT_TRUE(opt1.has_value());
   ASSERT_EQ(opt1.value_or(""), "val");
   ASSERT_EQ(dict_str->Size(), 1);
@@ -38,7 +38,7 @@ TEST_F(DictStrTest, Insert) {
   dict_str->Set("key", "val_update");
   ASSERT_EQ(dict_str->Size(), 1);
 
-  const std::optional<std::string>& opt2 = dict_str->Get("key");
+  const auto opt2 = dict_str->Get("key");
   ASSERT_TRUE(opt2.has_value());
   ASSERT_EQ(opt2.value_or(""), "val_update");
   ASSERT_EQ(dict_str->Size(), 1);
@@ -51,7 +51,7 @@ TEST_F(DictStrTest, InsertDuplicate) {
   ASSERT_FALSE(dict_str->Insert("key", "new_val"));
   ASSERT_EQ(dict_str->Size(), 1);
 
-  const std::optional<std::string>& opt = dict_str->Get("key");
+  const auto opt = dict_str->Get("key");
   ASSERT_TRUE(opt.has_value());
   ASSERT_EQ(opt.value_or(""), "val");
 }
@@ -60,11 +60,11 @@ TEST_F(DictStrTest, Delete) {
   dict_str = Dict<std::string, std::string>::Init();
   ASSERT_TRUE(dict_str->Insert("key", "val"));
 
-  bool status = dict_str->Delete("key");
+  auto status = dict_str->Delete("key");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 0);
 
-  const std::optional<std::string>& opt = dict_str->Get("key");
+  const auto opt = dict_str->Get("key");
   ASSERT_FALSE(opt.has_value());
   ASSERT_EQ(opt, std::nullopt);
   ASSERT_EQ(dict_str->Size(), 0);
@@ -79,9 +79,6 @@ class DictIntTest : public testing::Test {
 std::unique_ptr<Dict<int, int>> DictIntTest::dict_int = nullptr;
 
 TEST_F(DictIntTest, Init) {
-  const Dict<int, int>::DictType& type = {
-      .hashFunction = [](const int i) { return i; },
-  };
   ASSERT_TRUE(dict_int);
   ASSERT_EQ(dict_int->Size(), 0);
 }
@@ -91,13 +88,13 @@ TEST_F(DictIntTest, BatchInsert) {
     dict_int->Insert(i, i);
   }
   ASSERT_EQ(dict_int->Size(), 129);
-  const std::optional<int>& opt = dict_int->Get(96);
+  const auto opt = dict_int->Get(96);
   ASSERT_TRUE(opt.has_value());
   ASSERT_EQ(opt.value_or(0), 96);
 }
 
 TEST_F(DictIntTest, Iterator) {
-  in_memory::Dict<int, int>::Iterator it(dict_int.get());
+  auto it = in_memory::Dict<int, int>::Iterator(dict_int.get());
   it.SeekToFirst();
   ASSERT_TRUE(it.Valid());
   ASSERT_EQ(it.Key(), 128);
@@ -131,7 +128,7 @@ TEST_F(DictIntTest, Clear) {
   dict_int->Clear();
   ASSERT_EQ(dict_int->Size(), 0);
 
-  const std::optional<int>& opt = dict_int->Get(96);
+  const auto opt = dict_int->Get(96);
   ASSERT_FALSE(opt.has_value());
   ASSERT_EQ(opt, std::nullopt);
 }

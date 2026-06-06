@@ -7,7 +7,7 @@ namespace set {
 class SetTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { set = Set::Init(); }
-  static void TearDownTestSuit() {
+  static void TearDownTestSuite() {
     delete set;
     set = nullptr;
   }
@@ -53,7 +53,7 @@ TEST_F(SetTest, AddAndList) {
   ASSERT_TRUE(set->HasMember("-9223372036854775808"));
   ASSERT_FALSE(set->Add("-9223372036854775808"));
 
-  const std::vector<std::string>& members_intset = set->ListAllMembers();
+  const auto members_intset = set->ListAllMembers();
   ASSERT_EQ(members_intset,
             std::vector<std::string>({"-9223372036854775808", "-4294967296",
                                       "-65536", "1", "65535", "4294967295",
@@ -72,9 +72,9 @@ TEST_F(SetTest, AddAndList) {
   ASSERT_TRUE(set->HasMember("-9223372036854775808"));
   ASSERT_TRUE(set->HasMember("4294967295"));
 
-  const std::vector<std::string>& members_dict = set->ListAllMembers();
+  const auto members_dict = set->ListAllMembers();
   ASSERT_EQ(members_dict.size(), 9);
-  for (const std::string& member : members_dict) {
+  for (const auto& member : members_dict) {
     RS_LOG_DEBUG("member: %s\n", member.c_str());
   }
 }

@@ -160,6 +160,7 @@ typename Dict<K, V>::Iterator& Dict<K, V>::Iterator::operator=(
   table_ = it.table_;
   idx_ = it.idx_;
   entry_ = it.entry_;
+  return *this;
 }
 
 template <typename K, typename V>

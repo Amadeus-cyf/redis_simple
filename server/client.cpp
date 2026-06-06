@@ -51,7 +51,7 @@ ssize_t Client::SendBufferReply() {
 
 ssize_t Client::SendListReply() {
   RS_LOG_DEBUG("_sendvReply\n");
-  const std::vector<std::pair<char*, size_t>>& memToWrite = buf_->Memvec();
+  const auto memToWrite = buf_->Memvec();
   ssize_t nwritten = connection_->Writev(memToWrite);
   if (nwritten < 0) {
     return -1;
@@ -81,14 +81,14 @@ ClientStatus Client::ProcessInlineBuffer() {
     return ClientStatus::clientErr;
   }
   RS_LOG_DEBUG("cmd str %s\n", cmdstr.c_str());
-  std::vector<std::string> args = utils::Split(cmdstr, " ");
+  auto args = utils::Split(cmdstr, " ");
   if (args.size() == 0) {
     return ClientStatus::clientErr;
   }
   const std::string& name = GetCmdName(args);
   args.erase(args.begin());
-  std::weak_ptr<const command::Command> cmdptr = command::Command::Create(name);
-  if (std::shared_ptr<const command::Command> cmd = cmdptr.lock()) {
+  auto cmdptr = command::Command::Create(name);
+  if (auto cmd = cmdptr.lock()) {
     if (!cmd) {
       RS_LOG_DEBUG("command not found\n");
       return ClientStatus::clientErr;
@@ -103,7 +103,7 @@ ClientStatus Client::ProcessInlineBuffer() {
 }
 
 ClientStatus Client::ProcessCommand() {
-  if (std::shared_ptr<const command::Command> command = cmd_.lock()) {
+  if (auto command = cmd_.lock()) {
     RS_LOG_DEBUG("process command: %s\n", command->Name().c_str());
     if (command) {
       command->Exec(this);

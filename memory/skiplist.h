@@ -33,6 +33,9 @@ class Skiplist {
  public:
   // Spec for LIMIT flag
   struct SkiplistLimitSpec {
+    SkiplistLimitSpec() : offset(0), count(0) {}
+    SkiplistLimitSpec(size_t offset, ssize_t count)
+        : offset(offset), count(count) {}
     // Starting offset
     size_t offset;
     // Number of keys to return
@@ -40,6 +43,11 @@ class Skiplist {
   };
   // Spec for range by rank
   struct SkiplistRangeByRankSpec {
+    SkiplistRangeByRankSpec()
+        : min(0), max(0), minex(false), maxex(false), limit(nullptr) {}
+    SkiplistRangeByRankSpec(size_t min, size_t max, bool minex, bool maxex,
+                            const SkiplistLimitSpec* limit)
+        : min(min), max(max), minex(minex), maxex(maxex), limit(limit) {}
     // Min and max index
     size_t min, max;
     // Are min or max exclusive?
@@ -136,7 +144,7 @@ class Skiplist {
 template <typename Key, typename Comparator, typename Destructor>
 struct Skiplist<Key, Comparator, Destructor>::SkiplistLevel {
   explicit SkiplistLevel(SkiplistNode* next, size_t span)
-      : next_(next), span_(0){};
+      : next_(next), span_(span){};
   void Reset();
   ~SkiplistLevel() { Reset(); }
   SkiplistNode* next_;

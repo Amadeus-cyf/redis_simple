@@ -15,6 +15,22 @@ struct LimitSpec {
 
 // Spec for range by rank
 struct RangeByRankSpec {
+  RangeByRankSpec()
+      : min(0),
+        max(0),
+        minex(false),
+        maxex(false),
+        limit(nullptr),
+        reverse(false) {}
+  RangeByRankSpec(long min, long max, bool minex, bool maxex,
+                  std::unique_ptr<LimitSpec> limit = nullptr,
+                  bool reverse = false)
+      : min(min),
+        max(max),
+        minex(minex),
+        maxex(maxex),
+        limit(std::move(limit)),
+        reverse(reverse) {}
   // 0-based index
   long min, max;
   // Are min or max exclusive?
@@ -27,6 +43,22 @@ struct RangeByRankSpec {
 
 // Spec for range by score
 struct RangeByScoreSpec {
+  RangeByScoreSpec()
+      : min(0),
+        max(0),
+        minex(false),
+        maxex(false),
+        limit(nullptr),
+        reverse(false) {}
+  RangeByScoreSpec(double min, double max, bool minex, bool maxex,
+                   std::unique_ptr<LimitSpec> limit = nullptr,
+                   bool reverse = false)
+      : min(min),
+        max(max),
+        minex(minex),
+        maxex(maxex),
+        limit(std::move(limit)),
+        reverse(reverse) {}
   double min, max;
   // Are min or max exclusive?
   bool minex, maxex;

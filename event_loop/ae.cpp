@@ -17,7 +17,7 @@ namespace redis_simple {
 namespace ae {
 int AeWait(int fd, int mask, long timeout) {
   int nfds = 1;
-  struct pollfd pfds[1];
+  struct pollfd pfds[1] = {};
   pfds[0].fd = fd;
   if (mask & AeFlags::aeReadable) {
     pfds[0].events |= POLLIN;
@@ -47,6 +47,7 @@ int AeWait(int fd, int mask, long timeout) {
 
 AeEventLoop::AeEventLoop(AeKqueue* kq)
     : file_events_(std::vector<AeFileEvent*>(eventSize)),
+      time_event_head_(nullptr),
       ae_api_state_(kq),
       max_fd_(-1) {}
 

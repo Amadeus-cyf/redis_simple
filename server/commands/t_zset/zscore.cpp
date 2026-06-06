@@ -41,12 +41,12 @@ int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
 
 const std::optional<double> ZScoreCommand::ZScore(
     std::shared_ptr<const db::RedisDb> db, const ZScoreArgs* args) const {
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     return std::nullopt;
   }
   try {
-    const zset::ZSet* zset = obj->ZSet();
+    const auto* zset = obj->ZSet();
     return zset->GetScoreOfKey(args->element);
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());

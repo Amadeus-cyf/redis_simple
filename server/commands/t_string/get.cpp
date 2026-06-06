@@ -43,7 +43,7 @@ const std::optional<std::string> GetCommand::Get(
   if (!db || !args) {
     return std::nullopt;
   }
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingString) {
     return std::nullopt;
   } else if (obj) {

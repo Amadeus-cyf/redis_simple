@@ -16,10 +16,10 @@ namespace {
 int TCPBindAndConnect(const AddressInfo& remote,
                       const std::optional<AddressInfo>& local) {
   const tcp::TCPAddrInfo remote_addr(remote.ip, remote.port);
-  const std::optional<tcp::TCPAddrInfo> local_addr =
-      local.has_value() ? std::make_optional<tcp::TCPAddrInfo>(
-                              local.value().ip, local.value().port)
-                        : std::nullopt;
+  const auto local_addr = local.has_value()
+                              ? std::make_optional<tcp::TCPAddrInfo>(
+                                    local.value().ip, local.value().port)
+                              : std::nullopt;
   return tcp::TCP_BindAndConnect(remote_addr, local_addr);
 }
 }  // namespace

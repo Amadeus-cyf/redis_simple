@@ -37,12 +37,12 @@ int SCardCommand::ParseArgs(const std::vector<std::string>& args,
 
 ssize_t SCardCommand::SCard(std::shared_ptr<const db::RedisDb> db,
                             const SAddArgs* args) const {
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj || obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingSet) {
     return -1;
   }
   try {
-    const set::Set* set = obj->Set();
+    const auto* set = obj->Set();
     return set->Size();
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());

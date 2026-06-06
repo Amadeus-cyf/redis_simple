@@ -4,6 +4,12 @@
 
 namespace redis_simple {
 namespace in_memory {
+namespace {
+ListPack::ListPackEntry StrEntry(std::string* str) { return {str, 0}; }
+
+ListPack::ListPackEntry IntEntry(int64_t val) { return {nullptr, val}; }
+}  // namespace
+
 class ListPackTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { listpack = new ListPack(); }
@@ -314,33 +320,9 @@ TEST_F(ListPackTest, BatchAppend) {
   std::string s1("hello world");
   std::string s2("-1234567");
   std::vector<ListPack::ListPackEntry> entries = {
-      {
-          .str = &s0,
-      },
-      {
-          .sval = INT64_MIN,
-      },
-      {
-          .sval = INT64_MAX,
-      },
-      {
-          .sval = INT32_MIN,
-      },
-      {
-          .sval = INT32_MAX,
-      },
-      {
-          .sval = INT32_MAX >> 8,
-      },
-      {
-          .sval = 127,
-      },
-      {
-          .str = &s1,
-      },
-      {
-          .str = &s2,
-      },
+      StrEntry(&s0),       IntEntry(INT64_MIN), IntEntry(INT64_MAX),
+      IntEntry(INT32_MIN), IntEntry(INT32_MAX), IntEntry(INT32_MAX >> 8),
+      IntEntry(127),       StrEntry(&s1),       StrEntry(&s2),
   };
   ssize_t idx = listpack->GetTotalBytes() - 1;
   listpack->BatchAppend(entries);
@@ -374,33 +356,11 @@ TEST_F(ListPackTest, BatchPrepend) {
   std::string s1(4094, 'h');
   std::string s2(4098, 'i');
   std::vector<ListPack::ListPackEntry> entries = {
-      {
-          .str = &s0,
-      },
-      {
-          .sval = INT64_MIN + 7,
-      },
-      {
-          .sval = INT64_MAX - 9,
-      },
-      {
-          .sval = INT32_MIN + 7,
-      },
-      {
-          .sval = INT32_MAX - 9,
-      },
-      {
-          .sval = (INT32_MAX >> 8) - 1,
-      },
-      {
-          .sval = 125,
-      },
-      {
-          .str = &s1,
-      },
-      {
-          .str = &s2,
-      },
+      StrEntry(&s0),           IntEntry(INT64_MIN + 7),
+      IntEntry(INT64_MAX - 9), IntEntry(INT32_MIN + 7),
+      IntEntry(INT32_MAX - 9), IntEntry((INT32_MAX >> 8) - 1),
+      IntEntry(125),           StrEntry(&s1),
+      StrEntry(&s2),
   };
   ASSERT_TRUE(listpack->BatchPrepend(entries));
   ASSERT_EQ(listpack->Size(), 39);
@@ -432,36 +392,16 @@ TEST_F(ListPackTest, BatchInsert) {
   std::string s1(4093, 'j');
   std::string s2(4099, 'k');
   std::vector<ListPack::ListPackEntry> entries = {
-      {
-          .str = &s0,
-      },
-      {
-          .sval = INT64_MIN + 21,
-      },
-      {
-          .sval = INT64_MAX - 17,
-      },
-      {
-          .sval = INT32_MIN + 21,
-      },
-      {
-          .sval = INT32_MAX - 17,
-      },
-      {
-          .sval = (INT32_MAX >> 8) - 17,
-      },
-      {
-          .sval = INT16_MAX - 17,
-      },
-      {
-          .sval = 123,
-      },
-      {
-          .str = &s1,
-      },
-      {
-          .str = &s2,
-      },
+      StrEntry(&s0),
+      IntEntry(INT64_MIN + 21),
+      IntEntry(INT64_MAX - 17),
+      IntEntry(INT32_MIN + 21),
+      IntEntry(INT32_MAX - 17),
+      IntEntry((INT32_MAX >> 8) - 17),
+      IntEntry(INT16_MAX - 17),
+      IntEntry(123),
+      StrEntry(&s1),
+      StrEntry(&s2),
   };
   size_t idx = listpack->First();
   ASSERT_EQ(idx, ListPack::ListPackHeaderSize);

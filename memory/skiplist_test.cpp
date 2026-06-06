@@ -3,6 +3,8 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace redis_simple {
 namespace in_memory {
@@ -17,12 +19,23 @@ class SkiplistTest : public testing::Test {
 };
 
 struct RangeByRankSpecTestCase {
+  RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec spec,
+                          std::vector<std::string> keys,
+                          std::vector<std::string> revkeys)
+      : spec(spec), keys(std::move(keys)), revkeys(std::move(revkeys)) {}
   const Skiplist<std::string>::SkiplistRangeByRankSpec spec;
   const std::vector<std::string> keys;
   const std::vector<std::string> revkeys;
 };
 
 struct RangeByKeySpecTestCase {
+  RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec spec,
+                         std::vector<std::string> keys,
+                         std::vector<std::string> revkeys, ssize_t count)
+      : spec(spec),
+        keys(std::move(keys)),
+        revkeys(std::move(revkeys)),
+        count(count) {}
   const Skiplist<std::string>::SkiplistRangeByKeySpec spec;
   const std::vector<std::string> keys;
   const std::vector<std::string> revkeys;
@@ -138,38 +151,36 @@ TEST_F(SkiplistTest, ArrayAccess) {
 }
 
 TEST_F(SkiplistTest, RangeByRank) {
-  const std::vector<RangeByRankSpecTestCase>& tests =
-      RangeByRankSpecTestCases();
-  for (const RangeByRankSpecTestCase& test : tests) {
+  const auto tests = RangeByRankSpecTestCases();
+  for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RangeByRank(&test.spec), test.keys);
   }
 }
 
 TEST_F(SkiplistTest, RevRangeByRank) {
-  const std::vector<RangeByRankSpecTestCase>& tests =
-      RangeByRankSpecTestCases();
-  for (const RangeByRankSpecTestCase& test : tests) {
+  const auto tests = RangeByRankSpecTestCases();
+  for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RevRangeByRank(&test.spec), test.revkeys);
   }
 }
 
 TEST_F(SkiplistTest, RangeByKey) {
-  const std::vector<RangeByKeySpecTestCase>& tests = RangeByKeySpecTestCases();
-  for (const RangeByKeySpecTestCase& test : tests) {
+  const auto tests = RangeByKeySpecTestCases();
+  for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RangeByKey(&test.spec), test.keys);
   }
 }
 
 TEST_F(SkiplistTest, RevRangeByKey) {
-  const std::vector<RangeByKeySpecTestCase>& tests = RangeByKeySpecTestCases();
-  for (const RangeByKeySpecTestCase& test : tests) {
+  const auto tests = RangeByKeySpecTestCases();
+  for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RevRangeByKey(&test.spec), test.revkeys);
   }
 }
 
 TEST_F(SkiplistTest, Count) {
-  const std::vector<RangeByKeySpecTestCase>& tests = RangeByKeySpecTestCases();
-  for (const RangeByKeySpecTestCase& test : tests) {
+  const auto tests = RangeByKeySpecTestCases();
+  for (const auto& test : tests) {
     ASSERT_EQ(skiplist->Count(&test.spec), test.count);
   }
 }
@@ -177,288 +188,112 @@ TEST_F(SkiplistTest, Count) {
 std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 0,
-              .count = -1,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(0, -1));
   static auto limit2 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 0,
-              .count = 2,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(0, 2));
   static auto limit3 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 2,
-              .count = 3,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(2, 3));
   static auto limit4 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 10,
-              .count = -1,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(10, -1));
 
-  return {{
-              // Base
-              .spec = {.min = 0,
-                       .max = 3,
-                       .minex = false,
-                       .maxex = false,
-                       .limit = nullptr},
-              .keys = {"key0", "key2", "key4", "key5"},
-              .revkeys = {"key5", "key4", "key2", "key0"},
-          },
-          {
-              // Min exclusive
-              .spec = {.min = 1,
-                       .max = 3,
-                       .minex = true,
-                       .maxex = false,
-                       .limit = nullptr},
-              .keys = {"key4", "key5"},
-              .revkeys = {"key2", "key0"},
-          },
-          {
-              // Max exclusive
-              .spec = {.min = 1,
-                       .max = 3,
-                       .minex = false,
-                       .maxex = true,
-                       .limit = nullptr},
-              .keys = {"key2", "key4"},
-              .revkeys = {"key4", "key2"},
-          },
-          {
-              // Count = -1, return all keys in the range.
-              .spec =
-                  {
-                      .min = 1,
-                      .max = 3,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = limit1.get(),
-                  },
-              .keys = {"key2", "key4", "key5"},
-              .revkeys = {"key4", "key2", "key0"},
-          },
-          {
-              // With count.
-              .spec =
-                  {
-                      .min = 1,
-                      .max = 3,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = limit2.get(),
-                  },
-              .keys = {"key2", "key4"},
-              .revkeys = {"key4", "key2"},
-          },
-          {
-              // With offset.
-              .spec =
-                  {
-                      .min = 0,
-                      .max = 3,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = limit3.get(),
-                  },
-              .keys = {"key4", "key5"},
-              .revkeys = {"key2", "key0"},
-          },
-          {
-              // Offset out of range
-              .spec =
-                  {
-                      .min = 0,
-                      .max = 4,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = limit4.get(),
-                  },
-              .keys = {},
-              .revkeys = {},
-          },
-          {
-              // Invalid spec, non-exclusive, min > max.
-              .spec =
-                  {
-                      .min = 2,
-                      .max = 1,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = nullptr,
-                  },
-              .keys = {},
-              .revkeys = {},
-          },
-          {
-              // Invalid spec, min exclusive, min == max.
-              .spec =
-                  {
-                      .min = 1,
-                      .max = 1,
-                      .minex = true,
-                      .maxex = false,
-                      .limit = nullptr,
-                  },
-              .keys = {},
-              .revkeys = {},
-          },
-          {
-              // Invalid spec, max exclusive, min == max.
-              .spec =
-                  {
-                      .min = 1,
-                      .max = 1,
-                      .minex = false,
-                      .maxex = true,
-                      .limit = nullptr,
-                  },
-              .keys = {},
-              .revkeys = {},
-          },
-          {
-              // Invalid spec, min out of range.
-              .spec =
-                  {
-                      .min = 100000,
-                      .max = 1000000,
-                      .minex = false,
-                      .maxex = false,
-                      .limit = nullptr,
-                  },
-              .keys = {},
-              .revkeys = {},
-          }};
+  return {
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  0, 3, false, false, nullptr),
+                              {"key0", "key2", "key4", "key5"},
+                              {"key5", "key4", "key2", "key0"}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  1, 3, true, false, nullptr),
+                              {"key4", "key5"}, {"key2", "key0"}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  1, 3, false, true, nullptr),
+                              {"key2", "key4"}, {"key4", "key2"}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  1, 3, false, false, limit1.get()),
+                              {"key2", "key4", "key5"},
+                              {"key4", "key2", "key0"}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  1, 3, false, false, limit2.get()),
+                              {"key2", "key4"}, {"key4", "key2"}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  0, 3, false, false, limit3.get()),
+                              {"key4", "key5"}, {"key2", "key0"}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  0, 4, false, false, limit4.get()),
+                              {}, {}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  2, 1, false, false, nullptr),
+                              {}, {}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  1, 1, true, false, nullptr),
+                              {}, {}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  1, 1, false, true, nullptr),
+                              {}, {}),
+      RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
+                                  100000, 1000000, false, false, nullptr),
+                              {}, {})};
 }
 
 std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   static auto limit1 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 0,
-              .count = -1,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(0, -1));
   static auto limit2 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 0,
-              .count = 2,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(0, 2));
   static auto limit3 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 2,
-              .count = 3,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(2, 3));
   static auto limit4 =
       std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec({
-              .offset = 10,
-              .count = -1,
-          }));
+          new Skiplist<std::string>::SkiplistLimitSpec(10, -1));
 
   return {
-      {
-          // Base
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "", false, "zzzzzzz", false, nullptr),
-          .keys = {"key0", "key2", "key4", "key5"},
-          .revkeys = {"key5", "key4", "key2", "key0"},
-          .count = 4,
-      },
-      {
-          // Min exclusive, min is existing key.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "key2", true, "key5", false, nullptr),
-          .keys = {"key4", "key5"},
-          .revkeys = {"key5", "key4"},
-          .count = 2,
-      },
-      {
-          // Min exclusive, min is not existing key
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "key1", true, "key5", false, nullptr),
-          .keys = {"key2", "key4", "key5"},
-          .revkeys = {"key5", "key4", "key2"},
-          .count = 3,
-      },
-      {
-          // Max exclusive, max is existing key.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "key2", false, "key5", true, nullptr),
-          .keys = {"key2", "key4"},
-          .revkeys = {"key4", "key2"},
-          .count = 2,
-      },
-      {
-          // Max exclusive, max is not existing key.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "key1", false, "key6", true, nullptr),
-          .keys = {"key2", "key4", "key5"},
-          .revkeys = {"key5", "key4", "key2"},
-          .count = 3,
-      },
-      {
-          // Count = -1, return all keys in the range.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "key2", false, "key5", false, limit1.get()),
-          .keys = {"key2", "key4", "key5"},
-          .revkeys = {"key5", "key4", "key2"},
-          .count = 3,
-      },
-      {
-          // With count.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "", false, "zzzzzzz", false, limit2.get()),
-          .keys = {"key0", "key2"},
-          .revkeys = {"key5", "key4"},
-          // Count is not affected by limit.
-          .count = 4,
-      },
-      {
-          // With offset.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "", false, "zzzzzzz", false, limit3.get()),
-          .keys = {"key4", "key5"},
-          .revkeys = {"key2", "key0"},
-          // Count is not affected by limit.
-          .count = 4,
-      },
-      {
-          // Offset out of range
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "", false, "zzzzzzz", false, limit4.get()),
-          .keys = {},
-          .revkeys = {},
-          // Count is not affected by limit.
-          .count = 4,
-      },
-      {
-          // Invalid spec, non-exclusive, min > max.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "zzzzzzz", false, "", false, nullptr),
-          .keys = {},
-          .revkeys = {},
-          .count = 0,
-      },
-      {
-          // Invalid spec, max exclusive, min == max.
-          .spec = Skiplist<std::string>::SkiplistRangeByKeySpec(
-              "key0", false, "key0", true, nullptr),
-          .keys = {},
-          .revkeys = {},
-          .count = 0,
-      },
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "", false, "zzzzzzz", false, nullptr),
+                             {"key0", "key2", "key4", "key5"},
+                             {"key5", "key4", "key2", "key0"}, 4),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "key2", true, "key5", false, nullptr),
+                             {"key4", "key5"}, {"key5", "key4"}, 2),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "key1", true, "key5", false, nullptr),
+                             {"key2", "key4", "key5"}, {"key5", "key4", "key2"},
+                             3),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "key2", false, "key5", true, nullptr),
+                             {"key2", "key4"}, {"key4", "key2"}, 2),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "key1", false, "key6", true, nullptr),
+                             {"key2", "key4", "key5"}, {"key5", "key4", "key2"},
+                             3),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "key2", false, "key5", false, limit1.get()),
+                             {"key2", "key4", "key5"}, {"key5", "key4", "key2"},
+                             3),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "", false, "zzzzzzz", false, limit2.get()),
+                             {"key0", "key2"}, {"key5", "key4"}, 4),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "", false, "zzzzzzz", false, limit3.get()),
+                             {"key4", "key5"}, {"key2", "key0"}, 4),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "", false, "zzzzzzz", false, limit4.get()),
+                             {}, {}, 4),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "zzzzzzz", false, "", false, nullptr),
+                             {}, {}, 0),
+      RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
+                                 "key0", false, "key0", true, nullptr),
+                             {}, {}, 0),
   };
 }
 
 TEST_F(SkiplistTest, Iteration) {
-  typename Skiplist<std::string>::Iterator it(skiplist);
+  auto it = Skiplist<std::string>::Iterator(skiplist);
   it.SeekToLast();
   ASSERT_EQ(*it, "key5");
   ASSERT_TRUE(it.Valid());

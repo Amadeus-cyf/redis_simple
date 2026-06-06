@@ -51,7 +51,7 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
   if (!db || !args) {
     return -1;
   }
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (obj && obj->Encoding() != db::RedisObj::ObjEncoding::objEncodingZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
     return -1;
@@ -65,9 +65,9 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
     }
   }
   try {
-    zset::ZSet* zset = obj->ZSet();
+    auto* zset = obj->ZSet();
     int added = 0;
-    for (std::pair<std::string, double> ele_score : args->ele_score_list) {
+    for (const auto& ele_score : args->ele_score_list) {
       const std::string& element = ele_score.first;
       const double score = ele_score.second;
       added += zset->InsertOrUpdate(element, score) ? 1 : 0;

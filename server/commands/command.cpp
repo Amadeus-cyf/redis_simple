@@ -14,6 +14,7 @@
 #include "server/commands/t_zset/zrank.h"
 #include "server/commands/t_zset/zrem.h"
 #include "server/commands/t_zset/zscore.h"
+#include "utils/string_utils.h"
 
 namespace redis_simple {
 namespace command {
@@ -36,11 +37,11 @@ const std::unordered_map<std::string, std::shared_ptr<const Command>>&
 };
 
 std::weak_ptr<const Command> Command::Create(const std::string& name) {
-  std::string upper_name;
-  std::transform(name.begin(), name.end(), upper_name.begin(), toupper);
+  auto upper_name = name;
+  utils::ToUppercase(upper_name);
   try {
-    return cmdmap.at(name);
-  } catch (const std::out_of_range& e) {
+    return cmdmap.at(upper_name);
+  } catch (const std::out_of_range&) {
     return std::shared_ptr<const Command>(nullptr);
   }
 }

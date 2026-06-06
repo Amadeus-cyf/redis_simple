@@ -234,7 +234,7 @@ void Set::ConvertListPackToDict(const std::string& val) {
   if (!listpack_) return;
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    const std::optional<std::string>& opt_str = listpack_->Get(idx);
+    const auto opt_str = listpack_->Get(idx);
     if (opt_str.has_value()) dict_->Set(opt_str.value(), nullptr);
     idx = listpack_->Next(idx);
   }
@@ -246,7 +246,7 @@ void Set::ConvertListPackToDict(const std::string& val) {
  */
 std::vector<std::string> Set::ListIntSetMembers() const {
   std::vector<std::string> members;
-  in_memory::IntSet::Iterator it(intset_.get());
+  auto it = in_memory::IntSet::Iterator(intset_.get());
   it.SeekToFirst();
   while (it.Valid()) {
     members.push_back(std::to_string(it.Value()));
@@ -262,8 +262,7 @@ std::vector<std::string> Set::ListListPackMembers() const {
   std::vector<std::string> members;
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    size_t len = 0;
-    const std::optional<std::string>& opt_str = listpack_->Get(idx);
+    const auto opt_str = listpack_->Get(idx);
     if (opt_str.has_value()) members.push_back(opt_str.value());
     idx = listpack_->Next(idx);
   }
@@ -275,7 +274,7 @@ std::vector<std::string> Set::ListListPackMembers() const {
  */
 std::vector<std::string> Set::ListDictMembers() const {
   std::vector<std::string> members;
-  in_memory::Dict<std::string, nullptr_t>::Iterator it(dict_.get());
+  auto it = in_memory::Dict<std::string, nullptr_t>::Iterator(dict_.get());
   it.SeekToFirst();
   while (it.Valid()) {
     members.push_back(it.Key());

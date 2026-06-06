@@ -34,6 +34,7 @@ class ZSetListPack : public ZSetStorage {
       const RangeByScoreSpec* spec) const;
   std::vector<const ZSetEntry*> RevRangeByScoreUtil(
       const RangeByScoreSpec* spec) const;
+  const ZSetEntry* AddRangeResult(std::string key, double score) const;
   ssize_t FindKeyGreaterOrEqual(const RangeByScoreSpec* spec) const;
   ssize_t FindKeyLessOrEqual(const RangeByScoreSpec* spec) const;
   static bool ValidateRangeRankSpec(const RangeByRankSpec* spec);
@@ -43,6 +44,7 @@ class ZSetListPack : public ZSetStorage {
                           const RangeByScoreSpec* spec);
   // Listpack storing key score pairs
   std::unique_ptr<in_memory::ListPack> listpack_;
+  mutable std::vector<std::unique_ptr<ZSetEntry>> range_cache_;
 };
 }  // namespace zset
 }  // namespace redis_simple

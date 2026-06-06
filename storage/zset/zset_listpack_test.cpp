@@ -9,7 +9,7 @@ namespace zset {
 class ZSetListPackTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { zset_listpack = new ZSetListPack(); }
-  static void TearDownTestSuit() {
+  static void TearDownTestSuite() {
     delete zset_listpack;
     zset_listpack = nullptr;
   }
@@ -36,19 +36,19 @@ TEST_F(ZSetListPackTest, Add) {
 }
 
 TEST_F(ZSetListPackTest, GetRankOfKey) {
-  std::optional<size_t> r1 = zset_listpack->GetRankOfKey("key1");
+  auto r1 = zset_listpack->GetRankOfKey("key1");
   ASSERT_EQ(r1.value_or(-1), 3);
 
-  std::optional<size_t> r2 = zset_listpack->GetRankOfKey("key2");
+  auto r2 = zset_listpack->GetRankOfKey("key2");
   ASSERT_EQ(r2.value_or(-1), 2);
 
-  std::optional<size_t> r3 = zset_listpack->GetRankOfKey("key3");
+  auto r3 = zset_listpack->GetRankOfKey("key3");
   ASSERT_EQ(r3.value_or(-1), 0);
 
-  std::optional<size_t> r4 = zset_listpack->GetRankOfKey("key4");
+  auto r4 = zset_listpack->GetRankOfKey("key4");
   ASSERT_EQ(r4.value_or(-1), 1);
 
-  std::optional<size_t> r5 = zset_listpack->GetRankOfKey("key_not_exist");
+  auto r5 = zset_listpack->GetRankOfKey("key_not_exist");
   ASSERT_FALSE(r5.has_value());
 }
 
@@ -56,7 +56,7 @@ TEST_F(ZSetListPackTest, Update) {
   // Update score with no change in rank.
   ASSERT_FALSE(zset_listpack->InsertOrUpdate("key1", 10.0));
   ASSERT_EQ(zset_listpack->Size(), 4);
-  std::optional<size_t> r0 = zset_listpack->GetRankOfKey("key1");
+  auto r0 = zset_listpack->GetRankOfKey("key1");
   ASSERT_EQ(r0.value_or(-1), 3);
 
   // Update score with change in rank.
@@ -65,16 +65,16 @@ TEST_F(ZSetListPackTest, Update) {
   ASSERT_FALSE(zset_listpack->InsertOrUpdate("key3", 4.0));
   ASSERT_EQ(zset_listpack->Size(), 4);
 
-  std::optional<size_t> r1 = zset_listpack->GetRankOfKey("key1");
+  auto r1 = zset_listpack->GetRankOfKey("key1");
   ASSERT_EQ(r1.value_or(-1), 0);
 
-  std::optional<size_t> r2 = zset_listpack->GetRankOfKey("key2");
+  auto r2 = zset_listpack->GetRankOfKey("key2");
   ASSERT_EQ(r2.value_or(-1), 2);
 
-  std::optional<size_t> r3 = zset_listpack->GetRankOfKey("key3");
+  auto r3 = zset_listpack->GetRankOfKey("key3");
   ASSERT_EQ(r3.value_or(-1), 3);
 
-  std::optional<size_t> r4 = zset_listpack->GetRankOfKey("key4");
+  auto r4 = zset_listpack->GetRankOfKey("key4");
   ASSERT_EQ(r4.value_or(-1), 1);
 
   ASSERT_FALSE(zset_listpack->InsertOrUpdate("key1", 5.0));
@@ -89,531 +89,269 @@ TEST_F(ZSetListPackTest, Update) {
 
 TEST_F(ZSetListPackTest, RangeByRank) {
   // Base
-  const RangeByRankSpec& spec0 = {
-      .min = 0,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p0 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec0));
-  const std::vector<KeyScorePair>& e0 = {
+  const RangeByRankSpec spec0(0, 3, false, false,
+                              std::make_unique<LimitSpec>(0, -1), false);
+  const auto p0 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec0));
+  const auto e0 = std::vector<KeyScorePair>{
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p0, e0);
 
   // Min exclusive
-  const RangeByRankSpec& spec1 = {
-      .min = 1,
-      .max = 3,
-      .minex = true,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p1 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec1));
-  const std::vector<KeyScorePair>& e1 = {{"key3", 4.0}, {"key1", 5.0}};
+  const RangeByRankSpec spec1(1, 3, true, false,
+                              std::make_unique<LimitSpec>(0, -1), false);
+  const auto p1 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec1));
+  const auto e1 = std::vector<KeyScorePair>{{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p1, e1);
 
   // Max exclusive
-  const RangeByRankSpec& spec2 = {
-      .min = 1,
-      .max = 3,
-      .minex = false,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<const ZSetEntry*>& k2 = zset_listpack->RangeByRank(&spec2);
-  const std::vector<KeyScorePair>& p2 = ToKeyScorePairs(k2);
-  const std::vector<KeyScorePair>& e2 = {{"key2", 2.0}, {"key3", 4.0}};
+  const RangeByRankSpec spec2(1, 3, false, true,
+                              std::make_unique<LimitSpec>(0, -1), false);
+  const auto k2 = zset_listpack->RangeByRank(&spec2);
+  const auto p2 = ToKeyScorePairs(k2);
+  const auto e2 = std::vector<KeyScorePair>{{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p2, e2);
 
   // Min and max exclusive
-  const RangeByRankSpec& spec3 = {
-      .min = 1,
-      .max = 3,
-      .minex = true,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p3 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec3));
-  const std::vector<KeyScorePair>& e3 = {{"key3", 4.0}};
+  const RangeByRankSpec spec3(1, 3, true, true,
+                              std::make_unique<LimitSpec>(0, -1), false);
+  const auto p3 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec3));
+  const auto e3 = std::vector<KeyScorePair>{{"key3", 4.0}};
   ASSERT_EQ(p3, e3);
 
   // Limit
-  const RangeByRankSpec& spec4 = {
-      .min = 0,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(2, 3),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p4 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec4));
-  const std::vector<KeyScorePair>& e4 = {{"key3", 4.0}, {"key1", 5.0}};
+  const RangeByRankSpec spec4(0, 3, false, false,
+                              std::make_unique<LimitSpec>(2, 3), false);
+  const auto p4 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec4));
+  const auto e4 = std::vector<KeyScorePair>{{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p4, e4);
 
   // Reverse
-  const RangeByRankSpec& spec5 = {
-      .min = 0,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = true,
-  };
-  const std::vector<KeyScorePair>& p5 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec5));
-  const std::vector<KeyScorePair>& e5 = {
+  const RangeByRankSpec spec5(0, 3, false, false,
+                              std::make_unique<LimitSpec>(0, -1), true);
+  const auto p5 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec5));
+  const auto e5 = std::vector<KeyScorePair>{
       {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
   ASSERT_EQ(p5, e5);
 
   // Reverse with limit
-  const RangeByRankSpec& spec6 = {
-      .min = 0,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(1, 2),
-      .reverse = true,
-  };
-  const std::vector<KeyScorePair>& p6 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec6));
-  const std::vector<KeyScorePair>& e6 = {{"key3", 4.0}, {"key2", 2.0}};
+  const RangeByRankSpec spec6(0, 3, false, false,
+                              std::make_unique<LimitSpec>(1, 2), true);
+  const auto p6 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec6));
+  const auto e6 = std::vector<KeyScorePair>{{"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p6, e6);
 
   // Count = 0
-  const RangeByRankSpec& spec7 = {
-      .min = 0,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, 0),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p7 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec7));
+  const RangeByRankSpec spec7(0, 3, false, false,
+                              std::make_unique<LimitSpec>(0, 0), false);
+  const auto p7 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec7));
   ASSERT_EQ(p7.size(), 0);
 
   // Invalid spec non-exclusive, min > max.
-  const RangeByRankSpec& spec8 = {
-      .min = 2,
-      .max = 1,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<const ZSetEntry*>& k8 = zset_listpack->RangeByRank(&spec8);
-  const std::vector<KeyScorePair>& p8 = ToKeyScorePairs(k8);
+  const RangeByRankSpec spec8(2, 1, false, false,
+                              std::make_unique<LimitSpec>(0, -1), false);
+  const auto k8 = zset_listpack->RangeByRank(&spec8);
+  const auto p8 = ToKeyScorePairs(k8);
   ASSERT_EQ(p8.size(), 0);
 
   // Invalid spec exclusive, min >= max.
-  const RangeByRankSpec& spec9 = {
-      .min = 1,
-      .max = 1,
-      .minex = false,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p9 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec9));
+  const RangeByRankSpec spec9(1, 1, false, true,
+                              std::make_unique<LimitSpec>(0, -1), false);
+  const auto p9 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec9));
   ASSERT_EQ(p9.size(), 0);
 
   // Min out of range
-  const RangeByRankSpec& spec10 = {
-      .min = 10,
-      .max = 12,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p10 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec10));
+  const RangeByRankSpec spec10(10, 12, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p10 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec10));
   ASSERT_EQ(p10.size(), 0);
 
   // Offset out of range.
-  const RangeByRankSpec& spec11 = {
-      .min = 0,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(10, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p11 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec11));
+  const RangeByRankSpec spec11(0, 3, false, false,
+                               std::make_unique<LimitSpec>(10, -1), false);
+  const auto p11 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec11));
   ASSERT_EQ(p11.size(), 0);
 
   // Negative index
-  const RangeByRankSpec& spec12 = {
-      .min = -3,
-      .max = -1,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p12 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec12));
-  const std::vector<KeyScorePair>& e12 = {
-      {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
+  const RangeByRankSpec spec12(-3, -1, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p12 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec12));
+  const auto e12 =
+      std::vector<KeyScorePair>{{"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p12, e12);
 
   // Negative index, min exclusive
-  const RangeByRankSpec& spec13 = {
-      .min = -3,
-      .max = -1,
-      .minex = true,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p13 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec13));
-  const std::vector<KeyScorePair>& e13 = {{"key3", 4.0}, {"key1", 5.0}};
+  const RangeByRankSpec spec13(-3, -1, true, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p13 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec13));
+  const auto e13 = std::vector<KeyScorePair>{{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p13, e13);
 
   // Negative index, max exclusive
-  const RangeByRankSpec& spec14 = {
-      .min = -3,
-      .max = -1,
-      .minex = false,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p14 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec14));
-  const std::vector<KeyScorePair>& e14 = {{"key2", 2.0}, {"key3", 4.0}};
+  const RangeByRankSpec spec14(-3, -1, false, true,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p14 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec14));
+  const auto e14 = std::vector<KeyScorePair>{{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p14, e14);
 
   // Negative index, reverse
-  const RangeByRankSpec& spec15 = {
-      .min = -3,
-      .max = -1,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = true,
-  };
-  const std::vector<KeyScorePair>& p15 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec15));
-  const std::vector<KeyScorePair>& e15 = {
-      {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
+  const RangeByRankSpec spec15(-3, -1, false, false,
+                               std::make_unique<LimitSpec>(0, -1), true);
+  const auto p15 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec15));
+  const auto e15 =
+      std::vector<KeyScorePair>{{"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}};
   ASSERT_EQ(p15, e15);
 
   // Negative index, invalid spec non-exclusive, min > max
-  const RangeByRankSpec& spec16 = {
-      .min = -1,
-      .max = -3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p16 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec16));
+  const RangeByRankSpec spec16(-1, -3, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p16 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec16));
   ASSERT_EQ(p16.size(), 0);
 
   // Negative index, invalid spec exclusive, min >= max
-  const RangeByRankSpec& spec17 = {
-      .min = -1,
-      .max = -1,
-      .minex = true,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p17 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec17));
+  const RangeByRankSpec spec17(-1, -1, true, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p17 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec17));
   ASSERT_EQ(p17.size(), 0);
 
   // Negative index, invalid spec, min out of range
-  const RangeByRankSpec& spec18 = {
-      .min = -10,
-      .max = 3,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p18 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec18));
+  const RangeByRankSpec spec18(-10, 3, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p18 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec18));
   ASSERT_EQ(p18.size(), 0);
 
   // Negative index, invalid spec, max out of range
-  const RangeByRankSpec& spec19 = {
-      .min = -1,
-      .max = -6,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p19 =
-      ToKeyScorePairs(zset_listpack->RangeByRank(&spec19));
+  const RangeByRankSpec spec19(-1, -6, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p19 = ToKeyScorePairs(zset_listpack->RangeByRank(&spec19));
   ASSERT_EQ(p19.size(), 0);
 }
 
 TEST_F(ZSetListPackTest, RangeByScore) {
   // Base
-  const RangeByScoreSpec& spec0 = {
-      .min = 1.0,
-      .max = 5.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p0 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec0));
-  const std::vector<KeyScorePair>& e0 = {
+  const RangeByScoreSpec spec0(1.0, 5.0, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p0 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec0));
+  const auto e0 = std::vector<KeyScorePair>{
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p0, e0);
 
   // Infinity
-  const RangeByScoreSpec& spec1 = {
-      .min = -std::numeric_limits<double>::infinity(),
-      .max = std::numeric_limits<double>::infinity(),
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p1 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec1));
-  const std::vector<KeyScorePair>& e1 = {
+  const RangeByScoreSpec spec1(-std::numeric_limits<double>::infinity(),
+                               std::numeric_limits<double>::infinity(), false,
+                               false, std::make_unique<LimitSpec>(0, -1),
+                               false);
+  const auto p1 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec1));
+  const auto e1 = std::vector<KeyScorePair>{
       {"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p1, e1);
 
   // Min exclusive
-  const RangeByScoreSpec& spec2 = {
-      .min = 2.0,
-      .max = 5.0,
-      .minex = true,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p2 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec2));
-  const std::vector<KeyScorePair>& e2 = {{"key3", 4.0}, {"key1", 5.0}};
+  const RangeByScoreSpec spec2(2.0, 5.0, true, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p2 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec2));
+  const auto e2 = std::vector<KeyScorePair>{{"key3", 4.0}, {"key1", 5.0}};
   ASSERT_EQ(p2, e2);
 
   // Max exclusive
-  const RangeByScoreSpec& spec3 = {
-      .min = 2.0,
-      .max = 5.0,
-      .minex = false,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p3 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec3));
-  const std::vector<KeyScorePair>& e3 = {{"key2", 2.0}, {"key3", 4.0}};
+  const RangeByScoreSpec spec3(2.0, 5.0, false, true,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p3 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec3));
+  const auto e3 = std::vector<KeyScorePair>{{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p3, e3);
 
   // Min and max exclusive
-  const RangeByScoreSpec& spec4 = {
-      .min = 2.0,
-      .max = 5.0,
-      .minex = true,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p4 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec4));
-  const std::vector<KeyScorePair>& e4 = {{"key3", 4.0}};
+  const RangeByScoreSpec spec4(2.0, 5.0, true, true,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p4 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec4));
+  const auto e4 = std::vector<KeyScorePair>{{"key3", 4.0}};
   ASSERT_EQ(p4, e4);
 
   // With limit
-  const RangeByScoreSpec& spec5 = {
-      .min = 1.0,
-      .max = 6.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(1, 2),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p5 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec5));
-  const std::vector<KeyScorePair>& e5 = {{"key2", 2.0}, {"key3", 4.0}};
+  const RangeByScoreSpec spec5(1.0, 6.0, false, false,
+                               std::make_unique<LimitSpec>(1, 2), false);
+  const auto p5 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec5));
+  const auto e5 = std::vector<KeyScorePair>{{"key2", 2.0}, {"key3", 4.0}};
   ASSERT_EQ(p5, e5);
 
   // Reverse.
-  const RangeByScoreSpec& spec6 = {
-      .min = 2.0,
-      .max = 6.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = true,
-  };
-  const std::vector<KeyScorePair>& p6 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec6));
-  const std::vector<KeyScorePair>& e6 = {
-      {"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}};
+  const RangeByScoreSpec spec6(2.0, 6.0, false, false,
+                               std::make_unique<LimitSpec>(0, -1), true);
+  const auto p6 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec6));
+  const auto e6 =
+      std::vector<KeyScorePair>{{"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p6, e6);
 
   // Reverse with limit
-  const RangeByScoreSpec& spec7 = {
-      .min = 1.0,
-      .max = 6.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(1, 2),
-      .reverse = true,
-  };
-  const std::vector<KeyScorePair>& p7 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec7));
-  const std::vector<KeyScorePair>& e7 = {{"key3", 4.0}, {"key2", 2.0}};
+  const RangeByScoreSpec spec7(1.0, 6.0, false, false,
+                               std::make_unique<LimitSpec>(1, 2), true);
+  const auto p7 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec7));
+  const auto e7 = std::vector<KeyScorePair>{{"key3", 4.0}, {"key2", 2.0}};
   ASSERT_EQ(p7, e7);
 
   // Count = 0
-  const RangeByScoreSpec& spec8 = {
-      .min = 1.0,
-      .max = 6.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, 0),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p8 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec8));
+  const RangeByScoreSpec spec8(1.0, 6.0, false, false,
+                               std::make_unique<LimitSpec>(0, 0), false);
+  const auto p8 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec8));
   ASSERT_EQ(p8.size(), 0);
 
   // Invalid spec, non-exclusive, min >= max.
-  const RangeByScoreSpec& spec9 = {
-      .min = 6.0,
-      .max = 1.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p9 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec9));
+  const RangeByScoreSpec spec9(6.0, 1.0, false, false,
+                               std::make_unique<LimitSpec>(0, -1), false);
+  const auto p9 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec9));
   ASSERT_EQ(p9.size(), 0);
 
   // Invalid spec, min exclusive, min >= max.
-  const RangeByScoreSpec& spec10 = {
-      .min = 1.0,
-      .max = 1.0,
-      .minex = true,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p10 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec10));
+  const RangeByScoreSpec spec10(1.0, 1.0, true, false,
+                                std::make_unique<LimitSpec>(0, -1), false);
+  const auto p10 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec10));
   ASSERT_EQ(p10.size(), 0);
 
   // Invalid spec, max exclusive, min >= max.
-  const RangeByScoreSpec& spec11 = {
-      .min = 1.0,
-      .max = 1.0,
-      .minex = false,
-      .maxex = true,
-      .limit = std::make_unique<LimitSpec>(0, -1),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p11 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec11));
+  const RangeByScoreSpec spec11(1.0, 1.0, false, true,
+                                std::make_unique<LimitSpec>(0, -1), false);
+  const auto p11 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec11));
   ASSERT_EQ(p11.size(), 0);
 
   // Invalid spec, offset out of range.
-  const RangeByScoreSpec& spec12 = {
-      .min = 1.0,
-      .max = 6.0,
-      .minex = false,
-      .maxex = false,
-      .limit = std::make_unique<LimitSpec>(5, 0),
-      .reverse = false,
-  };
-  const std::vector<KeyScorePair>& p12 =
-      ToKeyScorePairs(zset_listpack->RangeByScore(&spec12));
+  const RangeByScoreSpec spec12(1.0, 6.0, false, false,
+                                std::make_unique<LimitSpec>(5, 0), false);
+  const auto p12 = ToKeyScorePairs(zset_listpack->RangeByScore(&spec12));
   ASSERT_EQ(p12.size(), 0);
 }
 
 TEST_F(ZSetListPackTest, Count) {
   // Base
-  const RangeByScoreSpec& spec1 = {
-      .min = 1.0,
-      .max = 6.0,
-      .minex = false,
-      .maxex = false,
-  };
+  const RangeByScoreSpec spec1(1.0, 6.0, false, false);
   const size_t c1 = zset_listpack->Count(&spec1);
   ASSERT_EQ(c1, 4);
 
   // Min exclusive
-  const RangeByScoreSpec& spec2 = {
-      .min = 2.0,
-      .max = 5.0,
-      .minex = true,
-      .maxex = false,
-  };
+  const RangeByScoreSpec spec2(2.0, 5.0, true, false);
   const size_t c2 = zset_listpack->Count(&spec2);
   ASSERT_EQ(c2, 2);
 
   // Max exclusive
-  const RangeByScoreSpec& spec3 = {
-      .min = 2.0,
-      .max = 5.0,
-      .minex = false,
-      .maxex = true,
-  };
+  const RangeByScoreSpec spec3(2.0, 5.0, false, true);
   const size_t c3 = zset_listpack->Count(&spec3);
   ASSERT_EQ(c3, 2);
 
   // Min and max exclusive
-  const RangeByScoreSpec& spec4 = {
-      .min = 1.0,
-      .max = 5.0,
-      .minex = true,
-      .maxex = true,
-  };
+  const RangeByScoreSpec spec4(1.0, 5.0, true, true);
   const size_t c4 = zset_listpack->Count(&spec4);
   ASSERT_EQ(c4, 2);
 
   // Invalid spec non-exclusive, min > max.
-  const RangeByScoreSpec& spec5 = {
-      .min = 6.0,
-      .max = 1.0,
-      .minex = false,
-      .maxex = false,
-  };
+  const RangeByScoreSpec spec5(6.0, 1.0, false, false);
   const size_t c5 = zset_listpack->Count(&spec5);
   ASSERT_EQ(c5, 0);
 
   // Invalid spec min exclusive, min >= max.
-  const RangeByScoreSpec& spec6 = {
-      .min = 1.0,
-      .max = 1.0,
-      .minex = true,
-      .maxex = false,
-  };
+  const RangeByScoreSpec spec6(1.0, 1.0, true, false);
   const size_t c6 = zset_listpack->Count(&spec6);
   ASSERT_EQ(c6, 0);
 
   // Invalid spec max exclusive, min >= max.
-  const RangeByScoreSpec& spec7 = {
-      .min = 1.0,
-      .max = 1.0,
-      .minex = false,
-      .maxex = true,
-  };
+  const RangeByScoreSpec spec7(1.0, 1.0, false, true);
   const size_t c7 = zset_listpack->Count(&spec7);
   ASSERT_EQ(c7, 0);
 }
@@ -623,7 +361,7 @@ TEST_F(ZSetListPackTest, Delete) {
   ASSERT_TRUE(r1);
   ASSERT_EQ(zset_listpack->Size(), 3);
 
-  std::optional<size_t> rank = zset_listpack->GetRankOfKey("key1");
+  auto rank = zset_listpack->GetRankOfKey("key1");
   ASSERT_FALSE(rank.has_value());
 
   bool r2 = zset_listpack->Delete("key not exist");

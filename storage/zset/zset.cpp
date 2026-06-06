@@ -59,9 +59,13 @@ void ZSet::ConvertAndExpand() {
   auto zset_skiplist = std::make_unique<ZSetSkiplist>();
   RangeByRankSpec spec;
   spec.min = 0;
-  spec.max = static_cast<long>(storage_->Size());
-  const std::vector<const ZSetEntry*>& entries = storage_->RangeByRank(&spec);
-  for (const ZSetEntry* entry : entries) {
+  spec.max = static_cast<long>(storage_->Size()) - 1;
+  spec.minex = false;
+  spec.maxex = false;
+  spec.limit = nullptr;
+  spec.reverse = false;
+  const auto entries = storage_->RangeByRank(&spec);
+  for (const auto* entry : entries) {
     zset_skiplist->InsertOrUpdate(entry->key, entry->score);
   }
   storage_ = std::move(zset_skiplist);

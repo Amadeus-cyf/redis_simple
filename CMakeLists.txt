@@ -7,8 +7,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
-include_directories(${CMAKE_SOURCE_DIR})
-
 find_package(spdlog QUIET)
 
 function(redis_simple_enable_logging target)
@@ -27,6 +25,8 @@ endfunction()
 function(redis_simple_add_executable target)
   add_executable(${target} "")
   target_sources(${target} PRIVATE ${ARGN})
+  target_compile_features(${target} PRIVATE cxx_std_17)
+  target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR})
   redis_simple_enable_logging(${target})
 endfunction()
 

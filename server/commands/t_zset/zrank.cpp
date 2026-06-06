@@ -43,7 +43,7 @@ const std::optional<size_t> ZRankCommand::ZRank(
   if (!db || !args) {
     return std::nullopt;
   }
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj) {
     RS_LOG_DEBUG("key not found\n");
     return std::nullopt;
@@ -53,7 +53,7 @@ const std::optional<size_t> ZRankCommand::ZRank(
     return std::nullopt;
   }
   try {
-    const zset::ZSet* zset = obj->ZSet();
+    const auto* zset = obj->ZSet();
     return zset->GetRankOfKey(args->ele);
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());

@@ -42,7 +42,7 @@ bool FlaggedByScore(const std::vector<std::string>& args) {
   // key, start and end offsets.
   for (int i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
-    std::transform(upper.begin(), upper.end(), upper.begin(), toupper);
+    utils::ToUppercase(upper);
     if (upper == flagByScore) {
       return true;
     }
@@ -166,8 +166,8 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
   // key, start and end offsets.
   int i = 3;
   for (; i < args.size(); ++i) {
-    std::string upper;
-    std::transform(args[i].begin(), args[i].end(), upper.begin(), toupper);
+    std::string upper = args[i];
+    utils::ToUppercase(upper);
     if (upper == flagLimit) {
       break;
     }
@@ -194,8 +194,8 @@ bool IsReverse(const std::vector<std::string>& args) {
   // Start searching at the 3rd index(0-based). The first 3 arguments specify
   // key, start and end offsets.
   for (int i = 3; i < args.size(); ++i) {
-    std::string upper;
-    std::transform(args[i].begin(), args[i].end(), upper.begin(), toupper);
+    std::string upper = args[i];
+    utils::ToUppercase(upper);
     if (upper == flagReverse) {
       return true;
     }
@@ -205,7 +205,7 @@ bool IsReverse(const std::vector<std::string>& args) {
 
 const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
                                 const std::string& key) {
-  const db::RedisObj* obj = db->LookupKey(key);
+  const auto* obj = db->LookupKey(key);
   if (!obj) {
     RS_LOG_DEBUG("key not found\n");
     return nullptr;
@@ -219,7 +219,7 @@ const db::RedisObj* GetRedisObj(std::shared_ptr<const db::RedisDb> db,
 }  // namespace
 
 void ZRangeCommand::Exec(Client* const client) const {
-  const std::vector<std::string>& args = client->CmdArgs();
+  const auto& args = client->CmdArgs();
   std::vector<const zset::ZSetEntry*> result;
   int r = 0;
   if (FlaggedByScore(args)) {
@@ -252,13 +252,13 @@ int ZRangeCommand::RangeByRank(
     return -1;
   }
   if (auto db = client->DB().lock()) {
-    const std::string& key = args[0];
-    const db::RedisObj* obj = GetRedisObj(db, key);
+    const auto& key = args[0];
+    const auto* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
     }
     try {
-      zset::ZSet* const zset = obj->ZSet();
+      auto* const zset = obj->ZSet();
       *result = zset->RangeByRank(&spec);
     } catch (const std::exception& e) {
       RS_LOG_DEBUG("catch exception %s", e.what());
@@ -280,13 +280,13 @@ int ZRangeCommand::RangeByScore(
     return -1;
   }
   if (auto db = client->DB().lock()) {
-    const std::string& key = args[0];
-    const db::RedisObj* obj = GetRedisObj(db, key);
+    const auto& key = args[0];
+    const auto* obj = GetRedisObj(db, key);
     if (!obj) {
       return -1;
     }
     try {
-      const zset::ZSet* zset = obj->ZSet();
+      const auto* zset = obj->ZSet();
       *result = zset->RangeByScore(&spec);
     } catch (const std::exception& e) {
       RS_LOG_DEBUG("catch exception %s", e.what());

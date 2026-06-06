@@ -50,7 +50,7 @@ int SetCommand::ParseArgs(const std::vector<std::string>& args,
 
 int SetCommand::Set(std::shared_ptr<const db::RedisDb> db,
                     const StrArgs* args) const {
-  const db::RedisObj* val = db::RedisObj::CreateWithString(args->val);
+  const auto* val = db::RedisObj::CreateWithString(args->val);
   int r = db->SetKey(args->key, val, args->expire, 0);
   val->DecrRefCount();
   return r;

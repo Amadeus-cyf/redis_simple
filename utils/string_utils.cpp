@@ -1,5 +1,6 @@
 #include "utils/string_utils.h"
 
+#include <cctype>
 #include <limits>
 
 #include "utils/int_utils.h"
@@ -32,7 +33,9 @@ void ShiftCStr(char* s, size_t len, size_t offset) {
 }
 
 void ToUppercase(std::string& s) {
-  std::transform(s.begin(), s.end(), s.begin(), toupper);
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+    return static_cast<char>(std::toupper(c));
+  });
 }
 
 bool ToInt64(const std::string& s, int64_t* const v) {

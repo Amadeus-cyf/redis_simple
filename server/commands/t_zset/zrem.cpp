@@ -44,7 +44,7 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
   if (!db || !args) {
     return -1;
   }
-  const db::RedisObj* obj = db->LookupKey(args->key);
+  const auto* obj = db->LookupKey(args->key);
   if (!obj) {
     RS_LOG_DEBUG("key not found\n");
     return -1;
@@ -54,9 +54,9 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   try {
-    zset::ZSet* zset = obj->ZSet();
+    auto* zset = obj->ZSet();
     int deleted = 0;
-    for (const std::string& element : args->elements) {
+    for (const auto& element : args->elements) {
       deleted += zset->Delete(element) ? 1 : 0;
     }
     return deleted;
