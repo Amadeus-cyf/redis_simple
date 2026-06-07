@@ -15,13 +15,12 @@ class ZCardCommand : public Command {
   void Exec(Client* const client) const override;
 
  private:
-  struct ZAddArgs {
+  struct ZCardArgs {
     std::string key;
   };
   int ParseArgs(const std::vector<std::string>& args,
-                ZAddArgs* const sadd_args) const;
-  ssize_t ZCard(std::shared_ptr<const db::RedisDb> db,
-                const ZAddArgs* args) const;
+                ZCardArgs* const zcard_args) const;
+  ssize_t ZCard(std::shared_ptr<db::RedisDb> db, const ZCardArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

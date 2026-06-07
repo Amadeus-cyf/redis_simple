@@ -14,9 +14,12 @@ ZSet::ZSet()
  * element. Return true if the element is newly inserted.
  */
 bool ZSet::InsertOrUpdate(const std::string& key, const double score) {
+  if (encoding_ == ZSetEncodingType::ListPack &&
+      key.size() > ListPackMaxElementLength) {
+    ConvertAndExpand();
+  }
   bool inserted = storage_->InsertOrUpdate(key, score);
-  if (encoding_ == ZSetEncodingType::ListPack && inserted &&
-      storage_->Size() > ListPackMaxEntries) {
+  if (ShouldConvertToSkiplist(key, inserted)) {
     ConvertAndExpand();
   }
   return inserted;
@@ -47,6 +50,18 @@ std::vector<const ZSetEntry*> ZSet::RangeByScore(
  */
 size_t ZSet::Count(const RangeByScoreSpec* spec) const {
   return storage_->Count(spec);
+}
+
+ZSet::Encoding ZSet::GetEncoding() const {
+  return encoding_ == ZSetEncodingType::ListPack ? Encoding::kListPack
+                                                 : Encoding::kSkiplist;
+}
+
+bool ZSet::ShouldConvertToSkiplist(const std::string& key,
+                                   bool inserted) const {
+  return encoding_ == ZSetEncodingType::ListPack &&
+         ((inserted && storage_->Size() > ListPackMaxEntries) ||
+          key.size() > ListPackMaxElementLength);
 }
 
 void ZSet::ConvertAndExpand() {

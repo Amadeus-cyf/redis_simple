@@ -27,7 +27,7 @@ void ZAddCommand::Exec(Client* const client) const {
 
 int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
                            ZAddArgs* const zset_args) const {
-  if (args.size() < 3) {
+  if (args.size() < 3 || args.size() % 2 == 0) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
@@ -46,7 +46,7 @@ int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
+int ZAddCommand::ZAdd(std::shared_ptr<db::RedisDb> db,
                       const ZAddArgs* args) const {
   if (!db || !args) {
     return -1;
@@ -58,9 +58,9 @@ int ZAddCommand::ZAdd(std::shared_ptr<const db::RedisDb> db,
   }
   if (!obj) {
     obj = db::RedisObject::CreateWithZSet(zset::ZSet::Init());
-    int r = db->SetKey(args->key, obj, 0) == db::DbStatus::kError;
+    const auto status = db->SetKey(args->key, obj, 0);
     obj->DecrRefCount();
-    if (r < 0) {
+    if (status == db::DbStatus::kError) {
       return -1;
     }
   }

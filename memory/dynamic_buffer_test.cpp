@@ -2,19 +2,19 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 namespace redis_simple {
 namespace in_memory {
 class DynamicBufferTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { buffer = new DynamicBuffer(); }
-  static void TearDownTestSuite() {
-    delete buffer;
-    buffer = nullptr;
-  }
-  static DynamicBuffer* buffer;
+  static void SetUpTestSuite() { buffer = std::make_unique<DynamicBuffer>(); }
+  static void TearDownTestSuite() { buffer.reset(); }
+
+  static std::unique_ptr<DynamicBuffer> buffer;
 };
 
-DynamicBuffer* DynamicBufferTest::buffer = nullptr;
+std::unique_ptr<DynamicBuffer> DynamicBufferTest::buffer = nullptr;
 
 TEST_F(DynamicBufferTest, Write) {
   char buf[4096];

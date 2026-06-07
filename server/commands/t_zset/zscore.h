@@ -18,8 +18,8 @@ class ZScoreCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 ZScoreArgs* const zscore_args) const;
-  const std::optional<double> ZScore(std::shared_ptr<const db::RedisDb> db,
-                                     const ZScoreArgs* args) const;
+  std::optional<double> ZScore(std::shared_ptr<db::RedisDb> db,
+                               const ZScoreArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

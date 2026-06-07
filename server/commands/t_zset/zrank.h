@@ -18,8 +18,8 @@ class ZRankCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 ZRankArgs* const zrank_args) const;
-  const std::optional<size_t> ZRank(std::shared_ptr<const db::RedisDb> db,
-                                    const ZRankArgs* args) const;
+  std::optional<size_t> ZRank(std::shared_ptr<db::RedisDb> db,
+                              const ZRankArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

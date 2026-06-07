@@ -129,6 +129,7 @@ class ListPack {
   void Realloc(size_t size);
   void Free();
   unsigned char* lp_;
+  mutable unsigned char int_buf_[ListPackIntBufSize];
 };
 }  // namespace in_memory
 }  // namespace redis_simple

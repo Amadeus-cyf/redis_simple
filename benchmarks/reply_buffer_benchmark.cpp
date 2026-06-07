@@ -1,14 +1,22 @@
 #include <benchmark/benchmark.h>
 
+#include <random>
+
 #include "benchmarks/buffer.h"
 #include "memory/reply_buffer.h"
 
 namespace redis_simple {
 in_memory::ReplyBuffer reply_buffer;
 
+static std::mt19937& Rng() {
+  static std::mt19937 rng(std::mt19937::default_seed);
+  return rng;
+}
+
 static void Init() {
+  std::uniform_int_distribution<int> byte_dist(0, 254);
   for (int i = 0; i < kBufferSize; ++i) {
-    buffer[i] = rand() % 255;
+    buffer[i] = byte_dist(Rng());
   }
 }
 
@@ -21,8 +29,10 @@ static void ReplyBufferAdd(benchmark::State& state) {
 
 static void ReplyBufferProcess(benchmark::State& state) {
   for (auto _ : state) {
+    std::uniform_int_distribution<size_t> bytes_dist(0,
+                                                     reply_buffer.ReplyBytes());
     reply_buffer.ClearProcessed(
-        std::min((size_t)rand(), reply_buffer.ReplyBytes()));
+        std::min(bytes_dist(Rng()), reply_buffer.ReplyBytes()));
   }
 }
 

@@ -20,7 +20,7 @@ class ZRemCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 ZRemArgs* const zset_args) const;
-  int ZRem(std::shared_ptr<const db::RedisDb> db, const ZRemArgs* args) const;
+  int ZRem(std::shared_ptr<db::RedisDb> db, const ZRemArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

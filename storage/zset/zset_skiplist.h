@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "logging/logger.h"
 #include "memory/dict.h"
 #include "memory/skiplist.h"
@@ -45,15 +47,18 @@ class ZSetSkiplist : public ZSetStorage {
   using SkiplistLimitSpec = SkiplistType::SkiplistLimitSpec;
   using SkiplistRangeByRankSpec = SkiplistType::SkiplistRangeByRankSpec;
   using SkiplistRangeByKeySpec = SkiplistType::SkiplistRangeByKeySpec;
+  struct RankSpecDeleter {
+    void operator()(SkiplistRangeByRankSpec* spec) const;
+  };
+  struct KeySpecDeleter {
+    void operator()(SkiplistRangeByKeySpec* spec) const;
+  };
+  using RankSpecPtr = std::unique_ptr<SkiplistRangeByRankSpec, RankSpecDeleter>;
+  using KeySpecPtr = std::unique_ptr<SkiplistRangeByKeySpec, KeySpecDeleter>;
 
-  const SkiplistRangeByRankSpec* ToSkiplistRangeByRankSpec(
-      const RangeByRankSpec* spec) const;
-  const SkiplistRangeByKeySpec* ToSkiplistRangeByKeySpec(
-      const RangeByScoreSpec* spec) const;
-  void FreeSkiplistRangeByRankSpec(
-      const SkiplistRangeByRankSpec* skiplist_spec) const;
-  void FreeSkiplistRangeByKeySpec(
-      const SkiplistRangeByKeySpec* skiplist_spec) const;
+  RankSpecPtr ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const;
+  KeySpecPtr ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const;
+  void RecomputeMinMaxKeys();
   // Dict mapping key to score, used with the skiplist
   std::unique_ptr<in_memory::Dict<std::string, double>> dict_;
   // Skiplist storing key score pairs ordered by score

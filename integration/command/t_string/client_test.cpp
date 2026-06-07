@@ -38,6 +38,9 @@ int Run() {
       {"GET missing_string_key\r\n", "(nil)\n"},
       {"SET string_key val1 3000\r\n", "1\n"},
       {"GET string_key\r\n", "val1\n"},
+      {"DEL string_key\r\n", "1\n"},
+      {"DEL missing_string_key\r\n", "0\n"},
+      {"GET string_key\r\n", "(nil)\n"},
   };
   for (const Case& test_case : cases) {
     if (!ExpectReply(&cli, test_case)) {

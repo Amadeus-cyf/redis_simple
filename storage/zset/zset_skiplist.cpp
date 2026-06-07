@@ -4,7 +4,7 @@ namespace redis_simple {
 namespace zset {
 ZSetSkiplist::ZSetSkiplist()
     : dict_(in_memory::Dict<std::string, double>::Init()),
-      skiplist_(std::make_unique<SkiplistType>(in_memory::InitSkiplistLevel,
+      skiplist_(std::make_unique<SkiplistType>(in_memory::kInitSkiplistLevel,
                                                Comparator(), Destructor())){};
 
 bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
@@ -14,16 +14,18 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, const double score) {
     return false;
   }
   dict_->Set(key, score);
-  const auto* ze = new ZSetEntry(key, score);
+  auto ze = std::make_unique<ZSetEntry>(key, score);
   bool inserted = false;
   if (result.has_value()) {
     // Update the score.
     const ZSetEntry old(key, *result);
-    assert(skiplist_->Update(&old, ze));
+    assert(skiplist_->Update(&old, ze.get()));
+    ze.release();
   } else {
     // Insert a new key.
-    const auto* inserted_entry = skiplist_->Insert(ze);
+    const auto* inserted_entry = skiplist_->Insert(ze.get());
     assert(inserted_entry);
+    ze.release();
     inserted = true;
   }
   // Update min and max key.
@@ -44,7 +46,12 @@ bool ZSetSkiplist::Delete(const std::string& key) {
   const double score = *result;
   const ZSetEntry ze(key, score);
   assert(dict_->Delete(key));
-  return skiplist_->Delete(&ze);
+  const bool deleted = skiplist_->Delete(&ze);
+  if (deleted && ((min_key_.has_value() && *min_key_ == key) ||
+                  (max_key_.has_value() && *max_key_ == key))) {
+    RecomputeMinMaxKeys();
+  }
+  return deleted;
 }
 
 std::optional<size_t> ZSetSkiplist::GetRankOfKey(const std::string& key) const {
@@ -54,96 +61,112 @@ std::optional<size_t> ZSetSkiplist::GetRankOfKey(const std::string& key) const {
   }
   const double score = *result;
   const ZSetEntry ze(key, score);
-  return skiplist_->FindRankofKey(&ze);
+  return skiplist_->FindRankOfKey(&ze);
 }
 
 std::vector<const ZSetEntry*> ZSetSkiplist::RangeByRank(
     const RangeByRankSpec* spec) const {
-  const auto* skiplist_spec = ToSkiplistRangeByRankSpec(spec);
-  const auto keys = spec->reverse ? skiplist_->RevRangeByRank(skiplist_spec)
-                                  : skiplist_->RangeByRank(skiplist_spec);
-  FreeSkiplistRangeByRankSpec(skiplist_spec);
-  return keys;
+  if (!spec) return {};
+  const auto skiplist_spec = ToSkiplistRangeByRankSpec(spec);
+  return spec->reverse ? skiplist_->RevRangeByRank(skiplist_spec.get())
+                       : skiplist_->RangeByRank(skiplist_spec.get());
 }
 
 std::vector<const ZSetEntry*> ZSetSkiplist::RangeByScore(
     const RangeByScoreSpec* spec) const {
-  const auto* skiplist_spec = ToSkiplistRangeByKeySpec(spec);
-  const auto keys = spec->reverse ? skiplist_->RevRangeByKey(skiplist_spec)
-                                  : skiplist_->RangeByKey(skiplist_spec);
-  FreeSkiplistRangeByKeySpec(skiplist_spec);
-  return keys;
+  if (!spec || Size() == 0) return {};
+  const auto skiplist_spec = ToSkiplistRangeByKeySpec(spec);
+  return spec->reverse ? skiplist_->RevRangeByKey(skiplist_spec.get())
+                       : skiplist_->RangeByKey(skiplist_spec.get());
 }
 
 size_t ZSetSkiplist::Count(const RangeByScoreSpec* spec) const {
-  const auto* skiplist_spec = ToSkiplistRangeByKeySpec(spec);
-  const size_t count = skiplist_->Count(skiplist_spec);
-  FreeSkiplistRangeByKeySpec(skiplist_spec);
-  return count;
+  if (!spec || Size() == 0) return 0;
+  const auto skiplist_spec = ToSkiplistRangeByKeySpec(spec);
+  return skiplist_->Count(skiplist_spec.get());
 }
 
-const ZSetSkiplist::SkiplistRangeByRankSpec*
-ZSetSkiplist::ToSkiplistRangeByRankSpec(const RangeByRankSpec* spec) const {
-  auto skiplist_spec = new SkiplistRangeByRankSpec();
+ZSetSkiplist::RankSpecPtr ZSetSkiplist::ToSkiplistRangeByRankSpec(
+    const RangeByRankSpec* spec) const {
+  if (!spec) return RankSpecPtr(nullptr);
+  auto skiplist_spec = RankSpecPtr(new SkiplistRangeByRankSpec());
   // Use overflow to check if the index is still negative after rebase.
   if ((spec->min < 0 && spec->min + Size() > Size()) ||
       (spec->max < 0 && spec->max + Size() > Size())) {
     // The index is still negative after rebase.
-    delete skiplist_spec;
-    return nullptr;
+    return RankSpecPtr(nullptr);
   }
   skiplist_spec->min = spec->min < 0 ? (spec->min + Size()) : spec->min;
   skiplist_spec->max = spec->max < 0 ? (spec->max + Size()) : spec->max;
   skiplist_spec->minex = spec->minex;
   skiplist_spec->maxex = spec->maxex;
   if (spec->limit) {
-    auto* limit = new SkiplistLimitSpec();
-    limit->offset = spec->limit->offset, limit->count = spec->limit->count,
-    skiplist_spec->limit = limit;
+    auto limit = std::make_unique<SkiplistLimitSpec>();
+    limit->offset = spec->limit->offset;
+    limit->count = spec->limit->count;
+    skiplist_spec->limit = limit.release();
   }
   return skiplist_spec;
 }
 
-const ZSetSkiplist::SkiplistRangeByKeySpec*
-ZSetSkiplist::ToSkiplistRangeByKeySpec(const RangeByScoreSpec* spec) const {
-  SkiplistLimitSpec* limit = nullptr;
+ZSetSkiplist::KeySpecPtr ZSetSkiplist::ToSkiplistRangeByKeySpec(
+    const RangeByScoreSpec* spec) const {
+  if (!spec || !min_key_.has_value() || !max_key_.has_value()) {
+    return KeySpecPtr(nullptr);
+  }
+  std::unique_ptr<SkiplistLimitSpec> limit;
   if (spec->limit) {
-    limit = new SkiplistLimitSpec();
-    limit->offset = spec->limit->offset, limit->count = spec->limit->count;
+    limit = std::make_unique<SkiplistLimitSpec>();
+    limit->offset = spec->limit->offset;
+    limit->count = spec->limit->count;
   }
 
   // If min score exclusive, set the zset entry key to be the max_key to exclude
   // all keys with the same score.
-  const auto* min_entry =
-      new ZSetEntry(spec->minex ? *max_key_ : *min_key_, spec->min);
+  auto min_entry = std::make_unique<ZSetEntry>(
+      spec->minex ? *max_key_ : *min_key_, spec->min);
   // If max score exclusive, set the zset entry key to be the min_key to exclude
   // all keys with the same score.
-  const auto* max_entry =
-      new ZSetEntry(spec->maxex ? *min_key_ : *max_key_, spec->max);
-  auto skiplist_spec = new SkiplistRangeByKeySpec(
-      min_entry, spec->minex, max_entry, spec->maxex, limit);
+  auto max_entry = std::make_unique<ZSetEntry>(
+      spec->maxex ? *min_key_ : *max_key_, spec->max);
+  auto skiplist_spec = KeySpecPtr(new SkiplistRangeByKeySpec(
+      min_entry.release(), spec->minex, max_entry.release(), spec->maxex,
+      limit.release()));
   return skiplist_spec;
 }
 
-void ZSetSkiplist::FreeSkiplistRangeByRankSpec(
-    const SkiplistRangeByRankSpec* skiplist_spec) const {
-  if (skiplist_spec) {
-    if (skiplist_spec->limit) {
-      delete skiplist_spec->limit;
+void ZSetSkiplist::RecomputeMinMaxKeys() {
+  min_key_.reset();
+  max_key_.reset();
+  auto it = in_memory::Dict<std::string, double>::Iterator(dict_.get());
+  it.SeekToFirst();
+  while (it.Valid()) {
+    const std::string& key = it.Key();
+    if (!min_key_.has_value() || key < *min_key_) {
+      min_key_.emplace(key);
     }
-    delete skiplist_spec;
+    if (!max_key_.has_value() || key > *max_key_) {
+      max_key_.emplace(key);
+    }
+    it.Next();
   }
 }
 
-void ZSetSkiplist::FreeSkiplistRangeByKeySpec(
-    const SkiplistRangeByKeySpec* skiplist_spec) const {
-  if (skiplist_spec) {
-    if (skiplist_spec->limit) {
-      delete skiplist_spec->limit;
-    }
-    delete skiplist_spec->min;
-    delete skiplist_spec->max;
-    delete skiplist_spec;
+void ZSetSkiplist::RankSpecDeleter::operator()(
+    SkiplistRangeByRankSpec* spec) const {
+  if (spec) {
+    delete spec->limit;
+    delete spec;
+  }
+}
+
+void ZSetSkiplist::KeySpecDeleter::operator()(
+    SkiplistRangeByKeySpec* spec) const {
+  if (spec) {
+    delete spec->limit;
+    delete spec->min;
+    delete spec->max;
+    delete spec;
   }
 }
 }  // namespace zset

@@ -70,6 +70,9 @@ int Run() {
       {"SCARD integration_set\r\n", "7\n"},
       {"SISMEMBER integration_set ele7\r\n", "1\n"},
       {"SISMEMBER integration_set ele9\r\n", "0\n"},
+      {"SCARD missing_set\r\n", "0\n"},
+      {"SISMEMBER missing_set ele1\r\n", "0\n"},
+      {"SREM missing_set ele1 ele2\r\n", "0\n"},
   };
   for (const Case& test_case : setup_cases) {
     if (!ExpectReply(&cli, test_case)) {
@@ -80,6 +83,9 @@ int Run() {
   if (!ExpectMembers(
           &cli, "SMEMBERS integration_set\r\n",
           {"ele1", "ele2", "ele3", "ele4", "ele5", "ele6", "ele7"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "SMEMBERS missing_set\r\n", {})) {
     return EXIT_FAILURE;
   }
 

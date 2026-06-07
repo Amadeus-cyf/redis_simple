@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -9,15 +10,13 @@ namespace redis_simple {
 namespace in_memory {
 class ReplyBufferTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { buf = new ReplyBuffer(); }
-  static void TearDownTestSuite() {
-    delete buf;
-    buf = nullptr;
-  }
-  static ReplyBuffer* buf;
+  static void SetUpTestSuite() { buf = std::make_unique<ReplyBuffer>(); }
+  static void TearDownTestSuite() { buf.reset(); }
+
+  static std::unique_ptr<ReplyBuffer> buf;
 };
 
-ReplyBuffer* ReplyBufferTest::buf = nullptr;
+std::unique_ptr<ReplyBuffer> ReplyBufferTest::buf = nullptr;
 
 TEST_F(ReplyBufferTest, AddToBuf) {
   std::string s(2000, 'a');

@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 namespace redis_simple {
 namespace in_memory {
 namespace {
@@ -12,15 +14,13 @@ ListPack::ListPackEntry IntEntry(int64_t val) { return {nullptr, val}; }
 
 class ListPackTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { listpack = new ListPack(); }
-  static void TearDownTestSuite() {
-    delete listpack;
-    listpack = nullptr;
-  }
-  static ListPack* listpack;
+  static void SetUpTestSuite() { listpack = std::make_unique<ListPack>(); }
+  static void TearDownTestSuite() { listpack.reset(); }
+
+  static std::unique_ptr<ListPack> listpack;
 };
 
-ListPack* ListPackTest::listpack = nullptr;
+std::unique_ptr<ListPack> ListPackTest::listpack = nullptr;
 
 TEST_F(ListPackTest, Append) {
   ASSERT_EQ(listpack->First(), -1);

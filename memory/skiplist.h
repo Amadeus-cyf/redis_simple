@@ -3,6 +3,7 @@
 #include <array>
 #include <cassert>
 #include <iostream>
+#include <random>
 #include <vector>
 
 #include "logging/logger.h"
@@ -10,20 +11,20 @@
 namespace redis_simple {
 namespace in_memory {
 // Initial skiplist height
-static constexpr const int InitSkiplistLevel = 2;
+static constexpr const int kInitSkiplistLevel = 2;
 
 // Default comparator
 template <typename Key>
-const auto default_compare = [](const Key& k1, const Key& k2) {
+const auto kDefaultCompare = [](const Key& k1, const Key& k2) {
   return k1 < k2 ? -1 : (k1 == k2 ? 0 : 1);
 };
 
 // Default destructor
 template <typename Key>
-const auto default_dtr = [](const Key& k) {};
+const auto kDefaultDestructor = [](const Key& k) {};
 
-template <typename Key, typename Comparator = decltype(default_compare<Key>),
-          typename Destructor = decltype(default_dtr<Key>)>
+template <typename Key, typename Comparator = decltype(kDefaultCompare<Key>),
+          typename Destructor = decltype(kDefaultDestructor<Key>)>
 
 class Skiplist {
  private:
@@ -81,7 +82,7 @@ class Skiplist {
   bool Delete(const Key& key);
   bool Update(const Key& key, const Key& new_key);
   const Key& FindKeyByRank(int rank) const;
-  ssize_t FindRankofKey(const Key& key) const;
+  ssize_t FindRankOfKey(const Key& key) const;
   std::vector<Key> RangeByRank(const SkiplistRangeByRankSpec* spec) const;
   std::vector<Key> RevRangeByRank(const SkiplistRangeByRankSpec* spec) const;
   std::vector<Key> RangeByKey(const SkiplistRangeByKeySpec* spec) const;
@@ -138,6 +139,8 @@ class Skiplist {
   size_t level_;
   // Number of nodes
   size_t size_;
+  // Deterministic RNG keeps tests reproducible while avoiding C rand().
+  mutable std::mt19937 random_generator_;
 };
 
 // SkiplistLevel
@@ -168,8 +171,8 @@ class Skiplist<Key, Comparator, Destructor>::SkiplistNode {
     return levels_[level]->next_;
   };
   SkiplistNode* Next(const size_t level) { return levels_[level]->next_; };
-  void SetNext(const size_t level, const SkiplistNode* next) {
-    levels_[level]->next_ = const_cast<SkiplistNode*>(next);
+  void SetNext(const size_t level, SkiplistNode* next) {
+    levels_[level]->next_ = next;
   };
   size_t Span(const size_t level) const { return levels_[level]->span_; };
   size_t Span(const size_t level) { return levels_[level]->span_; };
@@ -178,9 +181,7 @@ class Skiplist<Key, Comparator, Destructor>::SkiplistNode {
   };
   const SkiplistNode* Prev() const { return prev_; };
   SkiplistNode* Prev() { return prev_; };
-  void SetPrev(const SkiplistNode* prev) {
-    prev_ = const_cast<SkiplistNode*>(prev);
-  };
+  void SetPrev(SkiplistNode* prev) { prev_ = prev; };
   void InitLevel(const size_t level) {
     levels_[level] = new SkiplistLevel(nullptr, 0);
   };
@@ -347,30 +348,33 @@ const Key& Skiplist<Key, Comparator, Destructor>::Iterator::operator*() {
 // Skiplist
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist()
-    : level_(InitSkiplistLevel),
-      head_(SkiplistNode::Create(InitSkiplistLevel, default_dtr<Key>)),
-      compare_(default_compare<Key>),
-      dtr_(default_dtr<Key>),
-      size_(0){};
+    : head_(SkiplistNode::Create(kInitSkiplistLevel, kDefaultDestructor<Key>)),
+      compare_(kDefaultCompare<Key>),
+      dtr_(kDefaultDestructor<Key>),
+      level_(kInitSkiplistLevel),
+      size_(0),
+      random_generator_(std::mt19937::default_seed){};
 
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level)
-    : level_(level),
-      head_(SkiplistNode::Create(level, default_dtr<Key>)),
-      compare_(default_compare<Key>),
-      dtr_(default_dtr<Key>),
-      size_(0) {
+    : head_(SkiplistNode::Create(level, kDefaultDestructor<Key>)),
+      compare_(kDefaultCompare<Key>),
+      dtr_(kDefaultDestructor<Key>),
+      level_(level),
+      size_(0),
+      random_generator_(std::mt19937::default_seed) {
   assert(level <= kMaxSkiplistLevel);
 };
 
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level,
                                                 const Comparator& compare)
-    : level_(level),
-      head_(SkiplistNode::Create(level, default_dtr<Key>)),
+    : head_(SkiplistNode::Create(level, kDefaultDestructor<Key>)),
       compare_(compare),
-      dtr_(default_dtr<Key>),
-      size_(0) {
+      dtr_(kDefaultDestructor<Key>),
+      level_(level),
+      size_(0),
+      random_generator_(std::mt19937::default_seed) {
   assert(level <= kMaxSkiplistLevel);
 };
 
@@ -378,11 +382,12 @@ template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::Skiplist(const size_t level,
                                                 const Comparator& compare,
                                                 const Destructor& dtr)
-    : level_(level),
-      head_(SkiplistNode::Create(level, dtr)),
+    : head_(SkiplistNode::Create(level, dtr)),
       compare_(compare),
       dtr_(dtr),
-      size_(0) {
+      level_(level),
+      size_(0),
+      random_generator_(std::mt19937::default_seed) {
   assert(level <= kMaxSkiplistLevel);
 };
 
@@ -410,8 +415,8 @@ Skiplist<Key, Comparator, Destructor>::End() const {
 template <typename Key, typename Comparator, typename Destructor>
 size_t Skiplist<Key, Comparator, Destructor>::RandomLevel() const {
   size_t level = 1;
-  while (level < kMaxSkiplistLevel &&
-         ((double)rand() / RAND_MAX) < kSkiplistP) {
+  std::bernoulli_distribution promote(kSkiplistP);
+  while (level < kMaxSkiplistLevel && promote(random_generator_)) {
     ++level;
   }
   return level;
@@ -546,7 +551,7 @@ bool Skiplist<Key, Comparator, Destructor>::Update(const Key& key,
   } else {
     // Otherwise, delete the original node and insert a new one.
     DeleteNode(key, prev.data());
-    const Key& k = Insert(new_key);
+    Insert(new_key);
   }
   return true;
 }
@@ -574,7 +579,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::FindKeyByRank(
  * Return the index of the key.
  */
 template <typename Key, typename Comparator, typename Destructor>
-ssize_t Skiplist<Key, Comparator, Destructor>::FindRankofKey(
+ssize_t Skiplist<Key, Comparator, Destructor>::FindRankOfKey(
     const Key& key) const {
   size_t rank = 0;
   const SkiplistNode* node = head_;
@@ -709,7 +714,7 @@ const Key& Skiplist<Key, Comparator, Destructor>::operator[](size_t i) {
 template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::Clear() {
   Reset();
-  level_ = InitSkiplistLevel;
+  level_ = kInitSkiplistLevel;
 }
 
 template <typename Key, typename Comparator, typename Destructor>
@@ -768,7 +773,7 @@ void Skiplist<Key, Comparator, Destructor>::DeleteNode(
     const Key& key, SkiplistNode** const prev) {
   SkiplistNode* node_to_delete = prev[0]->Next(0);
   for (int i = level_ - 1; i >= 0; --i) {
-    const SkiplistNode* next = prev[i]->Next(i);
+    SkiplistNode* next = prev[i]->Next(i);
     if (next && Eq(next->key, key)) {
       prev[i]->SetNext(i, next ? next->Next(i) : nullptr);
       prev[i]->SetSpan(i, prev[i]->Span(i) + (next ? next->Span(i) : 0) - 1);

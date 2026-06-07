@@ -38,7 +38,7 @@ int SAddCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
+int SAddCommand::SAdd(std::shared_ptr<db::RedisDb> db,
                       const SAddArgs* args) const {
   if (!db || !args) {
     return -1;
@@ -49,9 +49,9 @@ int SAddCommand::SAdd(std::shared_ptr<const db::RedisDb> db,
   }
   if (!obj) {
     obj = db::RedisObject::CreateWithSet(set::Set::Init());
-    int r = db->SetKey(args->key, obj, 0);
+    const auto status = db->SetKey(args->key, obj, 0);
     obj->DecrRefCount();
-    if (r < 0) {
+    if (status == db::DbStatus::kError) {
       return -1;
     }
   }

@@ -15,7 +15,7 @@ class SetCommand : public Command {
  private:
   int ParseArgs(const std::vector<std::string>& args,
                 StringArgs* string_args) const;
-  int Set(std::shared_ptr<const db::RedisDb> db, const StringArgs* args) const;
+  int Set(std::shared_ptr<db::RedisDb> db, const StringArgs* args) const;
 };
 }  // namespace t_string
 }  // namespace command

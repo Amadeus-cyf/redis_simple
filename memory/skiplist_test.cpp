@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -10,12 +11,12 @@ namespace redis_simple {
 namespace in_memory {
 class SkiplistTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { skiplist = new Skiplist<std::string>(4); }
-  static void TearDownTestSuite() {
-    delete skiplist;
-    skiplist = nullptr;
+  static void SetUpTestSuite() {
+    skiplist = std::make_unique<Skiplist<std::string>>(4);
   }
-  static Skiplist<std::string>* skiplist;
+  static void TearDownTestSuite() { skiplist.reset(); }
+
+  static std::unique_ptr<Skiplist<std::string>> skiplist;
 };
 
 struct RangeByRankSpecTestCase {
@@ -48,7 +49,7 @@ std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
 std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases();
 void ScanSkiplist(const Skiplist<std::string>* skiplist);
 
-Skiplist<std::string>* SkiplistTest::skiplist;
+std::unique_ptr<Skiplist<std::string>> SkiplistTest::skiplist = nullptr;
 
 TEST_F(SkiplistTest, Insertion) {
   ASSERT_EQ(skiplist->Insert("key1"), "key1");
@@ -123,17 +124,17 @@ TEST_F(SkiplistTest, FindKeyByRank) {
   ASSERT_THROW(skiplist->FindKeyByRank(INT_MIN), std::out_of_range);
 }
 
-TEST_F(SkiplistTest, FindRankofKey) {
-  ssize_t r0 = skiplist->FindRankofKey("key0");
+TEST_F(SkiplistTest, FindRankOfKey) {
+  ssize_t r0 = skiplist->FindRankOfKey("key0");
   ASSERT_EQ(r0, 0);
 
-  ssize_t r1 = skiplist->FindRankofKey("key2");
+  ssize_t r1 = skiplist->FindRankOfKey("key2");
   ASSERT_EQ(r1, 1);
 
-  ssize_t r2 = skiplist->FindRankofKey("key5");
+  ssize_t r2 = skiplist->FindRankOfKey("key5");
   ASSERT_EQ(r2, 3);
 
-  ssize_t r3 = skiplist->FindRankofKey("key_not_exist");
+  ssize_t r3 = skiplist->FindRankOfKey("key_not_exist");
   ASSERT_EQ(r3, -1);
 }
 
@@ -187,17 +188,13 @@ TEST_F(SkiplistTest, Count) {
 
 std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
   static auto limit1 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(0, -1));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, -1);
   static auto limit2 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(0, 2));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, 2);
   static auto limit3 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(2, 3));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(2, 3);
   static auto limit4 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(10, -1));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(10, -1);
 
   return {
       RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
@@ -239,17 +236,13 @@ std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
 
 std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   static auto limit1 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(0, -1));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, -1);
   static auto limit2 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(0, 2));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, 2);
   static auto limit3 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(2, 3));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(2, 3);
   static auto limit4 =
-      std::unique_ptr<Skiplist<std::string>::SkiplistLimitSpec>(
-          new Skiplist<std::string>::SkiplistLimitSpec(10, -1));
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(10, -1);
 
   return {
       RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(
@@ -293,7 +286,7 @@ std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
 }
 
 TEST_F(SkiplistTest, Iteration) {
-  auto it = Skiplist<std::string>::Iterator(skiplist);
+  auto it = Skiplist<std::string>::Iterator(skiplist.get());
   it.SeekToLast();
   ASSERT_EQ(*it, "key5");
   ASSERT_TRUE(it.Valid());
@@ -315,7 +308,7 @@ TEST_F(SkiplistTest, Iteration) {
   ASSERT_EQ(*it, "key2");
   ASSERT_TRUE(it.Valid());
 
-  ScanSkiplist(skiplist);
+  ScanSkiplist(skiplist.get());
 }
 
 void ScanSkiplist(const Skiplist<std::string>* skiplist) {
@@ -338,16 +331,15 @@ class CustomSkiplistTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
     Comparator cmp;
-    skiplist = new Skiplist<std::string, Comparator>(4, cmp);
+    skiplist = std::make_unique<Skiplist<std::string, Comparator>>(4, cmp);
   }
-  static void TearDownTestSuite() {
-    delete skiplist;
-    skiplist = nullptr;
-  }
-  static Skiplist<std::string, Comparator>* skiplist;
+  static void TearDownTestSuite() { skiplist.reset(); }
+
+  static std::unique_ptr<Skiplist<std::string, Comparator>> skiplist;
 };
 
-Skiplist<std::string, Comparator>* CustomSkiplistTest::skiplist;
+std::unique_ptr<Skiplist<std::string, Comparator>>
+    CustomSkiplistTest::skiplist = nullptr;
 
 TEST_F(CustomSkiplistTest, Insertion) {
   ASSERT_EQ(skiplist->Insert("key1"), "key1");

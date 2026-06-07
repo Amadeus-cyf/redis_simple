@@ -35,7 +35,7 @@ void SMembersCommand::Exec(Client* const client) const {
 
 int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
                                SMembersArgs* const smembers_args) const {
-  if (args.size() < 1) {
+  if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
@@ -43,11 +43,14 @@ int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SMembersCommand::SMembers(std::shared_ptr<const db::RedisDb> db,
+int SMembersCommand::SMembers(std::shared_ptr<db::RedisDb> db,
                               const SMembersArgs* args,
                               std::vector<std::string>& members) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
+  if (!obj) {
+    return 0;
+  }
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   const auto* set = obj->Set();

@@ -38,10 +38,13 @@ int SRemCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SRemCommand::SRem(std::shared_ptr<const db::RedisDb> db,
+int SRemCommand::SRem(std::shared_ptr<db::RedisDb> db,
                       const SRemArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
+  if (!obj) {
+    return 0;
+  }
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   try {

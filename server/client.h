@@ -22,7 +22,7 @@ class Client {
   }
   int Flags() { return flags; }
   connection::Connection* Connection() { return connection_.get(); }
-  std::weak_ptr<const db::RedisDb> DB() { return db_; }
+  std::weak_ptr<db::RedisDb> DB() { return db_; }
   ssize_t ReadQuery();
   ssize_t SendReply();
   size_t AddReply(const std::string& s) {
@@ -44,7 +44,7 @@ class Client {
   ssize_t SendListReply();
   // Client flags
   int flags;
-  std::weak_ptr<const db::RedisDb> db_;
+  std::weak_ptr<db::RedisDb> db_;
   // Current command
   std::weak_ptr<const command::Command> cmd_;
   // Current command args

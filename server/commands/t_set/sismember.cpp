@@ -27,7 +27,7 @@ void SIsMemberCommand::Exec(Client* const client) const {
 
 int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
                                 SIsMemberArgs* const sismember_args) const {
-  if (args.size() < 2) {
+  if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
@@ -36,16 +36,19 @@ int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SIsMemberCommand::SIsMember(std::shared_ptr<const db::RedisDb> db,
+int SIsMemberCommand::SIsMember(std::shared_ptr<db::RedisDb> db,
                                 const SIsMemberArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
+  if (!obj) {
+    return 0;
+  }
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   try {
     const auto* set = obj->Set();
     return set->HasMember(args->element) ? 1 : 0;
-  } catch (std::exception& e) {
+  } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }

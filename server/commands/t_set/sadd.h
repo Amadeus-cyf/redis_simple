@@ -21,7 +21,7 @@ class SAddCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 SAddArgs* const sadd_args) const;
-  int SAdd(std::shared_ptr<const db::RedisDb> db, const SAddArgs* args) const;
+  int SAdd(std::shared_ptr<db::RedisDb> db, const SAddArgs* args) const;
 };
 }  // namespace t_set
 }  // namespace command

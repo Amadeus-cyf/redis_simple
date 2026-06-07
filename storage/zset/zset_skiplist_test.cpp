@@ -1,6 +1,7 @@
 #include "storage/zset/zset_skiplist.h"
 
 #include <limits>
+#include <memory>
 
 #include "gtest/gtest.h"
 
@@ -8,15 +9,15 @@ namespace redis_simple {
 namespace zset {
 class ZSetSkiplistTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { zset_skiplist = new ZSetSkiplist(); }
-  static void TearDownTestSuite() {
-    delete zset_skiplist;
-    zset_skiplist = nullptr;
+  static void SetUpTestSuite() {
+    zset_skiplist = std::make_unique<ZSetSkiplist>();
   }
-  static ZSetSkiplist* zset_skiplist;
+  static void TearDownTestSuite() { zset_skiplist.reset(); }
+
+  static std::unique_ptr<ZSetSkiplist> zset_skiplist;
 };
 
-ZSetSkiplist* ZSetSkiplistTest::zset_skiplist;
+std::unique_ptr<ZSetSkiplist> ZSetSkiplistTest::zset_skiplist = nullptr;
 using KeyScorePair = std::pair<std::string, double>;
 std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSetEntry*>& keys);
@@ -366,6 +367,29 @@ TEST_F(ZSetSkiplistTest, Delete) {
 
   bool r2 = zset_skiplist->Delete("key not exist");
   ASSERT_FALSE(r2);
+}
+
+TEST(ZSetSkiplistStandaloneTest, EmptyRangeByScoreAndCountAreSafe) {
+  ZSetSkiplist zset_skiplist;
+  const RangeByScoreSpec spec(0.0, 10.0, false, false);
+
+  ASSERT_TRUE(zset_skiplist.RangeByScore(&spec).empty());
+  ASSERT_EQ(zset_skiplist.Count(&spec), 0);
+}
+
+TEST(ZSetSkiplistStandaloneTest, DeleteRecomputesRangeBoundaries) {
+  ZSetSkiplist zset_skiplist;
+  ASSERT_TRUE(zset_skiplist.InsertOrUpdate("a", 1.0));
+  ASSERT_TRUE(zset_skiplist.InsertOrUpdate("b", 2.0));
+  ASSERT_TRUE(zset_skiplist.InsertOrUpdate("c", 3.0));
+
+  ASSERT_TRUE(zset_skiplist.Delete("a"));
+  ASSERT_TRUE(zset_skiplist.Delete("c"));
+
+  const RangeByScoreSpec spec(0.0, 10.0, false, false);
+  const auto pairs = ToKeyScorePairs(zset_skiplist.RangeByScore(&spec));
+  ASSERT_EQ(pairs, std::vector<KeyScorePair>({{"b", 2.0}}));
+  ASSERT_EQ(zset_skiplist.Count(&spec), 1);
 }
 
 std::vector<KeyScorePair> ToKeyScorePairs(

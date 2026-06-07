@@ -7,7 +7,7 @@ namespace redis_simple {
 namespace command {
 namespace t_set {
 void SCardCommand::Exec(Client* const client) const {
-  SAddArgs args;
+  SCardArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
@@ -26,19 +26,22 @@ void SCardCommand::Exec(Client* const client) const {
 }
 
 int SCardCommand::ParseArgs(const std::vector<std::string>& args,
-                            SAddArgs* const sadd_args) const {
-  if (args.size() < 1) {
+                            SCardArgs* const scard_args) const {
+  if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  sadd_args->key = args[0];
+  scard_args->key = args[0];
   return 0;
 }
 
-ssize_t SCardCommand::SCard(std::shared_ptr<const db::RedisDb> db,
-                            const SAddArgs* args) const {
+ssize_t SCardCommand::SCard(std::shared_ptr<db::RedisDb> db,
+                            const SCardArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
+  if (!obj) {
+    return 0;
+  }
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   try {

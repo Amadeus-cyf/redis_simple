@@ -13,7 +13,7 @@ class Server {
   static Server* const Get();
   void Run(const std::string& ip, const int& port);
   std::weak_ptr<ae::EventLoop> EventLoop() { return el_; }
-  std::weak_ptr<const db::RedisDb> DB() { return db_; }
+  std::weak_ptr<db::RedisDb> DB() { return db_; }
   void AddClient(Client* c) { clients_.push_back(c); }
   bool RemoveClient(Client* c);
   const std::vector<Client*>& Clients() { return clients_; }

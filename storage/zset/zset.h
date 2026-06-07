@@ -12,6 +12,11 @@ namespace redis_simple {
 namespace zset {
 class ZSet {
  public:
+  enum class Encoding {
+    kListPack,
+    kSkiplist,
+  };
+
   static ZSet* Init() { return new ZSet(); }
   bool InsertOrUpdate(const std::string& key, const double score);
   bool Delete(const std::string& key);
@@ -22,6 +27,7 @@ class ZSet {
       const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
   size_t Size() const { return storage_->Size(); };
+  Encoding GetEncoding() const;
 
  private:
   enum class ZSetEncodingType {
@@ -29,7 +35,9 @@ class ZSet {
     Skiplist = 2,
   };
   static constexpr size_t ListPackMaxEntries = 128;
+  static constexpr size_t ListPackMaxElementLength = 64;
   ZSet();
+  bool ShouldConvertToSkiplist(const std::string& key, bool inserted) const;
   void ConvertAndExpand();
   ZSetEncodingType encoding_;
   std::unique_ptr<ZSetStorage> storage_;

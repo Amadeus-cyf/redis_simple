@@ -32,8 +32,7 @@ unsigned char* ListPack::Get(size_t idx, size_t* const len) const {
   if (IsString(encoding_type)) {
     return GetString(idx, len, encoding_type);
   } else {
-    unsigned char* dst = new unsigned char[ListPackIntBufSize];
-    return GetInteger(idx, dst, len, nullptr, encoding_type);
+    return GetInteger(idx, int_buf_, len, nullptr, encoding_type);
   }
 }
 
@@ -75,9 +74,8 @@ ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
   size_t skip_count = 0;
   while (lp_[idx] != ListPackEOF) {
     if (skip_count == 0) {
-      size_t len = 0;
-      const unsigned char* buf = Get(idx, &len);
-      if (len == val.size() && std::equal(buf, buf + len, val.c_str())) {
+      const auto element = Get(idx);
+      if (element.has_value() && *element == val) {
         return idx;
       }
       skip_count = skip;

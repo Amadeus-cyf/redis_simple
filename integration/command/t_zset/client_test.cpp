@@ -67,6 +67,10 @@ int Run() {
       {"ZRANK integration_zset ele2\r\n", "1\n"},
       {"ZRANK integration_zset ele3\r\n", "(nil)\n"},
       {"ZCARD integration_zset\r\n", "2\n"},
+      {"ZCARD missing_zset\r\n", "0\n"},
+      {"ZREM missing_zset ele1 ele2\r\n", "0\n"},
+      {"ZRANGE integration_zset 0 1 WTHSCORES\r\n", "-1\n"},
+      {"ZRANGE integration_zset 0 1 LIMIT 0\r\n", "-1\n"},
   };
   for (const Case& test_case : cases) {
     if (!ExpectReply(&cli, test_case)) {
@@ -80,6 +84,13 @@ int Run() {
   }
   if (!ExpectMembers(&cli, "ZRANGE integration_zset 1.0 2.0 BYSCORE\r\n",
                      {"ele1", "ele2"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"ZRANGE integration_zset 0 1 WITHSCORES\r\n",
+                          "ele1\n1\nele2\n1.0000234\n\n\n"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "ZRANGE missing_zset 0 -1\r\n", {})) {
     return EXIT_FAILURE;
   }
 

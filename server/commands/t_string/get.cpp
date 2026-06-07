@@ -30,7 +30,7 @@ void GetCommand::Exec(Client* const client) const {
 
 int GetCommand::ParseArgs(const std::vector<std::string>& args,
                           StringArgs* string_args) const {
-  if (args.empty()) {
+  if (args.size() != 1) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
   }
@@ -38,8 +38,8 @@ int GetCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-const std::optional<std::string> GetCommand::Get(
-    std::shared_ptr<const db::RedisDb> db, const StringArgs* args) const {
+std::optional<std::string> GetCommand::Get(std::shared_ptr<db::RedisDb> db,
+                                           const StringArgs* args) const {
   if (!db || !args) {
     return std::nullopt;
   }
@@ -47,7 +47,7 @@ const std::optional<std::string> GetCommand::Get(
   if (obj && obj->Encoding() != db::RedisObject::ObjEncoding::kString) {
     return std::nullopt;
   } else if (obj) {
-    return std::optional<std::string>(obj->String());
+    return obj->String();
   }
   return std::nullopt;
 }

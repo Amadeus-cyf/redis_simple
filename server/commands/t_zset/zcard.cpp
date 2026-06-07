@@ -7,7 +7,7 @@ namespace redis_simple {
 namespace command {
 namespace t_zset {
 void ZCardCommand::Exec(Client* const client) const {
-  ZAddArgs args;
+  ZCardArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
@@ -26,19 +26,22 @@ void ZCardCommand::Exec(Client* const client) const {
 }
 
 int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZAddArgs* const sadd_args) const {
-  if (args.size() < 1) {
+                            ZCardArgs* const zcard_args) const {
+  if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
-  sadd_args->key = args[0];
+  zcard_args->key = args[0];
   return 0;
 }
 
-ssize_t ZCardCommand::ZCard(std::shared_ptr<const db::RedisDb> db,
-                            const ZAddArgs* args) const {
+ssize_t ZCardCommand::ZCard(std::shared_ptr<db::RedisDb> db,
+                            const ZCardArgs* args) const {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
+  if (!obj) {
+    return 0;
+  }
+  if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     return -1;
   }
   try {

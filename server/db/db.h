@@ -19,14 +19,14 @@ enum SetKeyFlags {
 class RedisDb {
  public:
   static RedisDb* Init();
-  const RedisObject* LookupKey(const std::string& key) const;
+  const RedisObject* LookupKey(const std::string& key);
   DbStatus SetKey(const std::string& key, const RedisObject* const val,
-                  const int64_t expire) const;
+                  const int64_t expire);
   DbStatus SetKey(const std::string& key, const RedisObject* const val,
-                  const int64_t expire, int flags) const;
-  DbStatus DeleteKey(const std::string& key) const;
+                  const int64_t expire, int flags);
+  DbStatus DeleteKey(const std::string& key);
   bool ScanExpires(
-      in_memory::Dict<std::string, int64_t>::DictScanFunc callback) const;
+      in_memory::Dict<std::string, int64_t>::DictScanFunc callback);
   double ExpiredPercentage() const {
     return dict_->Size() > 0 ? (double)expires_->Size() / dict_->Size() : 0.0;
   };
@@ -34,10 +34,10 @@ class RedisDb {
  private:
   RedisDb();
   bool IsKeyExpired(const std::string& key) const;
-  std::unique_ptr<in_memory::Dict<std::string, RedisObject*>> dict_;
+  std::unique_ptr<in_memory::Dict<std::string, const RedisObject*>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
   bool free_async_;
-  mutable ssize_t expire_cursor_;
+  ssize_t expire_cursor_;
 };
 }  // namespace db
 }  // namespace redis_simple

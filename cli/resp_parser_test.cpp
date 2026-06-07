@@ -27,6 +27,7 @@ TEST(RespParserTest, ParseBulkString) {
   ASSERT_EQ(resp_parser::Parse("$5\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse("$5hello\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse("$5\r\nhello", reply), -1);
+  ASSERT_EQ(resp_parser::Parse("$\r\n\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse("$6\r\nhello\n\r\n", reply), 12);
   ASSERT_EQ(reply.back(), "hello\n");
   ASSERT_EQ(resp_parser::Parse("$15\r\nhello_hello_hel\r\n\r\n\r\n", reply),
@@ -43,6 +44,8 @@ TEST(RespParserTest, ParseInt64) {
   ASSERT_EQ(resp_parser::Parse(":-123456\r\n", reply), 10);
   ASSERT_EQ(reply.back(), "-123456");
   ASSERT_EQ(resp_parser::Parse(":--123456\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(":\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(":+\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse(":123456", reply), -1);
 }
 
@@ -59,6 +62,7 @@ TEST(ReplyParserTest, ParseArray) {
   const std::string& s2 = "*0\r\n";
   ASSERT_EQ(resp_parser::Parse(s2, reply2), 4);
   ASSERT_EQ(reply2, std::vector<std::string>({"\n"}));
+  ASSERT_EQ(resp_parser::Parse("*\r\n", reply2), -1);
   // Nested array
   std::vector<std::string> reply3;
   const std::string& s3 =
@@ -68,6 +72,13 @@ TEST(ReplyParserTest, ParseArray) {
   ASSERT_EQ(reply3, std::vector<std::string>(
                         {"key1", "hello", "hello\r\n", "123456", "-12345", "\n",
                          "\n", "key2", "hello\r\n", "123456", "\n", "\n"}));
+  // Multi-digit array lengths should consume every digit in the length header.
+  std::vector<std::string> reply4;
+  const std::string& s4 =
+      "*10\r\n:0\r\n:1\r\n:2\r\n:3\r\n:4\r\n:5\r\n:6\r\n:7\r\n:8\r\n:9\r\n";
+  ASSERT_EQ(resp_parser::Parse(s4, reply4), s4.size());
+  ASSERT_EQ(reply4, std::vector<std::string>({"0", "1", "2", "3", "4", "5", "6",
+                                              "7", "8", "9", "\n"}));
 }
 
 TEST(ReplyParseTest, ParseNull) {
@@ -115,10 +126,10 @@ TEST(ReplyParserTest, ParseFloat) {
   ASSERT_EQ(reply.back(), "-1234");
   ASSERT_EQ(resp_parser::Parse(",-123.e12\r\n", reply), 11);
   ASSERT_EQ(reply.back(), "-123e12");
-  ASSERT_EQ(resp_parser::Parse(",123.456e\r\n", reply), 11);
-  ASSERT_EQ(reply.back(), "123.456");
-  ASSERT_EQ(resp_parser::Parse(",-123.456e\r\n", reply), 12);
-  ASSERT_EQ(reply.back(), "-123.456");
+  ASSERT_EQ(resp_parser::Parse(",123.456e\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(",-123.456e\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(",123.456e+\r\n", reply), -1);
+  ASSERT_EQ(resp_parser::Parse(",123.456e-\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse(",123.2.34\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse(",123.34e1.23\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse(",123.2abc34\r\n", reply), -1);

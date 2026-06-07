@@ -21,7 +21,7 @@ class SIsMemberCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 SIsMemberArgs* const sismember_args) const;
-  int SIsMember(std::shared_ptr<const db::RedisDb> db,
+  int SIsMember(std::shared_ptr<db::RedisDb> db,
                 const SIsMemberArgs* args) const;
 };
 }  // namespace t_set

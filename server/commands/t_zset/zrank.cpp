@@ -29,7 +29,7 @@ void ZRankCommand::Exec(Client* const client) const {
 
 int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
                             ZRankArgs* const zset_args) const {
-  if (args.size() < 2) {
+  if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
@@ -38,8 +38,8 @@ int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-const std::optional<size_t> ZRankCommand::ZRank(
-    std::shared_ptr<const db::RedisDb> db, const ZRankArgs* args) const {
+std::optional<size_t> ZRankCommand::ZRank(std::shared_ptr<db::RedisDb> db,
+                                          const ZRankArgs* args) const {
   if (!db || !args) {
     return std::nullopt;
   }

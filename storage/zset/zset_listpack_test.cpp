@@ -1,6 +1,7 @@
 #include "storage/zset/zset_listpack.h"
 
 #include <limits>
+#include <memory>
 
 #include "gtest/gtest.h"
 
@@ -8,15 +9,15 @@ namespace redis_simple {
 namespace zset {
 class ZSetListPackTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { zset_listpack = new ZSetListPack(); }
-  static void TearDownTestSuite() {
-    delete zset_listpack;
-    zset_listpack = nullptr;
+  static void SetUpTestSuite() {
+    zset_listpack = std::make_unique<ZSetListPack>();
   }
-  static ZSetListPack* zset_listpack;
+  static void TearDownTestSuite() { zset_listpack.reset(); }
+
+  static std::unique_ptr<ZSetListPack> zset_listpack;
 };
 
-ZSetListPack* ZSetListPackTest::zset_listpack;
+std::unique_ptr<ZSetListPack> ZSetListPackTest::zset_listpack = nullptr;
 using KeyScorePair = std::pair<std::string, double>;
 std::vector<std::pair<std::string, double>> ToKeyScorePairs(
     const std::vector<const ZSetEntry*>& keys);

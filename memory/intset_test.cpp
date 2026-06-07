@@ -2,19 +2,19 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 namespace redis_simple {
 namespace in_memory {
 class IntSetTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { intset = new IntSet(); }
-  static void TearDownTestSuite() {
-    delete intset;
-    intset = nullptr;
-  }
-  static IntSet* intset;
+  static void SetUpTestSuite() { intset = std::make_unique<IntSet>(); }
+  static void TearDownTestSuite() { intset.reset(); }
+
+  static std::unique_ptr<IntSet> intset;
 };
 
-IntSet* IntSetTest::intset = nullptr;
+std::unique_ptr<IntSet> IntSetTest::intset = nullptr;
 
 TEST_F(IntSetTest, AddAndUpgradeAndGet) {
   ASSERT_TRUE(intset->Add(1));
@@ -101,7 +101,7 @@ TEST_F(IntSetTest, Remove) {
 }
 
 TEST_F(IntSetTest, Iterator) {
-  auto it = IntSet::Iterator(intset);
+  auto it = IntSet::Iterator(intset.get());
   it.SeekToFirst();
   ASSERT_EQ(it.Value(), INT32_MIN);
   it.Next();

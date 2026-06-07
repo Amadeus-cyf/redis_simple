@@ -21,7 +21,7 @@ class SRemCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 SRemArgs* const srem_args) const;
-  int SRem(std::shared_ptr<const db::RedisDb> db, const SRemArgs* args) const;
+  int SRem(std::shared_ptr<db::RedisDb> db, const SRemArgs* args) const;
 };
 }  // namespace t_set
 }  // namespace command

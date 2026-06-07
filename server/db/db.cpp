@@ -23,14 +23,14 @@ RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
     }
   };
 
-  in_memory::Dict<std::string, RedisObject*>::DictType db_type;
+  in_memory::Dict<std::string, const RedisObject*>::DictType db_type;
   db_type.hash_function = hash;
   db_type.key_dup = nullptr;
   db_type.val_dup = nullptr;
   db_type.key_destructor = nullptr;
   db_type.val_destructor = object_destructor;
   db_type.key_compare = key_compare;
-  dict_ = in_memory::Dict<std::string, RedisObject*>::Init(db_type);
+  dict_ = in_memory::Dict<std::string, const RedisObject*>::Init(db_type);
 
   in_memory::Dict<std::string, int64_t>::DictType expires_type;
   expires_type.hash_function = hash;
@@ -42,7 +42,7 @@ RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
   expires_ = in_memory::Dict<std::string, int64_t>::Init(expires_type);
 }
 
-const RedisObject* RedisDb::LookupKey(const std::string& key) const {
+const RedisObject* RedisDb::LookupKey(const std::string& key) {
   const auto result = dict_->Get(key);
   if (!result.has_value()) return nullptr;
   const RedisObject* val = *result;
@@ -57,13 +57,13 @@ const RedisObject* RedisDb::LookupKey(const std::string& key) const {
 }
 
 DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
-                         const int64_t expire) const {
+                         const int64_t expire) {
   return SetKey(key, val, expire, 0);
 }
 
 DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
-                         const int64_t expire, int flags) const {
-  dict_->Set(key, const_cast<RedisObject*>(val));
+                         const int64_t expire, int flags) {
+  dict_->Set(key, val);
   if (!(flags & SetKeyFlags::kKeepTtl) && expire == 0) {
     expires_->Delete(key);
   }
@@ -75,7 +75,7 @@ DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
   return DbStatus::kOk;
 }
 
-DbStatus RedisDb::DeleteKey(const std::string& key) const {
+DbStatus RedisDb::DeleteKey(const std::string& key) {
   if (!dict_->Delete(key)) {
     return DbStatus::kError;
   }
@@ -89,7 +89,7 @@ DbStatus RedisDb::DeleteKey(const std::string& key) const {
  * Scan to delete expired keys. Return true if the scanning is not finished.
  */
 bool RedisDb::ScanExpires(
-    in_memory::Dict<std::string, int64_t>::DictScanFunc callback) const {
+    in_memory::Dict<std::string, int64_t>::DictScanFunc callback) {
   if (expire_cursor_ < 0) {
     expire_cursor_ = 0;
   }

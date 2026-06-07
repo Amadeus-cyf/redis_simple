@@ -1,5 +1,7 @@
 #include <benchmark/benchmark.h>
 
+#include <random>
+
 #include "memory/dict.h"
 
 namespace redis_simple {
@@ -7,16 +9,27 @@ std::unique_ptr<in_memory::Dict<std::string, std::string>> dict =
     in_memory::Dict<std::string, std::string>::Init();
 std::vector<std::string> keys;
 
-std::string RandString(const int len) {
+static std::mt19937& Rng() {
+  static std::mt19937 rng(std::mt19937::default_seed);
+  return rng;
+}
+
+static size_t RandomIndex(size_t size) {
+  std::uniform_int_distribution<size_t> dist(0, size - 1);
+  return dist(Rng());
+}
+
+static std::string RandString(const int len) {
   static const char alphanum[] =
       "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";
+  std::uniform_int_distribution<size_t> dist(0, sizeof(alphanum) - 2);
   std::string str;
   str.reserve(len);
 
   for (int i = 0; i < len; ++i) {
-    str += alphanum[rand() % (sizeof(alphanum) - 1)];
+    str += alphanum[dist(Rng())];
   }
 
   return str;
@@ -24,7 +37,7 @@ std::string RandString(const int len) {
 
 static void DictAdd(benchmark::State& state) {
   for (auto _ : state) {
-    const std::string& key = RandString(10);
+    const auto key = RandString(10);
     keys.push_back(key);
     dict->Insert(key, RandString(10));
   }
@@ -32,16 +45,17 @@ static void DictAdd(benchmark::State& state) {
 
 static void DictFind(benchmark::State& state) {
   for (auto _ : state) {
-    dict->Get(keys[rand() % keys.size()]);
+    if (!keys.empty()) {
+      benchmark::DoNotOptimize(dict->Get(keys[RandomIndex(keys.size())]));
+    }
   }
 }
 
 static void DictUpdate(benchmark::State& state) {
-  bool exist = false;
+  std::bernoulli_distribution use_existing(0.5);
   for (auto _ : state) {
-    exist = rand() % 2 == 1;
-    if (exist) {
-      dict->Set(keys[rand() % keys.size()], RandString(10));
+    if (use_existing(Rng()) && !keys.empty()) {
+      dict->Set(keys[RandomIndex(keys.size())], RandString(10));
     } else {
       dict->Set("non-existing key", "val");
     }
@@ -49,11 +63,10 @@ static void DictUpdate(benchmark::State& state) {
 }
 
 static void DictDelete(benchmark::State& state) {
-  bool exist = false;
+  std::bernoulli_distribution use_existing(0.5);
   for (auto _ : state) {
-    exist = rand() % 2 == 1;
-    if (exist) {
-      dict->Delete(keys[rand() % keys.size()]);
+    if (use_existing(Rng()) && !keys.empty()) {
+      dict->Delete(keys[RandomIndex(keys.size())]);
     } else {
       dict->Delete("non-existing key");
     }

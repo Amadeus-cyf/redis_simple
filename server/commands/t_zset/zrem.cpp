@@ -39,7 +39,7 @@ int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
+int ZRemCommand::ZRem(std::shared_ptr<db::RedisDb> db,
                       const ZRemArgs* args) const {
   if (!db || !args) {
     return -1;
@@ -47,7 +47,7 @@ int ZRemCommand::ZRem(std::shared_ptr<const db::RedisDb> db,
   const auto* obj = db->LookupKey(args->key);
   if (!obj) {
     RS_LOG_DEBUG("key not found\n");
-    return -1;
+    return 0;
   }
   if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");

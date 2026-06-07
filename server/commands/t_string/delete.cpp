@@ -14,11 +14,12 @@ void DeleteCommand::Exec(Client* const client) const {
     return;
   }
   if (auto db = client->DB().lock()) {
-    if (Delete(db, &args) < 0) {
+    const int deleted = Delete(db, &args);
+    if (deleted < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kOk));
+    client->AddReply(reply::FromInt64(deleted));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -27,7 +28,7 @@ void DeleteCommand::Exec(Client* const client) const {
 
 int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
                              StringArgs* string_args) const {
-  if (args.empty()) {
+  if (args.size() != 1) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
   }
@@ -35,9 +36,9 @@ int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int DeleteCommand::Delete(std::shared_ptr<const db::RedisDb> db,
+int DeleteCommand::Delete(std::shared_ptr<db::RedisDb> db,
                           const StringArgs* args) const {
-  return db->DeleteKey(args->key);
+  return db->DeleteKey(args->key) == db::DbStatus::kOk ? 1 : 0;
 }
 }  // namespace t_string
 }  // namespace command

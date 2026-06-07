@@ -15,8 +15,7 @@ class DeleteCommand : public Command {
  private:
   int ParseArgs(const std::vector<std::string>& args,
                 StringArgs* string_args) const;
-  int Delete(std::shared_ptr<const db::RedisDb> db,
-             const StringArgs* args) const;
+  int Delete(std::shared_ptr<db::RedisDb> db, const StringArgs* args) const;
 };
 }  // namespace t_string
 }  // namespace command

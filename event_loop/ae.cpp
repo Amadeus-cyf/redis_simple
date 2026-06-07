@@ -35,11 +35,11 @@ int WaitForEvent(int fd, int mask, long timeout) {
     return r;
   }
   int result_mask = 0;
-  if (poll_fds[0].revents & POLL_IN) {
+  if (poll_fds[0].revents & POLLIN) {
     result_mask |= EventFlag::kReadable;
   }
-  if ((poll_fds[0].revents & POLL_OUT) || (poll_fds[0].revents & POLL_HUP) ||
-      (poll_fds[0].revents & POLL_ERR)) {
+  if ((poll_fds[0].revents & POLLOUT) || (poll_fds[0].revents & POLLHUP) ||
+      (poll_fds[0].revents & POLLERR)) {
     result_mask |= EventFlag::kWritable;
   }
   return result_mask;

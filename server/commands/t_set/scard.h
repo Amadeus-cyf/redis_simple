@@ -15,13 +15,12 @@ class SCardCommand : public Command {
   void Exec(Client* const client) const override;
 
  private:
-  struct SAddArgs {
+  struct SCardArgs {
     std::string key;
   };
   int ParseArgs(const std::vector<std::string>& args,
-                SAddArgs* const sadd_args) const;
-  ssize_t SCard(std::shared_ptr<const db::RedisDb> db,
-                const SAddArgs* args) const;
+                SCardArgs* const scard_args) const;
+  ssize_t SCard(std::shared_ptr<db::RedisDb> db, const SCardArgs* args) const;
 };
 }  // namespace t_set
 }  // namespace command

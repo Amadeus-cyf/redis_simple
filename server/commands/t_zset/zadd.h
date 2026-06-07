@@ -18,7 +18,7 @@ class ZAddCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 ZAddArgs* const zset_args) const;
-  int ZAdd(std::shared_ptr<const db::RedisDb> db, const ZAddArgs* args) const;
+  int ZAdd(std::shared_ptr<db::RedisDb> db, const ZAddArgs* args) const;
 };
 }  // namespace t_zset
 }  // namespace command

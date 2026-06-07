@@ -20,7 +20,7 @@ class SMembersCommand : public Command {
   };
   int ParseArgs(const std::vector<std::string>& args,
                 SMembersArgs* const smembers_args) const;
-  int SMembers(std::shared_ptr<const db::RedisDb> db, const SMembersArgs* args,
+  int SMembers(std::shared_ptr<db::RedisDb> db, const SMembersArgs* args,
                std::vector<std::string>& members) const;
 };
 }  // namespace t_set
