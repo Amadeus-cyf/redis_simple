@@ -38,9 +38,18 @@ unsigned char* ListPack::Get(size_t idx, size_t* const len) const {
 }
 
 std::optional<std::string> ListPack::Get(size_t idx) const {
+  size_t listpack_bytes = GetTotalBytes();
+  if (idx < ListPackHeaderSize || idx >= listpack_bytes)
+    throw std::out_of_range("index out of bound");
+  if (idx == listpack_bytes - 1) return std::nullopt;
+
   size_t len = 0;
-  const unsigned char* buf = Get(idx, &len);
-  if (!buf) return std::nullopt;
+  unsigned char int_buf[ListPackIntBufSize];
+  EncodingType encoding_type = GetEncodingType(idx);
+  const unsigned char* buf =
+      IsString(encoding_type)
+          ? GetString(idx, &len, encoding_type)
+          : GetInteger(idx, int_buf, &len, nullptr, encoding_type);
   return std::string(reinterpret_cast<const char*>(buf), len);
 }
 

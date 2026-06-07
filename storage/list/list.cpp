@@ -2,26 +2,14 @@
 
 namespace redis_simple {
 namespace list {
-List::List() : listpack_(std::make_unique<in_memory::ListPack>()) {}
+List::List() : quicklist_(std::make_unique<in_memory::QuickList>()) {}
 
-bool List::LPush(const std::string& value) { return listpack_->Prepend(value); }
+bool List::LPush(const std::string& value) { return quicklist_->LPush(value); }
 
-bool List::RPush(const std::string& value) { return listpack_->Append(value); }
+bool List::RPush(const std::string& value) { return quicklist_->RPush(value); }
 
-std::optional<std::string> List::RPop() {
-  if (listpack_->Size() == 0) return std::nullopt;
-  size_t idx = listpack_->Last();
-  const auto val_opt = listpack_->Get(idx);
-  listpack_->Delete(idx);
-  return val_opt;
-}
+std::optional<std::string> List::RPop() { return quicklist_->RPop(); }
 
-std::optional<std::string> List::LPop() {
-  if (listpack_->Size() == 0) return std::nullopt;
-  size_t idx = listpack_->First();
-  const auto val_opt = listpack_->Get(idx);
-  listpack_->Delete(idx);
-  return val_opt;
-}
+std::optional<std::string> List::LPop() { return quicklist_->LPop(); }
 }  // namespace list
 }  // namespace redis_simple
