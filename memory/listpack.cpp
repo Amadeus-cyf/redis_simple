@@ -23,24 +23,15 @@ ListPack::ListPack(size_t capacity)
   lp_[ListPackHeaderSize] = ListPackEOF;
 }
 
-/*
- * Get an element with buffer from the listpack.  The function assumes the index
- * is the beginning of an element if valid. Store the length of the buffer into
- * the variable `len`.
- */
 unsigned char* ListPack::Get(size_t idx, size_t* const len) const {
   size_t listpack_bytes = GetTotalBytes();
-  // Index out of bound, < header size or >= total bytes.
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
-  // The end of the list.
   if (idx == listpack_bytes - 1) return nullptr;
   EncodingType encoding_type = GetEncodingType(idx);
   if (IsString(encoding_type)) {
-    // Get string.
     return GetString(idx, len, encoding_type);
   } else {
-    // Get integer.
     unsigned char* dst = new unsigned char[ListPackIntBufSize];
     return GetInteger(idx, dst, len, nullptr, encoding_type);
   }
@@ -53,16 +44,10 @@ std::optional<std::string> ListPack::Get(size_t idx) const {
   return std::string(reinterpret_cast<const char*>(buf), len);
 }
 
-/*
- * Get integer from the listpack at the given index. The function assumes the
- * index is the beginning of an element if valid.
- */
 std::optional<int64_t> ListPack::GetInteger(size_t idx) const {
   size_t listpack_bytes = GetTotalBytes();
-  // Index out of bound, < header size or >= total bytes.
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
-  // The end of the list.
   if (idx == listpack_bytes - 1) return std::nullopt;
   EncodingType encoding_type = GetEncodingType(idx);
   if (IsString(encoding_type)) return std::nullopt;
@@ -71,18 +56,10 @@ std::optional<int64_t> ListPack::GetInteger(size_t idx) const {
   return val;
 }
 
-/*
- * Find the index of an element in the listpack. If the element does not exist,
- * return -1.
- */
 ssize_t ListPack::Find(const std::string& val) const {
   return FindAndSkip(val, 0);
 }
 
-/*
- * Find the index of an element in the listpack skipping `skip` entries between
- * each comparison. If the element does not exist, return -1.
- */
 ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
   ssize_t idx = First();
   if (idx < 0) return -1;
@@ -103,100 +80,62 @@ ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
   return -1;
 }
 
-/*
- * Append a string to the end of the listpack.
- */
 bool ListPack::Append(const std::string& element_string) {
   uint32_t listpack_bytes = GetTotalBytes();
   return Insert(listpack_bytes - 1, Position::InsertBefore, &element_string,
                 nullptr);
 }
 
-/*
- * Append an integer to the end of the listpack.
- */
 bool ListPack::Append(int64_t element_integer) {
   uint32_t listpack_bytes = GetTotalBytes();
   return Insert(listpack_bytes - 1, Position::InsertBefore, nullptr,
                 &element_integer);
 }
 
-/*
- * Prepend a string at the beginning of the listpack.
- */
 bool ListPack::Prepend(const std::string& element_string) {
   return Insert(ListPackHeaderSize, Position::InsertBefore, &element_string,
                 nullptr);
 }
 
-/*
- * Prepend an integer at the beginning of the listpack.
- */
 bool ListPack::Prepend(int64_t element_integer) {
   return Insert(ListPackHeaderSize, Position::InsertBefore, nullptr,
                 &element_integer);
 }
 
-/*
- * Insert a string at the given index of the listpack.
- */
 bool ListPack::Insert(size_t idx, const std::string& element_string) {
   return Insert(idx, Position::InsertBefore, &element_string, nullptr);
 }
 
-/*
- * Insert an integer at the given index of the listpack.
- */
 bool ListPack::Insert(size_t idx, int64_t element_integer) {
   return Insert(idx, Position::InsertBefore, nullptr, &element_integer);
 }
 
-/*
- * Replace a string at the given index of the listpack.
- */
 bool ListPack::Replace(size_t idx, const std::string& element_string) {
   return Insert(idx, Position::Replace, &element_string, nullptr);
 }
 
-/*
- * Replace an integer at the given index of the listpack.
- */
 bool ListPack::Replace(size_t idx, int64_t element_integer) {
   return Insert(idx, Position::Replace, nullptr, &element_integer);
 }
 
-/*
- * Batch append elements to the end of the listpack.
- */
 bool ListPack::BatchAppend(const std::vector<ListPackEntry>& entries) {
   uint32_t listpack_bytes = GetTotalBytes();
   return BatchInsert(listpack_bytes - 1, Position::InsertBefore, entries);
 }
 
-/*
- * Batch prepend elements to the beginning of the listpack.
- */
 bool ListPack::BatchPrepend(const std::vector<ListPackEntry>& entries) {
   return BatchInsert(ListPackHeaderSize, Position::InsertBefore, entries);
 }
 
-/*
- * Batch insert elements at the given index.
- */
 bool ListPack::BatchInsert(size_t idx,
                            const std::vector<ListPackEntry>& entries) {
   return BatchInsert(idx, Position::InsertBefore, entries);
 }
 
-/*
- * Delete the element at the given index.
- */
 void ListPack::Delete(size_t idx) {
   uint32_t listpack_bytes = GetTotalBytes();
-  // Cannot insert into the listpack header or out of the listpack bound.
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
-  // The end of the list.
   if (idx == listpack_bytes - 1) return;
   EncodingType encoding_type = GetEncodingType(idx);
   size_t backlen = GetBacklen(idx);
@@ -204,7 +143,7 @@ void ListPack::Delete(size_t idx) {
   size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
   std::memmove(lp_ + idx, lp_ + idx + backlen + backlen_bytes,
                listpack_bytes - idx - backlen - backlen_bytes);
-  // Realloc after to free space
+  // Shrink after memmove so the source range remains valid.
   Realloc(new_listpack_bytes);
   SetTotalBytes(new_listpack_bytes);
   uint16_t num_of_elements = GetNumOfElements();
@@ -213,51 +152,30 @@ void ListPack::Delete(size_t idx) {
   }
 }
 
-/*
- * Return the beginning index (which should be ListPackHeaderSize) of the first
- * element in the listpack. If the listpack is empty, return -1.
- */
 ssize_t ListPack::First() const {
   size_t listpack_bytes = GetTotalBytes();
   if (listpack_bytes <= ListPack::ListPackHeaderSize + 1) return -1;
   return ListPack::ListPackHeaderSize;
 }
 
-/*
- * Return the beginning index (which should be ListPackHeaderSize) of the last
- * element in the listpack. If the listpack is empty, return -1.
- */
 ssize_t ListPack::Last() const {
   size_t listpack_bytes = GetTotalBytes();
-  // No element in the listpack.
   if (listpack_bytes <= ListPack::ListPackHeaderSize + 1) return -1;
   return Prev(listpack_bytes - 1);
 }
 
-/*
- * Return the beginning index of the next element of the element at the
- * given index. If there is no more element, return -1.
- */
 ssize_t ListPack::Next(size_t idx) const {
-  // Index out of bound, < header size or >= total bytes.
   if (idx < ListPackHeaderSize || idx >= GetTotalBytes())
     throw std::out_of_range("index out of bound");
   if (lp_[idx] == ListPackEOF) return -1;
   size_t next_idx = Skip(idx);
-  // Return -1 if the element is the last one.
   return lp_[next_idx] != ListPackEOF ? next_idx : -1;
 }
 
-/*
- * Return the beginning index of the previous element of the element at
- * the given index. If there is no more element, return -1.
- */
 ssize_t ListPack::Prev(size_t idx) const {
   size_t listpack_bytes = GetTotalBytes();
-  // Index out of bound, < header size or >= total bytes.
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
-  // No element in the listpack or the element is the first one.
   if (listpack_bytes <= ListPackHeaderSize + 1 || idx == ListPackHeaderSize)
     return -1;
   // Decode the backlen starting from the last byte of the previous element's
@@ -267,10 +185,6 @@ ssize_t ListPack::Prev(size_t idx) const {
   return idx - backlen - backlen_bytes + 1;
 }
 
-/*
- * Get string from the given index based on the encoding type.
- * The function assumes that the element at the index is a valid string.
- */
 unsigned char* ListPack::GetString(size_t idx, size_t* const len,
                                    EncodingType encoding_type) const {
   if (len) *len = DecodeStringLength(idx);
@@ -286,10 +200,6 @@ unsigned char* ListPack::GetString(size_t idx, size_t* const len,
   }
 }
 
-/*
- * Get integer from the given index based on the encoding type.
- * The function assumes that the element at the index is a valid 64 bit integer.
- */
 unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
                                     size_t* const len, int64_t* sval,
                                     EncodingType encoding_type) const {
@@ -298,8 +208,7 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
   switch (encoding_type) {
     case EncodingType::k7BitUnsignedInteger:
       uval = lp_[idx] & 0x7f;
-      // No need to convert unsigned to signed number in this case. Set negstart
-      // to a number absolutely larger than the uval.
+      // Avoid sign conversion for the unsigned 7-bit format.
       negstart = std::numeric_limits<uint64_t>::max();
       break;
     case EncodingType::k13BitInteger:
@@ -346,22 +255,16 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
         utils::LL2String(reinterpret_cast<char*>(dst), ListPackIntBufSize, val);
     return dst;
   } else {
-    // If dst is null, return the integer instead of the int buffer.
     *sval = val;
   }
   return nullptr;
 }
 
-/*
- * Insert an element before/after the given position of the listpack or replace
- * the element at the given position of the listpack.
- */
 bool ListPack::Insert(size_t idx, ListPack::Position where,
                       const std::string* element_string,
                       int64_t* element_integer) {
   if (!element_string && !element_integer) return false;
   uint32_t listpack_bytes = GetTotalBytes();
-  // Cannot insert into the listpack header or out of the listpack bound.
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
   if (where == Position::InsertAfter) {
@@ -372,7 +275,6 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   EncodingGeneralType encoding_type;
   int64_t sval = element_integer ? *element_integer : 0;
   if (element_integer || utils::ToInt64(*element_string, &sval)) {
-    // Turn string to int64 value if applicable.
     backlen = EncodeInteger(nullptr, sval);
     encoding_type = EncodingGeneralType::kInteger;
   } else {
@@ -382,28 +284,24 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   uint8_t backlen_bytes = GetBacklenBytes(backlen);
   size_t replaced_bytes = 0;
   if (where == Position::Replace) {
-    // Replace an existing element.
     size_t cur_backlen = GetBacklen(idx);
     size_t cur_backlen_bytes = GetBacklenBytes(cur_backlen);
     replaced_bytes = cur_backlen + cur_backlen_bytes;
   }
   size_t new_listpack_bytes =
       listpack_bytes + backlen + backlen_bytes - replaced_bytes;
-  // Total bytes is a 4 byte unsigned integer, so the maximum bytes for the
-  // listpack is UINT32_MAX.
   if (new_listpack_bytes > std::numeric_limits<uint32_t>::max()) return false;
-  // Realloc before if need more memory
+  // Grow before memmove so the destination range is valid.
   if (new_listpack_bytes > listpack_bytes) Realloc(new_listpack_bytes);
   std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx + replaced_bytes,
                listpack_bytes - idx - replaced_bytes);
   if (where == Position::InsertBefore) {
-    // Insert a new  element before the existing element at the idx.
     uint16_t num_of_elements = GetNumOfElements();
     if (num_of_elements != ListPackNumEleUnknown) {
       SetNumOfElements(num_of_elements + 1);
     }
   }
-  // Realloc after to free space
+  // Shrink after memmove so the source range remains valid.
   if (new_listpack_bytes < listpack_bytes) Realloc(new_listpack_bytes);
   SetTotalBytes(new_listpack_bytes);
   if (encoding_type == EncodingGeneralType::kInteger) {
@@ -414,14 +312,10 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   return true;
 }
 
-/*
- * Batch insert elements before/after the given position of the listpack.
- */
 bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
                            const std::vector<ListPackEntry>& entries) {
   if (entries.empty()) return false;
   uint32_t listpack_bytes = GetTotalBytes();
-  // Cannot insert into the listpack header or out of the listpack bound.
   if (idx < ListPackHeaderSize || idx >= listpack_bytes)
     throw std::out_of_range("index out of bound");
   if (where == Position::InsertAfter) {
@@ -430,7 +324,7 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   }
   std::vector<Encoding> encodings;
   size_t inserted_bytes = 0;
-  // Get general encoding type (string/int) and backlen from each entry.
+  // Precompute encodings before resizing so insertion can be one memmove.
   for (const ListPackEntry& entry : entries) {
     size_t backlen = 0;
     int64_t sval = entry.sval;

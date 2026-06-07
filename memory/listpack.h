@@ -8,15 +8,16 @@
 
 namespace redis_simple {
 namespace in_memory {
-// refer to https://github.com/antirez/listpack/blob/master/listpack.md
+// Compact Redis-style sequential encoding. See:
+// https://github.com/antirez/listpack/blob/master/listpack.md
 class ListPack {
  public:
   struct ListPackEntry {
     std::string* const str;
-    // If list pack has an integer value, str should be null.
+    // str is null when the entry stores an integer.
     int64_t sval;
   };
-  // Listpack header size, 32 bit total length + 16 bit number of elements
+  // Header: 32-bit total bytes followed by 16-bit element count.
   static constexpr int ListPackHeaderSize = 6;
   ListPack();
   explicit ListPack(size_t capacity);
@@ -51,15 +52,14 @@ class ListPack {
   }
 
  private:
-  // 20 digits of -2^63 + 1 digit of the null term = 21
+  // Enough space for INT64_MIN plus a null terminator.
   static constexpr int ListPackIntBufSize = 21;
   static constexpr uint16_t ListPackNumEleUnknown = UINT16_MAX;
   static constexpr int Uint7BitIntMax_ = 127;
   static constexpr int Int24BitIntMax = (1 << 23) - 1;
   static constexpr int Int24BitIntMin = -(1 << 23);
-  // Max safety bytes of the listpack.
+  // Keep reallocations below the unsigned 32-bit total-bytes limit.
   static constexpr uint32_t ListPackMaxSafetySize = 1 << 30;
-  // The end of the listpack
   static constexpr int64_t ListPackEOF = 0xff;
   enum class EncodingGeneralType {
     kInteger = 0,

@@ -57,16 +57,13 @@ int ParseRangeToRankSpec(const std::vector<std::string>& args,
   }
   const std::string& start = args[1];
   const std::string& end = args[2];
-  // Parse range.
   if (ParseRankRange(start, end, spec) < 0) {
     return -1;
   }
   spec->limit = std::make_unique<zset::LimitSpec>();
-  // Parse limit.
   if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
     return -1;
   }
-  // Parse reverse.
   spec->reverse = IsReverse(args);
   return 0;
 }
@@ -113,16 +110,13 @@ int ParseRangeToScoreSpec(const std::vector<std::string>& args,
   }
   const std::string& start = args[1];
   const std::string& end = args[2];
-  // Parse score range.
   if (ParseScoreRange(start, end, spec) < 0) {
     return -1;
   }
   spec->limit = std::make_unique<zset::LimitSpec>();
-  // Parse limit.
   if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
     return -1;
   }
-  // Parse reverse.
   spec->reverse = IsReverse(args);
   return 0;
 }
@@ -175,7 +169,6 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
     }
   }
   if (i > args.size() - 3) {
-    // Limit flag not found or missing offset count info, set to default.
     spec->offset = 0, spec->count = -1;
     return 0;
   }
@@ -238,7 +231,7 @@ void ZRangeCommand::Exec(Client* const client) const {
   const auto reply =
       reply_utils::EncodeList<const zset::ZSetEntry*, to_string>(result);
   if (reply.has_value()) {
-    client->AddReply(reply.value());
+    client->AddReply(*reply);
   } else {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }

@@ -9,9 +9,6 @@ namespace in_memory {
 DynamicBuffer::DynamicBuffer()
     : buf_(new char[4096]), nread_(0), processed_offset_(0), len_(4096){};
 
-/*
- * Add buffer.
- */
 void DynamicBuffer::WriteToBuffer(const char* buffer, size_t n) {
   if (n > 0) {
     if (len_ - nread_ < n) {
@@ -22,9 +19,6 @@ void DynamicBuffer::WriteToBuffer(const char* buffer, size_t n) {
   }
 }
 
-/*
- * Clean processed buffer.
- */
 void DynamicBuffer::TrimProcessedBuffer() {
   if (processed_offset_ == 0) return;
   utils::ShiftCStr(buf_, len_, processed_offset_);
@@ -32,9 +26,6 @@ void DynamicBuffer::TrimProcessedBuffer() {
   processed_offset_ = 0;
 }
 
-/*
- * Extract inline buffer for processing.
- */
 std::string DynamicBuffer::ProcessInlineBuffer() {
   char* c = strchr(buf_ + processed_offset_, '\n');
   if (!c) {
@@ -45,16 +36,12 @@ std::string DynamicBuffer::ProcessInlineBuffer() {
     --c;
     ++offset;
   }
-  const std::string& s =
-      std::string(buf_ + processed_offset_, c - buf_ - processed_offset_);
-  // need to include \r\n
-  processed_offset_ += (s.length() + offset);
-  return s;
+  const size_t line_length = c - buf_ - processed_offset_;
+  std::string line(buf_ + processed_offset_, line_length);
+  processed_offset_ += line_length + offset;
+  return line;
 }
 
-/*
- * Resize to 2 * n if less than the threshold, otherwise n + 1000.
- */
 void DynamicBuffer::Resize(size_t n) {
   if (n * 2 < kResizeThreshold) {
     n *= 2;
@@ -68,9 +55,6 @@ void DynamicBuffer::Resize(size_t n) {
   len_ = n;
 }
 
-/*
- * Clear all contents in the buffer.
- */
 void DynamicBuffer::Clear() {
   std::memset(buf_, 0, len_);
   nread_ = 0;

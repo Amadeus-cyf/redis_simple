@@ -126,7 +126,7 @@ ssize_t ParseArray(const std::string& resp, size_t start,
     if (n < 0) return -1;
     parsed += n;
   }
-  // Indicate the end of the array.
+  // The CLI renderer uses this sentinel to add a line break after arrays.
   reply->push_back("\n");
   return parsed;
 }
@@ -148,20 +148,17 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
   std::string fractional;
   bool floating_point = false, exponential = false;
   for (size_t j = start + 1; j < i; ++j) {
-    // Floating number sign
     if (j == start + 1 && IsSign(resp[j])) {
       sign = resp[j] == '+' ? 1 : -1;
       continue;
     }
     if (!floating_point && resp[j] == '.') {
-      // Exponent should be an integer.
       if (exponent > 0) return -1;
       floating_point = true;
       continue;
     }
     if (!exponential &&
         std::tolower(static_cast<unsigned char>(resp[j])) == 'e') {
-      // Exponent
       if (j < i - 1 && !IsSign(resp[j + 1]) && !std::isdigit(resp[j + 1])) {
         return -1;
       } else if (IsSign(resp[j + 1])) {
@@ -173,20 +170,15 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
     }
     if (!std::isdigit(resp[j])) return -1;
     if (floating_point && !exponential) {
-      // Calculate fractional part
       fractional.push_back(resp[j]);
     } else if (!floating_point && !exponential) {
-      // Calculate integral part
       integral = integral * 10 + (resp[j] - '0');
     } else {
-      // Calculate exponent
       exponent = exponent * 10 + (resp[j] - '0');
     }
   }
   std::string floating_num_str = std::move(std::to_string(sign * integral));
-  // Fractional
   if (floating_point) {
-    // Remove trailing zero.
     while (!fractional.empty() && fractional.back() == '0')
       fractional.pop_back();
     if (!fractional.empty()) {
@@ -194,7 +186,6 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
       floating_num_str.append(fractional);
     }
   }
-  // Exponent
   if (exponential && exponent > 0) {
     floating_num_str.push_back('e');
     floating_num_str.append(std::to_string(exponential_sign * exponent));

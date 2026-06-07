@@ -18,7 +18,7 @@ void ZScoreCommand::Exec(Client* const client) const {
   if (auto db = client->DB().lock()) {
     const auto opt_score = ZScore(db, &args);
     if (opt_score.has_value()) {
-      client->AddReply(reply::FromFloat(opt_score.value()));
+      client->AddReply(reply::FromFloat(*opt_score));
     } else {
       client->AddReply(reply::Null());
     }

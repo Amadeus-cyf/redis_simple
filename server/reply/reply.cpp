@@ -53,7 +53,8 @@ std::string FromArray(const std::vector<std::string>& array) {
   reply.push_back(kArrayPrefix);
   reply.append(std::to_string(array.size())).append(kCrlf);
   for (const std::string& str : array) {
-    if (str.size() < 2 || str.substr(str.size() - 2) != kCrlf) {
+    if (str.size() < kCrlf.size() ||
+        str.compare(str.size() - kCrlf.size(), kCrlf.size(), kCrlf) != 0) {
       throw std::invalid_argument("array element not encoded");
     }
     reply.append(str);

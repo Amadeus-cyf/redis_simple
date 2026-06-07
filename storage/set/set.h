@@ -27,7 +27,6 @@ class Set {
   };
   static constexpr size_t IntSetMaxEntries = 512;
   static constexpr size_t ListPackMaxEntries = 128;
-  // Max length of the element
   static constexpr size_t ListPackElementMaxLength = 64;
   Set();
   bool IntSetAddAndMaybeConvert(const std::string& value);
@@ -41,7 +40,6 @@ class Set {
   std::vector<std::string> ListIntSetMembers() const;
   std::vector<std::string> ListListPackMembers() const;
   std::vector<std::string> ListDictMembers() const;
-  // Set encoding, could either be intset or dict
   SetEncodingType encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;
   std::unique_ptr<in_memory::ListPack> listpack_;

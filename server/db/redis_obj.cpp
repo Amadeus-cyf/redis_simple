@@ -25,13 +25,11 @@ zset::ZSet* const RedisObject::ZSet() const {
 
 void RedisObject::DecrRefCount() const {
   if (refcount_ == 1) {
-    // Free memory based on object type.
     if (encoding_ == ObjEncoding::kZSet) {
       delete std::get<zset::ZSet*>(val_);
     } else if (encoding_ == ObjEncoding::kSet) {
       delete std::get<set::Set*>(val_);
     }
-    // Free the object.
     delete this;
   } else {
     --refcount_;

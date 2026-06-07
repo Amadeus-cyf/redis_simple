@@ -88,19 +88,12 @@ class Connection {
   }
   int Wait(ae::EventFlag flag, long timeout) const;
   int fd_;
-  // Flags used to judge kWriteBarrier is set
   int flags_;
-  // Connection state
   mutable ConnectionState state_;
-  // Data used by connection handlers
   std::any private_data_;
-  // Event loop
   std::weak_ptr<ae::EventLoop> el_;
-  // Connection read handler
   std::unique_ptr<ConnHandler> read_handler_;
-  // Connection write handler
   std::unique_ptr<ConnHandler> write_handler_;
-  // Connection accepted handler
   std::unique_ptr<ConnHandler> accept_handler_;
 };
 }  // namespace connection

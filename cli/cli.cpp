@@ -20,8 +20,7 @@ std::string ReadFromConnection(const connection::Connection* connection) {
       break;
     }
     reply.append(buf, nread);
-    std::memset(buf, 0, sizeof(buf));
-    if (reply.size() > 0 && reply[reply.size() - 2] == '\r' &&
+    if (reply.size() >= 2 && reply[reply.size() - 2] == '\r' &&
         reply[reply.size() - 1] == '\n') {
       break;
     }
@@ -34,7 +33,8 @@ ssize_t WriteToConnection(const connection::Connection* connection,
   ssize_t nwritten = 0;
   RS_LOG_DEBUG("client write %s\n", cmds.c_str());
   while (nwritten < cmds.size()) {
-    ssize_t n = connection->SyncWrite(cmds.c_str(), cmds.size(), 1000);
+    const auto remaining = cmds.size() - nwritten;
+    ssize_t n = connection->SyncWrite(cmds.c_str() + nwritten, remaining, 1000);
     if (n <= 0) {
       break;
     }
@@ -75,7 +75,7 @@ CliStatus RedisCli::Connect(const std::string& ip, const int port) {
   const connection::AddressInfo remote(ip, port);
   std::optional<connection::AddressInfo> local;
   if (ip_.has_value() && port_.has_value()) {
-    local.emplace(connection::AddressInfo(ip_.value(), port_.value()));
+    local.emplace(connection::AddressInfo(*ip_, *port_));
   }
   connection::ConnectionStatus st =
       connection_->BindAndBlockingConnect(remote, local, 1000);
@@ -88,10 +88,9 @@ void RedisCli::AddCommand(const std::string& cmd) {
 }
 
 std::string RedisCli::GetReply() {
-  // Try to get reply from local buffer first. If failed, get reply through
-  // sending queries to the server
+  // Drain any buffered complete reply before touching the socket.
   const auto result = MaybeGetReply();
-  return result.value_or(GetReplyFromConnection());
+  return result.has_value() ? *result : GetReplyFromConnection();
 }
 
 CompletableFuture<std::string> RedisCli::GetReplyAsync() {
@@ -100,9 +99,6 @@ CompletableFuture<std::string> RedisCli::GetReplyAsync() {
   return CompletableFuture<std::string>(std::move(future));
 }
 
-/*
- * Callback of GetReplyAsync(). Thread-safe version of GetReply().
- */
 std::string RedisCli::GetReplyAsyncCallback() {
   const std::lock_guard<std::mutex> lock(lock_);
   return GetReply();
@@ -124,8 +120,6 @@ std::string RedisCli::GetReplyFromConnection() {
     if (sent <= 0) {
       return ErrResp;
     }
-    // Clear sent queries. Clear the entire query buffer if all queries have
-    // been sent.
     if (sent == query_buf_->NRead()) {
       query_buf_->Clear();
     } else {

@@ -29,5 +29,5 @@ int TcpAccept(const int socket_fd, TcpAddrInfo* const addr_info);
 int Block(const int fd);
 int NonBlock(const int fd);
 bool IsSocketError(const int fd);
-};  // namespace tcp
+}  // namespace tcp
 }  // namespace redis_simple

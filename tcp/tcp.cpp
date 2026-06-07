@@ -88,8 +88,8 @@ int TcpCreateSocket(int domain, bool non_block) {
 int TcpBindAndConnect(const TcpAddrInfo& remote,
                       const std::optional<TcpAddrInfo>& local,
                       const bool non_block) {
-  struct addrinfo hints, *info;
-  std::memset(&hints, 0, sizeof(hints));
+  addrinfo hints{};
+  addrinfo* info = nullptr;
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(remote.ip.c_str(), std::to_string(remote.port).c_str(),
@@ -103,7 +103,7 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
     if (socket_fd < 0) {
       continue;
     }
-    if (local.has_value() && TcpBind(socket_fd, local.value()) < 0) {
+    if (local.has_value() && TcpBind(socket_fd, *local) < 0) {
       RS_LOG_DEBUG("bind error: %s\n", std::strerror(errno));
       close(socket_fd);
       socket_fd = -1;
@@ -149,8 +149,8 @@ int TcpAccept(const int socket_fd, TcpAddrInfo* const addr_info) {
 }
 
 int TcpBind(const int socket_fd, const TcpAddrInfo& addr_info) {
-  struct addrinfo hints, *info = nullptr;
-  std::memset(&hints, 0, sizeof(hints));
+  addrinfo hints{};
+  addrinfo* info = nullptr;
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(addr_info.ip.c_str(), std::to_string(addr_info.port).c_str(),

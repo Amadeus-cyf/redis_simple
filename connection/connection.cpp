@@ -16,10 +16,10 @@ namespace {
 int BindAndConnectTcp(const AddressInfo& remote,
                       const std::optional<AddressInfo>& local) {
   const tcp::TcpAddrInfo remote_addr(remote.ip, remote.port);
-  const auto local_addr = local.has_value()
-                              ? std::make_optional<tcp::TcpAddrInfo>(
-                                    local.value().ip, local.value().port)
-                              : std::nullopt;
+  const auto local_addr =
+      local.has_value()
+          ? std::make_optional<tcp::TcpAddrInfo>(local->ip, local->port)
+          : std::nullopt;
   return tcp::TcpBindAndConnect(remote_addr, local_addr);
 }
 }  // namespace
@@ -112,10 +112,6 @@ ConnectionStatus Connection::Accept(AddressInfo* const addr_info) {
   return ConnectionStatus::kOk;
 }
 
-/*
- * Set connection read handler if the given handler is non-null. Otherwise,
- * uninstall the current read handler. Return true if succeeded.
- */
 bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> read_handler) {
   if (!read_handler) {
     return UnsetReadHandler();
@@ -140,9 +136,6 @@ bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> read_handler) {
   return true;
 }
 
-/*
- * Unset connection read handler. Return true if succeeded.
- */
 bool Connection::UnsetReadHandler() {
   if (auto event_loop = el_.lock()) {
     if (!event_loop) {
@@ -163,10 +156,6 @@ bool Connection::UnsetReadHandler() {
   return true;
 }
 
-/*
- * Set connection write handler if the given handler is non-null. Otherwise,
- * uninstall the current write handler. Return true if succeeded.
- */
 bool Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
                                  bool barrier) {
   if (barrier) {
@@ -197,9 +186,6 @@ bool Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
   return true;
 }
 
-/*
- * Unset connection write handler. Return true if succeeded.
- */
 bool Connection::UnsetWriteHandler() {
   if (auto event_loop = el_.lock()) {
     if (!event_loop) {
@@ -323,7 +309,6 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len,
   } else if (r < 0 && errno != EAGAIN) {
     return -1;
   }
-  // Return if write completes.
   if (len == 0) {
     return r;
   }
@@ -364,11 +349,11 @@ ae::EventHandlerStatus Connection::ConnSocketEventHandler(ae::EventLoop* el,
   if (conn == nullptr) {
     return ae::EventHandlerStatus::kError;
   }
-  // Update the connection state to connected if the current state is connecting
-  // and the socket is available for read.
   RS_LOG_DEBUG("state: %d\n", conn->State());
   if (conn->State() == ConnectionState::kConnecting &&
       (mask & ae::EventFlag::kWritable)) {
+    // A nonblocking connect completes through the writable event; SO_ERROR
+    // tells whether it succeeded.
     if (tcp::IsSocketError(fd)) {
       RS_LOG_DEBUG("socket error\n");
       conn->SetState(ConnectionState::kError);

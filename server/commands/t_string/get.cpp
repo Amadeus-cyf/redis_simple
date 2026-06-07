@@ -18,7 +18,7 @@ void GetCommand::Exec(Client* const client) const {
   if (auto db = client->DB().lock()) {
     const auto value_result = Get(db, &args);
     if (value_result.has_value()) {
-      client->AddReply(reply::FromBulkString(value_result.value()));
+      client->AddReply(reply::FromBulkString(*value_result));
     } else {
       client->AddReply(reply::Null());
     }

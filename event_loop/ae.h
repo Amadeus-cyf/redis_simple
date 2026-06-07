@@ -26,12 +26,9 @@ enum class EventHandlerStatus {
   kError = -1,
 };
 
-// Wait for milliseconds until the given file descriptor is
-// readable/writable/exception. Return the mask indicating if the given file
-// descriptor is ready for synchronous read/write in Connection.
+// Return the readiness mask for fd, or 0 on timeout.
 int WaitForEvent(int fd, int mask, long timeout);
 
-// Event loop
 class EventLoop {
  public:
   static EventLoop* Create();

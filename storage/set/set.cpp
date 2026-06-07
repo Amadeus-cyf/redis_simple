@@ -14,9 +14,6 @@ Set::Set()
       dict_(nullptr),
       listpack_(nullptr) {}
 
-/*
- * Add the value to the set. Return true if succeeded.
- */
 bool Set::Add(const std::string& value) {
   int64_t int_val = 0;
   if (encoding_ == SetEncodingType::IntSet) {
@@ -30,9 +27,6 @@ bool Set::Add(const std::string& value) {
   }
 }
 
-/*
- * Return true if the value is in the set.
- */
 bool Set::HasMember(const std::string& value) const {
   if (Size() == 0) return false;
   if (encoding_ == SetEncodingType::IntSet) {
@@ -48,9 +42,6 @@ bool Set::HasMember(const std::string& value) const {
   }
 }
 
-/*
- * List all members in the set.
- */
 std::vector<std::string> Set::ListAllMembers() const {
   if (Size() == 0) return {};
   if (encoding_ == SetEncodingType::IntSet) {
@@ -64,9 +55,6 @@ std::vector<std::string> Set::ListAllMembers() const {
   }
 }
 
-/*
- * Remove the value from the set. Return true if succeeded.
- */
 bool Set::Remove(const std::string& value) {
   if (Size() == 0) return false;
   if (encoding_ == SetEncodingType::IntSet) {
@@ -87,9 +75,6 @@ bool Set::Remove(const std::string& value) {
   }
 }
 
-/*
- * Return number of elements in the set.
- */
 size_t Set::Size() const {
   switch (encoding_) {
     case SetEncodingType::IntSet:
@@ -103,10 +88,6 @@ size_t Set::Size() const {
   }
 }
 
-/*
- * Add the element to the set with the encoding type as intset. Convert the
- * intset to listpack/dict if needed.
- */
 bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
   int64_t int_val = 0;
   if (utils::ToInt64(value, &int_val)) {
@@ -115,17 +96,12 @@ bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
     if (success) MaybeConvertIntsetToDict();
     return success;
   } else if (!MaybeConvertIntSetToListPack(value)) {
-    // Convert intset to dict if cannot convert it to listpack.
     ConvertIntSetToDict((intset_ ? intset_->Size() : 0) + 1);
     dict_->Set(value, nullptr);
   }
   return true;
 }
 
-/*
- * Add the element to the set with the encoding type as listpack. Convert the
- * intset to dict if needed.
- */
 bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
   size_t len = value.size();
   if (listpack_->Find(value) != -1) return false;
@@ -141,9 +117,6 @@ bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
   }
 }
 
-/*
- * Add the element to the set with the encoding type as dict.
- */
 bool Set::DictAdd(const std::string& value) {
   if (!dict_) dict_ = in_memory::Dict<std::string, nullptr_t>::Init();
   if (dict_->Get(value).has_value()) return false;
@@ -151,25 +124,16 @@ bool Set::DictAdd(const std::string& value) {
   return true;
 }
 
-/*
- * Convert set encoding from intset to dict if intset size exceeds the max
- * entries. `val` is non-null if there is a new string element inserted.
- */
 void Set::MaybeConvertIntsetToDict() {
   assert(encoding_ == SetEncodingType::IntSet);
   if (intset_ && intset_->Size() > IntSetMaxEntries)
     ConvertIntSetToDict(intset_->Size());
 }
 
-/*
- * Convert set encoding from intset to dict with given capacity and migrate all
- * data.
- */
 void Set::ConvertIntSetToDict(size_t capacity) {
   assert(encoding_ == SetEncodingType::IntSet);
   encoding_ = SetEncodingType::Dict;
   dict_ = in_memory::Dict<std::string, nullptr_t>::Init(capacity);
-  // Migrate all elements from intset to dict.
   if (!intset_) return;
   for (unsigned int i = 0; i < intset_->Size(); ++i) {
     int64_t value = intset_->Get(i);
@@ -178,9 +142,6 @@ void Set::ConvertIntSetToDict(size_t capacity) {
   intset_.reset();
 }
 
-/*
- * Try to convert an intset to the listpack with a string element inserted.
- */
 bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
   if (encoding_ != SetEncodingType::IntSet) return false;
   size_t len = val.size(), max_integer_length = 0, estimated_bytes = 0;
@@ -191,10 +152,8 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
     size_t max_integer_digits = utils::Digits10(max_integer);
     size_t min_integer_digits = utils::Digits10(min_integer);
     max_integer_length = std::max(max_integer_digits, min_integer_digits);
-    // Take the integer with larger length for estimation.
     estimated_integer =
         max_integer_digits > min_integer_digits ? max_integer : min_integer;
-    // Calculate estimate total bytes.
     estimated_bytes =
         in_memory::ListPack::EstimateBytes(estimated_integer, intset_->Size());
   }
@@ -209,9 +168,6 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
   return false;
 }
 
-/*
- * Convert intset to listpack with a string element inserted.
- */
 void Set::ConvertIntSetToListPack(const std::string& val) {
   assert(encoding_ == SetEncodingType::IntSet);
   encoding_ = SetEncodingType::ListPack;
@@ -226,9 +182,6 @@ void Set::ConvertIntSetToListPack(const std::string& val) {
   intset_.reset();
 }
 
-/*
- * Convert listpack to dict with a string element inserted.
- */
 void Set::ConvertListPackToDict(const std::string& val) {
   assert(encoding_ == SetEncodingType::ListPack &&
          listpack_->Size() >= ListPackMaxEntries);
@@ -238,15 +191,12 @@ void Set::ConvertListPackToDict(const std::string& val) {
   ssize_t idx = listpack_->First();
   while (idx != -1) {
     const auto string_result = listpack_->Get(idx);
-    if (string_result.has_value()) dict_->Set(string_result.value(), nullptr);
+    if (string_result.has_value()) dict_->Set(*string_result, nullptr);
     idx = listpack_->Next(idx);
   }
   dict_->Set(val, nullptr);
 }
 
-/*
- * List all members in the set for intset encoding type.
- */
 std::vector<std::string> Set::ListIntSetMembers() const {
   std::vector<std::string> members;
   auto it = in_memory::IntSet::Iterator(intset_.get());
@@ -258,23 +208,17 @@ std::vector<std::string> Set::ListIntSetMembers() const {
   return members;
 }
 
-/*
- * List all members in the set for listpack encoding type.
- */
 std::vector<std::string> Set::ListListPackMembers() const {
   std::vector<std::string> members;
   ssize_t idx = listpack_->First();
   while (idx != -1) {
     const auto string_result = listpack_->Get(idx);
-    if (string_result.has_value()) members.push_back(string_result.value());
+    if (string_result.has_value()) members.push_back(*string_result);
     idx = listpack_->Next(idx);
   }
   return members;
 }
 
-/*
- * List all members in the set for dict encoding type.
- */
 std::vector<std::string> Set::ListDictMembers() const {
   std::vector<std::string> members;
   auto it = in_memory::Dict<std::string, nullptr_t>::Iterator(dict_.get());

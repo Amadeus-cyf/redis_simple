@@ -73,7 +73,6 @@ EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
     return kError;
   }
   if (event_api_->AddEvent(fd, file_event->Mask()) < 0) {
-    // Free the event if failed to add.
     delete file_event;
     return kError;
   }
@@ -81,8 +80,8 @@ EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
     RS_LOG_DEBUG("add new event\n");
     max_fd_ = std::max(max_fd_, fd);
   } else {
-    // A file descriptor can register read and write callbacks separately; keep
-    // both interests in one FileEvent stored by descriptor.
+    // A descriptor stores one FileEvent, so merge separately registered
+    // read/write callbacks before replacing the old event.
     file_event->Merge(file_events_[fd]);
     delete file_events_[fd];
   }
@@ -142,8 +141,8 @@ void EventLoop::ProcessFileEvents() {
     const FileEvent* file_event = file_events_[fd];
     int inverted = file_event->Mask() & EventFlag::kBarrier;
     bool fired = false;
-    // Normal order is read-before-write. kBarrier inverts that order so a
-    // pending write can flush before reads enqueue more output.
+    // Normal order is read-before-write; kBarrier lets a pending write flush
+    // before another read queues more output on the same descriptor.
     if (!inverted && (mask & file_event->Mask() & EventFlag::kReadable) &&
         file_event->HasReadCallback()) {
       file_event->CallReadCallback(this, fd, mask);
@@ -187,8 +186,7 @@ void EventLoop::ProcessTimeEvents() const {
       if (time_event->When() <= now) {
         int ret = time_event->CallTimeCallback();
         if (ret == EventFlag::kNoMore) {
-          // Mark one-shot timers for deletion; unlinking is handled at the
-          // start of the next visit so finalize callbacks run consistently.
+          // Defer deletion so unlinking and finalization happen in one path.
           time_event->SetId(EventFlag::kDeleteEventId);
         } else {
           time_event->SetWhen(now + ret * 1000);

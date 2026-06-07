@@ -26,7 +26,7 @@ void SMembersCommand::Exec(Client* const client) const {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(result.value());
+    client->AddReply(*result);
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -51,8 +51,7 @@ int SMembersCommand::SMembers(std::shared_ptr<const db::RedisDb> db,
     return -1;
   }
   const auto* set = obj->Set();
-  const auto set_members = set->ListAllMembers();
-  members.insert(members.begin(), set_members.begin(), set_members.end());
+  members = set->ListAllMembers();
   return 0;
 }
 }  // namespace t_set

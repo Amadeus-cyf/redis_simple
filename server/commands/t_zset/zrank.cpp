@@ -17,7 +17,7 @@ void ZRankCommand::Exec(Client* const client) const {
   if (auto db = client->DB().lock()) {
     const auto opt_rank = ZRank(db, &args);
     if (opt_rank.has_value()) {
-      client->AddReply(reply::FromInt64(opt_rank.value()));
+      client->AddReply(reply::FromInt64(*opt_rank));
     } else {
       client->AddReply(reply::Null());
     }

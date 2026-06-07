@@ -45,7 +45,7 @@ RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
 const RedisObject* RedisDb::LookupKey(const std::string& key) const {
   const auto result = dict_->Get(key);
   if (!result.has_value()) return nullptr;
-  const RedisObject* val = result.value();
+  const RedisObject* val = *result;
   if (IsKeyExpired(key)) {
     RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
     // If key is already expired, delete the key and return a null pointer.
@@ -105,8 +105,8 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
   if (!result.has_value()) {
     return false;
   }
-  int64_t now = utils::GetNowInMilliseconds();
-  return result.value() < now;
+  const int64_t now = utils::GetNowInMilliseconds();
+  return *result < now;
 }
 }  // namespace db
 }  // namespace redis_simple

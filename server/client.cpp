@@ -23,12 +23,13 @@ Client::Client(connection::Connection* connection)
 
 ssize_t Client::ReadQuery() {
   char buf[4096];
-  std::memset(buf, 0, sizeof buf);
   ssize_t nread = connection_->Read(buf, 4096);
-  RS_LOG_DEBUG("nread %zd, buf %s end\n", nread, buf);
   if (nread <= 0) {
+    RS_LOG_DEBUG("nread %zd\n", nread);
     return nread;
   }
+  RS_LOG_DEBUG("nread %zd, buf %.*s end\n", nread, static_cast<int>(nread),
+               buf);
   query_buf_->WriteToBuffer(buf, nread);
   return nread;
 }

@@ -1,28 +1,31 @@
 #include "utils/string_utils.h"
 
 #include <cctype>
+#include <cstring>
 #include <limits>
 
 #include "utils/int_utils.h"
 
 namespace redis_simple {
 namespace utils {
-std::vector<std::string> Split(std::string s, std::string delimiter) {
+std::vector<std::string> Split(const std::string& s,
+                               const std::string& delimiter) {
   if (delimiter.empty()) return {s};
   std::vector<std::string> res;
-  auto start = 0, end = -1;
+  size_t start = 0;
+  size_t end = std::string::npos;
   while ((end = s.find(delimiter, start)) != std::string::npos) {
-    res.push_back(s.substr(start, end - start));
-    start = end + 1;
+    res.emplace_back(s.substr(start, end - start));
+    start = end + delimiter.size();
   }
   if (start < s.length()) {
-    res.push_back(s.substr(start));
+    res.emplace_back(s.substr(start));
   }
   return res;
 }
 
 void ShiftCStr(char* s, size_t len, size_t offset) {
-  if (!s || offset <= 0) {
+  if (!s || offset == 0) {
     return;
   }
   if (offset >= len) {
