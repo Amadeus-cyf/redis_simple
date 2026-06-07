@@ -61,8 +61,10 @@ This runs:
 - `redis_simple_tests`: unit tests compiled from `*_test.cpp` files colocated
   with their implementations.
 - `redis_simple_integration_tcp`: TCP client/server integration check.
-- `redis_simple_integration_commands`: command-level server/client integration
-  checks for strings, sets, and sorted sets.
+- `redis_simple_integration_command_string`: string command integration checks.
+- `redis_simple_integration_command_set`: set command integration checks.
+- `redis_simple_integration_command_zset`: sorted-set command integration
+  checks.
 
 For debugging a single executable directly:
 

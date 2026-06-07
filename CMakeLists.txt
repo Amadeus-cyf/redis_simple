@@ -256,19 +256,37 @@ add_test(
 )
 
 add_test(
-  NAME redis_simple_integration_commands
+  NAME redis_simple_integration_command_string
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
     $<TARGET_FILE:mock_command_server>
     $<TARGET_FILE:mock_t_string_client>
+)
+
+add_test(
+  NAME redis_simple_integration_command_set
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
+    $<TARGET_FILE:mock_command_server>
     $<TARGET_FILE:mock_t_set_client>
+)
+
+add_test(
+  NAME redis_simple_integration_command_zset
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
+    $<TARGET_FILE:mock_command_server>
     $<TARGET_FILE:mock_t_zset_client>
 )
 
 set_tests_properties(
   redis_simple_integration_tcp
-  redis_simple_integration_commands
+  redis_simple_integration_command_string
+  redis_simple_integration_command_set
+  redis_simple_integration_command_zset
   PROPERTIES
     LABELS integration
     RESOURCE_LOCK redis_simple_port_8080

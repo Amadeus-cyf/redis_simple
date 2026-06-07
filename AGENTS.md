@@ -35,6 +35,8 @@ Before committing, run the relevant build and tests.
 - Current integration coverage should stay focused:
   - `integration/command/`
   - `integration/tcp/`
+- Register integration command tests as separate CTest entries by command
+  family, so failures identify the affected area without log digging.
 - Project runner scripts live under `scripts/`.
 - Do not add manual log-inspection tests. Tests should assert behavior and
   return nonzero on failure.
@@ -42,7 +44,8 @@ Before committing, run the relevant build and tests.
 ## Project Management
 
 - Run `clang-format` on changed C/C++ files before committing or pushing.
-- Always check whether `README.md` needs updates before committing.
+- Always update relevant docs, including `README.md` and this `AGENTS.md`, when
+  changing build, test, workflow, or project conventions.
 - Keep `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/build.yml`,
   `.clang-format`, `.clang-tidy`, and `.editorconfig` aligned with project
   conventions.
