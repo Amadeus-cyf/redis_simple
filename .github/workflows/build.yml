@@ -7,7 +7,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Debug build and tests (${{ matrix.os }})
+    name: CI / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -18,11 +18,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
-      - name: Generate build config
+      - name: Configure debug build
         run: cmake --preset debug
-      - name: Build
+      - name: Build debug target
         run: cmake --build --preset debug
-      - name: Run unit tests
-        run: ctest --preset debug -L unit
-      - name: Run integration tests
-        run: ctest --preset debug -L integration
+      - name: Run unit test suites
+        run: ctest --preset debug -L unit --output-on-failure
+      - name: Run integration test suites
+        run: ctest --preset debug -L integration --output-on-failure

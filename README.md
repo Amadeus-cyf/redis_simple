@@ -52,14 +52,14 @@ ctest --preset debug
 Run unit and integration tests separately:
 
 ```sh
-ctest --preset debug -L unit
-ctest --preset debug -L integration
+ctest --preset debug -L unit --output-on-failure
+ctest --preset debug -L integration --output-on-failure
 ```
 
 This runs:
 
-- `redis_simple_tests`: unit tests compiled from `*_test.cpp` files colocated
-  with their implementations.
+- `redis_simple_unit_<SuiteName>`: unit tests compiled into
+  `redis_simple_tests` and registered in CTest by GoogleTest suite.
 - `redis_simple_integration_tcp`: TCP client/server integration check.
 - `redis_simple_integration_command_string`: string command integration checks.
 - `redis_simple_integration_command_set`: set command integration checks.
@@ -71,6 +71,12 @@ For debugging a single executable directly:
 ```sh
 ./build/debug/redis_simple_tests
 ./build/debug/mock_t_set_client
+```
+
+For debugging one unit-test suite directly:
+
+```sh
+./build/debug/redis_simple_tests --gtest_filter=ListPackTest.*
 ```
 
 The integration clients return nonzero on failed expectations, so they are safe
@@ -127,6 +133,6 @@ GitHub Actions runs the same flow recommended locally:
 ```sh
 cmake --preset debug
 cmake --build --preset debug
-ctest --preset debug -L unit
-ctest --preset debug -L integration
+ctest --preset debug -L unit --output-on-failure
+ctest --preset debug -L integration --output-on-failure
 ```

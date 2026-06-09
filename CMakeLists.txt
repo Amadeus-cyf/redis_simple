@@ -207,8 +207,38 @@ redis_simple_add_executable(
 )
 
 target_link_libraries(redis_simple_tests GTest::gtest_main)
-add_test(NAME redis_simple_tests COMMAND redis_simple_tests)
-set_tests_properties(redis_simple_tests PROPERTIES LABELS unit)
+
+function(redis_simple_add_gtest_suite suite_name)
+  add_test(
+    NAME redis_simple_unit_${suite_name}
+    COMMAND redis_simple_tests --gtest_filter=${suite_name}.*
+  )
+  set_tests_properties(redis_simple_unit_${suite_name} PROPERTIES LABELS unit)
+endfunction()
+
+redis_simple_add_gtest_suite(StringUtilsTest)
+redis_simple_add_gtest_suite(DictStrTest)
+redis_simple_add_gtest_suite(DictIntTest)
+redis_simple_add_gtest_suite(DynamicBufferTest)
+redis_simple_add_gtest_suite(IntSetTest)
+redis_simple_add_gtest_suite(ListPackTest)
+redis_simple_add_gtest_suite(QuickListTest)
+redis_simple_add_gtest_suite(ReplyBufferTest)
+redis_simple_add_gtest_suite(SkiplistTest)
+redis_simple_add_gtest_suite(CustomSkiplistTest)
+redis_simple_add_gtest_suite(ReplyTest)
+redis_simple_add_gtest_suite(TestReplyUtils)
+redis_simple_add_gtest_suite(ListTest)
+redis_simple_add_gtest_suite(ListEncodingTest)
+redis_simple_add_gtest_suite(SetTest)
+redis_simple_add_gtest_suite(ZSetListPackTest)
+redis_simple_add_gtest_suite(ZSetSkiplistTest)
+redis_simple_add_gtest_suite(ZSetSkiplistStandaloneTest)
+redis_simple_add_gtest_suite(ZSetTest)
+redis_simple_add_gtest_suite(ZSetEncodingTest)
+redis_simple_add_gtest_suite(RespParserTest)
+redis_simple_add_gtest_suite(ReplyParserTest)
+redis_simple_add_gtest_suite(ReplyParseTest)
 
 redis_simple_add_executable(
   mock_tcp_server

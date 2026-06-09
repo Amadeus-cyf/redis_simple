@@ -22,8 +22,8 @@ cmake --build --preset debug
 Run unit and integration tests separately:
 
 ```sh
-ctest --preset debug -L unit
-ctest --preset debug -L integration
+ctest --preset debug -L unit --output-on-failure
+ctest --preset debug -L integration --output-on-failure
 ```
 
 Before committing, run the relevant build and tests.
@@ -31,6 +31,9 @@ Before committing, run the relevant build and tests.
 ## Test Layout
 
 - Unit tests stay colocated with implementation files as `*_test.cpp`.
+- Register unit tests in CTest by GoogleTest suite through
+  `redis_simple_add_gtest_suite`, so failures identify the affected suite while
+  preserving same-suite fixture behavior.
 - Integration tests live under `integration/`.
 - Current integration coverage should stay focused:
   - `integration/command/`
