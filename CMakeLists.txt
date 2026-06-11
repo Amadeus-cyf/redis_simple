@@ -9,7 +9,28 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 find_package(spdlog QUIET)
 
-function(redis_simple_enable_logging target)
+function(redis_simple_collect_sources out_var)
+  set(sources)
+  foreach(source_dir IN LISTS ARGN)
+    file(GLOB_RECURSE dir_sources CONFIGURE_DEPENDS
+      "${CMAKE_SOURCE_DIR}/${source_dir}/*.cpp"
+      "${CMAKE_SOURCE_DIR}/${source_dir}/*.h"
+    )
+    list(APPEND sources ${dir_sources})
+  endforeach()
+  set(${out_var} ${sources} PARENT_SCOPE)
+endfunction()
+
+function(redis_simple_exclude_sources source_var)
+  foreach(pattern IN LISTS ARGN)
+    list(FILTER ${source_var} EXCLUDE REGEX "${pattern}")
+  endforeach()
+  set(${source_var} ${${source_var}} PARENT_SCOPE)
+endfunction()
+
+function(redis_simple_configure_target target)
+  target_compile_features(${target} PRIVATE cxx_std_17)
+  target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR})
   target_compile_options(
     ${target}
     PRIVATE
@@ -23,190 +44,9 @@ function(redis_simple_enable_logging target)
 endfunction()
 
 function(redis_simple_add_executable target)
-  add_executable(${target} "")
-  target_sources(${target} PRIVATE ${ARGN})
-  target_compile_features(${target} PRIVATE cxx_std_17)
-  target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR})
-  redis_simple_enable_logging(${target})
+  add_executable(${target} ${ARGN})
+  redis_simple_configure_target(${target})
 endfunction()
-
-set(REDIS_SIMPLE_UTILS
-  "utils/float_utils.h"
-  "utils/float_utils.cpp"
-  "utils/int_utils.h"
-  "utils/int_utils.cpp"
-  "utils/string_utils.h"
-  "utils/string_utils.cpp"
-)
-
-set(REDIS_SIMPLE_MEMORY
-  "memory/buf_node.h"
-  "memory/dict.h"
-  "memory/dynamic_buffer.h"
-  "memory/dynamic_buffer.cpp"
-  "memory/intset.h"
-  "memory/intset.cpp"
-  "memory/listpack.h"
-  "memory/listpack.cpp"
-  "memory/quicklist.h"
-  "memory/quicklist.cpp"
-  "memory/reply_buffer.h"
-  "memory/reply_buffer.cpp"
-  "memory/skiplist.h"
-)
-
-set(REDIS_SIMPLE_EVENT_LOOP
-  "event_loop/ae.h"
-  "event_loop/ae.cpp"
-  "event_loop/ae_file_event.h"
-  "event_loop/ae_file_event_impl.h"
-  "event_loop/ae_kqueue.h"
-  "event_loop/ae_kqueue.cpp"
-  "event_loop/ae_time_event.h"
-  "event_loop/ae_time_event_impl.h"
-)
-
-set(REDIS_SIMPLE_TCP
-  "tcp/tcp.h"
-  "tcp/tcp.cpp"
-)
-
-set(REDIS_SIMPLE_CONNECTION
-  "connection/conn_handler.h"
-  "connection/connection.h"
-  "connection/connection.cpp"
-)
-
-set(REDIS_SIMPLE_STORAGE
-  "storage/list/list.h"
-  "storage/list/list.cpp"
-  "storage/set/set.h"
-  "storage/set/set.cpp"
-  "storage/zset/zset_entry.h"
-  "storage/zset/zset_range_spec.h"
-  "storage/zset/zset_storage.h"
-  "storage/zset/zset_listpack.h"
-  "storage/zset/zset_listpack.cpp"
-  "storage/zset/zset_skiplist.h"
-  "storage/zset/zset_skiplist.cpp"
-  "storage/zset/zset.h"
-  "storage/zset/zset.cpp"
-)
-
-set(REDIS_SIMPLE_SERVER
-  "server/client.h"
-  "server/client.cpp"
-  "server/server.h"
-  "server/server.cpp"
-  "server/expire.h"
-  "server/expire.cpp"
-  "server/commands/command.h"
-  "server/commands/command.cpp"
-  "server/commands/t_set/sadd.h"
-  "server/commands/t_set/sadd.cpp"
-  "server/commands/t_set/scard.h"
-  "server/commands/t_set/scard.cpp"
-  "server/commands/t_set/sismember.h"
-  "server/commands/t_set/sismember.cpp"
-  "server/commands/t_set/smembers.h"
-  "server/commands/t_set/smembers.cpp"
-  "server/commands/t_set/srem.h"
-  "server/commands/t_set/srem.cpp"
-  "server/commands/t_string/get.h"
-  "server/commands/t_string/get.cpp"
-  "server/commands/t_string/set.h"
-  "server/commands/t_string/set.cpp"
-  "server/commands/t_string/delete.h"
-  "server/commands/t_string/delete.cpp"
-  "server/commands/t_zset/zadd.h"
-  "server/commands/t_zset/zadd.cpp"
-  "server/commands/t_zset/zcard.h"
-  "server/commands/t_zset/zcard.cpp"
-  "server/commands/t_zset/zrank.h"
-  "server/commands/t_zset/zrank.cpp"
-  "server/commands/t_zset/zrange.h"
-  "server/commands/t_zset/zrange.cpp"
-  "server/commands/t_zset/zrem.h"
-  "server/commands/t_zset/zrem.cpp"
-  "server/commands/t_zset/zscore.h"
-  "server/commands/t_zset/zscore.cpp"
-  "server/db/db.h"
-  "server/db/db.cpp"
-  "server/db/redis_obj.h"
-  "server/db/redis_obj.cpp"
-  "server/networking/networking.h"
-  "server/networking/networking.cpp"
-  "server/networking/redis_cmd.h"
-  "server/networking/redis_cmd.cpp"
-  "server/networking/conn_handler/conn_handler.h"
-  "server/networking/conn_handler/conn_handler.cpp"
-  "server/networking/conn_handler/read_client.h"
-  "server/networking/conn_handler/read_client.cpp"
-  "server/networking/conn_handler/write_client.h"
-  "server/networking/conn_handler/write_client.cpp"
-  "server/reply/reply.h"
-  "server/reply/reply.cpp"
-  "server/reply_utils/reply_utils.h"
-)
-
-set(REDIS_SIMPLE_CORE
-  ${REDIS_SIMPLE_SERVER}
-  ${REDIS_SIMPLE_STORAGE}
-  ${REDIS_SIMPLE_CONNECTION}
-  ${REDIS_SIMPLE_EVENT_LOOP}
-  ${REDIS_SIMPLE_MEMORY}
-  ${REDIS_SIMPLE_TCP}
-  ${REDIS_SIMPLE_UTILS}
-)
-
-set(REDIS_SIMPLE_CLI
-  "cli/cli.h"
-  "cli/cli.cpp"
-  "cli/completable_future.h"
-  "cli/resp_parser.h"
-  "cli/resp_parser.cpp"
-  ${REDIS_SIMPLE_CONNECTION}
-  ${REDIS_SIMPLE_EVENT_LOOP}
-  ${REDIS_SIMPLE_TCP}
-  "memory/dynamic_buffer.h"
-  "memory/dynamic_buffer.cpp"
-  ${REDIS_SIMPLE_UTILS}
-)
-
-redis_simple_add_executable(redis_simple "server/main.cpp" ${REDIS_SIMPLE_CORE})
-
-add_subdirectory("third_party/googletest")
-enable_testing()
-
-redis_simple_add_executable(
-  redis_simple_tests
-  ${REDIS_SIMPLE_UTILS}
-  "utils/string_utils_test.cpp"
-  ${REDIS_SIMPLE_MEMORY}
-  "memory/dict_test.cpp"
-  "memory/dynamic_buffer_test.cpp"
-  "memory/intset_test.cpp"
-  "memory/listpack_test.cpp"
-  "memory/quicklist_test.cpp"
-  "memory/reply_buffer_test.cpp"
-  "memory/skiplist_test.cpp"
-  "server/reply/reply.h"
-  "server/reply/reply.cpp"
-  "server/reply/reply_test.cpp"
-  "server/reply_utils/reply_utils.h"
-  "server/reply_utils/reply_utils_test.cpp"
-  ${REDIS_SIMPLE_STORAGE}
-  "storage/list/list_test.cpp"
-  "storage/set/set_test.cpp"
-  "storage/zset/zset_listpack_test.cpp"
-  "storage/zset/zset_skiplist_test.cpp"
-  "storage/zset/zset_test.cpp"
-  "cli/resp_parser.h"
-  "cli/resp_parser.cpp"
-  "cli/resp_parser_test.cpp"
-)
-
-target_link_libraries(redis_simple_tests GTest::gtest_main)
 
 function(redis_simple_add_gtest_suite suite_name)
   add_test(
@@ -215,6 +55,55 @@ function(redis_simple_add_gtest_suite suite_name)
   )
   set_tests_properties(redis_simple_unit_${suite_name} PROPERTIES LABELS unit)
 endfunction()
+
+redis_simple_collect_sources(REDIS_SIMPLE_CORE_SOURCES
+  connection
+  event_loop
+  memory
+  server
+  storage
+  tcp
+  utils
+)
+redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
+  "_test\\.cpp$"
+  "/server/main\\.cpp$"
+)
+
+redis_simple_collect_sources(REDIS_SIMPLE_CLI_SOURCES cli)
+redis_simple_exclude_sources(REDIS_SIMPLE_CLI_SOURCES "_test\\.cpp$")
+
+add_library(redis_simple_core STATIC ${REDIS_SIMPLE_CORE_SOURCES})
+redis_simple_configure_target(redis_simple_core)
+
+add_library(redis_simple_cli STATIC ${REDIS_SIMPLE_CLI_SOURCES})
+redis_simple_configure_target(redis_simple_cli)
+target_link_libraries(redis_simple_cli PRIVATE redis_simple_core)
+
+redis_simple_add_executable(redis_simple "server/main.cpp")
+target_link_libraries(redis_simple PRIVATE redis_simple_core)
+
+add_subdirectory("third_party/googletest")
+enable_testing()
+
+redis_simple_collect_sources(REDIS_SIMPLE_UNIT_TEST_SOURCES
+  cli
+  memory
+  server/reply
+  server/reply_utils
+  storage
+  utils
+)
+list(FILTER REDIS_SIMPLE_UNIT_TEST_SOURCES INCLUDE REGEX "_test\\.cpp$")
+
+redis_simple_add_executable(redis_simple_tests ${REDIS_SIMPLE_UNIT_TEST_SOURCES})
+target_link_libraries(
+  redis_simple_tests
+  PRIVATE
+    redis_simple_cli
+    redis_simple_core
+    GTest::gtest_main
+)
 
 redis_simple_add_gtest_suite(StringUtilsTest)
 redis_simple_add_gtest_suite(DictStrTest)
@@ -240,41 +129,35 @@ redis_simple_add_gtest_suite(RespParserTest)
 redis_simple_add_gtest_suite(ReplyParserTest)
 redis_simple_add_gtest_suite(ReplyParseTest)
 
-redis_simple_add_executable(
-  mock_tcp_server
-  "integration/tcp/server_test.cpp"
-  ${REDIS_SIMPLE_TCP}
-)
+redis_simple_add_executable(mock_tcp_server "integration/tcp/server_test.cpp")
+target_link_libraries(mock_tcp_server PRIVATE redis_simple_core)
 
-redis_simple_add_executable(
-  mock_tcp_client
-  "integration/tcp/client_test.cpp"
-  ${REDIS_SIMPLE_TCP}
-)
+redis_simple_add_executable(mock_tcp_client "integration/tcp/client_test.cpp")
+target_link_libraries(mock_tcp_client PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
   mock_command_server
   "integration/command/server_test.cpp"
-  ${REDIS_SIMPLE_CORE}
 )
+target_link_libraries(mock_command_server PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
   mock_t_string_client
   "integration/command/t_string/client_test.cpp"
-  ${REDIS_SIMPLE_CLI}
 )
+target_link_libraries(mock_t_string_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
   mock_t_set_client
   "integration/command/t_set/client_test.cpp"
-  ${REDIS_SIMPLE_CLI}
 )
+target_link_libraries(mock_t_set_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
   mock_t_zset_client
   "integration/command/t_zset/client_test.cpp"
-  ${REDIS_SIMPLE_CLI}
 )
+target_link_libraries(mock_t_zset_client PRIVATE redis_simple_cli)
 
 add_test(
   NAME redis_simple_integration_tcp
@@ -325,18 +208,12 @@ set_tests_properties(
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark's tests" FORCE)
 add_subdirectory("third_party/benchmark")
 
-redis_simple_add_executable(
-  memory_benchmark
-  ${REDIS_SIMPLE_UTILS}
-  "memory/buf_node.h"
-  "memory/dynamic_buffer.h"
-  "memory/dynamic_buffer.cpp"
-  "memory/reply_buffer.h"
-  "memory/reply_buffer.cpp"
-  "benchmarks/buffer.h"
-  "benchmarks/dict_benchmark.cpp"
-  "benchmarks/dynamic_buffer_benchmark.cpp"
-  "benchmarks/reply_buffer_benchmark.cpp"
-)
+redis_simple_collect_sources(REDIS_SIMPLE_BENCHMARK_SOURCES benchmarks)
 
-target_link_libraries(memory_benchmark benchmark::benchmark)
+redis_simple_add_executable(memory_benchmark ${REDIS_SIMPLE_BENCHMARK_SOURCES})
+target_link_libraries(
+  memory_benchmark
+  PRIVATE
+    redis_simple_core
+    benchmark::benchmark
+)

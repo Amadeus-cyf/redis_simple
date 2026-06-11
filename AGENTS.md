@@ -49,6 +49,9 @@ Before committing, run the relevant build and tests.
 - Run `clang-format` on changed C/C++ files before committing or pushing.
 - Always update relevant docs, including `README.md` and this `AGENTS.md`, when
   changing build, test, workflow, or project conventions.
+- Keep CMake target-based. Source files are discovered by scoped directory
+  globs in `CMakeLists.txt`; exclude generated, test, or entry-point sources
+  explicitly when they do not belong in a library target.
 - Keep `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/build.yml`,
   `.clang-format`, `.clang-tidy`, and `.editorconfig` aligned with project
   conventions.

@@ -126,6 +126,11 @@ Format changed C++ files with:
 clang-format -i path/to/file.cpp path/to/file.h
 ```
 
+The root `CMakeLists.txt` is target-based. Production, test, and benchmark
+sources are discovered from scoped project directories with
+`GLOB_RECURSE CONFIGURE_DEPENDS`, while test files and executable entry points
+are excluded from library targets explicitly.
+
 ## CI
 
 GitHub Actions runs the same flow recommended locally:
