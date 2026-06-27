@@ -12,7 +12,7 @@ class Connection;
 
 namespace networking {
 bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd);
-ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
-                                     int mask);
+ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
+                                                 Server* server, int mask);
 }  // namespace networking
 }  // namespace redis_simple

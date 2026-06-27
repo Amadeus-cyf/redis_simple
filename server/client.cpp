@@ -88,29 +88,22 @@ ClientStatus Client::ProcessInlineBuffer() {
   }
   const std::string& name = GetCmdName(args);
   args.erase(args.begin());
-  auto cmdptr = command::Command::Create(name);
-  if (auto cmd = cmdptr.lock()) {
-    if (!cmd) {
-      RS_LOG_DEBUG("command not found\n");
-      return ClientStatus::kError;
-    }
-  } else {
-    RS_LOG_DEBUG("command pointer expired\n");
+  const auto* command = command::Find(name);
+  if (command == nullptr) {
+    RS_LOG_DEBUG("command not found\n");
     return ClientStatus::kError;
   }
-  SetCmd(cmdptr);
+  SetCmd(command);
   SetCmdArgs(args);
   return ClientStatus::kOk;
 }
 
 ClientStatus Client::ProcessCommand() {
-  if (auto command = cmd_.lock()) {
-    RS_LOG_DEBUG("process command: %s\n", command->Name().c_str());
-    if (command) {
-      command->Exec(this);
-    }
-    return ClientStatus::kOk;
+  if (cmd_ == nullptr) {
+    return ClientStatus::kError;
   }
-  return ClientStatus::kError;
+  RS_LOG_DEBUG("process command: %s\n", cmd_->name.c_str());
+  cmd_->callback(this);
+  return ClientStatus::kOk;
 }
 }  // namespace redis_simple

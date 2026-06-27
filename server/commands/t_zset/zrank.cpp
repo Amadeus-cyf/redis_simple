@@ -2,19 +2,32 @@
 
 #include <limits>
 #include <optional>
+#include <string>
 
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple::command::t_zset {
-void ZRankCommand::Exec(Client* const client) const {
+namespace {
+struct ZRankArgs {
+  std::string key;
+  std::string ele;
+};
+int ParseArgs(const std::vector<std::string>& args, ZRankArgs* zset_args);
+std::optional<size_t> ZRank(const std::shared_ptr<db::RedisDb>& redis_db,
+                            const ZRankArgs* args);
+}  // namespace
+
+void ExecuteZRank(Client* const client) {
   ZRankArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    const auto opt_rank = ZRank(db, &args);
+
+  if (auto redis_db = client->DB().lock()) {
+    const auto opt_rank = ZRank(redis_db, &args);
     if (opt_rank.has_value()) {
       if (*opt_rank >
           static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
@@ -31,8 +44,10 @@ void ZRankCommand::Exec(Client* const client) const {
   }
 }
 
-int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZRankArgs* const zset_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args,
+              ZRankArgs* const zset_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -42,12 +57,12 @@ int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<size_t> ZRankCommand::ZRank(
-    const std::shared_ptr<db::RedisDb>& db, const ZRankArgs* args) {
-  if (!db || (args == nullptr)) {
+std::optional<size_t> ZRank(const std::shared_ptr<db::RedisDb>& redis_db,
+                            const ZRankArgs* args) {
+  if (!redis_db || (args == nullptr)) {
     return std::nullopt;
   }
-  const auto* obj = db->LookupKey(args->key);
+  const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     RS_LOG_DEBUG("key not found\n");
     return std::nullopt;
@@ -64,4 +79,5 @@ std::optional<size_t> ZRankCommand::ZRank(
     return std::nullopt;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_zset

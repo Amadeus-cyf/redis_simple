@@ -1,25 +1,101 @@
 #pragma once
 
+#include <cstddef>
+#include <functional>
+#include <utility>
+
 namespace redis_simple {
 namespace ae {
 class EventLoop;
+enum class EventCallbackStatus;
 
 class FileEvent {
  public:
+  using Callback = std::function<EventCallbackStatus(EventLoop*, int, int)>;
+
+  static FileEvent* Create(Callback read_callback, Callback write_callback,
+                           int mask) {
+    const bool has_separate_callbacks =
+        read_callback != nullptr && write_callback != nullptr;
+    return new FileEvent(std::move(read_callback), std::move(write_callback),
+                         mask, has_separate_callbacks);
+  }
+
+  template <typename T>
+  using TypedCallback = EventCallbackStatus (*)(EventLoop* event_loop, int fd,
+                                                T* client_data, int mask);
+
+  template <typename T>
+  static FileEvent* Create(TypedCallback<T> read_callback,
+                           TypedCallback<T> write_callback, T* client_data,
+                           int mask) {
+    return Create(Wrap(read_callback, client_data),
+                  Wrap(write_callback, client_data), mask,
+                  read_callback != write_callback);
+  }
+
+  template <typename T>
+  static FileEvent* Create(std::nullptr_t read_callback,
+                           TypedCallback<T> write_callback, T* client_data,
+                           int mask) {
+    return Create<T>(static_cast<TypedCallback<T>>(read_callback),
+                     write_callback, client_data, mask);
+  }
+
+  template <typename T>
+  static FileEvent* Create(TypedCallback<T> read_callback,
+                           std::nullptr_t write_callback, T* client_data,
+                           int mask) {
+    return Create<T>(read_callback,
+                     static_cast<TypedCallback<T>>(write_callback), client_data,
+                     mask);
+  }
+
   FileEvent(int mask) : mask_(mask) {}
   int Mask() const { return mask_; }
   void SetMask(int mask) { mask_ = mask; }
   void AddMask(int mask) { mask_ |= mask; }
-  virtual void CallReadCallback(EventLoop* el, int fd, int mask) const = 0;
-  virtual void CallWriteCallback(EventLoop* el, int fd, int mask) const = 0;
-  virtual bool HasReadCallback() const = 0;
-  virtual bool HasWriteCallback() const = 0;
-  virtual bool HasSeparateReadWriteCallbacks() const = 0;
-  virtual void Merge(const FileEvent* file_event) = 0;
-  virtual ~FileEvent() = default;
+  void CallReadCallback(EventLoop* el, int fd, int mask) const {
+    read_callback_(el, fd, mask);
+  }
+  void CallWriteCallback(EventLoop* el, int fd, int mask) const {
+    write_callback_(el, fd, mask);
+  }
+  bool HasReadCallback() const { return static_cast<bool>(read_callback_); }
+  bool HasWriteCallback() const { return static_cast<bool>(write_callback_); }
+  bool HasSeparateReadWriteCallbacks() const {
+    return has_separate_read_write_callbacks_;
+  }
+  void Merge(const FileEvent* file_event);
 
  private:
+  static FileEvent* Create(Callback read_callback, Callback write_callback,
+                           int mask, bool has_separate_callbacks) {
+    return new FileEvent(std::move(read_callback), std::move(write_callback),
+                         mask, has_separate_callbacks);
+  }
+
+  FileEvent(Callback read_callback, Callback write_callback, int mask,
+            bool has_separate_callbacks)
+      : mask_(mask),
+        read_callback_(std::move(read_callback)),
+        write_callback_(std::move(write_callback)),
+        has_separate_read_write_callbacks_(has_separate_callbacks) {}
+
+  template <typename T>
+  static Callback Wrap(TypedCallback<T> callback, T* client_data) {
+    if (callback == nullptr) {
+      return nullptr;
+    }
+    return [callback, client_data](EventLoop* event_loop, int fd, int mask) {
+      return callback(event_loop, fd, client_data, mask);
+    };
+  }
+
   int mask_;
+  Callback read_callback_;
+  Callback write_callback_;
+  bool has_separate_read_write_callbacks_;
 };
 }  // namespace ae
 }  // namespace redis_simple

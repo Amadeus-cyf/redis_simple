@@ -56,6 +56,7 @@ cd "${repo_root}"
 exec "${run_clang_tidy_bin}" \
   -p "${build_dir}" \
   -clang-tidy-binary "${clang_tidy_bin}" \
+  -config-file "${repo_root}/.clang-tidy" \
   -quiet \
   "$@" \
   "${source_regex}"

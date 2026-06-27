@@ -1,30 +1,47 @@
 #include "server/commands/t_zset/zadd.h"
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
+#include "storage/zset/zset.h"
 
 namespace redis_simple::command::t_zset {
-void ZAddCommand::Exec(Client* const client) const {
+namespace {
+struct ZAddArgs {
+  std::string key;
+  std::vector<std::pair<std::string, double>> ele_score_list;
+};
+int ParseArgs(const std::vector<std::string>& args, ZAddArgs* zset_args);
+int ZAdd(const std::shared_ptr<db::RedisDb>& redis_db, const ZAddArgs* args);
+}  // namespace
+
+void ExecuteZAdd(Client* const client) {
   ZAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    int r = ZAdd(db, &args);
-    if (r < 0) {
+
+  if (auto redis_db = client->DB().lock()) {
+    int result = ZAdd(redis_db, &args);
+    if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(r));
+    client->AddReply(reply::FromInt64(result));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
-int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
-                           ZAddArgs* const zset_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args, ZAddArgs* const zset_args) {
   if (args.size() < 3 || args.size() % 2 == 0) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -44,12 +61,11 @@ int ZAddCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZAddCommand::ZAdd(const std::shared_ptr<db::RedisDb>& db,
-                      const ZAddArgs* args) {
-  if (!db || (args == nullptr)) {
+int ZAdd(const std::shared_ptr<db::RedisDb>& redis_db, const ZAddArgs* args) {
+  if (!redis_db || (args == nullptr)) {
     return -1;
   }
-  const auto* obj = db->LookupKey(args->key);
+  const auto* obj = redis_db->LookupKey(args->key);
   if ((obj != nullptr) &&
       obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
@@ -57,7 +73,7 @@ int ZAddCommand::ZAdd(const std::shared_ptr<db::RedisDb>& db,
   }
   if (obj == nullptr) {
     obj = db::RedisObject::CreateWithZSet(zset::ZSet::Init());
-    const auto status = db->SetKey(args->key, obj, 0);
+    const auto status = redis_db->SetKey(args->key, obj, 0);
     obj->DecrRefCount();
     if (status == db::DbStatus::kError) {
       return -1;
@@ -77,4 +93,5 @@ int ZAddCommand::ZAdd(const std::shared_ptr<db::RedisDb>& db,
     return -1;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_zset

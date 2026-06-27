@@ -40,7 +40,7 @@ enum class EventLoopStatus {
   kError = -1,
 };
 
-enum class EventHandlerStatus {
+enum class EventCallbackStatus {
   kOk = 0,
   kError = -1,
 };

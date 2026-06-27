@@ -1,30 +1,45 @@
 #include "server/commands/t_set/srem.h"
 
+#include <string>
+#include <vector>
+
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple::command::t_set {
-void SRemCommand::Exec(Client* const client) const {
+namespace {
+struct SRemArgs {
+  std::string key;
+  std::vector<std::string> elements;
+};
+int ParseArgs(const std::vector<std::string>& args, SRemArgs* srem_args);
+int SRem(const std::shared_ptr<db::RedisDb>& redis_db, const SRemArgs* args);
+}  // namespace
+
+void ExecuteSRem(Client* const client) {
   SRemArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    int r = SRem(db, &args);
-    if (r < 0) {
+
+  if (auto redis_db = client->DB().lock()) {
+    int result = SRem(redis_db, &args);
+    if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(r));
+    client->AddReply(reply::FromInt64(result));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
-int SRemCommand::ParseArgs(const std::vector<std::string>& args,
-                           SRemArgs* const srem_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args, SRemArgs* const srem_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -36,9 +51,8 @@ int SRemCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SRemCommand::SRem(const std::shared_ptr<db::RedisDb>& db,
-                      const SRemArgs* args) {
-  const auto* obj = db->LookupKey(args->key);
+int SRem(const std::shared_ptr<db::RedisDb>& redis_db, const SRemArgs* args) {
+  const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }
@@ -57,4 +71,5 @@ int SRemCommand::SRem(const std::shared_ptr<db::RedisDb>& db,
     return -1;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_set

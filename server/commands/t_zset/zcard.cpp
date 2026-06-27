@@ -1,32 +1,46 @@
 #include "server/commands/t_zset/zcard.h"
 
 #include <limits>
+#include <string>
 
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple::command::t_zset {
-void ZCardCommand::Exec(Client* const client) const {
+namespace {
+struct ZCardArgs {
+  std::string key;
+};
+int ParseArgs(const std::vector<std::string>& args, ZCardArgs* zcard_args);
+ssize_t ZCard(const std::shared_ptr<db::RedisDb>& redis_db,
+              const ZCardArgs* args);
+}  // namespace
+
+void ExecuteZCard(Client* const client) {
   ZCardArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    ssize_t r = ZCard(db, &args);
-    if (r < 0) {
+
+  if (auto redis_db = client->DB().lock()) {
+    ssize_t result = ZCard(redis_db, &args);
+    if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(r));
+    client->AddReply(reply::FromInt64(result));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
-int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZCardArgs* const zcard_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args,
+              ZCardArgs* const zcard_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -35,9 +49,9 @@ int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-ssize_t ZCardCommand::ZCard(const std::shared_ptr<db::RedisDb>& db,
-                            const ZCardArgs* args) {
-  const auto* obj = db->LookupKey(args->key);
+ssize_t ZCard(const std::shared_ptr<db::RedisDb>& redis_db,
+              const ZCardArgs* args) {
+  const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }
@@ -56,4 +70,5 @@ ssize_t ZCardCommand::ZCard(const std::shared_ptr<db::RedisDb>& db,
     return -1;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_zset

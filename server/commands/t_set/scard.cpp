@@ -1,32 +1,46 @@
 #include "server/commands/t_set/scard.h"
 
 #include <limits>
+#include <string>
 
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple::command::t_set {
-void SCardCommand::Exec(Client* const client) const {
+namespace {
+struct SCardArgs {
+  std::string key;
+};
+int ParseArgs(const std::vector<std::string>& args, SCardArgs* scard_args);
+ssize_t SCard(const std::shared_ptr<db::RedisDb>& redis_db,
+              const SCardArgs* args);
+}  // namespace
+
+void ExecuteSCard(Client* const client) {
   SCardArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    ssize_t r = SCard(db, &args);
-    if (r < 0) {
+
+  if (auto redis_db = client->DB().lock()) {
+    ssize_t result = SCard(redis_db, &args);
+    if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(r));
+    client->AddReply(reply::FromInt64(result));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
-int SCardCommand::ParseArgs(const std::vector<std::string>& args,
-                            SCardArgs* const scard_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args,
+              SCardArgs* const scard_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -35,9 +49,9 @@ int SCardCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-ssize_t SCardCommand::SCard(const std::shared_ptr<db::RedisDb>& db,
-                            const SCardArgs* args) {
-  const auto* obj = db->LookupKey(args->key);
+ssize_t SCard(const std::shared_ptr<db::RedisDb>& redis_db,
+              const SCardArgs* args) {
+  const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }
@@ -56,4 +70,5 @@ ssize_t SCardCommand::SCard(const std::shared_ptr<db::RedisDb>& db,
     return -1;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_set

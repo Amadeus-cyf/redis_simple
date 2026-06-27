@@ -38,7 +38,7 @@ class Client {
   explicit Client(connection::Connection* connection);
   ClientStatus ProcessInlineBuffer();
   ClientStatus ProcessCommand();
-  void SetCmd(std::weak_ptr<const command::Command> command) { cmd_ = command; }
+  void SetCmd(const command::Command* command) { cmd_ = command; }
   void SetCmdArgs(const std::vector<std::string>& args) { args_ = args; }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
@@ -46,7 +46,7 @@ class Client {
   int flags{};
   std::weak_ptr<db::RedisDb> db_;
   // Current command
-  std::weak_ptr<const command::Command> cmd_;
+  const command::Command* cmd_{nullptr};
   // Current command args
   std::vector<std::string> args_;
   // Connection

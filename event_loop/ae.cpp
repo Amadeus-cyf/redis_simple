@@ -15,6 +15,23 @@
 #include "utils/time_utils.h"
 
 namespace redis_simple::ae {
+void FileEvent::Merge(const FileEvent* file_event) {
+  if (file_event == nullptr) {
+    return;
+  }
+  AddMask(file_event->Mask());
+  if (!HasReadCallback() && file_event->HasReadCallback()) {
+    read_callback_ = file_event->read_callback_;
+  }
+  if (!HasWriteCallback() && file_event->HasWriteCallback()) {
+    write_callback_ = file_event->write_callback_;
+  }
+  has_separate_read_write_callbacks_ =
+      HasReadCallback() && HasWriteCallback() &&
+      (has_separate_read_write_callbacks_ ||
+       file_event->has_separate_read_write_callbacks_);
+}
+
 int WaitForEvent(int fd, int mask, long timeout) {
   int fd_count = 1;
   if (timeout > std::numeric_limits<int>::max()) {

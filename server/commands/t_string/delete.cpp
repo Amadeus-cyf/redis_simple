@@ -1,18 +1,27 @@
 #include "server/commands/t_string/delete.h"
 
 #include "server/client.h"
+#include "server/commands/t_string/args.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple::command::t_string {
-void DeleteCommand::Exec(Client* const client) const {
+namespace {
+int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args);
+int Delete(const std::shared_ptr<db::RedisDb>& redis_db,
+           const StringArgs* args);
+}  // namespace
+
+void ExecuteDelete(Client* const client) {
   RS_LOG_DEBUG("delete command called\n");
   StringArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    const int deleted = Delete(db, &args);
+
+  if (auto redis_db = client->DB().lock()) {
+    const int deleted = Delete(redis_db, &args);
     if (deleted < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
@@ -24,8 +33,9 @@ void DeleteCommand::Exec(Client* const client) const {
   }
 }
 
-int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
-                             StringArgs* string_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
@@ -34,8 +44,9 @@ int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int DeleteCommand::Delete(const std::shared_ptr<db::RedisDb>& db,
-                          const StringArgs* args) {
-  return db->DeleteKey(args->key) == db::DbStatus::kOk ? 1 : 0;
+int Delete(const std::shared_ptr<db::RedisDb>& redis_db,
+           const StringArgs* args) {
+  return redis_db->DeleteKey(args->key) == db::DbStatus::kOk ? 1 : 0;
 }
+}  // namespace
 }  // namespace redis_simple::command::t_string

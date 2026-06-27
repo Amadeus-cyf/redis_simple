@@ -1,20 +1,32 @@
 #include "server/commands/t_zset/zscore.h"
 
 #include <optional>
+#include <string>
 
 #include "server/client.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
 
 namespace redis_simple::command::t_zset {
-void ZScoreCommand::Exec(Client* const client) const {
+namespace {
+struct ZScoreArgs {
+  std::string key;
+  std::string element;
+};
+int ParseArgs(const std::vector<std::string>& args, ZScoreArgs* zscore_args);
+std::optional<double> ZScore(const std::shared_ptr<db::RedisDb>& redis_db,
+                             const ZScoreArgs* args);
+}  // namespace
+
+void ExecuteZScore(Client* const client) {
   ZScoreArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    const auto opt_score = ZScore(db, &args);
+
+  if (auto redis_db = client->DB().lock()) {
+    const auto opt_score = ZScore(redis_db, &args);
     if (opt_score.has_value()) {
       client->AddReply(reply::FromFloat(*opt_score));
     } else {
@@ -26,8 +38,10 @@ void ZScoreCommand::Exec(Client* const client) const {
   }
 }
 
-int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
-                             ZScoreArgs* const zscore_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args,
+              ZScoreArgs* const zscore_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -37,9 +51,9 @@ int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<double> ZScoreCommand::ZScore(
-    const std::shared_ptr<db::RedisDb>& db, const ZScoreArgs* args) {
-  const auto* obj = db->LookupKey(args->key);
+std::optional<double> ZScore(const std::shared_ptr<db::RedisDb>& redis_db,
+                             const ZScoreArgs* args) {
+  const auto* obj = redis_db->LookupKey(args->key);
   if ((obj == nullptr) ||
       obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     return std::nullopt;
@@ -52,4 +66,5 @@ std::optional<double> ZScoreCommand::ZScore(
     return std::nullopt;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_zset

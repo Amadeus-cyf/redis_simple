@@ -27,7 +27,7 @@ class Server {
 
  private:
   Server();
-  void AcceptConnHandler();
+  void InstallAcceptCallback();
   static int ServerCron();
   int fd_{};
   int flags_{};

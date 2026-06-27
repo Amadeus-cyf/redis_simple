@@ -3,7 +3,7 @@
 #include <cstddef>
 
 #include "server/client.h"
-#include "server/networking/conn_handler/conn_handler.h"
+#include "server/networking/connection_callback/connection_callback.h"
 #include "server/networking/redis_cmd.h"
 #include "server/server.h"
 
@@ -25,11 +25,11 @@ bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return SendStringInline(conn, cmd->String());
 }
 
-ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
-                                     int mask) {
+ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
+                                                 Server* server, int mask) {
   if (server == nullptr) {
     RS_LOG_DEBUG("invalid server / event loop\n");
-    return ae::EventHandlerStatus::kError;
+    return ae::EventCallbackStatus::kError;
   }
   // Keep the connection tied to the server-owned shared EventLoop, not the raw
   // callback pointer.
@@ -41,23 +41,23 @@ ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
   connection::AddressInfo addr_info;
   if (conn->Accept(&addr_info) == connection::ConnectionStatus::kError) {
     RS_LOG_DEBUG("connection accept failed\n");
-    return ae::EventHandlerStatus::kError;
+    return ae::EventCallbackStatus::kError;
   }
   if (conn->State() != connection::ConnectionState::kConnected) {
     RS_LOG_DEBUG("invalid connection state\n");
-    return ae::EventHandlerStatus::kError;
+    return ae::EventCallbackStatus::kError;
   }
   RS_LOG_DEBUG("accept connection from %s:%d with fd = %d\n",
                addr_info.ip.c_str(), addr_info.port, conn->Fd());
   RS_LOG_DEBUG("start create client\n");
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
-  if (!conn->SetReadHandler(CreateConnHandler(
-          connection::ConnectionHandlerType::kReadQueryFromClient))) {
-    RS_LOG_DEBUG("AcceptHandler: failed to set the read handler\n");
-    return ae::EventHandlerStatus::kError;
+  if (!conn->SetReadCallback(CreateConnectionCallback(
+          connection::ConnectionCallbackType::kReadQueryFromClient))) {
+    RS_LOG_DEBUG("AcceptConnectionCallback: failed to set the read callback\n");
+    return ae::EventCallbackStatus::kError;
   }
   server->AddClient(client);
-  return ae::EventHandlerStatus::kOk;
+  return ae::EventCallbackStatus::kOk;
 }
 }  // namespace redis_simple::networking

@@ -8,7 +8,7 @@
 #include <optional>
 #include <vector>
 
-#include "event_loop/ae_file_event_impl.h"
+#include "event_loop/ae_file_event.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple::connection {
@@ -28,9 +28,8 @@ Connection::Connection(const Context& ctx)
     : fd_(ctx.fd),
       el_(ctx.event_loop),
       state_(ConnectionState::kConnect),
-      read_handler_(nullptr),
-      write_handler_(nullptr),
-      accept_handler_(nullptr) {}
+      read_callback_(nullptr),
+      write_callback_(nullptr) {}
 
 ConnectionStatus Connection::BindAndConnect(
     const AddressInfo& remote, const std::optional<AddressInfo>& local) {
@@ -44,10 +43,10 @@ ConnectionStatus Connection::BindAndConnect(
     }
     fd_ = fd;
     state_ = ConnectionState::kConnecting;
-    auto* e = ae::FileEventImpl<Connection>::Create(
-        nullptr, ConnSocketEventHandler, this, ae::EventFlag::kWritable);
+    auto* e = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
+                                    ae::ToInt(ae::EventFlag::kWritable));
     if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
-      RS_LOG_DEBUG("adding connection socket event handler error");
+      RS_LOG_DEBUG("adding connection socket event callback error");
       return ConnectionStatus::kError;
     }
   } else {
@@ -105,29 +104,26 @@ ConnectionStatus Connection::Accept(AddressInfo* const addr_info) {
   RS_LOG_DEBUG("accept %s %d\n", addr_info->ip.c_str(), addr_info->port);
   state_ = ConnectionState::kConnected;
   fd_ = fd;
-  if (accept_handler_) {
-    accept_handler_->Handle(this);
-  }
   RS_LOG_DEBUG("conn state accept %d\n", state_);
   return ConnectionStatus::kOk;
 }
 
-bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> read_handler) {
-  if (!read_handler) {
-    return UnsetReadHandler();
+bool Connection::SetReadCallback(ConnectionCallback read_callback) {
+  if (!read_callback) {
+    return UnsetReadCallback();
   }
   if (auto event_loop = el_.lock()) {
     if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
       return false;
     }
-    auto* e = ae::FileEventImpl<Connection>::Create(
-        ConnSocketEventHandler, nullptr, this, ae::EventFlag::kReadable);
+    auto* e = ae::FileEvent::Create(SocketEventCallback, nullptr, this,
+                                    ae::ToInt(ae::EventFlag::kReadable));
     if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
-      RS_LOG_DEBUG("failed to set read handler\n");
+      RS_LOG_DEBUG("failed to set read callback\n");
       return false;
     }
-    read_handler_ = std::move(read_handler);
+    read_callback_ = std::move(read_callback);
     flags_ |= ae::EventFlag::kReadable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
@@ -136,7 +132,7 @@ bool Connection::SetReadHandler(std::unique_ptr<ConnHandler> read_handler) {
   return true;
 }
 
-bool Connection::UnsetReadHandler() {
+bool Connection::UnsetReadCallback() {
   if (auto event_loop = el_.lock()) {
     if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
@@ -144,10 +140,10 @@ bool Connection::UnsetReadHandler() {
     }
     if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kReadable) ==
         ae::EventLoopStatus::kError) {
-      RS_LOG_DEBUG("failed to unset read handler\n");
+      RS_LOG_DEBUG("failed to unset read callback\n");
       return false;
     }
-    read_handler_ = nullptr;
+    read_callback_ = nullptr;
     flags_ &= ~ae::EventFlag::kReadable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
@@ -156,28 +152,27 @@ bool Connection::UnsetReadHandler() {
   return true;
 }
 
-bool Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
-                                 bool barrier) {
+bool Connection::SetWriteCallback(ConnectionCallback callback, bool barrier) {
   if (barrier) {
     flags_ |= kWriteBarrier;
   } else {
     flags_ &= ~kWriteBarrier;
   }
-  if (!handler) {
-    return UnsetWriteHandler();
+  if (!callback) {
+    return UnsetWriteCallback();
   }
   if (auto event_loop = el_.lock()) {
     if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
       return false;
     }
-    auto* e = ae::FileEventImpl<Connection>::Create(
-        nullptr, ConnSocketEventHandler, this, ae::EventFlag::kWritable);
+    auto* e = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
+                                    ae::ToInt(ae::EventFlag::kWritable));
     if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
-      RS_LOG_DEBUG("failed to set write handler\n");
+      RS_LOG_DEBUG("failed to set write callback\n");
       return false;
     }
-    write_handler_ = std::move(handler);
+    write_callback_ = std::move(callback);
     flags_ |= ae::EventFlag::kWritable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
@@ -186,7 +181,7 @@ bool Connection::SetWriteHandler(std::unique_ptr<ConnHandler> handler,
   return true;
 }
 
-bool Connection::UnsetWriteHandler() {
+bool Connection::UnsetWriteCallback() {
   if (auto event_loop = el_.lock()) {
     if (!event_loop) {
       RS_LOG_DEBUG("no event loop\n");
@@ -194,10 +189,10 @@ bool Connection::UnsetWriteHandler() {
     }
     if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kWritable) ==
         ae::EventLoopStatus::kError) {
-      RS_LOG_DEBUG("failed to unset write handler\n");
+      RS_LOG_DEBUG("failed to unset write callback\n");
       return false;
     }
-    write_handler_ = nullptr;
+    write_callback_ = nullptr;
     flags_ &= ~ae::EventFlag::kWritable;
   } else {
     RS_LOG_DEBUG("event loop expired\n");
@@ -350,15 +345,15 @@ ssize_t Connection::Writev(
   return n;
 }
 
-ae::EventHandlerStatus Connection::ConnSocketEventHandler(ae::EventLoop* el,
-                                                          int fd,
-                                                          Connection* conn,
-                                                          int mask) {
+ae::EventCallbackStatus Connection::SocketEventCallback(ae::EventLoop* el,
+                                                        int fd,
+                                                        Connection* conn,
+                                                        int mask) {
   RS_LOG_DEBUG(
-      "event handler called with fd = %d, mask_read = %d, mask_write = %d\n",
+      "event callback called with fd = %d, mask_read = %d, mask_write = %d\n",
       fd, mask & ae::EventFlag::kReadable, mask & ae::EventFlag::kWritable);
   if (conn == nullptr) {
-    return ae::EventHandlerStatus::kError;
+    return ae::EventCallbackStatus::kError;
   }
   RS_LOG_DEBUG("state: %d\n", conn->State());
   if (conn->State() == ConnectionState::kConnecting &&
@@ -368,7 +363,7 @@ ae::EventHandlerStatus Connection::ConnSocketEventHandler(ae::EventLoop* el,
     if (tcp::IsSocketError(fd)) {
       RS_LOG_DEBUG("socket error\n");
       conn->SetState(ConnectionState::kError);
-      return ae::EventHandlerStatus::kError;
+      return ae::EventCallbackStatus::kError;
     }
     RS_LOG_DEBUG("connection state set to connected\n");
     conn->SetState(ConnectionState::kConnected);
@@ -377,17 +372,17 @@ ae::EventHandlerStatus Connection::ConnSocketEventHandler(ae::EventLoop* el,
   // Normal order is read-before-write. A write barrier lets command replies
   // flush before another readable event queues more work on the same socket.
   if ((invert == 0) && ((mask & ae::EventFlag::kReadable) != 0) &&
-      conn->read_handler_) {
-    conn->read_handler_->Handle(conn);
+      conn->read_callback_) {
+    conn->read_callback_(conn);
   }
-  if (((mask & ae::EventFlag::kWritable) != 0) && conn->write_handler_) {
-    conn->write_handler_->Handle(conn);
+  if (((mask & ae::EventFlag::kWritable) != 0) && conn->write_callback_) {
+    conn->write_callback_(conn);
   }
   if ((invert != 0) && ((mask & ae::EventFlag::kReadable) != 0) &&
-      conn->read_handler_) {
-    conn->read_handler_->Handle(conn);
+      conn->read_callback_) {
+    conn->read_callback_(conn);
   }
-  return ae::EventHandlerStatus::kOk;
+  return ae::EventCallbackStatus::kOk;
 }
 
 int Connection::Wait(ae::EventFlag flag, long timeout) const {

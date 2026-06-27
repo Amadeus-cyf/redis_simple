@@ -37,6 +37,10 @@ bool IsReverse(const std::vector<std::string>& args);
 bool IsWithScores(const std::vector<std::string>& args);
 std::optional<std::string> EncodeZRangeReply(const zset::ZSetEntryList& result,
                                              bool with_scores);
+int RangeByRank(Client* client, const std::vector<std::string>& args,
+                zset::ZSetEntryList* result);
+int RangeByScore(Client* client, const std::vector<std::string>& args,
+                 zset::ZSetEntryList* result);
 
 bool FlaggedByScore(const std::vector<std::string>& args) {
   // The command parser stores args as key/start/end/options, so options begin
@@ -277,20 +281,20 @@ std::optional<std::string> EncodeZRangeReply(const zset::ZSetEntryList& result,
 }
 }  // namespace
 
-void ZRangeCommand::Exec(Client* const client) const {
+void ExecuteZRange(Client* const client) {
   const auto& args = client->CmdArgs();
-  zset::ZSetEntryList result;
-  int r = 0;
+  zset::ZSetEntryList range_entries;
+  int status = 0;
   if (FlaggedByScore(args)) {
-    r = RangeByScore(client, args, &result);
+    status = RangeByScore(client, args, &range_entries);
   } else {
-    r = RangeByRank(client, args, &result);
+    status = RangeByRank(client, args, &range_entries);
   }
-  if (r < 0) {
+  if (status < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  const auto reply = EncodeZRangeReply(result, IsWithScores(args));
+  const auto reply = EncodeZRangeReply(range_entries, IsWithScores(args));
   if (reply.has_value()) {
     client->AddReply(*reply);
   } else {
@@ -298,17 +302,18 @@ void ZRangeCommand::Exec(Client* const client) const {
   }
 }
 
-int ZRangeCommand::RangeByRank(Client* const client,
-                               const std::vector<std::string>& args,
-                               zset::ZSetEntryList* result) {
+namespace {
+
+int RangeByRank(Client* const client, const std::vector<std::string>& args,
+                zset::ZSetEntryList* result) {
   zset::RangeByRankSpec spec;
   if (ParseRangeToRankSpec(args, &spec) < 0) {
     RS_LOG_DEBUG("invalid arguments for zrange rank\n");
     return -1;
   }
-  if (auto db = client->DB().lock()) {
+  if (auto redis_db = client->DB().lock()) {
     const auto& key = args[0];
-    const auto* obj = db->LookupKey(key);
+    const auto* obj = redis_db->LookupKey(key);
     if (obj == nullptr) {
       return 0;
     }
@@ -330,17 +335,16 @@ int ZRangeCommand::RangeByRank(Client* const client,
   return 0;
 }
 
-int ZRangeCommand::RangeByScore(Client* const client,
-                                const std::vector<std::string>& args,
-                                zset::ZSetEntryList* result) {
+int RangeByScore(Client* const client, const std::vector<std::string>& args,
+                 zset::ZSetEntryList* result) {
   zset::RangeByScoreSpec spec;
   if (ParseRangeToScoreSpec(args, &spec) < 0) {
     RS_LOG_DEBUG("invalid arguments for zrange score\n");
     return -1;
   }
-  if (auto db = client->DB().lock()) {
+  if (auto redis_db = client->DB().lock()) {
     const auto& key = args[0];
-    const auto* obj = db->LookupKey(key);
+    const auto* obj = redis_db->LookupKey(key);
     if (obj == nullptr) {
       return 0;
     }
@@ -361,4 +365,5 @@ int ZRangeCommand::RangeByScore(Client* const client,
   }
   return 0;
 }
+}  // namespace
 }  // namespace redis_simple::command::t_zset

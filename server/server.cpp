@@ -6,8 +6,8 @@
 #include <any>
 
 #include "db/db.h"
-#include "event_loop/ae_file_event_impl.h"
-#include "event_loop/ae_time_event_impl.h"
+#include "event_loop/ae_file_event.h"
+#include "event_loop/ae_time_event.h"
 #include "expire.h"
 #include "networking/networking.h"
 
@@ -32,11 +32,9 @@ void Server::Run(const std::string& ip, const int& port) {
     return;
   }
   fd_ = conn.Fd();
-  AcceptConnHandler();
-  ae::TimeEventImpl<Server>::TimeCallback time_proc =
-      [](long long id, Server* server) { return server->ServerCron(); };
-  el_->CreateTimeEvent(
-      ae::TimeEventImpl<Server>::Create(time_proc, nullptr, this));
+  InstallAcceptCallback();
+  el_->CreateTimeEvent(ae::TimeEvent::Create(
+      [this](long long id) { return ServerCron(); }, nullptr));
   el_->Run();
 }
 
@@ -51,9 +49,10 @@ bool Server::RemoveClient(Client* c) {
   return false;
 }
 
-void Server::AcceptConnHandler() {
-  auto* file_event = ae::FileEventImpl<Server>::Create(
-      networking::AcceptHandler, nullptr, this, ae::EventFlag::kReadable);
+void Server::InstallAcceptCallback() {
+  auto* file_event =
+      ae::FileEvent::Create(networking::AcceptConnectionCallback, nullptr, this,
+                            ae::ToInt(ae::EventFlag::kReadable));
   if (el_->CreateFileEvent(fd_, file_event) == ae::EventLoopStatus::kError) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
   }

@@ -1,23 +1,9 @@
 #pragma once
 
-#include "server/commands/command.h"
-#include "server/commands/t_string/args.h"
-#include "server/db/db.h"
-
 namespace redis_simple {
-namespace command {
-namespace t_string {
-class SetCommand : public Command {
- public:
-  SetCommand() : Command("SET") {}
-  void Exec(Client* const client) const override;
+class Client;
 
- private:
-  static int ParseArgs(const std::vector<std::string>& args,
-                       StringArgs* string_args);
-  static int Set(const std::shared_ptr<db::RedisDb>& db,
-                 const StringArgs* args);
-};
-}  // namespace t_string
-}  // namespace command
+namespace command::t_string {
+void ExecuteSet(Client* client);
+}  // namespace command::t_string
 }  // namespace redis_simple

@@ -1,19 +1,34 @@
 #include "server/commands/t_set/smembers.h"
 
+#include <string>
+#include <vector>
+
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
 #include "server/reply_utils/reply_utils.h"
 
 namespace redis_simple::command::t_set {
-void SMembersCommand::Exec(Client* const client) const {
+namespace {
+struct SMembersArgs {
+  std::string key;
+};
+int ParseArgs(const std::vector<std::string>& args,
+              SMembersArgs* smembers_args);
+int SMembers(const std::shared_ptr<db::RedisDb>& redis_db,
+             const SMembersArgs* args, std::vector<std::string>& members);
+}  // namespace
+
+void ExecuteSMembers(Client* const client) {
   SMembersArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
+
+  if (auto redis_db = client->DB().lock()) {
     std::vector<std::string> members;
-    if (SMembers(db, &args, members) < 0) {
+    if (SMembers(redis_db, &args, members) < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
@@ -31,8 +46,10 @@ void SMembersCommand::Exec(Client* const client) const {
   }
 }
 
-int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
-                               SMembersArgs* const smembers_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args,
+              SMembersArgs* const smembers_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -41,10 +58,9 @@ int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SMembersCommand::SMembers(const std::shared_ptr<db::RedisDb>& db,
-                              const SMembersArgs* args,
-                              std::vector<std::string>& members) {
-  const auto* obj = db->LookupKey(args->key);
+int SMembers(const std::shared_ptr<db::RedisDb>& redis_db,
+             const SMembersArgs* args, std::vector<std::string>& members) {
+  const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }
@@ -55,4 +71,5 @@ int SMembersCommand::SMembers(const std::shared_ptr<db::RedisDb>& db,
   members = set->ListAllMembers();
   return 0;
 }
+}  // namespace
 }  // namespace redis_simple::command::t_set

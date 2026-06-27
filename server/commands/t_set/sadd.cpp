@@ -1,30 +1,46 @@
 #include "server/commands/t_set/sadd.h"
 
+#include <string>
+#include <vector>
+
 #include "server/client.h"
+#include "server/db/db.h"
 #include "server/reply/reply.h"
+#include "storage/set/set.h"
 
 namespace redis_simple::command::t_set {
-void SAddCommand::Exec(Client* const client) const {
+namespace {
+struct SAddArgs {
+  std::string key;
+  std::vector<std::string> elements;
+};
+int ParseArgs(const std::vector<std::string>& args, SAddArgs* sadd_args);
+int SAdd(const std::shared_ptr<db::RedisDb>& redis_db, const SAddArgs* args);
+}  // namespace
+
+void ExecuteSAdd(Client* const client) {
   SAddArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
-  if (auto db = client->DB().lock()) {
-    int r = SAdd(db, &args);
-    if (r < 0) {
+
+  if (auto redis_db = client->DB().lock()) {
+    int result = SAdd(redis_db, &args);
+    if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
-    client->AddReply(reply::FromInt64(r));
+    client->AddReply(reply::FromInt64(result));
   } else {
     RS_LOG_DEBUG("db pointer expired\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
 
-int SAddCommand::ParseArgs(const std::vector<std::string>& args,
-                           SAddArgs* const sadd_args) {
+namespace {
+
+int ParseArgs(const std::vector<std::string>& args, SAddArgs* const sadd_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -36,19 +52,18 @@ int SAddCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SAddCommand::SAdd(const std::shared_ptr<db::RedisDb>& db,
-                      const SAddArgs* args) {
-  if (!db || (args == nullptr)) {
+int SAdd(const std::shared_ptr<db::RedisDb>& redis_db, const SAddArgs* args) {
+  if (!redis_db || (args == nullptr)) {
     return -1;
   }
-  const auto* obj = db->LookupKey(args->key);
+  const auto* obj = redis_db->LookupKey(args->key);
   if ((obj != nullptr) &&
       obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
     return -1;
   }
   if (obj == nullptr) {
     obj = db::RedisObject::CreateWithSet(set::Set::Init());
-    const auto status = db->SetKey(args->key, obj, 0);
+    const auto status = redis_db->SetKey(args->key, obj, 0);
     obj->DecrRefCount();
     if (status == db::DbStatus::kError) {
       return -1;
@@ -66,4 +81,5 @@ int SAddCommand::SAdd(const std::shared_ptr<db::RedisDb>& db,
     return -1;
   }
 }
+}  // namespace
 }  // namespace redis_simple::command::t_set

@@ -1,20 +1,16 @@
 #pragma once
 
-#include <memory>
+#include <functional>
 
 namespace redis_simple {
 namespace connection {
 class Connection;
 
-enum class ConnectionHandlerType {
+enum class ConnectionCallbackType {
   kReadQueryFromClient = 1,
   kWriteReplyToClient = 1 << 1,
 };
 
-class ConnHandler {
- public:
-  virtual void Handle(Connection* conn) = 0;
-  virtual ~ConnHandler() = default;
-};
+using ConnectionCallback = std::function<void(Connection*)>;
 }  // namespace connection
 }  // namespace redis_simple

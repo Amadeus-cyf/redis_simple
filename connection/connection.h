@@ -3,11 +3,12 @@
 #include <unistd.h>
 
 #include <any>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
-#include "connection/conn_handler.h"
+#include "connection/connection_callback.h"
 #include "event_loop/ae.h"
 
 namespace redis_simple {
@@ -49,13 +50,12 @@ class Connection {
       long timeout);
   ConnectionStatus BindAndListen(const AddressInfo& addr_info);
   ConnectionStatus Accept(AddressInfo* const addr_info);
-  bool SetReadHandler(std::unique_ptr<ConnHandler> handler);
-  bool UnsetReadHandler();
-  bool HasReadHandler() const { return read_handler_ != nullptr; }
-  bool SetWriteHandler(std::unique_ptr<ConnHandler> handler,
-                       bool barrier = false);
-  bool UnsetWriteHandler();
-  bool HasWriteHandler() const { return write_handler_ != nullptr; }
+  bool SetReadCallback(ConnectionCallback callback);
+  bool UnsetReadCallback();
+  bool HasReadCallback() const { return static_cast<bool>(read_callback_); }
+  bool SetWriteCallback(ConnectionCallback callback, bool barrier = false);
+  bool UnsetWriteCallback();
+  bool HasWriteCallback() const { return static_cast<bool>(write_callback_); }
   int Fd() const { return fd_; }
   ConnectionState State() const { return state_; }
   void SetState(ConnectionState state) { state_ = state; }
@@ -76,9 +76,9 @@ class Connection {
   // Give pending writes priority over reads for this connection.
   static constexpr int kWriteBarrier = 1;
 
-  static ae::EventHandlerStatus ConnSocketEventHandler(ae::EventLoop* el,
-                                                       int fd, Connection* conn,
-                                                       int mask);
+  static ae::EventCallbackStatus SocketEventCallback(ae::EventLoop* el, int fd,
+                                                     Connection* conn,
+                                                     int mask);
   int WaitRead(long timeout) const {
     return Wait(ae::EventFlag::kReadable, timeout);
   }
@@ -91,9 +91,8 @@ class Connection {
   mutable ConnectionState state_;
   std::any private_data_;
   std::weak_ptr<ae::EventLoop> el_;
-  std::unique_ptr<ConnHandler> read_handler_;
-  std::unique_ptr<ConnHandler> write_handler_;
-  std::unique_ptr<ConnHandler> accept_handler_;
+  ConnectionCallback read_callback_;
+  ConnectionCallback write_callback_;
 };
 }  // namespace connection
 }  // namespace redis_simple

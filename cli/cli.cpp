@@ -84,24 +84,19 @@ CliStatus RedisCli::Connect(const std::string& ip, int port) {
 }
 
 void RedisCli::AddCommand(const std::string& cmd) {
+  const std::scoped_lock lock(lock_);
   query_buf_->WriteToBuffer(cmd.c_str(), cmd.size());
 }
 
 std::string RedisCli::GetReply() {
+  const std::scoped_lock lock(lock_);
   // Drain any buffered complete reply before touching the socket.
   const auto result = MaybeGetReply();
   return result.has_value() ? *result : GetReplyFromConnection();
 }
 
-CompletableFuture<std::string> RedisCli::GetReplyAsync() {
-  auto future =
-      std::async(std::launch::async, [&]() { return GetReplyAsyncCallback(); });
-  return CompletableFuture<std::string>(std::move(future));
-}
-
-std::string RedisCli::GetReplyAsyncCallback() {
-  const std::scoped_lock lock(lock_);
-  return GetReply();
+std::future<std::string> RedisCli::GetReplyAsync() {
+  return std::async(std::launch::async, [this]() { return GetReply(); });
 }
 
 std::optional<std::string> RedisCli::MaybeGetReply() {

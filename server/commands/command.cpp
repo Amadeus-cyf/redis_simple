@@ -17,31 +17,32 @@
 #include "utils/string_utils.h"
 
 namespace redis_simple::command {
-const std::unordered_map<std::string, std::shared_ptr<const Command>>&
-    Command::cmdmap = {
-        {"GET", std::make_shared<const t_string::GetCommand>()},
-        {"SET", std::make_shared<const t_string::SetCommand>()},
-        {"DEL", std::make_shared<const t_string::DeleteCommand>()},
-        {"SADD", std::make_shared<const t_set::SAddCommand>()},
-        {"SCARD", std::make_shared<const t_set::SCardCommand>()},
-        {"SREM", std::make_shared<const t_set::SRemCommand>()},
-        {"SMEMBERS", std::make_shared<const t_set::SMembersCommand>()},
-        {"SISMEMBER", std::make_shared<const t_set::SIsMemberCommand>()},
-        {"ZADD", std::make_shared<const t_zset::ZAddCommand>()},
-        {"ZCARD", std::make_shared<const t_zset::ZCardCommand>()},
-        {"ZREM", std::make_shared<const t_zset::ZRemCommand>()},
-        {"ZRANK", std::make_shared<const t_zset::ZRankCommand>()},
-        {"ZRANGE", std::make_shared<const t_zset::ZRangeCommand>()},
-        {"ZSCORE", std::make_shared<const t_zset::ZScoreCommand>()},
+namespace {
+const std::unordered_map<std::string, Command> kCommandTable = {
+    {"GET", {"GET", t_string::ExecuteGet}},
+    {"SET", {"SET", t_string::ExecuteSet}},
+    {"DEL", {"DEL", t_string::ExecuteDelete}},
+    {"SADD", {"SADD", t_set::ExecuteSAdd}},
+    {"SCARD", {"SCARD", t_set::ExecuteSCard}},
+    {"SREM", {"SREM", t_set::ExecuteSRem}},
+    {"SMEMBERS", {"SMEMBERS", t_set::ExecuteSMembers}},
+    {"SISMEMBER", {"SISMEMBER", t_set::ExecuteSIsMember}},
+    {"ZADD", {"ZADD", t_zset::ExecuteZAdd}},
+    {"ZCARD", {"ZCARD", t_zset::ExecuteZCard}},
+    {"ZREM", {"ZREM", t_zset::ExecuteZRem}},
+    {"ZRANK", {"ZRANK", t_zset::ExecuteZRank}},
+    {"ZRANGE", {"ZRANGE", t_zset::ExecuteZRange}},
+    {"ZSCORE", {"ZSCORE", t_zset::ExecuteZScore}},
 };
+}  // namespace
 
-std::weak_ptr<const Command> Command::Create(const std::string& name) {
+const Command* Find(const std::string& name) {
   auto upper_name = name;
   utils::ToUppercase(upper_name);
   try {
-    return cmdmap.at(upper_name);
+    return &kCommandTable.at(upper_name);
   } catch (const std::out_of_range&) {
-    return std::shared_ptr<const Command>(nullptr);
+    return nullptr;
   }
 }
 }  // namespace redis_simple::command
