@@ -1,13 +1,12 @@
 #include "server/commands/t_zset/zrank.h"
 
+#include <limits>
 #include <optional>
 
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_zset {
+namespace redis_simple::command::t_zset {
 void ZRankCommand::Exec(Client* const client) const {
   ZRankArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -17,7 +16,12 @@ void ZRankCommand::Exec(Client* const client) const {
   if (auto db = client->DB().lock()) {
     const auto opt_rank = ZRank(db, &args);
     if (opt_rank.has_value()) {
-      client->AddReply(reply::FromInt64(*opt_rank));
+      if (*opt_rank >
+          static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+        client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+        return;
+      }
+      client->AddReply(reply::FromInt64(static_cast<int64_t>(*opt_rank)));
     } else {
       client->AddReply(reply::Null());
     }
@@ -28,7 +32,7 @@ void ZRankCommand::Exec(Client* const client) const {
 }
 
 int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZRankArgs* const zset_args) const {
+                            ZRankArgs* const zset_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -38,13 +42,13 @@ int ZRankCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<size_t> ZRankCommand::ZRank(std::shared_ptr<db::RedisDb> db,
-                                          const ZRankArgs* args) const {
-  if (!db || !args) {
+std::optional<size_t> ZRankCommand::ZRank(
+    const std::shared_ptr<db::RedisDb>& db, const ZRankArgs* args) {
+  if (!db || (args == nullptr)) {
     return std::nullopt;
   }
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     RS_LOG_DEBUG("key not found\n");
     return std::nullopt;
   }
@@ -60,6 +64,4 @@ std::optional<size_t> ZRankCommand::ZRank(std::shared_ptr<db::RedisDb> db,
     return std::nullopt;
   }
 }
-}  // namespace t_zset
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_zset

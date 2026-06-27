@@ -67,10 +67,10 @@ class Dict {
   bool Rehash(int n);
   void Clear(int i);
   void Reset(int i);
-  static constexpr const int HtInitSize = 2;
-  static constexpr const int HtInitExp = 1;
+  static constexpr int kHtInitSize = 2;
+  static constexpr int kHtInitExp = 1;
   // Rehash when elements/table-size reaches this ratio.
-  static constexpr const double DictForceResizeRatio = 2.0;
+  static constexpr double kDictForceResizeRatio = 2.0;
   DictType type_;
   // Table 1 is populated incrementally while table 0 is being rehashed.
   std::vector<std::vector<DictEntry*>> ht_;
@@ -82,7 +82,7 @@ class Dict {
 
 template <typename K, typename V>
 struct Dict<K, V>::DictEntry {
-  DictEntry() : hash(0), next(nullptr){};
+  DictEntry() : hash(0), next(nullptr) {}
   K key;
   V val;
   size_t hash;
@@ -234,7 +234,7 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
-  if (!dict->Expand(HtInitSize)) {
+  if (!dict->Expand(kHtInitSize)) {
     return nullptr;
   }
   dict->type_.hash_function = [](const K& key) {
@@ -267,7 +267,7 @@ template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
     const typename Dict<K, V>::DictType& type) {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>(type));
-  if (!dict->Expand(HtInitSize)) {
+  if (!dict->Expand(kHtInitSize)) {
     return nullptr;
   }
   return dict;
@@ -308,11 +308,11 @@ typename std::optional<V> Dict<K, V>::Get(K&& key) {
  */
 template <typename K, typename V>
 void Dict<K, V>::Set(const K& key, const V& val) {
-  DictEntry* existing;
+  DictEntry* existing = nullptr;
   DictEntry* entry = InsertRaw(key, &existing);
   if (entry) {
     SetVal(entry, val);
-  } else {
+  } else if (existing) {
     DictEntry auxentry = *existing;
     SetVal(existing, val);
     FreeVal(&auxentry);
@@ -321,11 +321,11 @@ void Dict<K, V>::Set(const K& key, const V& val) {
 
 template <typename K, typename V>
 void Dict<K, V>::Set(K&& key, V&& val) {
-  DictEntry* existing;
+  DictEntry* existing = nullptr;
   DictEntry* entry = InsertRaw(key, &existing);
   if (entry) {
     SetVal(entry, std::move(val));
-  } else {
+  } else if (existing) {
     DictEntry auxentry = *existing;
     SetVal(existing, std::move(val));
     FreeVal(&auxentry);
@@ -507,7 +507,7 @@ size_t Dict<K, V>::KeyHash(const K& key) const {
 
 template <typename K, typename V>
 int Dict<K, V>::NextExp(ssize_t size) const {
-  if (size < 0) return HtInitExp;
+  if (size < 0) return kHtInitExp;
   int i = 1;
   while ((1 << i) < size) ++i;
   return i;
@@ -602,7 +602,7 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
 
 template <typename K, typename V>
 void Dict<K, V>::ExpandIfNeeded() {
-  if ((double)ht_used_[0] / HtSize(ht_size_exp_[0]) >= DictForceResizeRatio) {
+  if ((double)ht_used_[0] / HtSize(ht_size_exp_[0]) >= kDictForceResizeRatio) {
     Expand(ht_used_[0] + 1);
   }
 }

@@ -11,16 +11,17 @@ namespace command {
 namespace t_set {
 class SCardCommand : public Command {
  public:
-  SCardCommand() : Command("SCARD"){};
+  SCardCommand() : Command("SCARD") {}
   void Exec(Client* const client) const override;
 
  private:
   struct SCardArgs {
     std::string key;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                SCardArgs* const scard_args) const;
-  ssize_t SCard(std::shared_ptr<db::RedisDb> db, const SCardArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       SCardArgs* const scard_args);
+  static ssize_t SCard(const std::shared_ptr<db::RedisDb>& db,
+                       const SCardArgs* args);
 };
 }  // namespace t_set
 }  // namespace command

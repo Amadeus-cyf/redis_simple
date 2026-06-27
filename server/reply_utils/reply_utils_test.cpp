@@ -4,8 +4,7 @@
 
 #include <vector>
 
-namespace redis_simple {
-namespace reply_utils {
+namespace redis_simple::reply_utils {
 TEST(TestReplyUtils, EncodeList) {
   const auto l1 =
       std::vector<std::string>{"element_0", "element_1", "element_2"};
@@ -23,5 +22,4 @@ TEST(TestReplyUtils, EncodeList) {
   const auto opt3 = reply_utils::EncodeList<std::string, to_string_1>(l3);
   ASSERT_EQ(opt3.value_or(""), "*0\r\n");
 }
-}  // namespace reply_utils
-}  // namespace redis_simple
+}  // namespace redis_simple::reply_utils

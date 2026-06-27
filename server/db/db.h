@@ -7,23 +7,28 @@
 
 namespace redis_simple {
 namespace db {
-enum DbStatus {
+enum class DbStatus {
   kOk = 1 << 0,
   kError = -1,
 };
 
-enum SetKeyFlags {
+enum class SetKeyFlag {
   kKeepTtl = 1,
 };
+
+constexpr int ToInt(SetKeyFlag flag) { return static_cast<int>(flag); }
+constexpr bool HasFlag(int flags, SetKeyFlag flag) {
+  return (flags & ToInt(flag)) != 0;
+}
 
 class RedisDb {
  public:
   static RedisDb* Init();
   const RedisObject* LookupKey(const std::string& key);
   DbStatus SetKey(const std::string& key, const RedisObject* const val,
-                  const int64_t expire);
+                  int64_t expire);
   DbStatus SetKey(const std::string& key, const RedisObject* const val,
-                  const int64_t expire, int flags);
+                  int64_t expire, int flags);
   DbStatus DeleteKey(const std::string& key);
   bool ScanExpires(
       in_memory::Dict<std::string, int64_t>::DictScanFunc callback);

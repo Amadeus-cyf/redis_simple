@@ -7,13 +7,13 @@ namespace cli {
 template <typename T>
 class CompletableFuture {
  public:
-  using callback = T (*)(const T&);
+  using Callback = T (*)(const T&);
   explicit CompletableFuture(std::future<T>&& future)
-      : future_(std::move(future)){};
+      : future_(std::move(future)) {}
   CompletableFuture(const CompletableFuture&) = delete;
   CompletableFuture& operator=(const CompletableFuture&) = delete;
-  CompletableFuture ThenApply(callback cb);
-  CompletableFuture ThenApplyAsync(callback cb);
+  CompletableFuture ThenApply(Callback cb);
+  CompletableFuture ThenApplyAsync(Callback cb);
   T Get();
 
  private:
@@ -21,7 +21,7 @@ class CompletableFuture {
 };
 
 template <typename T>
-CompletableFuture<T> CompletableFuture<T>::ThenApply(callback cb) {
+CompletableFuture<T> CompletableFuture<T>::ThenApply(Callback cb) {
   future_.wait();
   std::promise<T> promise;
   promise.set_value(cb(future_.get()));
@@ -29,7 +29,7 @@ CompletableFuture<T> CompletableFuture<T>::ThenApply(callback cb) {
 }
 
 template <typename T>
-CompletableFuture<T> CompletableFuture<T>::ThenApplyAsync(callback cb) {
+CompletableFuture<T> CompletableFuture<T>::ThenApplyAsync(Callback cb) {
   return CompletableFuture(std::async(std::launch::async, [=]() {
     future_.wait();
     return cb(future_.get());

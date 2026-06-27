@@ -6,31 +6,34 @@
 #include "memory/dynamic_buffer.h"
 
 namespace redis_simple {
-in_memory::DynamicBuffer dynamic_buffer;
+in_memory::DynamicBuffer g_dynamic_buffer;
 
 static void Init() {
   static std::mt19937 rng(std::mt19937::default_seed);
   std::uniform_int_distribution<int> letter_dist(0, 25);
   std::uniform_int_distribution<int> newline_dist(0, 1023);
-  for (int i = 0; i < kBufferSize; ++i) {
-    buffer[i] = newline_dist(rng) == 0 ? '\n' : letter_dist(rng) + 'a';
+  for (char& i : g_buffer) {
+    i = newline_dist(rng) == 0 ? '\n'
+                               : static_cast<char>(letter_dist(rng) + 'a');
   }
 }
 
 static void DynamicBufferWrite(benchmark::State& state) {
   Init();
   for (auto _ : state) {
-    dynamic_buffer.WriteToBuffer(buffer, kBufferSize);
+    (void)_;
+    g_dynamic_buffer.WriteToBuffer(g_buffer, kBufferSize);
   }
 }
 
 static void DynamicBufferProcessAndTrim(benchmark::State& state) {
   for (auto _ : state) {
-    const auto s = dynamic_buffer.ProcessInlineBuffer();
+    (void)_;
+    const auto s = g_dynamic_buffer.ProcessInlineBuffer();
     benchmark::DoNotOptimize(s.data());
     benchmark::DoNotOptimize(s.size());
   }
-  dynamic_buffer.TrimProcessedBuffer();
+  g_dynamic_buffer.TrimProcessedBuffer();
 }
 
 BENCHMARK(DynamicBufferWrite);

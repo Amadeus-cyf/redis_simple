@@ -6,8 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class ReplyBufferTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { buf = std::make_unique<ReplyBuffer>(); }
@@ -131,5 +130,4 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
             std::string(5000 - (1024 - 1000 / 3), 'e'));
   ASSERT_EQ(mem_vec[3].second, 5000 - (1024 - 1000 / 3));
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

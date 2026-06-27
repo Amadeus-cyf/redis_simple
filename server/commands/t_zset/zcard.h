@@ -11,16 +11,17 @@ namespace command {
 namespace t_zset {
 class ZCardCommand : public Command {
  public:
-  ZCardCommand() : Command("ZCARD"){};
+  ZCardCommand() : Command("ZCARD") {}
   void Exec(Client* const client) const override;
 
  private:
   struct ZCardArgs {
     std::string key;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                ZCardArgs* const zcard_args) const;
-  ssize_t ZCard(std::shared_ptr<db::RedisDb> db, const ZCardArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       ZCardArgs* const zcard_args);
+  static ssize_t ZCard(const std::shared_ptr<db::RedisDb>& db,
+                       const ZCardArgs* args);
 };
 }  // namespace t_zset
 }  // namespace command

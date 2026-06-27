@@ -18,24 +18,23 @@ class ZSet {
   };
 
   static ZSet* Init() { return new ZSet(); }
-  bool InsertOrUpdate(const std::string& key, const double score);
+  bool InsertOrUpdate(const std::string& key, double score);
   bool Delete(const std::string& key);
   std::optional<double> GetScoreOfKey(const std::string& key) const;
   std::optional<size_t> GetRankOfKey(const std::string& key) const;
-  std::vector<const ZSetEntry*> RangeByRank(const RangeByRankSpec* spec) const;
-  std::vector<const ZSetEntry*> RangeByScore(
-      const RangeByScoreSpec* spec) const;
+  ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const;
+  ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
-  size_t Size() const { return storage_->Size(); };
+  size_t Size() const { return storage_->Size(); }
   Encoding GetEncoding() const;
 
  private:
   enum class ZSetEncodingType {
-    ListPack = 1,
-    Skiplist = 2,
+    kListPack = 1,
+    kSkiplist = 2,
   };
-  static constexpr size_t ListPackMaxEntries = 128;
-  static constexpr size_t ListPackMaxElementLength = 64;
+  static constexpr size_t kListPackMaxEntries = 128;
+  static constexpr size_t kListPackMaxElementLength = 64;
   ZSet();
   bool ShouldConvertToSkiplist(const std::string& key, bool inserted) const;
   void ConvertAndExpand();

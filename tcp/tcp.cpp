@@ -10,19 +10,18 @@
 #include <cstring>
 #include <string>
 
-namespace redis_simple {
-namespace tcp {
+namespace redis_simple::tcp {
 namespace {
 // Keep the listen queue small for this single-threaded test server.
-constexpr const int kBacklog = 3;
+constexpr int kBacklog = 3;
 
 int TcpSetReuseAddr(int socket_fd) {
   int yes = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
       -1) {
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
-  return kTcpOk;
+  return ToInt(TcpStatusCode::kTcpOk);
 }
 
 int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
@@ -30,15 +29,15 @@ int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
   // mode when creating listening and client sockets.
   int socket_fd = socket(domain, type, protocol);
   if (socket_fd < 0) {
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
   if (TcpSetReuseAddr(socket_fd) < 0) {
     close(socket_fd);
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
   if (non_block && NonBlock(socket_fd) == TcpStatusCode::kTcpError) {
     close(socket_fd);
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
   return socket_fd;
 }
@@ -46,7 +45,7 @@ int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
 int TcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   int s = -1;
   if ((s = accept(socket_fd, addr, len)) == -1) {
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
   return s;
 }
@@ -54,30 +53,30 @@ int TcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
 int SetBlock(int fd, bool block) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) {
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
-  const bool is_non_block = (flags & O_NONBLOCK) != 0;
+  bool is_non_block = (flags & O_NONBLOCK) != 0;
   if (is_non_block == !block) {
-    return TcpStatusCode::kTcpOk;
+    return ToInt(TcpStatusCode::kTcpOk);
   }
   block ? flags &= ~O_NONBLOCK : flags |= O_NONBLOCK;
-  return fcntl(fd, F_SETFL, flags) < 0 ? TcpStatusCode::kTcpError
-                                       : TcpStatusCode::kTcpOk;
+  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kTcpError)
+                                       : ToInt(TcpStatusCode::kTcpOk);
 }
 
 bool IsNonBlock(int fd) {
   int flags = fcntl(fd, F_GETFL);
-  return flags & O_NONBLOCK;
+  return (flags & O_NONBLOCK) != 0;
 }
 
 int SetCloseOnExec(int fd) {
   int flags = fcntl(fd, F_GETFL);
-  if (flags & O_CLOEXEC) {
-    return kTcpOk;
+  if ((flags & O_CLOEXEC) != 0) {
+    return ToInt(TcpStatusCode::kTcpOk);
   }
   flags |= O_CLOEXEC;
-  return fcntl(fd, F_SETFL, flags) < 0 ? TcpStatusCode::kTcpError
-                                       : TcpStatusCode::kTcpOk;
+  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kTcpError)
+                                       : ToInt(TcpStatusCode::kTcpOk);
 }
 }  // namespace
 
@@ -86,15 +85,14 @@ int TcpCreateSocket(int domain, bool non_block) {
 }
 
 int TcpBindAndConnect(const TcpAddrInfo& remote,
-                      const std::optional<TcpAddrInfo>& local,
-                      const bool non_block) {
+                      const std::optional<TcpAddrInfo>& local, bool non_block) {
   addrinfo hints{};
   addrinfo* info = nullptr;
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(remote.ip.c_str(), std::to_string(remote.port).c_str(),
                   &hints, &info) < 0) {
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
   int socket_fd = -1;
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
@@ -123,11 +121,11 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
     break;
   }
   freeaddrinfo(info);
-  return socket_fd != -1 ? socket_fd : TcpStatusCode::kTcpError;
+  return socket_fd != -1 ? socket_fd : ToInt(TcpStatusCode::kTcpError);
 }
 
-int TcpAccept(const int socket_fd, TcpAddrInfo* const addr_info) {
-  sockaddr_storage sa;
+int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info) {
+  sockaddr_storage sa{};
   socklen_t len = sizeof(sa);
   int remote_fd = -1;
   // accept() may be interrupted by a signal; retry those transient failures.
@@ -138,56 +136,55 @@ int TcpAccept(const int socket_fd, TcpAddrInfo* const addr_info) {
   if (NonBlock(remote_fd) == TcpStatusCode::kTcpError ||
       SetCloseOnExec(remote_fd) == TcpStatusCode::kTcpError) {
     close(remote_fd);
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
-  struct sockaddr_in* s = reinterpret_cast<sockaddr_in*>(&sa);
-  if (addr_info) {
+  auto* s = reinterpret_cast<sockaddr_in*>(&sa);
+  if (addr_info != nullptr) {
     addr_info->ip = inet_ntoa(s->sin_addr);
     addr_info->port = ntohs(s->sin_port);
   }
   return remote_fd;
 }
 
-int TcpBind(const int socket_fd, const TcpAddrInfo& addr_info) {
+int TcpBind(int socket_fd, const TcpAddrInfo& addr_info) {
   addrinfo hints{};
   addrinfo* info = nullptr;
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(addr_info.ip.c_str(), std::to_string(addr_info.port).c_str(),
                   &hints, &info) < 0) {
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
-  int r = TcpStatusCode::kTcpError;
+  int r = ToInt(TcpStatusCode::kTcpError);
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
     if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       continue;
     }
     RS_LOG_DEBUG("bind success\n");
-    r = TcpStatusCode::kTcpOk;
+    r = ToInt(TcpStatusCode::kTcpOk);
     break;
   }
   freeaddrinfo(info);
   return r;
 }
 
-int TcpListen(const int socket_fd) {
+int TcpListen(int socket_fd) {
   if (listen(socket_fd, kBacklog) < 0) {
     close(socket_fd);
-    return TcpStatusCode::kTcpError;
+    return ToInt(TcpStatusCode::kTcpError);
   }
-  return TcpStatusCode::kTcpOk;
+  return ToInt(TcpStatusCode::kTcpOk);
 }
 
-int NonBlock(const int socket_fd) { return SetBlock(socket_fd, false); }
+int NonBlock(int socket_fd) { return SetBlock(socket_fd, false); }
 
-int Block(const int socket_fd) { return SetBlock(socket_fd, true); }
+int Block(int socket_fd) { return SetBlock(socket_fd, true); }
 
-bool IsSocketError(const int fd) {
+bool IsSocketError(int fd) {
   int socket_error = 0;
   socklen_t error_length = sizeof(socket_error);
   getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_length);
   RS_LOG_DEBUG("sock err %d\n", socket_error);
-  return socket_error;
+  return socket_error != 0;
 }
-}  // namespace tcp
-}  // namespace redis_simple
+}  // namespace redis_simple::tcp

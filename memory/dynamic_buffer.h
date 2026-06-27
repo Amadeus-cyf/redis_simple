@@ -25,7 +25,7 @@ class DynamicBuffer {
   }
 
  private:
-  static const constexpr size_t kResizeThreshold = 1024 * 32;
+  static constexpr size_t kResizeThreshold = 1024 * 32;
   void Resize(size_t n);
   char* buf_;
   size_t len_;

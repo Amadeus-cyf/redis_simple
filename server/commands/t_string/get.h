@@ -9,14 +9,14 @@ namespace command {
 namespace t_string {
 class GetCommand : public Command {
  public:
-  GetCommand() : Command("GET"){};
+  GetCommand() : Command("GET") {}
   void Exec(Client* const client) const override;
 
  private:
-  int ParseArgs(const std::vector<std::string>& args,
-                StringArgs* string_args) const;
-  std::optional<std::string> Get(std::shared_ptr<db::RedisDb> db,
-                                 const StringArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       StringArgs* string_args);
+  static std::optional<std::string> Get(const std::shared_ptr<db::RedisDb>& db,
+                                        const StringArgs* args);
 };
 }  // namespace t_string
 }  // namespace command

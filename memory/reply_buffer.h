@@ -11,10 +11,10 @@ class ReplyBuffer {
   ReplyBuffer();
   const char* UnsentBuffer() const { return buf_ + sent_len_; }
   size_t UnsentBufferLength() const { return buf_pos_ - sent_len_; }
-  size_t SentLen() const { return sent_len_; };
-  size_t ReplyLen() const { return reply_len_; };
+  size_t SentLen() const { return sent_len_; }
+  size_t ReplyLen() const { return reply_len_; }
   size_t ReplyBytes() const { return reply_bytes_; }
-  size_t BufPosition() const { return buf_pos_; };
+  size_t BufPosition() const { return buf_pos_; }
   BufNode* ReplyHead() const { return reply_head_; }
   BufNode* ReplyTail() const { return reply_tail_; }
   size_t AddReplyToBufferOrList(const char* s, size_t len);
@@ -24,7 +24,7 @@ class ReplyBuffer {
   ~ReplyBuffer();
 
  private:
-  static constexpr const size_t kDefaultBufferSize = 4096;
+  static constexpr size_t kDefaultBufferSize = 4096;
   size_t AddReplyToBuffer(const char* s, size_t len);
   size_t AddReplyProtoToList(const char* c, size_t len);
   size_t ClearBufferProcessed(size_t nwritten);
@@ -33,14 +33,15 @@ class ReplyBuffer {
   void AddNodeToReplyList(BufNode* node);
   void DeleteNodeFromReplyList(BufNode* node, BufNode* prev);
   BufNode* CreateReplyNode(const char* buffer, size_t len);
-  size_t AppendToReplyNode(BufNode* node, const char* buffer, size_t len);
+  static size_t AppendToReplyNode(BufNode* node, const char* buffer,
+                                  size_t len);
   char* buf_;
   size_t buf_pos_;
   size_t buf_usable_size_;
-  BufNode* reply_head_;
-  BufNode* reply_tail_;
-  size_t reply_len_;
-  size_t reply_bytes_;
+  BufNode* reply_head_{};
+  BufNode* reply_tail_{};
+  size_t reply_len_{};
+  size_t reply_bytes_{};
   size_t sent_len_;
 };
 }  // namespace in_memory

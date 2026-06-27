@@ -1,9 +1,6 @@
 #pragma once
 
-#include <stdlib.h>
-
 #include <string>
-#include <vector>
 
 namespace redis_simple {
 namespace utils {

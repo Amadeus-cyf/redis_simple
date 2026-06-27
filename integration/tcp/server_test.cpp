@@ -1,20 +1,20 @@
 #include <arpa/inet.h>
 #include <poll.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
+#include <cstdlib>
+#include <cstring>
 #include <string>
 
 #include "tcp/tcp.h"
 
 namespace redis_simple {
 namespace {
-constexpr const char* kRequest = "ping";
-constexpr const char* kResponse = "pong";
+constexpr char kRequest[] = "ping";
+constexpr char kResponse[] = "pong";
 
 ssize_t ReadWithTimeout(int fd, char* buffer, size_t len) {
-  pollfd pfd;
+  pollfd pfd{};
   pfd.fd = fd;
   pfd.events = POLLIN;
   pfd.revents = 0;

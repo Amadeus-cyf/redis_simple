@@ -28,9 +28,9 @@ class Server {
  private:
   Server();
   void AcceptConnHandler();
-  int ServerCron();
-  int fd_;
-  int flags_;
+  static int ServerCron();
+  int fd_{};
+  int flags_{};
   std::shared_ptr<ae::EventLoop> el_;
   std::vector<Client*> clients_;
   std::shared_ptr<db::RedisDb> db_;

@@ -16,8 +16,7 @@
 #include "server/commands/t_zset/zscore.h"
 #include "utils/string_utils.h"
 
-namespace redis_simple {
-namespace command {
+namespace redis_simple::command {
 const std::unordered_map<std::string, std::shared_ptr<const Command>>&
     Command::cmdmap = {
         {"GET", std::make_shared<const t_string::GetCommand>()},
@@ -45,5 +44,4 @@ std::weak_ptr<const Command> Command::Create(const std::string& name) {
     return std::shared_ptr<const Command>(nullptr);
   }
 }
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command

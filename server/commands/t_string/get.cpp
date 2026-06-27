@@ -5,9 +5,7 @@
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_string {
+namespace redis_simple::command::t_string {
 void GetCommand::Exec(Client* const client) const {
   RS_LOG_DEBUG("get command called\n");
   StringArgs args;
@@ -29,7 +27,7 @@ void GetCommand::Exec(Client* const client) const {
 }
 
 int GetCommand::ParseArgs(const std::vector<std::string>& args,
-                          StringArgs* string_args) const {
+                          StringArgs* string_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
@@ -38,19 +36,19 @@ int GetCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<std::string> GetCommand::Get(std::shared_ptr<db::RedisDb> db,
-                                           const StringArgs* args) const {
-  if (!db || !args) {
+std::optional<std::string> GetCommand::Get(
+    const std::shared_ptr<db::RedisDb>& db, const StringArgs* args) {
+  if (!db || (args == nullptr)) {
     return std::nullopt;
   }
   const auto* obj = db->LookupKey(args->key);
-  if (obj && obj->Encoding() != db::RedisObject::ObjEncoding::kString) {
+  if ((obj != nullptr) &&
+      obj->Encoding() != db::RedisObject::ObjEncoding::kString) {
     return std::nullopt;
-  } else if (obj) {
+  }
+  if (obj) {
     return obj->String();
   }
   return std::nullopt;
 }
-}  // namespace t_string
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_string

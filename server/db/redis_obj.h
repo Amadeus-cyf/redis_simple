@@ -40,7 +40,7 @@ class RedisObject {
 
  private:
   explicit RedisObject(const ObjEncoding encoding, const DataType& val)
-      : encoding_(encoding), val_(val), refcount_(1){};
+      : encoding_(encoding), val_(val), refcount_(1) {}
   ObjEncoding encoding_;
   DataType val_;
   mutable int refcount_;

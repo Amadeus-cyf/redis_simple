@@ -1,7 +1,6 @@
 #include "redis_obj.h"
 
-namespace redis_simple {
-namespace db {
+namespace redis_simple::db {
 const std::string& RedisObject::String() const {
   if (encoding_ != ObjEncoding::kString) {
     throw std::invalid_argument("value type is not string");
@@ -35,5 +34,4 @@ void RedisObject::DecrRefCount() const {
     --refcount_;
   }
 }
-}  // namespace db
-}  // namespace redis_simple
+}  // namespace redis_simple::db

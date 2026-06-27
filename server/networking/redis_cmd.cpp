@@ -1,12 +1,13 @@
 #include "server/networking/redis_cmd.h"
 
+#include <utility>
+
 #include "server/client.h"
 
-namespace redis_simple {
-namespace networking {
-RedisCommand::RedisCommand(const std::string& name,
+namespace redis_simple::networking {
+RedisCommand::RedisCommand(std::string name,
                            const std::vector<std::string>& args)
-    : name_(name), args_(args) {}
+    : name_(std::move(name)), args_(args) {}
 
 std::string RedisCommand::String() const {
   std::string cmd = name_;
@@ -16,5 +17,4 @@ std::string RedisCommand::String() const {
   }
   return cmd;
 }
-}  // namespace networking
-}  // namespace redis_simple
+}  // namespace redis_simple::networking

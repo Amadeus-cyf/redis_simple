@@ -12,7 +12,7 @@ namespace command {
 class Command {
  public:
   static std::weak_ptr<const Command> Create(const std::string& name);
-  Command(const std::string& name) : name(name){};
+  Command(const std::string& name) : name(name) {}
   virtual void Exec(Client* const client) const = 0;
   const std::string& Name() const { return name; }
   virtual ~Command() = default;

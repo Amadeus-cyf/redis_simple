@@ -4,8 +4,7 @@
 
 #include <memory>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class DynamicBufferTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { buffer = std::make_unique<DynamicBuffer>(); }
@@ -76,5 +75,4 @@ TEST_F(DynamicBufferTest, Resize) {
   ASSERT_EQ(buffer->NRead(), 9216);
   ASSERT_EQ(buffer->ProcessedOffset(), 0);
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

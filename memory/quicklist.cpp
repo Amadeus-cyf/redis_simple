@@ -1,9 +1,9 @@
 #include "memory/quicklist.h"
 
 #include <algorithm>
+#include <cassert>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 namespace {
 constexpr size_t kEntryOverheadEstimate = 8;
 }  // namespace
@@ -20,28 +20,34 @@ QuickList::QuickList(size_t node_max_bytes)
       node_count_(0),
       node_max_bytes_(
           std::max(node_max_bytes,
-                   static_cast<size_t>(ListPack::ListPackHeaderSize + 1))) {}
+                   static_cast<size_t>(ListPack::kListPackHeaderSize + 1))) {}
 
 bool QuickList::LPush(const std::string& value) {
   if (!head_ || !CanAppendToNode(head_.get(), value)) {
     PrependNode();
   }
-  if (!PushToHeadNode(value)) return false;
+  if (!PushToHeadNode(value)) {
+    return false;
+  }
   ++size_;
   return true;
 }
 
 bool QuickList::RPush(const std::string& value) {
-  if (!tail_ || !CanAppendToNode(tail_, value)) {
+  if ((tail_ == nullptr) || !CanAppendToNode(tail_, value)) {
     AppendNode();
   }
-  if (!PushToTailNode(value)) return false;
+  if (!PushToTailNode(value)) {
+    return false;
+  }
   ++size_;
   return true;
 }
 
 std::optional<std::string> QuickList::LPop() {
-  if (!head_) return std::nullopt;
+  if (!head_) {
+    return std::nullopt;
+  }
 
   const ssize_t idx = head_->listpack->First();
   auto value = head_->listpack->Get(idx);
@@ -54,7 +60,9 @@ std::optional<std::string> QuickList::LPop() {
 }
 
 std::optional<std::string> QuickList::RPop() {
-  if (!tail_) return std::nullopt;
+  if (tail_ == nullptr) {
+    return std::nullopt;
+  }
 
   Node* node = tail_;
   const ssize_t idx = node->listpack->Last();
@@ -72,12 +80,14 @@ bool QuickList::PushToHeadNode(const std::string& value) {
 }
 
 bool QuickList::PushToTailNode(const std::string& value) {
-  return tail_ && tail_->listpack->Append(value);
+  return (tail_ != nullptr) && tail_->listpack->Append(value);
 }
 
 bool QuickList::CanAppendToNode(const Node* node,
                                 const std::string& value) const {
-  if (!node) return false;
+  if (node == nullptr) {
+    return false;
+  }
   const size_t estimated_bytes = value.size() + kEntryOverheadEstimate;
   return node->listpack->Size() == 0 ||
          node->listpack->GetTotalBytes() + estimated_bytes <= node_max_bytes_;
@@ -90,6 +100,10 @@ QuickList::Node* QuickList::AppendNode() {
     head_ = std::move(node);
     tail_ = node_ptr;
   } else {
+    assert(tail_ != nullptr);
+    if (tail_ == nullptr) {
+      return nullptr;
+    }
     node->prev = tail_;
     tail_->next = std::move(node);
     tail_ = node_ptr;
@@ -114,7 +128,9 @@ QuickList::Node* QuickList::PrependNode() {
 }
 
 void QuickList::DeleteNode(Node* node) {
-  if (!node) return;
+  if (node == nullptr) {
+    return;
+  }
 
   if (node == head_.get()) {
     head_ = std::move(head_->next);
@@ -125,6 +141,10 @@ void QuickList::DeleteNode(Node* node) {
     }
   } else {
     Node* prev = node->prev;
+    assert(prev != nullptr);
+    if (prev == nullptr) {
+      return;
+    }
     prev->next = std::move(node->next);
     if (prev->next) {
       prev->next->prev = prev;
@@ -134,5 +154,4 @@ void QuickList::DeleteNode(Node* node) {
   }
   --node_count_;
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

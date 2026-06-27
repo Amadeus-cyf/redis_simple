@@ -10,14 +10,16 @@ namespace command {
 namespace t_zset {
 class ZRangeCommand : public Command {
  public:
-  ZRangeCommand() : Command("ZRANGE"){};
+  ZRangeCommand() : Command("ZRANGE") {}
   void Exec(Client* const client) const override;
 
  private:
-  int RangeByRank(Client* const client, const std::vector<std::string>& args,
-                  std::vector<const zset::ZSetEntry*>* result) const;
-  int RangeByScore(Client* const client, const std::vector<std::string>& args,
-                   std::vector<const zset::ZSetEntry*>* result) const;
+  static int RangeByRank(Client* const client,
+                         const std::vector<std::string>& args,
+                         zset::ZSetEntryList* result);
+  static int RangeByScore(Client* const client,
+                          const std::vector<std::string>& args,
+                          zset::ZSetEntryList* result);
 };
 }  // namespace t_zset
 }  // namespace command

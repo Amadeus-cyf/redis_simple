@@ -5,8 +5,7 @@
 #include <optional>
 #include <string>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class DictStrTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
@@ -132,5 +131,4 @@ TEST_F(DictIntTest, Clear) {
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result, std::nullopt);
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

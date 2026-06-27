@@ -10,35 +10,33 @@
 #include "storage/zset/zset.h"
 #include "utils/string_utils.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_zset {
+namespace redis_simple::command::t_zset {
 namespace {
-const std::string& kFlagByScore = "BYSCORE";
-const std::string& kFlagLimit = "LIMIT";
-const std::string& kFlagReverse = "REV";
-const std::string& kFlagWithScores = "WITHSCORES";
-const std::string& kMaxVal = "+inf";
-const std::string& kMinVal = "-inf";
+constexpr char kFlagByScore[] = "BYSCORE";
+constexpr char kFlagLimit[] = "LIMIT";
+constexpr char kFlagReverse[] = "REV";
+constexpr char kFlagWithScores[] = "WITHSCORES";
+constexpr char kMaxVal[] = "+inf";
+constexpr char kMinVal[] = "-inf";
 
 bool FlaggedByScore(const std::vector<std::string>& args);
 bool ValidateRangeOptions(const std::vector<std::string>& args);
 int ParseRangeToRankSpec(const std::vector<std::string>& args,
-                         zset::RangeByRankSpec* const spec);
+                         zset::RangeByRankSpec* spec);
 int ParseRankRange(const std::string& start, const std::string& end,
-                   zset::RangeByRankSpec* const spec);
-int ParseRangeTerm(const std::string& term, long* const dst);
+                   zset::RangeByRankSpec* spec);
+int ParseRangeTerm(const std::string& term, long* dst);
 int ParseRangeToScoreSpec(const std::vector<std::string>& args,
-                          zset::RangeByScoreSpec* const spec);
+                          zset::RangeByScoreSpec* spec);
 int ParseScoreRange(const std::string& start, const std::string& end,
-                    zset::RangeByScoreSpec* const spec);
-int ParseScoreTerm(const std::string& term, double* const dst);
+                    zset::RangeByScoreSpec* spec);
+int ParseScoreTerm(const std::string& term, double* dst);
 int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
                              const std::unique_ptr<zset::LimitSpec>& spec);
 bool IsReverse(const std::vector<std::string>& args);
 bool IsWithScores(const std::vector<std::string>& args);
-std::optional<std::string> EncodeZRangeReply(
-    const std::vector<const zset::ZSetEntry*>& result, bool with_scores);
+std::optional<std::string> EncodeZRangeReply(const zset::ZSetEntryList& result,
+                                             bool with_scores);
 
 bool FlaggedByScore(const std::vector<std::string>& args) {
   // The command parser stores args as key/start/end/options, so options begin
@@ -62,16 +60,24 @@ bool ValidateRangeOptions(const std::vector<std::string>& args) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
     if (upper == kFlagByScore) {
-      if (has_by_score) return false;
+      if (has_by_score) {
+        return false;
+      }
       has_by_score = true;
     } else if (upper == kFlagReverse) {
-      if (has_reverse) return false;
+      if (has_reverse) {
+        return false;
+      }
       has_reverse = true;
     } else if (upper == kFlagWithScores) {
-      if (has_with_scores) return false;
+      if (has_with_scores) {
+        return false;
+      }
       has_with_scores = true;
     } else if (upper == kFlagLimit) {
-      if (has_limit || i + 2 >= args.size()) return false;
+      if (has_limit || i + 2 >= args.size()) {
+        return false;
+      }
       has_limit = true;
       i += 2;
     } else {
@@ -114,7 +120,7 @@ int ParseRankRange(const std::string& start, const std::string& end,
 }
 
 int ParseRangeTerm(const std::string& term, long* const dst) {
-  if (term.empty() || !dst) {
+  if (term.empty() || (dst == nullptr)) {
     return -1;
   }
   if (term == kMinVal) {
@@ -170,7 +176,7 @@ int ParseScoreRange(const std::string& start, const std::string& end,
 }
 
 int ParseScoreTerm(const std::string& term, double* const dst) {
-  if (term.empty() || !dst) {
+  if (term.empty() || (dst == nullptr)) {
     return -1;
   }
   if (term == kMinVal) {
@@ -248,8 +254,8 @@ bool IsWithScores(const std::vector<std::string>& args) {
   return false;
 }
 
-std::optional<std::string> EncodeZRangeReply(
-    const std::vector<const zset::ZSetEntry*>& result, bool with_scores) {
+std::optional<std::string> EncodeZRangeReply(const zset::ZSetEntryList& result,
+                                             bool with_scores) {
   if (!with_scores) {
     auto to_string = [](const zset::ZSetEntry* const& entry) {
       return entry->key;
@@ -273,7 +279,7 @@ std::optional<std::string> EncodeZRangeReply(
 
 void ZRangeCommand::Exec(Client* const client) const {
   const auto& args = client->CmdArgs();
-  std::vector<const zset::ZSetEntry*> result;
+  zset::ZSetEntryList result;
   int r = 0;
   if (FlaggedByScore(args)) {
     r = RangeByScore(client, args, &result);
@@ -292,9 +298,9 @@ void ZRangeCommand::Exec(Client* const client) const {
   }
 }
 
-int ZRangeCommand::RangeByRank(
-    Client* const client, const std::vector<std::string>& args,
-    std::vector<const zset::ZSetEntry*>* result) const {
+int ZRangeCommand::RangeByRank(Client* const client,
+                               const std::vector<std::string>& args,
+                               zset::ZSetEntryList* result) {
   zset::RangeByRankSpec spec;
   if (ParseRangeToRankSpec(args, &spec) < 0) {
     RS_LOG_DEBUG("invalid arguments for zrange rank\n");
@@ -303,7 +309,7 @@ int ZRangeCommand::RangeByRank(
   if (auto db = client->DB().lock()) {
     const auto& key = args[0];
     const auto* obj = db->LookupKey(key);
-    if (!obj) {
+    if (obj == nullptr) {
       return 0;
     }
     if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
@@ -324,9 +330,9 @@ int ZRangeCommand::RangeByRank(
   return 0;
 }
 
-int ZRangeCommand::RangeByScore(
-    Client* const client, const std::vector<std::string>& args,
-    std::vector<const zset::ZSetEntry*>* result) const {
+int ZRangeCommand::RangeByScore(Client* const client,
+                                const std::vector<std::string>& args,
+                                zset::ZSetEntryList* result) {
   zset::RangeByScoreSpec spec;
   if (ParseRangeToScoreSpec(args, &spec) < 0) {
     RS_LOG_DEBUG("invalid arguments for zrange score\n");
@@ -335,7 +341,7 @@ int ZRangeCommand::RangeByScore(
   if (auto db = client->DB().lock()) {
     const auto& key = args[0];
     const auto* obj = db->LookupKey(key);
-    if (!obj) {
+    if (obj == nullptr) {
       return 0;
     }
     if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
@@ -355,6 +361,4 @@ int ZRangeCommand::RangeByScore(
   }
   return 0;
 }
-}  // namespace t_zset
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_zset

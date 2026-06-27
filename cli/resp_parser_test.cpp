@@ -2,9 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace redis_simple {
-namespace cli {
-namespace resp_parser {
+namespace redis_simple::cli::resp_parser {
 TEST(RespParserTest, ParseString) {
   std::vector<std::string> reply;
   ASSERT_EQ(resp_parser::Parse("+OK\r\n", reply), 5);
@@ -135,6 +133,4 @@ TEST(ReplyParserTest, ParseFloat) {
   ASSERT_EQ(resp_parser::Parse(",123.2abc34\r\n", reply), -1);
   ASSERT_EQ(resp_parser::Parse(",e123.34\r\n", reply), -1);
 }
-}  // namespace resp_parser
-}  // namespace cli
-}  // namespace redis_simple
+}  // namespace redis_simple::cli::resp_parser

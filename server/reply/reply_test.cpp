@@ -2,8 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace redis_simple {
-namespace reply {
+namespace redis_simple::reply {
 TEST(ReplyTest, FromSimpleString) {
   ASSERT_EQ(FromString("OK"), "+OK\r\n");
   ASSERT_EQ(FromString(""), "+\r\n");
@@ -28,5 +27,4 @@ TEST(ReplyTest, FromArray) {
       FromArray({":123\r\n", "+hello world\r\n", "$13\r\nhello world"}),
       std::invalid_argument);
 }
-}  // namespace reply
-}  // namespace redis_simple
+}  // namespace redis_simple::reply

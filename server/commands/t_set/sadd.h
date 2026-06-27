@@ -11,7 +11,7 @@ namespace command {
 namespace t_set {
 class SAddCommand : public Command {
  public:
-  SAddCommand() : Command("SADD"){};
+  SAddCommand() : Command("SADD") {}
   void Exec(Client* const client) const override;
 
  private:
@@ -19,9 +19,9 @@ class SAddCommand : public Command {
     std::string key;
     std::vector<std::string> elements;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                SAddArgs* const sadd_args) const;
-  int SAdd(std::shared_ptr<db::RedisDb> db, const SAddArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       SAddArgs* const sadd_args);
+  static int SAdd(const std::shared_ptr<db::RedisDb>& db, const SAddArgs* args);
 };
 }  // namespace t_set
 }  // namespace command

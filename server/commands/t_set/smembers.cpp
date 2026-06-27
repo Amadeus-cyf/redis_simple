@@ -4,9 +4,7 @@
 #include "server/reply/reply.h"
 #include "server/reply_utils/reply_utils.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_set {
+namespace redis_simple::command::t_set {
 void SMembersCommand::Exec(Client* const client) const {
   SMembersArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -34,7 +32,7 @@ void SMembersCommand::Exec(Client* const client) const {
 }
 
 int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
-                               SMembersArgs* const smembers_args) const {
+                               SMembersArgs* const smembers_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -43,11 +41,11 @@ int SMembersCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SMembersCommand::SMembers(std::shared_ptr<db::RedisDb> db,
+int SMembersCommand::SMembers(const std::shared_ptr<db::RedisDb>& db,
                               const SMembersArgs* args,
-                              std::vector<std::string>& members) const {
+                              std::vector<std::string>& members) {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     return 0;
   }
   if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
@@ -57,6 +55,4 @@ int SMembersCommand::SMembers(std::shared_ptr<db::RedisDb> db,
   members = set->ListAllMembers();
   return 0;
 }
-}  // namespace t_set
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_set

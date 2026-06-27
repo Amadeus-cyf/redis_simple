@@ -1,6 +1,5 @@
-#include <stdlib.h>
-
 #include <algorithm>
+#include <cstdlib>
 #include <sstream>
 #include <string>
 #include <vector>

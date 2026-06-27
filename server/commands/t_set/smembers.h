@@ -11,17 +11,18 @@ namespace command {
 namespace t_set {
 class SMembersCommand : public Command {
  public:
-  SMembersCommand() : Command("SMEMBERS"){};
+  SMembersCommand() : Command("SMEMBERS") {}
   void Exec(Client* const client) const override;
 
  private:
   struct SMembersArgs {
     std::string key;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                SMembersArgs* const smembers_args) const;
-  int SMembers(std::shared_ptr<db::RedisDb> db, const SMembersArgs* args,
-               std::vector<std::string>& members) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       SMembersArgs* const smembers_args);
+  static int SMembers(const std::shared_ptr<db::RedisDb>& db,
+                      const SMembersArgs* args,
+                      std::vector<std::string>& members);
 };
 }  // namespace t_set
 }  // namespace command

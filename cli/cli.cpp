@@ -1,15 +1,15 @@
 #include "cli.h"
 
 #include <arpa/inet.h>
-#include <unistd.h>
+#include <sys/types.h>
 
+#include <cstdio>
 #include <future>
 
 #include "resp_parser.h"
 #include "tcp/tcp.h"
 
-namespace redis_simple {
-namespace cli {
+namespace redis_simple::cli {
 namespace {
 std::string ReadFromConnection(const connection::Connection* connection) {
   std::string reply;
@@ -59,15 +59,15 @@ RedisCli::RedisCli()
     : ip_(std::nullopt),
       port_(std::nullopt),
       query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
-      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
+      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()) {}
 
-RedisCli::RedisCli(const std::string& ip, const int port)
+RedisCli::RedisCli(const std::string& ip, int port)
     : ip_(ip),
       port_(port),
       query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
-      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()){};
+      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()) {}
 
-CliStatus RedisCli::Connect(const std::string& ip, const int port) {
+CliStatus RedisCli::Connect(const std::string& ip, int port) {
   connection::Context ctx;
   ctx.event_loop = std::shared_ptr<ae::EventLoop>();
   ctx.fd = -1;
@@ -100,7 +100,7 @@ CompletableFuture<std::string> RedisCli::GetReplyAsync() {
 }
 
 std::string RedisCli::GetReplyAsyncCallback() {
-  const std::lock_guard<std::mutex> lock(lock_);
+  const std::scoped_lock lock(lock_);
   return GetReply();
 }
 
@@ -144,5 +144,4 @@ bool RedisCli::ProcessReply(std::vector<std::string>& reply) {
   }
   return false;
 }
-}  // namespace cli
-}  // namespace redis_simple
+}  // namespace redis_simple::cli

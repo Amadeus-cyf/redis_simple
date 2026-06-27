@@ -28,13 +28,13 @@ class Set {
 
  private:
   enum class SetEncodingType {
-    IntSet = 1,
-    ListPack = 2,
-    Dict = 3,
+    kIntSet = 1,
+    kListPack = 2,
+    kDict = 3,
   };
-  static constexpr size_t IntSetMaxEntries = 512;
-  static constexpr size_t ListPackMaxEntries = 128;
-  static constexpr size_t ListPackElementMaxLength = 64;
+  static constexpr size_t kIntSetMaxEntries = 512;
+  static constexpr size_t kListPackMaxEntries = 128;
+  static constexpr size_t kListPackElementMaxLength = 64;
   Set();
   bool IntSetAddAndMaybeConvert(const std::string& value);
   bool ListPackAddAndMaybeConvert(const std::string& value);

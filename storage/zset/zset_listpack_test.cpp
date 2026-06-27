@@ -5,8 +5,7 @@
 
 #include "gtest/gtest.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 class ZSetListPackTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
@@ -20,7 +19,7 @@ class ZSetListPackTest : public testing::Test {
 std::unique_ptr<ZSetListPack> ZSetListPackTest::zset_listpack = nullptr;
 using KeyScorePair = std::pair<std::string, double>;
 std::vector<std::pair<std::string, double>> ToKeyScorePairs(
-    const std::vector<const ZSetEntry*>& keys);
+    const ZSetEntryList& keys);
 
 TEST_F(ZSetListPackTest, Add) {
   ASSERT_TRUE(zset_listpack->InsertOrUpdate("key1", 3.0));
@@ -368,5 +367,4 @@ TEST_F(ZSetListPackTest, Delete) {
   bool r2 = zset_listpack->Delete("key not exist");
   ASSERT_FALSE(r2);
 }
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

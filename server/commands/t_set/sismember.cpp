@@ -3,9 +3,7 @@
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_set {
+namespace redis_simple::command::t_set {
 void SIsMemberCommand::Exec(Client* const client) const {
   SIsMemberArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -26,7 +24,7 @@ void SIsMemberCommand::Exec(Client* const client) const {
 }
 
 int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
-                                SIsMemberArgs* const sismember_args) const {
+                                SIsMemberArgs* const sismember_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -36,10 +34,10 @@ int SIsMemberCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SIsMemberCommand::SIsMember(std::shared_ptr<db::RedisDb> db,
-                                const SIsMemberArgs* args) const {
+int SIsMemberCommand::SIsMember(const std::shared_ptr<db::RedisDb>& db,
+                                const SIsMemberArgs* args) {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     return 0;
   }
   if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
@@ -53,6 +51,4 @@ int SIsMemberCommand::SIsMember(std::shared_ptr<db::RedisDb> db,
     return -1;
   }
 }
-}  // namespace t_set
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_set

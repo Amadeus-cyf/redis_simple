@@ -1,7 +1,8 @@
 #pragma once
-#include <unistd.h>
+
+#include <cstddef>
 
 namespace redis_simple {
-static const constexpr size_t kBufferSize = 4096;
-static char buffer[kBufferSize];
+static constexpr size_t kBufferSize = 4096;
+static char g_buffer[kBufferSize];
 }  // namespace redis_simple

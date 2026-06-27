@@ -5,8 +5,7 @@
 
 #include "gtest/gtest.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 class ZSetSkiplistTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
@@ -20,7 +19,7 @@ class ZSetSkiplistTest : public testing::Test {
 std::unique_ptr<ZSetSkiplist> ZSetSkiplistTest::zset_skiplist = nullptr;
 using KeyScorePair = std::pair<std::string, double>;
 std::vector<std::pair<std::string, double>> ToKeyScorePairs(
-    const std::vector<const ZSetEntry*>& keys);
+    const ZSetEntryList& keys);
 
 TEST_F(ZSetSkiplistTest, Add) {
   ASSERT_TRUE(zset_skiplist->InsertOrUpdate("key1", 3.0));
@@ -392,13 +391,12 @@ TEST(ZSetSkiplistStandaloneTest, DeleteRecomputesRangeBoundaries) {
   ASSERT_EQ(zset_skiplist.Count(&spec), 1);
 }
 
-std::vector<KeyScorePair> ToKeyScorePairs(
-    const std::vector<const ZSetEntry*>& keys) {
+std::vector<KeyScorePair> ToKeyScorePairs(const ZSetEntryList& keys) {
   std::vector<std::pair<std::string, double>> pairs;
-  for (int i = 0; i < keys.size(); ++i) {
-    pairs.push_back({keys[i]->key, keys[i]->score});
+  pairs.reserve(keys.size());
+  for (auto key : keys) {
+    pairs.emplace_back(key->key, key->score);
   }
   return pairs;
 }
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

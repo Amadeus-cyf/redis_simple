@@ -6,8 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace redis_simple {
-namespace set {
+namespace redis_simple::set {
 TEST(SetTest, IntegerMembersUseIntSet) {
   auto set = std::unique_ptr<Set>(Set::Init());
 
@@ -103,5 +102,4 @@ TEST(SetTest, RemoveMembersFromEachEncoding) {
   ASSERT_FALSE(dict->HasMember("member"));
   ASSERT_FALSE(dict->Remove("member"));
 }
-}  // namespace set
-}  // namespace redis_simple
+}  // namespace redis_simple::set

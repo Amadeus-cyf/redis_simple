@@ -43,7 +43,7 @@ class Client {
   ssize_t SendBufferReply();
   ssize_t SendListReply();
   // Client flags
-  int flags;
+  int flags{};
   std::weak_ptr<db::RedisDb> db_;
   // Current command
   std::weak_ptr<const command::Command> cmd_;

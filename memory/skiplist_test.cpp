@@ -7,8 +7,7 @@
 #include <utility>
 #include <vector>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class SkiplistTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
@@ -33,7 +32,7 @@ struct RangeByKeySpecTestCase {
   RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec spec,
                          std::vector<std::string> keys,
                          std::vector<std::string> revkeys, ssize_t count)
-      : spec(spec),
+      : spec(std::move(spec)),
         keys(std::move(keys)),
         revkeys(std::move(revkeys)),
         count(count) {}
@@ -365,5 +364,4 @@ TEST_F(CustomSkiplistTest, ArrayAccess) {
   ASSERT_THROW((*skiplist)[INT_MAX], std::out_of_range);
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

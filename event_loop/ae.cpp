@@ -2,30 +2,33 @@
 
 #include <poll.h>
 #include <sys/time.h>
-#include <unistd.h>
 
 #include <algorithm>
 #include <cerrno>
+#include <cstddef>
 #include <cstring>
 #include <ctime>
+#include <limits>
 #include <unordered_map>
 
 #include "event_loop/ae_kqueue.h"
 #include "utils/time_utils.h"
 
-namespace redis_simple {
-namespace ae {
+namespace redis_simple::ae {
 int WaitForEvent(int fd, int mask, long timeout) {
   int fd_count = 1;
+  if (timeout > std::numeric_limits<int>::max()) {
+    timeout = std::numeric_limits<int>::max();
+  }
   struct pollfd poll_fds[1] = {};
   poll_fds[0].fd = fd;
-  if (mask & EventFlag::kReadable) {
+  if ((mask & EventFlag::kReadable) != 0) {
     poll_fds[0].events |= POLLIN;
   }
-  if (mask & EventFlag::kWritable) {
+  if ((mask & EventFlag::kWritable) != 0) {
     poll_fds[0].events |= POLLOUT;
   }
-  int r = poll(poll_fds, fd_count, timeout);
+  int r = poll(poll_fds, fd_count, static_cast<int>(timeout));
   if (r < 0) {
     RS_LOG_DEBUG("poll error: %s\n", std::strerror(errno));
     return r;
@@ -35,11 +38,12 @@ int WaitForEvent(int fd, int mask, long timeout) {
     return r;
   }
   int result_mask = 0;
-  if (poll_fds[0].revents & POLLIN) {
+  if ((poll_fds[0].revents & POLLIN) != 0) {
     result_mask |= EventFlag::kReadable;
   }
-  if ((poll_fds[0].revents & POLLOUT) || (poll_fds[0].revents & POLLHUP) ||
-      (poll_fds[0].revents & POLLERR)) {
+  if (((poll_fds[0].revents & POLLOUT) != 0) ||
+      ((poll_fds[0].revents & POLLHUP) != 0) ||
+      ((poll_fds[0].revents & POLLERR) != 0)) {
     result_mask |= EventFlag::kWritable;
   }
   return result_mask;
@@ -66,15 +70,15 @@ EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
   RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd,
                file_event->Mask());
   if (file_event == nullptr) {
-    return kError;
+    return EventLoopStatus::kError;
   }
   if (fd < 0 || fd >= kEventSize) {
     RS_LOG_DEBUG("file descriptor out of range");
-    return kError;
+    return EventLoopStatus::kError;
   }
   if (event_api_->AddEvent(fd, file_event->Mask()) < 0) {
     delete file_event;
-    return kError;
+    return EventLoopStatus::kError;
   }
   if (file_events_[fd] == nullptr) {
     RS_LOG_DEBUG("add new event\n");
@@ -86,7 +90,7 @@ EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
     delete file_events_[fd];
   }
   file_events_[fd] = file_event;
-  return kOk;
+  return EventLoopStatus::kOk;
 }
 
 EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
@@ -95,7 +99,7 @@ EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
         fd, errno);
-    return kError;
+    return EventLoopStatus::kError;
   }
   RS_LOG_DEBUG(
       "delete file event success for file descriptor = %d, mask = %d\n", fd,
@@ -110,11 +114,11 @@ EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
     m &= ~mask;
     file_event->SetMask(m);
   }
-  return kOk;
+  return EventLoopStatus::kOk;
 }
 
 void EventLoop::CreateTimeEvent(TimeEvent* time_event) {
-  if (!time_event_head_) {
+  if (time_event_head_ == nullptr) {
     time_event_head_ = time_event;
     return;
   }
@@ -137,24 +141,27 @@ void EventLoop::ProcessFileEvents() {
   const std::unordered_map<int, int>& fd_to_mask =
       event_api_->Poll(&timeout_spec);
   for (const auto& it : fd_to_mask) {
-    int fd = it.first, mask = it.second;
+    int fd = it.first;
+    int mask = it.second;
     const FileEvent* file_event = file_events_[fd];
     int inverted = file_event->Mask() & EventFlag::kBarrier;
     bool fired = false;
     // Normal order is read-before-write; kBarrier lets a pending write flush
     // before another read queues more output on the same descriptor.
-    if (!inverted && (mask & file_event->Mask() & EventFlag::kReadable) &&
+    if ((inverted == 0) &&
+        ((mask & file_event->Mask() & EventFlag::kReadable) != 0) &&
         file_event->HasReadCallback()) {
       file_event->CallReadCallback(this, fd, mask);
       fired = true;
     }
-    if ((mask & file_event->Mask() & EventFlag::kWritable) &&
+    if (((mask & file_event->Mask() & EventFlag::kWritable) != 0) &&
         file_event->HasWriteCallback() &&
         (!fired || file_event->HasSeparateReadWriteCallbacks())) {
       file_event->CallWriteCallback(this, fd, mask);
       fired = true;
     }
-    if (inverted && (mask & file_event->Mask() & EventFlag::kReadable) &&
+    if ((inverted != 0) &&
+        ((mask & file_event->Mask() & EventFlag::kReadable) != 0) &&
         file_event->HasReadCallback() &&
         (!fired || file_event->HasSeparateReadWriteCallbacks())) {
       file_event->CallReadCallback(this, fd, mask);
@@ -164,10 +171,11 @@ void EventLoop::ProcessFileEvents() {
 
 void EventLoop::ProcessTimeEvents() const {
   TimeEvent* time_event = time_event_head_;
-  while (time_event) {
-    long long id = time_event->Id();
+  while (time_event != nullptr) {
+    const auto id = static_cast<EventFlag>(time_event->Id());
     if (id == EventFlag::kDeleteEventId) {
-      TimeEvent *prev = time_event->Prev(), *next = time_event->Next();
+      TimeEvent* prev = time_event->Prev();
+      TimeEvent* next = time_event->Next();
       if (prev != nullptr) {
         prev->SetNext(next);
       } else {
@@ -187,9 +195,9 @@ void EventLoop::ProcessTimeEvents() const {
         int ret = time_event->CallTimeCallback();
         if (ret == EventFlag::kNoMore) {
           // Defer deletion so unlinking and finalization happen in one path.
-          time_event->SetId(EventFlag::kDeleteEventId);
+          time_event->SetId(ToInt(EventFlag::kDeleteEventId));
         } else {
-          time_event->SetWhen(now + ret * 1000);
+          time_event->SetWhen(now + (static_cast<int64_t>(ret * 1000)));
         }
       }
       time_event = time_event->Next();
@@ -205,5 +213,4 @@ EventLoop::~EventLoop() {
     file_events_[i] = nullptr;
   }
 }
-}  // namespace ae
-}  // namespace redis_simple
+}  // namespace redis_simple::ae

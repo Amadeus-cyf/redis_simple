@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdlib.h>
 #include <sys/event.h>
 
 #include <unordered_map>

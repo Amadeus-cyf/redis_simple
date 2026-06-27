@@ -1,6 +1,7 @@
 #pragma once
 
-#include <unistd.h>
+#include <cstddef>
+#include <cstdint>
 
 namespace redis_simple {
 namespace in_memory {
@@ -9,7 +10,7 @@ class IntSet {
  public:
   class Iterator;
   IntSet();
-  bool Add(const int64_t value);
+  bool Add(int64_t value);
   int64_t Get(unsigned int index) const;
   bool Find(int64_t value) const;
   bool Remove(int64_t value);
@@ -28,14 +29,14 @@ class IntSet {
     kInt32 = sizeof(int32_t),
     kInt64 = sizeof(int64_t),
   };
-  EncodingType ValueEncoding(const int64_t value) const;
+  static EncodingType ValueEncoding(int64_t value);
   void Resize(unsigned int length_);
   int64_t GetEncoded(unsigned int index, EncodingType encoding) const;
   void UpgradeAndAdd(int64_t value);
   bool Search(int64_t value, unsigned int* const index) const;
-  void Set(unsigned int index, const int64_t value);
+  void Set(unsigned int index, int64_t value);
   void MoveTail(unsigned int from, unsigned int to);
-  int* contents_;
+  unsigned char* contents_;
   unsigned int length_;
   EncodingType encoding_;
 };

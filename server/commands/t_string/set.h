@@ -9,13 +9,14 @@ namespace command {
 namespace t_string {
 class SetCommand : public Command {
  public:
-  SetCommand() : Command("SET"){};
+  SetCommand() : Command("SET") {}
   void Exec(Client* const client) const override;
 
  private:
-  int ParseArgs(const std::vector<std::string>& args,
-                StringArgs* string_args) const;
-  int Set(std::shared_ptr<db::RedisDb> db, const StringArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       StringArgs* string_args);
+  static int Set(const std::shared_ptr<db::RedisDb>& db,
+                 const StringArgs* args);
 };
 }  // namespace t_string
 }  // namespace command

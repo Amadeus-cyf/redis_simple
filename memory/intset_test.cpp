@@ -4,8 +4,7 @@
 
 #include <memory>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class IntSetTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { intset = std::make_unique<IntSet>(); }
@@ -121,5 +120,4 @@ TEST_F(IntSetTest, Iterator) {
   it.SeekToLast();
   ASSERT_EQ(it.Value(), INT32_MAX);
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

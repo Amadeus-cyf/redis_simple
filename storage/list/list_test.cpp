@@ -5,8 +5,7 @@
 #include <memory>
 #include <optional>
 
-namespace redis_simple {
-namespace list {
+namespace redis_simple::list {
 class ListTest : public testing::Test {
  protected:
   void SetUp() override { list = std::unique_ptr<List>(List::Init()); }
@@ -82,5 +81,4 @@ TEST(ListEncodingTest, ConvertsBackToListPackAfterShrinking) {
   ASSERT_EQ(list->NodeCount(), 0);
   ASSERT_EQ(list->LPop(), value + "1");
 }
-}  // namespace list
-}  // namespace redis_simple
+}  // namespace redis_simple::list

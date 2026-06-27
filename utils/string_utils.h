@@ -13,11 +13,8 @@ std::vector<std::string> Split(const std::string& s,
 void ShiftCStr(char* s, size_t len, size_t offset);
 // Turn a string to uppercase.
 void ToUppercase(std::string& s);
-// Return true if the string could be converted into a signed int64.
-// Note that this function demands that the string strictly represents
-// a int64 value: no spaces or other characters before or after the string
-// representing the number are accepted, nor zeroes at the start if not
-// for the string "0" representing the zero number.
+// Return true if the string strictly represents a signed int64: no leading or
+// trailing spaces, no extra characters, and no leading zeroes except "0".
 bool ToInt64(const std::string& s, int64_t* const v);
 // Convert long long to string and store it in the buffer dst
 int LL2String(char* dst, size_t dstlen, long long svalue);

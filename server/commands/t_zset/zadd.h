@@ -8,7 +8,7 @@ namespace command {
 namespace t_zset {
 class ZAddCommand : public Command {
  public:
-  ZAddCommand() : Command("ZADD"){};
+  ZAddCommand() : Command("ZADD") {}
   void Exec(Client* const client) const override;
 
  private:
@@ -16,9 +16,9 @@ class ZAddCommand : public Command {
     std::string key;
     std::vector<std::pair<std::string, double>> ele_score_list;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                ZAddArgs* const zset_args) const;
-  int ZAdd(std::shared_ptr<db::RedisDb> db, const ZAddArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       ZAddArgs* const zset_args);
+  static int ZAdd(const std::shared_ptr<db::RedisDb>& db, const ZAddArgs* args);
 };
 }  // namespace t_zset
 }  // namespace command

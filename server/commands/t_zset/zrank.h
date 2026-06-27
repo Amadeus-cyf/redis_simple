@@ -8,7 +8,7 @@ namespace command {
 namespace t_zset {
 class ZRankCommand : public Command {
  public:
-  ZRankCommand() : Command("ZRANK"){};
+  ZRankCommand() : Command("ZRANK") {}
   void Exec(Client* const client) const override;
 
  private:
@@ -16,10 +16,10 @@ class ZRankCommand : public Command {
     std::string key;
     std::string ele;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                ZRankArgs* const zrank_args) const;
-  std::optional<size_t> ZRank(std::shared_ptr<db::RedisDb> db,
-                              const ZRankArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       ZRankArgs* const zset_args);
+  static std::optional<size_t> ZRank(const std::shared_ptr<db::RedisDb>& db,
+                                     const ZRankArgs* args);
 };
 }  // namespace t_zset
 }  // namespace command

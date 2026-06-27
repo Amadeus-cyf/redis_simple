@@ -4,9 +4,7 @@
 #include "server/db/db.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_zset {
+namespace redis_simple::command::t_zset {
 void ZRemCommand::Exec(Client* const client) const {
   ZRemArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -27,7 +25,7 @@ void ZRemCommand::Exec(Client* const client) const {
 }
 
 int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
-                           ZRemArgs* const zset_args) const {
+                           ZRemArgs* const zset_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -39,13 +37,13 @@ int ZRemCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ZRemCommand::ZRem(std::shared_ptr<db::RedisDb> db,
-                      const ZRemArgs* args) const {
-  if (!db || !args) {
+int ZRemCommand::ZRem(const std::shared_ptr<db::RedisDb>& db,
+                      const ZRemArgs* args) {
+  if (!db || (args == nullptr)) {
     return -1;
   }
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     RS_LOG_DEBUG("key not found\n");
     return 0;
   }
@@ -65,6 +63,4 @@ int ZRemCommand::ZRem(std::shared_ptr<db::RedisDb> db,
     return -1;
   }
 }
-}  // namespace t_zset
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_zset

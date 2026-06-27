@@ -3,9 +3,7 @@
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_string {
+namespace redis_simple::command::t_string {
 void DeleteCommand::Exec(Client* const client) const {
   RS_LOG_DEBUG("delete command called\n");
   StringArgs args;
@@ -27,7 +25,7 @@ void DeleteCommand::Exec(Client* const client) const {
 }
 
 int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
-                             StringArgs* string_args) const {
+                             StringArgs* string_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
@@ -36,10 +34,8 @@ int DeleteCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int DeleteCommand::Delete(std::shared_ptr<db::RedisDb> db,
-                          const StringArgs* args) const {
+int DeleteCommand::Delete(const std::shared_ptr<db::RedisDb>& db,
+                          const StringArgs* args) {
   return db->DeleteKey(args->key) == db::DbStatus::kOk ? 1 : 0;
 }
-}  // namespace t_string
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_string

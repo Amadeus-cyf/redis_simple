@@ -1,11 +1,8 @@
-#include <stdlib.h>
-
 #include <iomanip>
 #include <limits>
 #include <sstream>
 
-namespace redis_simple {
-namespace utils {
+namespace redis_simple::utils {
 std::string FloatToString(double fl) {
   std::stringstream ss;
   ss << std::setprecision(std::numeric_limits<double>::digits10);
@@ -16,5 +13,4 @@ std::string FloatToString(double fl) {
   }
   return ss.str();
 }
-}  // namespace utils
-}  // namespace redis_simple
+}  // namespace redis_simple::utils

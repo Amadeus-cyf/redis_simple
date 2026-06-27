@@ -35,8 +35,8 @@ struct Context {
 struct AddressInfo {
   std::string ip;
   int port;
-  AddressInfo() : ip(""), port(0){};
-  AddressInfo(const std::string& ip, int port) : ip(ip), port(port){};
+  AddressInfo() : ip(""), port(0) {}
+  AddressInfo(const std::string& ip, int port) : ip(ip), port(port) {}
 };
 
 class Connection {
@@ -77,8 +77,7 @@ class Connection {
   static constexpr int kWriteBarrier = 1;
 
   static ae::EventHandlerStatus ConnSocketEventHandler(ae::EventLoop* el,
-                                                       int fd,
-                                                       Connection* client_data,
+                                                       int fd, Connection* conn,
                                                        int mask);
   int WaitRead(long timeout) const {
     return Wait(ae::EventFlag::kReadable, timeout);
@@ -88,7 +87,7 @@ class Connection {
   }
   int Wait(ae::EventFlag flag, long timeout) const;
   int fd_;
-  int flags_;
+  int flags_{};
   mutable ConnectionState state_;
   std::any private_data_;
   std::weak_ptr<ae::EventLoop> el_;

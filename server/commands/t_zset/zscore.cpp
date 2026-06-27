@@ -6,9 +6,7 @@
 #include "server/db/db.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_zset {
+namespace redis_simple::command::t_zset {
 void ZScoreCommand::Exec(Client* const client) const {
   ZScoreArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -29,7 +27,7 @@ void ZScoreCommand::Exec(Client* const client) const {
 }
 
 int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
-                             ZScoreArgs* const zscore_args) const {
+                             ZScoreArgs* const zscore_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -39,10 +37,11 @@ int ZScoreCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<double> ZScoreCommand::ZScore(std::shared_ptr<db::RedisDb> db,
-                                            const ZScoreArgs* args) const {
+std::optional<double> ZScoreCommand::ZScore(
+    const std::shared_ptr<db::RedisDb>& db, const ZScoreArgs* args) {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj || obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
+  if ((obj == nullptr) ||
+      obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
     return std::nullopt;
   }
   try {
@@ -53,6 +52,4 @@ std::optional<double> ZScoreCommand::ZScore(std::shared_ptr<db::RedisDb> db,
     return std::nullopt;
   }
 }
-}  // namespace t_zset
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_zset

@@ -3,8 +3,7 @@
 #include "server/networking/conn_handler/read_client.h"
 #include "server/networking/conn_handler/write_client.h"
 
-namespace redis_simple {
-namespace networking {
+namespace redis_simple::networking {
 std::unique_ptr<connection::ConnHandler> CreateConnHandler(
     const connection::ConnectionHandlerType flag) {
   switch (flag) {
@@ -16,5 +15,4 @@ std::unique_ptr<connection::ConnHandler> CreateConnHandler(
       return nullptr;
   }
 }
-}  // namespace networking
-}  // namespace redis_simple
+}  // namespace redis_simple::networking

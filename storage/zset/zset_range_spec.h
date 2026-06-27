@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sys/types.h>
+
+#include <cstddef>
 #include <memory>
 
 namespace redis_simple {
@@ -9,8 +12,8 @@ struct LimitSpec {
   // 0-based index
   size_t offset;
   ssize_t count;
-  LimitSpec() : offset(0), count(0){};
-  LimitSpec(size_t offset, size_t count) : offset(offset), count(count){};
+  LimitSpec() : offset(0), count(0) {}
+  LimitSpec(size_t offset, ssize_t count) : offset(offset), count(count) {}
 };
 
 // Spec for range by rank

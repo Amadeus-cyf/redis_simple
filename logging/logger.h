@@ -16,36 +16,36 @@
 namespace redis_simple {
 namespace logging {
 
-enum class Level { Debug = 0, Info = 1, Warn = 2, Error = 3, Off = 4 };
+enum class Level { kDebug = 0, kInfo = 1, kWarn = 2, kError = 3, kOff = 4 };
 
 inline const char* LevelName(Level level) {
   switch (level) {
-    case Level::Debug:
+    case Level::kDebug:
       return "DEBUG";
-    case Level::Info:
+    case Level::kInfo:
       return "INFO";
-    case Level::Warn:
+    case Level::kWarn:
       return "WARN";
-    case Level::Error:
+    case Level::kError:
       return "ERROR";
-    case Level::Off:
+    case Level::kOff:
       return "OFF";
   }
   return "UNKNOWN";
 }
 
 inline Level ParseLevel(const char* value) {
-  if (!value) return Level::Debug;
+  if (!value) return Level::kDebug;
   std::string level(value);
   for (char& ch : level) {
     if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch - 'A' + 'a');
   }
-  if (level == "debug") return Level::Debug;
-  if (level == "info") return Level::Info;
-  if (level == "warn" || level == "warning") return Level::Warn;
-  if (level == "error") return Level::Error;
-  if (level == "off") return Level::Off;
-  return Level::Debug;
+  if (level == "debug") return Level::kDebug;
+  if (level == "info") return Level::kInfo;
+  if (level == "warn" || level == "warning") return Level::kWarn;
+  if (level == "error") return Level::kError;
+  if (level == "off") return Level::kOff;
+  return Level::kDebug;
 }
 
 inline Level& MinLevel() {
@@ -57,7 +57,7 @@ inline void SetLevel(Level level) { MinLevel() = level; }
 
 inline bool Enabled(Level level) {
   return static_cast<int>(level) >= static_cast<int>(MinLevel()) &&
-         MinLevel() != Level::Off;
+         MinLevel() != Level::kOff;
 }
 
 inline std::mutex& LogMutex() {
@@ -68,15 +68,15 @@ inline std::mutex& LogMutex() {
 #ifdef REDIS_SIMPLE_USE_SPDLOG
 inline spdlog::level::level_enum ToSpdlogLevel(Level level) {
   switch (level) {
-    case Level::Debug:
+    case Level::kDebug:
       return spdlog::level::debug;
-    case Level::Info:
+    case Level::kInfo:
       return spdlog::level::info;
-    case Level::Warn:
+    case Level::kWarn:
       return spdlog::level::warn;
-    case Level::Error:
+    case Level::kError:
       return spdlog::level::err;
-    case Level::Off:
+    case Level::kOff:
       return spdlog::level::off;
   }
   return spdlog::level::info;
@@ -141,15 +141,15 @@ inline void Logf(Level level, const char* file, int line, const char* fmt,
 }  // namespace logging
 }  // namespace redis_simple
 
-#define RS_LOG_DEBUG(...)                                              \
-  ::redis_simple::logging::Logf(::redis_simple::logging::Level::Debug, \
+#define RS_LOG_DEBUG(...)                                               \
+  ::redis_simple::logging::Logf(::redis_simple::logging::Level::kDebug, \
                                 __FILE__, __LINE__, __VA_ARGS__)
-#define RS_LOG_INFO(...)                                              \
-  ::redis_simple::logging::Logf(::redis_simple::logging::Level::Info, \
+#define RS_LOG_INFO(...)                                               \
+  ::redis_simple::logging::Logf(::redis_simple::logging::Level::kInfo, \
                                 __FILE__, __LINE__, __VA_ARGS__)
-#define RS_LOG_WARN(...)                                              \
-  ::redis_simple::logging::Logf(::redis_simple::logging::Level::Warn, \
+#define RS_LOG_WARN(...)                                               \
+  ::redis_simple::logging::Logf(::redis_simple::logging::Level::kWarn, \
                                 __FILE__, __LINE__, __VA_ARGS__)
-#define RS_LOG_ERROR(...)                                              \
-  ::redis_simple::logging::Logf(::redis_simple::logging::Level::Error, \
+#define RS_LOG_ERROR(...)                                               \
+  ::redis_simple::logging::Logf(::redis_simple::logging::Level::kError, \
                                 __FILE__, __LINE__, __VA_ARGS__)

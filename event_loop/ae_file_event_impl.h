@@ -1,6 +1,6 @@
 #pragma once
 
-#include "event_loop/ae_file_event.h"
+#include "event_loop/ae.h"
 
 namespace redis_simple {
 namespace ae {
@@ -16,6 +16,11 @@ class FileEventImpl : public FileEvent {
                            int mask) {
     return new FileEventImpl(read_callback_, write_callback_, client_data_,
                              mask);
+  }
+  static FileEvent* Create(FileCallback read_callback_,
+                           FileCallback write_callback_, T* client_data_,
+                           EventFlag mask) {
+    return Create(read_callback_, write_callback_, client_data_, ToInt(mask));
   }
   void CallReadCallback(EventLoop* el, int fd, int mask) const override {
     read_callback_(el, fd, client_data_, mask);

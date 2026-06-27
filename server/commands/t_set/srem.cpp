@@ -3,9 +3,7 @@
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_set {
+namespace redis_simple::command::t_set {
 void SRemCommand::Exec(Client* const client) const {
   SRemArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -26,7 +24,7 @@ void SRemCommand::Exec(Client* const client) const {
 }
 
 int SRemCommand::ParseArgs(const std::vector<std::string>& args,
-                           SRemArgs* const srem_args) const {
+                           SRemArgs* const srem_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -38,10 +36,10 @@ int SRemCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SRemCommand::SRem(std::shared_ptr<db::RedisDb> db,
-                      const SRemArgs* args) const {
+int SRemCommand::SRem(const std::shared_ptr<db::RedisDb>& db,
+                      const SRemArgs* args) {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     return 0;
   }
   if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
@@ -59,6 +57,4 @@ int SRemCommand::SRem(std::shared_ptr<db::RedisDb> db,
     return -1;
   }
 }
-}  // namespace t_set
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_set

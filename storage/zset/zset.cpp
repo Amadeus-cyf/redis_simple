@@ -3,19 +3,18 @@
 #include "storage/zset/zset_listpack.h"
 #include "storage/zset/zset_skiplist.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 ZSet::ZSet()
-    : encoding_(ZSetEncodingType::ListPack),
+    : encoding_(ZSetEncodingType::kListPack),
       storage_(std::make_unique<ZSetListPack>()) {}
 
 /*
  * Insert a new element with score or update the score of an existing
  * element. Return true if the element is newly inserted.
  */
-bool ZSet::InsertOrUpdate(const std::string& key, const double score) {
-  if (encoding_ == ZSetEncodingType::ListPack &&
-      key.size() > ListPackMaxElementLength) {
+bool ZSet::InsertOrUpdate(const std::string& key, double score) {
+  if (encoding_ == ZSetEncodingType::kListPack &&
+      key.size() > kListPackMaxElementLength) {
     ConvertAndExpand();
   }
   bool inserted = storage_->InsertOrUpdate(key, score);
@@ -35,13 +34,11 @@ std::optional<size_t> ZSet::GetRankOfKey(const std::string& key) const {
   return storage_->GetRankOfKey(key);
 }
 
-std::vector<const ZSetEntry*> ZSet::RangeByRank(
-    const RangeByRankSpec* spec) const {
+ZSetEntryList ZSet::RangeByRank(const RangeByRankSpec* spec) const {
   return storage_->RangeByRank(spec);
 }
 
-std::vector<const ZSetEntry*> ZSet::RangeByScore(
-    const RangeByScoreSpec* spec) const {
+ZSetEntryList ZSet::RangeByScore(const RangeByScoreSpec* spec) const {
   return storage_->RangeByScore(spec);
 }
 
@@ -53,20 +50,20 @@ size_t ZSet::Count(const RangeByScoreSpec* spec) const {
 }
 
 ZSet::Encoding ZSet::GetEncoding() const {
-  return encoding_ == ZSetEncodingType::ListPack ? Encoding::kListPack
-                                                 : Encoding::kSkiplist;
+  return encoding_ == ZSetEncodingType::kListPack ? Encoding::kListPack
+                                                  : Encoding::kSkiplist;
 }
 
 bool ZSet::ShouldConvertToSkiplist(const std::string& key,
                                    bool inserted) const {
-  return encoding_ == ZSetEncodingType::ListPack &&
-         ((inserted && storage_->Size() > ListPackMaxEntries) ||
-          key.size() > ListPackMaxElementLength);
+  return encoding_ == ZSetEncodingType::kListPack &&
+         ((inserted && storage_->Size() > kListPackMaxEntries) ||
+          key.size() > kListPackMaxElementLength);
 }
 
 void ZSet::ConvertAndExpand() {
-  assert(encoding_ == ZSetEncodingType::ListPack);
-  encoding_ = ZSetEncodingType::Skiplist;
+  assert(encoding_ == ZSetEncodingType::kListPack);
+  encoding_ = ZSetEncodingType::kSkiplist;
   if (!storage_) {
     storage_ = std::make_unique<ZSetSkiplist>();
     return;
@@ -85,5 +82,4 @@ void ZSet::ConvertAndExpand() {
   }
   storage_ = std::move(zset_skiplist);
 }
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

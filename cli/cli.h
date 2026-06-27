@@ -1,9 +1,10 @@
 #pragma once
 
-#include <unistd.h>
-
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "completable_future.h"
 #include "connection/connection.h"
@@ -11,7 +12,7 @@
 
 namespace redis_simple {
 namespace cli {
-enum CliStatus {
+enum class CliStatus {
   kOk = 1,
   kError = -1,
 };
@@ -19,8 +20,8 @@ enum CliStatus {
 class RedisCli {
  public:
   RedisCli();
-  RedisCli(const std::string& ip, const int port);
-  CliStatus Connect(const std::string& ip, const int port);
+  RedisCli(const std::string& ip, int port);
+  CliStatus Connect(const std::string& ip, int port);
   void AddCommand(const std::string& cmd);
   std::string GetReply();
   CompletableFuture<std::string> GetReplyAsync();

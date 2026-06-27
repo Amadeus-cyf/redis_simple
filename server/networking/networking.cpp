@@ -1,15 +1,17 @@
 #include "networking.h"
 
+#include <cstddef>
+
 #include "server/client.h"
 #include "server/networking/conn_handler/conn_handler.h"
 #include "server/networking/redis_cmd.h"
 #include "server/server.h"
 
-namespace redis_simple {
-namespace networking {
+namespace redis_simple::networking {
 namespace {
 bool SendString(const connection::Connection* conn, const std::string& cmd) {
-  ssize_t ret = conn->SyncWrite(cmd.c_str(), cmd.length(), 1 * 1000);
+  ssize_t ret =
+      conn->SyncWrite(cmd.c_str(), cmd.length(), static_cast<long>(1 * 1000));
   return ret == cmd.size();
 }
 
@@ -19,14 +21,13 @@ bool SendStringInline(const connection::Connection* conn, std::string s) {
 }
 }  // namespace
 
-static const std::string& kErrorRecvResp = "+error";
 bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return SendStringInline(conn, cmd->String());
 }
 
 ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
                                      int mask) {
-  if (!server) {
+  if (server == nullptr) {
     RS_LOG_DEBUG("invalid server / event loop\n");
     return ae::EventHandlerStatus::kError;
   }
@@ -35,7 +36,7 @@ ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
   connection::Context ctx;
   ctx.event_loop = server->EventLoop();
   ctx.fd = fd;
-  connection::Connection* conn = new connection::Connection(ctx);
+  auto* conn = new connection::Connection(ctx);
   conn->SetState(connection::ConnectionState::kAccepting);
   connection::AddressInfo addr_info;
   if (conn->Accept(&addr_info) == connection::ConnectionStatus::kError) {
@@ -59,5 +60,4 @@ ae::EventHandlerStatus AcceptHandler(ae::EventLoop* el, int fd, Server* server,
   server->AddClient(client);
   return ae::EventHandlerStatus::kOk;
 }
-}  // namespace networking
-}  // namespace redis_simple
+}  // namespace redis_simple::networking

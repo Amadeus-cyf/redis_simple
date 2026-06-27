@@ -2,8 +2,7 @@
 
 #include <vector>
 
-namespace redis_simple {
-namespace list {
+namespace redis_simple::list {
 namespace {
 constexpr size_t kEntryOverheadEstimate = 8;
 }  // namespace
@@ -47,7 +46,9 @@ bool List::Push(const std::string& value, bool head) {
 
 std::optional<std::string> List::Pop(bool head) {
   if (listpack_) {
-    if (listpack_->Size() == 0) return std::nullopt;
+    if (listpack_->Size() == 0) {
+      return std::nullopt;
+    }
     const size_t idx = head ? listpack_->First() : listpack_->Last();
     auto value = listpack_->Get(idx);
     listpack_->Delete(idx);
@@ -60,7 +61,9 @@ std::optional<std::string> List::Pop(bool head) {
 }
 
 bool List::WouldExceedListpackLimit(const std::string& value) const {
-  if (!listpack_) return false;
+  if (!listpack_) {
+    return false;
+  }
   return listpack_->GetTotalBytes() + value.size() + kEntryOverheadEstimate >
          list_max_listpack_bytes_;
 }
@@ -82,7 +85,9 @@ bool List::ConvertListPackToQuickList() {
 }
 
 void List::TryConvertQuickListToListPack() {
-  if (!quicklist_ || quicklist_->NodeCount() > 1) return;
+  if (!quicklist_ || quicklist_->NodeCount() > 1) {
+    return;
+  }
 
   std::vector<std::string> values;
   while (auto value = quicklist_->LPop()) {
@@ -105,7 +110,9 @@ void List::TryConvertQuickListToListPack() {
     auto quicklist =
         std::make_unique<in_memory::QuickList>(list_max_listpack_bytes_);
     for (const auto& value : values) {
-      if (!quicklist->RPush(value)) return;
+      if (!quicklist->RPush(value)) {
+        return;
+      }
     }
     quicklist_ = std::move(quicklist);
     return;
@@ -113,5 +120,4 @@ void List::TryConvertQuickListToListPack() {
   listpack_ = std::move(listpack);
   quicklist_.reset();
 }
-}  // namespace list
-}  // namespace redis_simple
+}  // namespace redis_simple::list

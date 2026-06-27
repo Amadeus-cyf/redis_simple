@@ -5,8 +5,7 @@
 #include "server/client.h"
 #include "server/server.h"
 
-namespace redis_simple {
-namespace networking {
+namespace redis_simple::networking {
 namespace {
 class WriteToClientHandler : public connection::ConnHandler {
  public:
@@ -14,7 +13,7 @@ class WriteToClientHandler : public connection::ConnHandler {
 
  private:
   void SendReplyToClient(connection::Connection* conn);
-  ssize_t WriteToClient(Client* c);
+  static ssize_t WriteToClient(Client* c);
 };
 
 void WriteToClientHandler::Handle(connection::Connection* conn) {
@@ -22,16 +21,19 @@ void WriteToClientHandler::Handle(connection::Connection* conn) {
 }
 
 void WriteToClientHandler::SendReplyToClient(connection::Connection* conn) {
-  Client* c = std::any_cast<Client*>(conn->PrivateData());
+  auto* c = std::any_cast<Client*>(conn->PrivateData());
   RS_LOG_DEBUG("write reply called %d\n", c->HasPendingReplies());
   WriteToClient(c);
 }
 
 ssize_t WriteToClientHandler::WriteToClient(Client* c) {
-  ssize_t nwritten = 0, r = 0;
+  ssize_t nwritten = 0;
+  ssize_t r = 0;
   while (c->HasPendingReplies()) {
     r = c->SendReply();
-    if (r <= 0) break;
+    if (r <= 0) {
+      break;
+    }
     nwritten += r;
   }
   if (r == -1) {
@@ -52,5 +54,4 @@ ssize_t WriteToClientHandler::WriteToClient(Client* c) {
 std::unique_ptr<connection::ConnHandler> NewWriteToClientHandler() {
   return std::make_unique<WriteToClientHandler>();
 }
-}  // namespace networking
-}  // namespace redis_simple
+}  // namespace redis_simple::networking

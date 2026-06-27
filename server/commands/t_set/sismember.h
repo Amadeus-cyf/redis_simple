@@ -11,7 +11,7 @@ namespace command {
 namespace t_set {
 class SIsMemberCommand : public Command {
  public:
-  SIsMemberCommand() : Command("SISMEMBER"){};
+  SIsMemberCommand() : Command("SISMEMBER") {}
   void Exec(Client* const client) const override;
 
  private:
@@ -19,10 +19,10 @@ class SIsMemberCommand : public Command {
     std::string key;
     std::string element;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                SIsMemberArgs* const sismember_args) const;
-  int SIsMember(std::shared_ptr<db::RedisDb> db,
-                const SIsMemberArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       SIsMemberArgs* const sismember_args);
+  static int SIsMember(const std::shared_ptr<db::RedisDb>& db,
+                       const SIsMemberArgs* args);
 };
 }  // namespace t_set
 }  // namespace command

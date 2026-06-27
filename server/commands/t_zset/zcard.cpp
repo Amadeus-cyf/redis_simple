@@ -1,11 +1,11 @@
 #include "server/commands/t_zset/zcard.h"
 
+#include <limits>
+
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_zset {
+namespace redis_simple::command::t_zset {
 void ZCardCommand::Exec(Client* const client) const {
   ZCardArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -26,7 +26,7 @@ void ZCardCommand::Exec(Client* const client) const {
 }
 
 int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
-                            ZCardArgs* const zcard_args) const {
+                            ZCardArgs* const zcard_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -35,10 +35,10 @@ int ZCardCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-ssize_t ZCardCommand::ZCard(std::shared_ptr<db::RedisDb> db,
-                            const ZCardArgs* args) const {
+ssize_t ZCardCommand::ZCard(const std::shared_ptr<db::RedisDb>& db,
+                            const ZCardArgs* args) {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     return 0;
   }
   if (obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {
@@ -46,12 +46,14 @@ ssize_t ZCardCommand::ZCard(std::shared_ptr<db::RedisDb> db,
   }
   try {
     const auto* zset = obj->ZSet();
-    return zset->Size();
+    const size_t size = zset->Size();
+    if (size > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
+      return -1;
+    }
+    return static_cast<ssize_t>(size);
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }
-}  // namespace t_zset
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_zset

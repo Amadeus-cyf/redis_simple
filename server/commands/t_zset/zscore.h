@@ -8,7 +8,7 @@ namespace command {
 namespace t_zset {
 class ZScoreCommand : public Command {
  public:
-  ZScoreCommand() : Command("ZSCORE"){};
+  ZScoreCommand() : Command("ZSCORE") {}
   void Exec(Client* const client) const override;
 
  private:
@@ -16,10 +16,10 @@ class ZScoreCommand : public Command {
     std::string key;
     std::string element;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                ZScoreArgs* const zscore_args) const;
-  std::optional<double> ZScore(std::shared_ptr<db::RedisDb> db,
-                               const ZScoreArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       ZScoreArgs* const zscore_args);
+  static std::optional<double> ZScore(const std::shared_ptr<db::RedisDb>& db,
+                                      const ZScoreArgs* args);
 };
 }  // namespace t_zset
 }  // namespace command

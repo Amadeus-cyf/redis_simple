@@ -1,12 +1,12 @@
 #include "db.h"
 
+#include <algorithm>
 #include <cassert>
 
 #include "server/server.h"
 #include "utils/time_utils.h"
 
-namespace redis_simple {
-namespace db {
+namespace redis_simple::db {
 RedisDb* RedisDb::Init() { return new RedisDb(); }
 
 RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
@@ -44,7 +44,9 @@ RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
 
 const RedisObject* RedisDb::LookupKey(const std::string& key) {
   const auto result = dict_->Get(key);
-  if (!result.has_value()) return nullptr;
+  if (!result.has_value()) {
+    return nullptr;
+  }
   const RedisObject* val = *result;
   if (IsKeyExpired(key)) {
     RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
@@ -57,14 +59,14 @@ const RedisObject* RedisDb::LookupKey(const std::string& key) {
 }
 
 DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
-                         const int64_t expire) {
+                         int64_t expire) {
   return SetKey(key, val, expire, 0);
 }
 
 DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
-                         const int64_t expire, int flags) {
+                         int64_t expire, int flags) {
   dict_->Set(key, val);
-  if (!(flags & SetKeyFlags::kKeepTtl) && expire == 0) {
+  if (!HasFlag(flags, SetKeyFlag::kKeepTtl) && expire == 0) {
     expires_->Delete(key);
   }
   if (expire > 0) {
@@ -90,9 +92,7 @@ DbStatus RedisDb::DeleteKey(const std::string& key) {
  */
 bool RedisDb::ScanExpires(
     in_memory::Dict<std::string, int64_t>::DictScanFunc callback) {
-  if (expire_cursor_ < 0) {
-    expire_cursor_ = 0;
-  }
+  expire_cursor_ = std::max<ssize_t>(expire_cursor_, 0);
   expire_cursor_ = expires_->Scan(expire_cursor_, callback);
   return expire_cursor_ >= 0;
 }
@@ -105,8 +105,7 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
   if (!result.has_value()) {
     return false;
   }
-  const int64_t now = utils::GetNowInMilliseconds();
+  int64_t now = utils::GetNowInMilliseconds();
   return *result < now;
 }
-}  // namespace db
-}  // namespace redis_simple
+}  // namespace redis_simple::db

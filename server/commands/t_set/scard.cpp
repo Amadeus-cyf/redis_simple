@@ -1,11 +1,11 @@
 #include "server/commands/t_set/scard.h"
 
+#include <limits>
+
 #include "server/client.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace command {
-namespace t_set {
+namespace redis_simple::command::t_set {
 void SCardCommand::Exec(Client* const client) const {
   SCardArgs args;
   if (ParseArgs(client->CmdArgs(), &args) < 0) {
@@ -26,7 +26,7 @@ void SCardCommand::Exec(Client* const client) const {
 }
 
 int SCardCommand::ParseArgs(const std::vector<std::string>& args,
-                            SCardArgs* const scard_args) const {
+                            SCardArgs* const scard_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
@@ -35,10 +35,10 @@ int SCardCommand::ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-ssize_t SCardCommand::SCard(std::shared_ptr<db::RedisDb> db,
-                            const SCardArgs* args) const {
+ssize_t SCardCommand::SCard(const std::shared_ptr<db::RedisDb>& db,
+                            const SCardArgs* args) {
   const auto* obj = db->LookupKey(args->key);
-  if (!obj) {
+  if (obj == nullptr) {
     return 0;
   }
   if (obj->Encoding() != db::RedisObject::ObjEncoding::kSet) {
@@ -46,12 +46,14 @@ ssize_t SCardCommand::SCard(std::shared_ptr<db::RedisDb> db,
   }
   try {
     const auto* set = obj->Set();
-    return set->Size();
+    const size_t size = set->Size();
+    if (size > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
+      return -1;
+    }
+    return static_cast<ssize_t>(size);
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
     return -1;
   }
 }
-}  // namespace t_set
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command::t_set

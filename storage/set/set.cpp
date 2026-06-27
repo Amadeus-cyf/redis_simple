@@ -6,21 +6,20 @@
 #include "utils/int_utils.h"
 #include "utils/string_utils.h"
 
-namespace redis_simple {
-namespace set {
+namespace redis_simple::set {
 Set::Set()
-    : encoding_(SetEncodingType::IntSet),
+    : encoding_(SetEncodingType::kIntSet),
       intset_(nullptr),
       dict_(nullptr),
       listpack_(nullptr) {}
 
 bool Set::Add(const std::string& value) {
-  int64_t int_val = 0;
-  if (encoding_ == SetEncodingType::IntSet) {
+  if (encoding_ == SetEncodingType::kIntSet) {
     return IntSetAddAndMaybeConvert(value);
-  } else if (encoding_ == SetEncodingType::ListPack) {
+  }
+  if (encoding_ == SetEncodingType::kListPack) {
     return ListPackAddAndMaybeConvert(value);
-  } else if (encoding_ == SetEncodingType::Dict) {
+  } else if (encoding_ == SetEncodingType::kDict) {
     return DictAdd(value);
   } else {
     throw std::invalid_argument("unknown encoding type");
@@ -28,14 +27,19 @@ bool Set::Add(const std::string& value) {
 }
 
 bool Set::HasMember(const std::string& value) const {
-  if (Size() == 0) return false;
-  if (encoding_ == SetEncodingType::IntSet) {
+  if (Size() == 0) {
+    return false;
+  }
+  if (encoding_ == SetEncodingType::kIntSet) {
     int64_t int_val = 0;
-    if (!utils::ToInt64(value, &int_val)) return false;
+    if (!utils::ToInt64(value, &int_val)) {
+      return false;
+    }
     return intset_->Find(int_val);
-  } else if (encoding_ == SetEncodingType::ListPack) {
+  }
+  if (encoding_ == SetEncodingType::kListPack) {
     return listpack_->Find(value) != -1;
-  } else if (encoding_ == SetEncodingType::Dict) {
+  } else if (encoding_ == SetEncodingType::kDict) {
     return dict_->Get(value).has_value();
   } else {
     throw std::invalid_argument("unknown encoding type");
@@ -43,12 +47,15 @@ bool Set::HasMember(const std::string& value) const {
 }
 
 std::vector<std::string> Set::ListAllMembers() const {
-  if (Size() == 0) return {};
-  if (encoding_ == SetEncodingType::IntSet) {
+  if (Size() == 0) {
+    return {};
+  }
+  if (encoding_ == SetEncodingType::kIntSet) {
     return ListIntSetMembers();
-  } else if (encoding_ == SetEncodingType::ListPack) {
+  }
+  if (encoding_ == SetEncodingType::kListPack) {
     return ListListPackMembers();
-  } else if (encoding_ == SetEncodingType::Dict) {
+  } else if (encoding_ == SetEncodingType::kDict) {
     return ListDictMembers();
   } else {
     throw std::invalid_argument("unknown encoding type");
@@ -56,19 +63,22 @@ std::vector<std::string> Set::ListAllMembers() const {
 }
 
 bool Set::Remove(const std::string& value) {
-  if (Size() == 0) return false;
-  if (encoding_ == SetEncodingType::IntSet) {
+  if (Size() == 0) {
+    return false;
+  }
+  if (encoding_ == SetEncodingType::kIntSet) {
     int64_t int_val = 0;
     if (utils::ToInt64(value, &int_val)) {
       return intset_->Remove(int_val);
     }
     return false;
-  } else if (encoding_ == SetEncodingType::ListPack) {
+  }
+  if (encoding_ == SetEncodingType::kListPack) {
     ssize_t idx = listpack_->Find(value);
     if (idx < 0) return false;
     listpack_->Delete(idx);
     return true;
-  } else if (encoding_ == SetEncodingType::Dict) {
+  } else if (encoding_ == SetEncodingType::kDict) {
     return dict_->Delete(value);
   } else {
     throw std::invalid_argument("unknown encoding type");
@@ -77,11 +87,11 @@ bool Set::Remove(const std::string& value) {
 
 size_t Set::Size() const {
   switch (encoding_) {
-    case SetEncodingType::IntSet:
+    case SetEncodingType::kIntSet:
       return intset_ ? intset_->Size() : 0;
-    case SetEncodingType::ListPack:
+    case SetEncodingType::kListPack:
       return listpack_ ? listpack_->Size() : 0;
-    case SetEncodingType::Dict:
+    case SetEncodingType::kDict:
       return dict_ ? dict_->Size() : 0;
     default:
       throw std::invalid_argument("unknown encoding type");
@@ -90,11 +100,11 @@ size_t Set::Size() const {
 
 Set::Encoding Set::GetEncoding() const {
   switch (encoding_) {
-    case SetEncodingType::IntSet:
+    case SetEncodingType::kIntSet:
       return Encoding::kIntSet;
-    case SetEncodingType::ListPack:
+    case SetEncodingType::kListPack:
       return Encoding::kListPack;
-    case SetEncodingType::Dict:
+    case SetEncodingType::kDict:
       return Encoding::kDict;
     default:
       throw std::invalid_argument("unknown encoding type");
@@ -104,11 +114,16 @@ Set::Encoding Set::GetEncoding() const {
 bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
   int64_t int_val = 0;
   if (utils::ToInt64(value, &int_val)) {
-    if (!intset_) intset_ = std::make_unique<in_memory::IntSet>();
+    if (!intset_) {
+      intset_ = std::make_unique<in_memory::IntSet>();
+    }
     bool success = intset_->Add(int_val);
-    if (success) MaybeConvertIntsetToDict();
+    if (success) {
+      MaybeConvertIntsetToDict();
+    }
     return success;
-  } else if (!MaybeConvertIntSetToListPack(value)) {
+  }
+  if (!MaybeConvertIntSetToListPack(value)) {
     ConvertIntSetToDict((intset_ ? intset_->Size() : 0) + 1);
     dict_->Set(value, nullptr);
   }
@@ -117,37 +132,45 @@ bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
 
 bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
   size_t len = value.size();
-  if (listpack_->Find(value) != -1) return false;
-  if (listpack_->Size() < ListPackMaxEntries &&
-      len <= ListPackElementMaxLength &&
+  if (listpack_->Find(value) != -1) {
+    return false;
+  }
+  if (listpack_->Size() < kListPackMaxEntries &&
+      len <= kListPackElementMaxLength &&
       in_memory::ListPack::SafeToAdd(listpack_.get(), len)) {
     return listpack_->Append(value);
-  } else {
-    ConvertListPackToDict(listpack_->Size() + 1);
-    if (dict_->Get(value).has_value()) return false;
-    dict_->Set(value, nullptr);
-    return true;
   }
-}
-
-bool Set::DictAdd(const std::string& value) {
-  if (!dict_) dict_ = in_memory::Dict<std::string, nullptr_t>::Init();
+  ConvertListPackToDict(listpack_->Size() + 1);
   if (dict_->Get(value).has_value()) return false;
   dict_->Set(value, nullptr);
   return true;
 }
 
+bool Set::DictAdd(const std::string& value) {
+  if (!dict_) {
+    dict_ = in_memory::Dict<std::string, nullptr_t>::Init();
+  }
+  if (dict_->Get(value).has_value()) {
+    return false;
+  }
+  dict_->Set(value, nullptr);
+  return true;
+}
+
 void Set::MaybeConvertIntsetToDict() {
-  assert(encoding_ == SetEncodingType::IntSet);
-  if (intset_ && intset_->Size() > IntSetMaxEntries)
+  assert(encoding_ == SetEncodingType::kIntSet);
+  if (intset_ && intset_->Size() > kIntSetMaxEntries) {
     ConvertIntSetToDict(intset_->Size());
+  }
 }
 
 void Set::ConvertIntSetToDict(size_t capacity) {
-  assert(encoding_ == SetEncodingType::IntSet);
-  encoding_ = SetEncodingType::Dict;
+  assert(encoding_ == SetEncodingType::kIntSet);
+  encoding_ = SetEncodingType::kDict;
   dict_ = in_memory::Dict<std::string, nullptr_t>::Init(capacity);
-  if (!intset_) return;
+  if (!intset_) {
+    return;
+  }
   for (unsigned int i = 0; i < intset_->Size(); ++i) {
     int64_t value = intset_->Get(i);
     dict_->Set(std::to_string(value), nullptr);
@@ -156,8 +179,12 @@ void Set::ConvertIntSetToDict(size_t capacity) {
 }
 
 bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
-  if (encoding_ != SetEncodingType::IntSet) return false;
-  size_t len = val.size(), max_integer_length = 0, estimated_bytes = 0;
+  if (encoding_ != SetEncodingType::kIntSet) {
+    return false;
+  }
+  size_t len = val.size();
+  size_t max_integer_length = 0;
+  size_t estimated_bytes = 0;
   int64_t estimated_integer = 0;
   if (intset_) {
     int64_t max_integer = intset_->Max();
@@ -171,9 +198,9 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
         in_memory::ListPack::EstimateBytes(estimated_integer, intset_->Size());
   }
   if (!intset_ ||
-      (intset_->Size() < ListPackMaxEntries &&
-       len <= ListPackElementMaxLength &&
-       max_integer_length <= ListPackElementMaxLength &&
+      (intset_->Size() < kListPackMaxEntries &&
+       len <= kListPackElementMaxLength &&
+       max_integer_length <= kListPackElementMaxLength &&
        in_memory::ListPack::SafeToAdd(nullptr, estimated_bytes + len))) {
     ConvertIntSetToListPack(val);
     return true;
@@ -182,8 +209,8 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
 }
 
 void Set::ConvertIntSetToListPack(const std::string& val) {
-  assert(encoding_ == SetEncodingType::IntSet);
-  encoding_ = SetEncodingType::ListPack;
+  assert(encoding_ == SetEncodingType::kIntSet);
+  encoding_ = SetEncodingType::kListPack;
   listpack_ = std::make_unique<in_memory::ListPack>();
   if (intset_) {
     for (unsigned int i = 0; i < intset_->Size(); ++i) {
@@ -196,14 +223,18 @@ void Set::ConvertIntSetToListPack(const std::string& val) {
 }
 
 void Set::ConvertListPackToDict(size_t capacity) {
-  assert(encoding_ == SetEncodingType::ListPack);
-  encoding_ = SetEncodingType::Dict;
+  assert(encoding_ == SetEncodingType::kListPack);
+  encoding_ = SetEncodingType::kDict;
   dict_ = in_memory::Dict<std::string, nullptr_t>::Init(capacity);
-  if (!listpack_) return;
+  if (!listpack_) {
+    return;
+  }
   ssize_t idx = listpack_->First();
   while (idx != -1) {
     const auto string_result = listpack_->Get(idx);
-    if (string_result.has_value()) dict_->Set(*string_result, nullptr);
+    if (string_result.has_value()) {
+      dict_->Set(*string_result, nullptr);
+    }
     idx = listpack_->Next(idx);
   }
   listpack_.reset();
@@ -225,7 +256,9 @@ std::vector<std::string> Set::ListListPackMembers() const {
   ssize_t idx = listpack_->First();
   while (idx != -1) {
     const auto string_result = listpack_->Get(idx);
-    if (string_result.has_value()) members.push_back(*string_result);
+    if (string_result.has_value()) {
+      members.push_back(*string_result);
+    }
     idx = listpack_->Next(idx);
   }
   return members;
@@ -241,5 +274,4 @@ std::vector<std::string> Set::ListDictMembers() const {
   }
   return members;
 }
-}  // namespace set
-}  // namespace redis_simple
+}  // namespace redis_simple::set

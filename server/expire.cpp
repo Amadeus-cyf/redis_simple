@@ -22,7 +22,8 @@ void ActiveExpireCycle() {
     }
   };
   if (auto db = Server::Get()->DB().lock()) {
-    int64_t start = utils::GetNowInMilliseconds(), timelimit = 1000;
+    int64_t start = utils::GetNowInMilliseconds();
+    int64_t timelimit = 1000;
     int iteration = 0;
     bool timeout = false;
     while (!timeout && db->ExpiredPercentage() > 0.5) {

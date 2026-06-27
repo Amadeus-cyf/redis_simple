@@ -7,7 +7,7 @@
 
 namespace redis_simple {
 namespace {
-static std::string GetCmdName(const std::vector<std::string>& args) {
+std::string GetCmdName(const std::vector<std::string>& args) {
   std::string name = args[0];
   utils::ToUppercase(name);
   return name;
@@ -17,7 +17,7 @@ static std::string GetCmdName(const std::vector<std::string>& args) {
 Client::Client(connection::Connection* connection)
     : connection_(connection),
       db_(Server::Get()->DB()),
-      cmd_(),
+
       buf_(std::make_unique<in_memory::ReplyBuffer>()),
       query_buf_(std::make_unique<in_memory::DynamicBuffer>()) {}
 
@@ -35,7 +35,7 @@ ssize_t Client::ReadQuery() {
 }
 
 ssize_t Client::SendReply() {
-  return buf_->ReplyHead() ? SendListReply() : SendBufferReply();
+  return (buf_->ReplyHead() != nullptr) ? SendListReply() : SendBufferReply();
 }
 
 ssize_t Client::SendBufferReply() {
@@ -78,12 +78,12 @@ ClientStatus Client::ProcessInputBuffer() {
 
 ClientStatus Client::ProcessInlineBuffer() {
   const std::string& cmdstr = query_buf_->ProcessInlineBuffer();
-  if (cmdstr.length() == 0) {
+  if (cmdstr.empty()) {
     return ClientStatus::kError;
   }
   RS_LOG_DEBUG("cmd str %s\n", cmdstr.c_str());
   auto args = utils::Split(cmdstr, " ");
-  if (args.size() == 0) {
+  if (args.empty()) {
     return ClientStatus::kError;
   }
   const std::string& name = GetCmdName(args);
@@ -110,8 +110,7 @@ ClientStatus Client::ProcessCommand() {
       command->Exec(this);
     }
     return ClientStatus::kOk;
-  } else {
-    return ClientStatus::kError;
   }
+  return ClientStatus::kError;
 }
 }  // namespace redis_simple

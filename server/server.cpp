@@ -54,7 +54,7 @@ bool Server::RemoveClient(Client* c) {
 void Server::AcceptConnHandler() {
   auto* file_event = ae::FileEventImpl<Server>::Create(
       networking::AcceptHandler, nullptr, this, ae::EventFlag::kReadable);
-  if (el_->CreateFileEvent(fd_, file_event) < 0) {
+  if (el_->CreateFileEvent(fd_, file_event) == ae::EventLoopStatus::kError) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
   }
 }

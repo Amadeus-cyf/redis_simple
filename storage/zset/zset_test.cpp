@@ -5,8 +5,7 @@
 
 #include "gtest/gtest.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 class ZSetTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { zset = std::unique_ptr<ZSet>(ZSet::Init()); }
@@ -66,5 +65,4 @@ TEST(ZSetEncodingTest, ConvertsToSkiplistWhenEntryCountExceedsLimit) {
   ASSERT_EQ(zset->GetRankOfKey("key_0"), 0);
   ASSERT_EQ(zset->GetRankOfKey("key_128"), 128);
 }
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

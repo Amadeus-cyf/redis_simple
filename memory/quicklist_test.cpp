@@ -5,8 +5,7 @@
 #include <optional>
 #include <string>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 TEST(QuickListTest, PushAndPopPreserveDequeOrder) {
   QuickList quicklist;
 
@@ -69,5 +68,4 @@ TEST(QuickListTest, AllowsSingleEntryLargerThanNodeLimit) {
   EXPECT_EQ(quicklist.RPop(), value);
   EXPECT_TRUE(quicklist.Empty());
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

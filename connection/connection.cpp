@@ -1,17 +1,17 @@
 #include "connection.h"
 
-#include <string.h>
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <cstring>
+#include <limits>
 #include <optional>
 #include <vector>
 
 #include "event_loop/ae_file_event_impl.h"
 #include "tcp/tcp.h"
 
-namespace redis_simple {
-namespace connection {
+namespace redis_simple::connection {
 namespace {
 int BindAndConnectTcp(const AddressInfo& remote,
                       const std::optional<AddressInfo>& local) {
@@ -46,7 +46,7 @@ ConnectionStatus Connection::BindAndConnect(
     state_ = ConnectionState::kConnecting;
     auto* e = ae::FileEventImpl<Connection>::Create(
         nullptr, ConnSocketEventHandler, this, ae::EventFlag::kWritable);
-    if (event_loop->CreateFileEvent(fd_, e) < 0) {
+    if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("adding connection socket event handler error");
       return ConnectionStatus::kError;
     }
@@ -213,7 +213,8 @@ ssize_t Connection::Read(char* const buffer, size_t readlen) const {
       state_ = ConnectionState::kError;
     }
     return -1;
-  } else if (r == 0) {
+  }
+  if (r == 0) {
     state_ = ConnectionState::kClosed;
   }
   return r;
@@ -221,24 +222,27 @@ ssize_t Connection::Read(char* const buffer, size_t readlen) const {
 
 ssize_t Connection::BatchRead(std::string& s) const {
   char buffer[1024];
-  ssize_t r = 0, nread = 0;
-  while ((r = read(fd_, buffer + nread, 1024)) != EOF) {
+  ssize_t r = 0;
+  while ((r = read(fd_, buffer, sizeof(buffer))) != EOF) {
     RS_LOG_DEBUG("read %zu\n", r);
     if (r == 0) {
       break;
     }
     s.append(buffer, r);
-    nread += r;
   }
   if (s.empty() && r < 0 && errno != EAGAIN) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {
       state_ = ConnectionState::kError;
     }
     return -1;
-  } else if (s.empty() && r == 0) {
+  }
+  if (s.empty() && r == 0) {
     state_ = ConnectionState::kClosed;
   }
-  return s.size();
+  if (s.size() > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
+    return -1;
+  }
+  return static_cast<ssize_t>(s.size());
 }
 
 ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
@@ -246,7 +250,8 @@ ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
   ssize_t r = read(fd_, buffer, readlen);
   if (r > 0) {
     return r;
-  } else if (r == 0) {
+  }
+  if (r == 0) {
     return 0;
   } else if (r < 0 && errno != EAGAIN) {
     return -1;
@@ -281,10 +286,14 @@ ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
       state_ = ConnectionState::kError;
     }
     return -1;
-  } else if (s.empty() && r == 0) {
+  }
+  if (s.empty() && r == 0) {
     state_ = ConnectionState::kClosed;
   }
-  return s.size();
+  if (s.size() > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
+    return -1;
+  }
+  return static_cast<ssize_t>(s.size());
 }
 
 ssize_t Connection::Write(const char* buffer, size_t len) const {
@@ -321,12 +330,14 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len,
 
 ssize_t Connection::Writev(
     const std::vector<std::pair<char*, size_t>>& mem_blocks) const {
+  if (mem_blocks.size() >
+      static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return -1;
+  }
   std::vector<iovec> vec(mem_blocks.size());
-  ssize_t len = 0, written = 0;
   for (size_t i = 0; i < mem_blocks.size(); ++i) {
     vec[i].iov_base = mem_blocks[i].first;
     vec[i].iov_len = mem_blocks[i].second;
-    len += mem_blocks[i].second;
   }
   ssize_t n = writev(fd_, vec.data(), static_cast<int>(vec.size()));
   if (n < 0 && errno != EAGAIN) {
@@ -351,28 +362,29 @@ ae::EventHandlerStatus Connection::ConnSocketEventHandler(ae::EventLoop* el,
   }
   RS_LOG_DEBUG("state: %d\n", conn->State());
   if (conn->State() == ConnectionState::kConnecting &&
-      (mask & ae::EventFlag::kWritable)) {
+      ((mask & ae::EventFlag::kWritable) != 0)) {
     // A nonblocking connect completes through the writable event; SO_ERROR
     // tells whether it succeeded.
     if (tcp::IsSocketError(fd)) {
       RS_LOG_DEBUG("socket error\n");
       conn->SetState(ConnectionState::kError);
       return ae::EventHandlerStatus::kError;
-    } else {
-      RS_LOG_DEBUG("connection state set to connected\n");
-      conn->SetState(ConnectionState::kConnected);
     }
+    RS_LOG_DEBUG("connection state set to connected\n");
+    conn->SetState(ConnectionState::kConnected);
   }
   int invert = conn->flags_ & kWriteBarrier;
   // Normal order is read-before-write. A write barrier lets command replies
   // flush before another readable event queues more work on the same socket.
-  if (!invert && (mask & ae::EventFlag::kReadable) && conn->read_handler_) {
+  if ((invert == 0) && ((mask & ae::EventFlag::kReadable) != 0) &&
+      conn->read_handler_) {
     conn->read_handler_->Handle(conn);
   }
-  if ((mask & ae::EventFlag::kWritable) && conn->write_handler_) {
+  if (((mask & ae::EventFlag::kWritable) != 0) && conn->write_handler_) {
     conn->write_handler_->Handle(conn);
   }
-  if (invert && (mask & ae::EventFlag::kReadable) && conn->read_handler_) {
+  if ((invert != 0) && ((mask & ae::EventFlag::kReadable) != 0) &&
+      conn->read_handler_) {
     conn->read_handler_->Handle(conn);
   }
   return ae::EventHandlerStatus::kOk;
@@ -384,11 +396,11 @@ int Connection::Wait(ae::EventFlag flag, long timeout) const {
     RS_LOG_DEBUG("conn sync %s failed for connection %d\n",
                  flag == ae::EventFlag::kReadable ? "read" : "write", fd_);
     return -1;
-  } else if (r == 0) {
+  }
+  if (r == 0) {
     RS_LOG_DEBUG("aeWait timeout\n");
     return -1;
   }
   return r;
 }
-}  // namespace connection
-}  // namespace redis_simple
+}  // namespace redis_simple::connection

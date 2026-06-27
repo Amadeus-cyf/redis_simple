@@ -12,16 +12,14 @@ namespace zset {
 class ZSetSkiplist : public ZSetStorage {
  public:
   ZSetSkiplist();
-  bool InsertOrUpdate(const std::string& key, const double score) override;
+  bool InsertOrUpdate(const std::string& key, double score) override;
   bool Delete(const std::string& key) override;
   std::optional<double> GetScoreOfKey(const std::string& key) const override {
     return dict_->Get(key);
   }
   std::optional<size_t> GetRankOfKey(const std::string& key) const override;
-  std::vector<const ZSetEntry*> RangeByRank(
-      const RangeByRankSpec* spec) const override;
-  std::vector<const ZSetEntry*> RangeByScore(
-      const RangeByScoreSpec* spec) const override;
+  ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const override;
+  ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const override;
   size_t Count(const RangeByScoreSpec* spec) const override;
   size_t Size() const override { return skiplist_->Size(); }
 

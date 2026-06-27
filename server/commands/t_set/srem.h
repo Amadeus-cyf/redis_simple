@@ -11,7 +11,7 @@ namespace command {
 namespace t_set {
 class SRemCommand : public Command {
  public:
-  SRemCommand() : Command("SREM"){};
+  SRemCommand() : Command("SREM") {}
   void Exec(Client* const client) const override;
 
  private:
@@ -19,9 +19,9 @@ class SRemCommand : public Command {
     std::string key;
     std::vector<std::string> elements;
   };
-  int ParseArgs(const std::vector<std::string>& args,
-                SRemArgs* const srem_args) const;
-  int SRem(std::shared_ptr<db::RedisDb> db, const SRemArgs* args) const;
+  static int ParseArgs(const std::vector<std::string>& args,
+                       SRemArgs* const srem_args);
+  static int SRem(const std::shared_ptr<db::RedisDb>& db, const SRemArgs* args);
 };
 }  // namespace t_set
 }  // namespace command

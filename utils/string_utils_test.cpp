@@ -2,8 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace redis_simple {
-namespace utils {
+namespace redis_simple::utils {
 TEST(StringUtilsTest, Split) {
   const auto str0 = Split("string for testing", " ");
   ASSERT_EQ(str0, std::vector<std::string>({"string", "for", "testing"}));
@@ -75,22 +74,22 @@ TEST(StringUtilsTest, ToUppercase) {
 
 TEST(StringUtilsTest, ToInt64) {
   std::string s1("100234567");
-  int64_t v1;
+  int64_t v1 = 0;
   ASSERT_TRUE(ToInt64(s1, &v1));
   ASSERT_EQ(v1, 100234567);
 
   std::string s2("-100234567");
-  int64_t v2;
+  int64_t v2 = 0;
   ASSERT_TRUE(ToInt64(s2, &v2));
   ASSERT_EQ(v2, -100234567);
 
   std::string s3("+100234567");
-  int64_t v3;
+  int64_t v3 = 0;
   ASSERT_TRUE(ToInt64(s3, &v3));
   ASSERT_EQ(v3, 100234567);
 
   std::string s4("0");
-  int64_t v4;
+  int64_t v4 = 0;
   ASSERT_TRUE(ToInt64(s4, &v4));
   ASSERT_EQ(v4, 0);
 
@@ -110,12 +109,12 @@ TEST(StringUtilsTest, ToInt64) {
   ASSERT_FALSE(ToInt64(s9, nullptr));
 
   std::string s10("+0");
-  int64_t v10;
+  int64_t v10 = 0;
   ASSERT_TRUE(ToInt64(s10, &v10));
   ASSERT_EQ(v10, 0);
 
   std::string s11("-0");
-  int64_t v11;
+  int64_t v11 = 0;
   ASSERT_TRUE(ToInt64(s11, &v11));
   ASSERT_EQ(v11, 0);
 
@@ -123,17 +122,17 @@ TEST(StringUtilsTest, ToInt64) {
   ASSERT_FALSE(ToInt64(s12, nullptr));
 
   std::string s13("1002345670000000");
-  int64_t v13;
+  int64_t v13 = 0;
   ASSERT_TRUE(ToInt64(s13, &v13));
   ASSERT_EQ(v13, 1002345670000000);
 
   std::string s14("9223372036854775807");
-  int64_t v14;
+  int64_t v14 = 0;
   ASSERT_TRUE(ToInt64(s14, &v14));
   ASSERT_EQ(v14, INT64_MAX);
 
   std::string s15("-9223372036854775808");
-  int64_t v15;
+  int64_t v15 = 0;
   ASSERT_TRUE(ToInt64(s15, &v15));
   ASSERT_EQ(v15, INT64_MIN);
 
@@ -146,7 +145,7 @@ TEST(StringUtilsTest, ToInt64) {
   std::string s18("-922337203685477580812312");
   ASSERT_FALSE(ToInt64(s18, nullptr));
 
-  std::string s19("");
+  std::string s19;
   ASSERT_FALSE(ToInt64(s19, nullptr));
 }
 
@@ -219,5 +218,4 @@ TEST(StringUtilsTest, Ull2String) {
   ASSERT_EQ(Ull2String(dst5, 7, 10000000), 0);
   ASSERT_EQ(dst5[0], '\0');
 }
-}  // namespace utils
-}  // namespace redis_simple
+}  // namespace redis_simple::utils

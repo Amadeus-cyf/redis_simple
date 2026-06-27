@@ -1,16 +1,18 @@
 #include "utils/string_utils.h"
 
 #include <cctype>
+#include <cstddef>
 #include <cstring>
 #include <limits>
 
 #include "utils/int_utils.h"
 
-namespace redis_simple {
-namespace utils {
+namespace redis_simple::utils {
 std::vector<std::string> Split(const std::string& s,
                                const std::string& delimiter) {
-  if (delimiter.empty()) return {s};
+  if (delimiter.empty()) {
+    return {s};
+  }
   std::vector<std::string> res;
   size_t start = 0;
   size_t end = std::string::npos;
@@ -25,7 +27,7 @@ std::vector<std::string> Split(const std::string& s,
 }
 
 void ShiftCStr(char* s, size_t len, size_t offset) {
-  if (!s || offset == 0) {
+  if ((s == nullptr) || offset == 0) {
     return;
   }
   if (offset >= len) {
@@ -36,14 +38,16 @@ void ShiftCStr(char* s, size_t len, size_t offset) {
 }
 
 void ToUppercase(std::string& s) {
-  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) {
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) -> char {
     return static_cast<char>(std::toupper(c));
   });
 }
 
 bool ToInt64(const std::string& s, int64_t* const v) {
   // Directly return false if the string is empty or the number is overflow.
-  if (s.empty() || s.size() > 20) return false;
+  if (s.empty() || s.size() > 20) {
+    return false;
+  }
   int sign = 1;
   int64_t val = 0;
   for (size_t i = 0; i < s.size(); ++i) {
@@ -55,7 +59,7 @@ bool ToInt64(const std::string& s, int64_t* const v) {
                s[i] == '0') {
       return false;
     } else if (s[i] >= '0' && s[i] <= '9') {
-      int64_t tmp = val * 10 + sign * (s[i] - '0');
+      int64_t tmp = (val * 10) + (static_cast<int64_t>(sign * (s[i] - '0')));
       // Check integer overflow.
       if ((tmp < 0 && val > 0) || (tmp > 0 && val < 0)) {
         return false;
@@ -65,21 +69,27 @@ bool ToInt64(const std::string& s, int64_t* const v) {
       return false;
     }
   }
-  if (v) *v = val;
+  if (v != nullptr) {
+    *v = val;
+  }
   return true;
 }
 
 int LL2String(char* dst, size_t dstlen, long long svalue) {
-  unsigned long long value;
+  unsigned long long value = 0;
   int negative = 0;
   if (svalue < 0) {
     if (svalue != std::numeric_limits<long long>::min()) {
       value = -svalue;
     } else {
-      value = (unsigned long long)std::numeric_limits<long long>::max() + 1;
+      value = static_cast<unsigned long long>(
+                  std::numeric_limits<long long>::max()) +
+              1;
     }
     if (dstlen < 2) {
-      if (dstlen > 0) dst[0] = '\0';
+      if (dstlen > 0) {
+        dst[0] = '\0';
+      }
       return 0;
     }
     negative = 1;
@@ -89,8 +99,10 @@ int LL2String(char* dst, size_t dstlen, long long svalue) {
   } else {
     value = svalue;
   }
-  int length = Ull2String(dst, dstlen, value);
-  if (length == 0) return 0;
+  const int length = Ull2String(dst, dstlen, value);
+  if (length == 0) {
+    return 0;
+  }
   return length + negative;
 }
 
@@ -113,7 +125,7 @@ int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
   uint32_t next = length - 1;
   dst[next + 1] = '\0';
   while (value >= 100) {
-    int const i = (value % 100) * 2;
+    const int i = static_cast<int>((value % 100) * 2);
     value /= 100;
     dst[next] = digits[i + 1];
     dst[next - 1] = digits[i];
@@ -121,13 +133,12 @@ int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
   }
   // Handle the last 1-2 digits.
   if (value < 10) {
-    dst[next] = '0' + static_cast<uint32_t>(value);
+    dst[next] = static_cast<char>('0' + static_cast<uint32_t>(value));
   } else {
-    int i = static_cast<uint32_t>(value) * 2;
+    const int i = static_cast<int>(static_cast<uint32_t>(value) * 2);
     dst[next] = digits[i + 1];
     dst[next - 1] = digits[i];
   }
-  return length;
+  return static_cast<int>(length);
 }
-}  // namespace utils
-}  // namespace redis_simple
+}  // namespace redis_simple::utils

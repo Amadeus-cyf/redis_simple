@@ -7,15 +7,14 @@
 #include "server/networking/networking.h"
 #include "server/server.h"
 
-namespace redis_simple {
-namespace networking {
+namespace redis_simple::networking {
 namespace {
 class ReadFromClientHandler : public connection::ConnHandler {
  public:
   void Handle(connection::Connection* conn) override;
 
  private:
-  void ReadQueryFromClient(connection::Connection* conn);
+  static void ReadQueryFromClient(connection::Connection* conn);
 };
 
 void ReadFromClientHandler::Handle(connection::Connection* conn) {
@@ -24,8 +23,8 @@ void ReadFromClientHandler::Handle(connection::Connection* conn) {
 
 void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
   RS_LOG_DEBUG("read query from client\n");
-  Client* c = std::any_cast<Client*>(conn->PrivateData());
-  if (!c) {
+  auto* c = std::any_cast<Client*>(conn->PrivateData());
+  if (c == nullptr) {
     RS_LOG_DEBUG("invalid client\n");
     return;
   }
@@ -52,5 +51,4 @@ void ReadFromClientHandler::ReadQueryFromClient(connection::Connection* conn) {
 std::unique_ptr<connection::ConnHandler> NewReadFromClientHandler() {
   return std::make_unique<ReadFromClientHandler>();
 }
-}  // namespace networking
-}  // namespace redis_simple
+}  // namespace redis_simple::networking

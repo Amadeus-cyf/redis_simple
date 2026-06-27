@@ -1,13 +1,12 @@
 #include "dynamic_buffer.h"
 
-#include <unistd.h>
+#include <cstring>
 
 #include "utils/string_utils.h"
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 DynamicBuffer::DynamicBuffer()
-    : buf_(new char[4096]), nread_(0), processed_offset_(0), len_(4096){};
+    : buf_(new char[4096]), nread_(0), processed_offset_(0), len_(4096) {}
 
 void DynamicBuffer::WriteToBuffer(const char* buffer, size_t n) {
   if (n > 0) {
@@ -20,7 +19,9 @@ void DynamicBuffer::WriteToBuffer(const char* buffer, size_t n) {
 }
 
 void DynamicBuffer::TrimProcessedBuffer() {
-  if (processed_offset_ == 0) return;
+  if (processed_offset_ == 0) {
+    return;
+  }
   utils::ShiftCStr(buf_, len_, processed_offset_);
   nread_ -= processed_offset_;
   processed_offset_ = 0;
@@ -28,7 +29,7 @@ void DynamicBuffer::TrimProcessedBuffer() {
 
 std::string DynamicBuffer::ProcessInlineBuffer() {
   char* c = strchr(buf_ + processed_offset_, '\n');
-  if (!c) {
+  if (c == nullptr) {
     return "";
   }
   int offset = 1;
@@ -60,5 +61,4 @@ void DynamicBuffer::Clear() {
   nread_ = 0;
   processed_offset_ = 0;
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

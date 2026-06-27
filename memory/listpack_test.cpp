@@ -4,8 +4,7 @@
 
 #include <memory>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 namespace {
 ListPack::ListPackEntry StrEntry(std::string* str) { return {str, 0}; }
 
@@ -30,10 +29,9 @@ TEST_F(ListPackTest, Append) {
   std::string s0("test string 0");
   ASSERT_TRUE(listpack->Append(s0));
   ASSERT_EQ(listpack->Size(), 2);
-  size_t bytes = listpack->GetTotalBytes();
 
   size_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
   ASSERT_EQ(listpack->GetInteger(idx), -1234);
   size_t l0 = 0;
   unsigned char* c0 = listpack->Get(idx, &l0);
@@ -95,7 +93,7 @@ TEST_F(ListPackTest, Append) {
   ASSERT_EQ(listpack->Next(idx), -1);
 
   // Invalid get for string type.
-  ASSERT_THROW(listpack->Get(ListPack::ListPackHeaderSize - 1, nullptr),
+  ASSERT_THROW(listpack->Get(ListPack::kListPackHeaderSize - 1, nullptr),
                std::out_of_range);
   ASSERT_THROW(listpack->Get(listpack->GetTotalBytes(), nullptr),
                std::out_of_range);
@@ -120,7 +118,7 @@ TEST_F(ListPackTest, Prepend) {
   ASSERT_EQ(listpack->Size(), 16);
 
   size_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
   size_t l0 = 0;
   unsigned char* c0 = listpack->Get(idx, &l0);
   ASSERT_EQ(l0, s3.size());
@@ -166,7 +164,7 @@ TEST_F(ListPackTest, Insert) {
   std::string s2(4097, 'g');
 
   size_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
   idx = listpack->Next(idx);
   idx = listpack->Next(idx);
   idx = listpack->Next(idx);
@@ -231,18 +229,21 @@ TEST_F(ListPackTest, Replace) {
   // Replace string.
   std::string s0("test string update");
   size_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
-  for (int i = 0; i < 10; ++i) idx = listpack->Next(idx);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
+  for (int i = 0; i < 10; ++i) {
+    idx = listpack->Next(idx);
+  }
   size_t num_of_elements = listpack->Size();
   // Get next element to check if it's not changed after the replace.
-  size_t l0_next;
+  size_t l0_next = 0;
   size_t next0 = listpack->Next(idx);
   unsigned char* c0_next = listpack->Get(next0, &l0_next);
   std::string s0_next(reinterpret_cast<const char*>(c0_next), l0_next);
   // Replace and get the element.
   listpack->Replace(idx, s0);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l1, l1_next;
+  size_t l1;
+  size_t l1_next;
   unsigned char* c1 = listpack->Get(idx, &l1);
   ASSERT_EQ(l1, s0.size());
   ASSERT_TRUE(std::equal(c1, c1 + l1, s0.c_str()));
@@ -253,16 +254,19 @@ TEST_F(ListPackTest, Replace) {
   ASSERT_TRUE(std::equal(c1_next, c1_next + l1_next, s0_next.c_str()));
 
   // Replace integer.
-  for (int i = 0; i < 7; ++i) idx = listpack->Next(idx);
+  for (int i = 0; i < 7; ++i) {
+    idx = listpack->Next(idx);
+  }
   // Get next element to check if it's not changed after the replace.
-  size_t l2_next;
+  size_t l2_next = 0;
   size_t next2 = listpack->Next(idx);
   unsigned char* c2_next = listpack->Get(next2, &l2_next);
   std::string s2_next(reinterpret_cast<const char*>(c2_next), l2_next);
   // Replace and get the element.
   listpack->Replace(idx, 17);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l3, l3_next;
+  size_t l3;
+  size_t l3_next;
   unsigned char* c3 = listpack->Get(idx, &l3);
   ASSERT_EQ(l3, 2);
   ASSERT_TRUE(std::equal(c3, c3 + l3, "17"));
@@ -277,14 +281,15 @@ TEST_F(ListPackTest, Replace) {
   idx = listpack->First();
   std::string s1("test string update 1");
   // Get next element to check if it's not changed after the replace.
-  size_t l4_next;
+  size_t l4_next = 0;
   size_t next4 = listpack->Next(idx);
   unsigned char* c4_next = listpack->Get(next4, &l4_next);
   std::string s4_next(reinterpret_cast<const char*>(c4_next), l4_next);
   // Replace and get the element.
   listpack->Replace(idx, s1);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l5, l5_next;
+  size_t l5;
+  size_t l5_next;
   unsigned char* c5 = listpack->Get(idx, &l5);
   ASSERT_EQ(l5, s1.size());
   ASSERT_TRUE(std::equal(c5, c5 + l5, s1.c_str()));
@@ -300,7 +305,8 @@ TEST_F(ListPackTest, Replace) {
   // Replace and get the element.
   listpack->Replace(idx, 217);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l7, l7_next;
+  size_t l7;
+  size_t l7_next;
   unsigned char* c7 = listpack->Get(idx, &l7);
   ASSERT_EQ(l7, 3);
   ASSERT_TRUE(std::equal(c7, c7 + l7, "217"));
@@ -330,7 +336,7 @@ TEST_F(ListPackTest, BatchAppend) {
   for (const ListPack::ListPackEntry& entry : entries) {
     size_t len = 0;
     unsigned char* c = listpack->Get(idx, &len);
-    if (entry.str) {
+    if (entry.str != nullptr) {
       // Type string
       ASSERT_EQ(len, entry.str->size());
       ASSERT_TRUE(std::equal(c, c + len, entry.str->c_str()));
@@ -365,11 +371,11 @@ TEST_F(ListPackTest, BatchPrepend) {
   ASSERT_TRUE(listpack->BatchPrepend(entries));
   ASSERT_EQ(listpack->Size(), 39);
   size_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
   for (const ListPack::ListPackEntry& entry : entries) {
     size_t len = 0;
     unsigned char* c = listpack->Get(idx, &len);
-    if (entry.str) {
+    if (entry.str != nullptr) {
       // Type String
       ASSERT_EQ(len, entry.str->size());
       ASSERT_TRUE(std::equal(c, c + len, entry.str->c_str()));
@@ -404,7 +410,7 @@ TEST_F(ListPackTest, BatchInsert) {
       StrEntry(&s2),
   };
   size_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
   idx = listpack->Next(idx);
   idx = listpack->Next(idx);
   idx = listpack->Next(idx);
@@ -413,7 +419,7 @@ TEST_F(ListPackTest, BatchInsert) {
   for (const ListPack::ListPackEntry& entry : entries) {
     size_t len = 0;
     unsigned char* c = listpack->Get(idx, &len);
-    if (entry.str) {
+    if (entry.str != nullptr) {
       // Type string
       ASSERT_EQ(len, entry.str->size());
       ASSERT_TRUE(std::equal(c, c + len, entry.str->c_str()));
@@ -459,7 +465,7 @@ TEST_F(ListPackTest, Find) {
 
 TEST_F(ListPackTest, Iterate) {
   ssize_t idx = listpack->First();
-  ASSERT_EQ(idx, ListPack::ListPackHeaderSize);
+  ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
 
   ssize_t prev = -1;
   size_t len = 0;
@@ -474,7 +480,9 @@ TEST_F(ListPackTest, Iterate) {
 
 TEST_F(ListPackTest, Delete) {
   // Delete the head.
-  size_t idx = listpack->First(), prev_idx = -1, next_idx = listpack->Next(idx);
+  size_t idx = listpack->First();
+  size_t prev_idx = -1;
+  size_t next_idx = listpack->Next(idx);
   size_t num_of_elements = listpack->Size();
   size_t l0 = 0;
   unsigned char* c0 = listpack->Get(next_idx, &l0);
@@ -507,7 +515,6 @@ TEST_F(ListPackTest, Delete) {
   ASSERT_EQ(listpack->Next(idx), -1);
   size_t l4 = 0;
   unsigned char* c4 = listpack->Get(next_idx, &l2);
-  prev_idx = listpack->Prev(idx);
   num_of_elements = listpack->Size();
   listpack->Delete(idx);
   ASSERT_EQ(listpack->Size(), num_of_elements - 1);
@@ -517,9 +524,8 @@ TEST_F(ListPackTest, Delete) {
   ASSERT_TRUE(std::equal(c5, c5 + l5, c4));
 
   // Delete out of bound.
-  ASSERT_THROW(listpack->Delete(ListPack::ListPackHeaderSize - 1),
+  ASSERT_THROW(listpack->Delete(ListPack::kListPackHeaderSize - 1),
                std::out_of_range);
   ASSERT_THROW(listpack->Delete(listpack->GetTotalBytes()), std::out_of_range);
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory
