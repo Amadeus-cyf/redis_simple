@@ -62,9 +62,7 @@ class FileEvent {
   }
   bool HasReadCallback() const { return static_cast<bool>(read_callback_); }
   bool HasWriteCallback() const { return static_cast<bool>(write_callback_); }
-  bool HasSeparateReadWriteCallbacks() const {
-    return has_separate_read_write_callbacks_;
-  }
+  bool HasSeparateCallbacks() const { return has_separate_callbacks_; }
   void Merge(const FileEvent* file_event);
 
  private:
@@ -79,7 +77,7 @@ class FileEvent {
       : mask_(mask),
         read_callback_(std::move(read_callback)),
         write_callback_(std::move(write_callback)),
-        has_separate_read_write_callbacks_(has_separate_callbacks) {}
+        has_separate_callbacks_(has_separate_callbacks) {}
 
   template <typename T>
   static Callback Wrap(TypedCallback<T> callback, T* client_data) {
@@ -94,6 +92,6 @@ class FileEvent {
   int mask_;
   Callback read_callback_;
   Callback write_callback_;
-  bool has_separate_read_write_callbacks_;
+  bool has_separate_callbacks_;
 };
 }  // namespace redis_simple::ae

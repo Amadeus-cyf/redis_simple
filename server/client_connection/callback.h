@@ -4,8 +4,8 @@
 
 namespace redis_simple::client_connection {
 enum class CallbackType {
-  kReadQueryFromClient = 1,
-  kWriteReplyToClient = 1 << 1,
+  kReadQuery = 1,
+  kWriteReply = 1 << 1,
 };
 
 connection::ConnectionCallback CreateCallback(CallbackType type);

@@ -1,4 +1,4 @@
-#include "server/client_connection/callback/write_reply_to_client.h"
+#include "server/client_connection/callback/write_reply.h"
 
 #include <any>
 
@@ -40,7 +40,7 @@ void SendReplyToClient(connection::Connection* conn) {
 }
 }  // namespace
 
-connection::ConnectionCallback CreateWriteReplyToClientCallback() {
+connection::ConnectionCallback CreateWriteReplyCallback() {
   return SendReplyToClient;
 }
 }  // namespace redis_simple::client_connection

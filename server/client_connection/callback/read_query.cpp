@@ -1,4 +1,4 @@
-#include "server/client_connection/callback/read_query_from_client.h"
+#include "server/client_connection/callback/read_query.h"
 
 #include <any>
 
@@ -9,7 +9,7 @@
 
 namespace redis_simple::client_connection {
 namespace {
-void ReadQueryFromClient(connection::Connection* conn) {
+void ReadQuery(connection::Connection* conn) {
   RS_LOG_DEBUG("read query from client\n");
   auto* client = std::any_cast<Client*>(conn->PrivateData());
   if (client == nullptr) {
@@ -32,12 +32,12 @@ void ReadQueryFromClient(connection::Connection* conn) {
       !client->Connection()->HasWriteCallback()) {
     RS_LOG_DEBUG("client has pending replies, install write callback\n");
     client->Connection()->SetWriteCallback(
-        CreateCallback(CallbackType::kWriteReplyToClient));
+        CreateCallback(CallbackType::kWriteReply));
   }
 }
 }  // namespace
 
-connection::ConnectionCallback CreateReadQueryFromClientCallback() {
-  return ReadQueryFromClient;
+connection::ConnectionCallback CreateReadQueryCallback() {
+  return ReadQuery;
 }
 }  // namespace redis_simple::client_connection

@@ -52,8 +52,7 @@ ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
   RS_LOG_DEBUG("start create client\n");
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
-  if (!conn->SetReadCallback(
-          CreateCallback(CallbackType::kReadQueryFromClient))) {
+  if (!conn->SetReadCallback(CreateCallback(CallbackType::kReadQuery))) {
     RS_LOG_DEBUG("AcceptConnectionCallback: failed to set the read callback\n");
     return ae::EventCallbackStatus::kError;
   }

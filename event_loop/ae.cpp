@@ -26,10 +26,9 @@ void FileEvent::Merge(const FileEvent* file_event) {
   if (!HasWriteCallback() && file_event->HasWriteCallback()) {
     write_callback_ = file_event->write_callback_;
   }
-  has_separate_read_write_callbacks_ =
+  has_separate_callbacks_ =
       HasReadCallback() && HasWriteCallback() &&
-      (has_separate_read_write_callbacks_ ||
-       file_event->has_separate_read_write_callbacks_);
+      (has_separate_callbacks_ || file_event->has_separate_callbacks_);
 }
 
 int WaitForEvent(int fd, int mask, long timeout) {
@@ -173,14 +172,14 @@ void EventLoop::ProcessFileEvents() {
     }
     if (((mask & file_event->Mask() & EventFlag::kWritable) != 0) &&
         file_event->HasWriteCallback() &&
-        (!fired || file_event->HasSeparateReadWriteCallbacks())) {
+        (!fired || file_event->HasSeparateCallbacks())) {
       file_event->CallWriteCallback(this, fd, mask);
       fired = true;
     }
     if ((inverted != 0) &&
         ((mask & file_event->Mask() & EventFlag::kReadable) != 0) &&
         file_event->HasReadCallback() &&
-        (!fired || file_event->HasSeparateReadWriteCallbacks())) {
+        (!fired || file_event->HasSeparateCallbacks())) {
       file_event->CallReadCallback(this, fd, mask);
     }
   }
