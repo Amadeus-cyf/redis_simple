@@ -5,8 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace redis_simple {
-namespace ae {
+namespace redis_simple::ae {
 class KqueueEventApi {
  public:
   static KqueueEventApi* Create(int nevents);
@@ -21,5 +20,4 @@ class KqueueEventApi {
   int nevents_;
   mutable std::vector<struct kevent> events_;
 };
-}  // namespace ae
-}  // namespace redis_simple
+}  // namespace redis_simple::ae

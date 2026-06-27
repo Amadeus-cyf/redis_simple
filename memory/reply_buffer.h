@@ -4,8 +4,7 @@
 
 #include "buf_node.h"
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class ReplyBuffer {
  public:
   ReplyBuffer();
@@ -44,5 +43,4 @@ class ReplyBuffer {
   size_t reply_bytes_{};
   size_t sent_len_;
 };
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

@@ -1,13 +1,13 @@
-#include "networking.h"
+#include "client_connection.h"
 
 #include <cstddef>
 
 #include "server/client.h"
-#include "server/networking/connection_callback/connection_callback.h"
-#include "server/networking/redis_cmd.h"
+#include "server/client_connection/callback.h"
+#include "server/client_connection/redis_cmd.h"
 #include "server/server.h"
 
-namespace redis_simple::networking {
+namespace redis_simple::client_connection {
 namespace {
 bool SendString(const connection::Connection* conn, const std::string& cmd) {
   ssize_t ret =
@@ -52,12 +52,12 @@ ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
   RS_LOG_DEBUG("start create client\n");
   Client* client = Client::Create(conn);
   conn->SetPrivateData(client);
-  if (!conn->SetReadCallback(CreateConnectionCallback(
-          connection::ConnectionCallbackType::kReadQueryFromClient))) {
+  if (!conn->SetReadCallback(
+          CreateCallback(CallbackType::kReadQueryFromClient))) {
     RS_LOG_DEBUG("AcceptConnectionCallback: failed to set the read callback\n");
     return ae::EventCallbackStatus::kError;
   }
   server->AddClient(client);
   return ae::EventCallbackStatus::kOk;
 }
-}  // namespace redis_simple::networking
+}  // namespace redis_simple::client_connection

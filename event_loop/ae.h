@@ -4,8 +4,7 @@
 #include "ae_kqueue.h"
 #include "ae_time_event.h"
 
-namespace redis_simple {
-namespace ae {
+namespace redis_simple::ae {
 enum class EventFlag {
   kReadable = 1,
   kWritable = 1 << 1,
@@ -74,5 +73,4 @@ class EventLoop {
   const KqueueEventApi* event_api_;
   mutable int max_fd_;
 };
-}  // namespace ae
-}  // namespace redis_simple
+}  // namespace redis_simple::ae

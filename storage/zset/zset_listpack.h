@@ -3,8 +3,7 @@
 #include "memory/listpack.h"
 #include "storage/zset/zset_storage.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 class ZSetListPack : public ZSetStorage {
  public:
   ZSetListPack();
@@ -40,5 +39,4 @@ class ZSetListPack : public ZSetStorage {
   std::unique_ptr<in_memory::ListPack> listpack_;
   mutable std::vector<std::unique_ptr<ZSetEntry>> range_cache_;
 };
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

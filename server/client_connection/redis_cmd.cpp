@@ -1,10 +1,10 @@
-#include "server/networking/redis_cmd.h"
+#include "server/client_connection/redis_cmd.h"
 
 #include <utility>
 
 #include "server/client.h"
 
-namespace redis_simple::networking {
+namespace redis_simple::client_connection {
 RedisCommand::RedisCommand(std::string name,
                            const std::vector<std::string>& args)
     : name_(std::move(name)), args_(args) {}
@@ -17,4 +17,4 @@ std::string RedisCommand::String() const {
   }
   return cmd;
 }
-}  // namespace redis_simple::networking
+}  // namespace redis_simple::client_connection

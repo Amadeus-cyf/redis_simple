@@ -7,8 +7,7 @@
 #include <utility>
 #include <vector>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 template <typename K, typename V>
 class Dict {
  public:
@@ -709,5 +708,4 @@ void Dict<K, V>::Reset(int i) {
   ht_used_[i] = 0;
   ht_size_exp_[i] = -1;
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

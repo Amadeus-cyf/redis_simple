@@ -11,8 +11,7 @@
 #include "connection/connection_callback.h"
 #include "event_loop/ae.h"
 
-namespace redis_simple {
-namespace connection {
+namespace redis_simple::connection {
 enum class ConnectionStatus {
   kOk = 0,
   kError = -1,
@@ -94,5 +93,4 @@ class Connection {
   ConnectionCallback read_callback_;
   ConnectionCallback write_callback_;
 };
-}  // namespace connection
-}  // namespace redis_simple
+}  // namespace redis_simple::connection

@@ -8,8 +8,7 @@
 #include "storage/zset/zset_entry.h"
 #include "storage/zset/zset_range_spec.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 using ZSetEntryList = std::vector<const ZSetEntry*>;
 
 class ZSetStorage {
@@ -33,5 +32,4 @@ class ZSetStorage {
   virtual size_t Size() const = 0;
   virtual ~ZSetStorage() = default;
 };
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

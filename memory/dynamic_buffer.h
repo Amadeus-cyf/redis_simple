@@ -2,8 +2,7 @@
 
 #include <string>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class DynamicBuffer {
  public:
   DynamicBuffer();
@@ -32,5 +31,4 @@ class DynamicBuffer {
   size_t nread_;
   size_t processed_offset_;
 };
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

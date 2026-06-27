@@ -13,8 +13,7 @@
 #include <spdlog/spdlog.h>
 #endif
 
-namespace redis_simple {
-namespace logging {
+namespace redis_simple::logging {
 
 enum class Level { kDebug = 0, kInfo = 1, kWarn = 2, kError = 3, kOff = 4 };
 
@@ -138,8 +137,7 @@ inline void Logf(Level level, const char* file, int line, const char* fmt,
   va_end(args);
 }
 
-}  // namespace logging
-}  // namespace redis_simple
+}  // namespace redis_simple::logging
 
 #define RS_LOG_DEBUG(...)                                               \
   ::redis_simple::logging::Logf(::redis_simple::logging::Level::kDebug, \

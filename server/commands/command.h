@@ -5,8 +5,9 @@
 
 namespace redis_simple {
 class Client;
+}  // namespace redis_simple
 
-namespace command {
+namespace redis_simple::command {
 using CommandCallback = void (*)(Client* client);
 
 struct Command {
@@ -15,5 +16,4 @@ struct Command {
 };
 
 const Command* Find(const std::string& name);
-}  // namespace command
-}  // namespace redis_simple
+}  // namespace redis_simple::command

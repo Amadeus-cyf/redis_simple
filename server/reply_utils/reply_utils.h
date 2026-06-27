@@ -7,8 +7,7 @@
 #include "logging/logger.h"
 #include "server/reply/reply.h"
 
-namespace redis_simple {
-namespace reply_utils {
+namespace redis_simple::reply_utils {
 template <typename T, typename std::string ToString(const T&)>
 std::optional<std::string> EncodeList(const std::vector<T>& list) {
   std::vector<std::string> encode_elements;
@@ -26,5 +25,4 @@ std::optional<std::string> EncodeList(const std::vector<T>& list) {
     return std::nullopt;
   }
 }
-}  // namespace reply_utils
-}  // namespace redis_simple
+}  // namespace redis_simple::reply_utils

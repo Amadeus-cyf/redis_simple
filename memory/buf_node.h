@@ -4,8 +4,7 @@
 #include <cstddef>
 #include <cstring>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class BufNode {
  public:
   static BufNode* Create(size_t len) {
@@ -36,5 +35,4 @@ class BufNode {
     std::memset(buf_, '\0', len);
   }
 };
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

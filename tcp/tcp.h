@@ -5,8 +5,7 @@
 #include <optional>
 #include <string>
 
-namespace redis_simple {
-namespace tcp {
+namespace redis_simple::tcp {
 enum class TcpStatusCode {
   kTcpError = -1,
   kTcpOk = 0,
@@ -43,5 +42,4 @@ int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info);
 int Block(int fd);
 int NonBlock(int fd);
 bool IsSocketError(int fd);
-}  // namespace tcp
-}  // namespace redis_simple
+}  // namespace redis_simple::tcp

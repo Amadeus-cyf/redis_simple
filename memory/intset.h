@@ -3,8 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 // An in memory set storing integers in ascending order.
 class IntSet {
  public:
@@ -64,5 +63,4 @@ class IntSet::Iterator {
   const IntSet* intset_;
   size_t idx_;
 };
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

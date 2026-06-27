@@ -8,8 +8,7 @@
 #include "storage/zset/zset_range_spec.h"
 #include "storage/zset/zset_storage.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 class ZSet {
  public:
   enum class Encoding {
@@ -41,5 +40,4 @@ class ZSet {
   ZSetEncodingType encoding_;
   std::unique_ptr<ZSetStorage> storage_;
 };
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

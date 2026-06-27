@@ -5,8 +5,7 @@
 #include "memory/dict.h"
 #include "server/db/redis_obj.h"
 
-namespace redis_simple {
-namespace db {
+namespace redis_simple::db {
 enum class DbStatus {
   kOk = 1 << 0,
   kError = -1,
@@ -44,5 +43,4 @@ class RedisDb {
   bool free_async_;
   ssize_t expire_cursor_;
 };
-}  // namespace db
-}  // namespace redis_simple
+}  // namespace redis_simple::db

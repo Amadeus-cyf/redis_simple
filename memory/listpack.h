@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 // Compact Redis-style sequential encoding. See:
 // https://github.com/antirez/listpack/blob/master/listpack.md
 class ListPack {
@@ -133,5 +132,4 @@ class ListPack {
   unsigned char* lp_;
   mutable unsigned char int_buf_[kListPackIntBufSize]{};
 };
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

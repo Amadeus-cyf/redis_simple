@@ -8,8 +8,7 @@
 #include "memory/listpack.h"
 #include "memory/quicklist.h"
 
-namespace redis_simple {
-namespace list {
+namespace redis_simple::list {
 class List {
  public:
   enum class Encoding {
@@ -45,5 +44,4 @@ class List {
   std::unique_ptr<in_memory::QuickList> quicklist_;
   size_t list_max_listpack_bytes_;
 };
-}  // namespace list
-}  // namespace redis_simple
+}  // namespace redis_simple::list

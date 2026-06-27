@@ -1,13 +1,13 @@
-#include "read_client_callback.h"
+#include "server/client_connection/callback/read_query_from_client.h"
 
 #include <any>
 
 #include "server/client.h"
-#include "server/networking/connection_callback/connection_callback.h"
-#include "server/networking/networking.h"
+#include "server/client_connection/callback.h"
+#include "server/client_connection/client_connection.h"
 #include "server/server.h"
 
-namespace redis_simple::networking {
+namespace redis_simple::client_connection {
 namespace {
 void ReadQueryFromClient(connection::Connection* conn) {
   RS_LOG_DEBUG("read query from client\n");
@@ -31,13 +31,13 @@ void ReadQueryFromClient(connection::Connection* conn) {
   if (client->HasPendingReplies() &&
       !client->Connection()->HasWriteCallback()) {
     RS_LOG_DEBUG("client has pending replies, install write callback\n");
-    client->Connection()->SetWriteCallback(networking::CreateConnectionCallback(
-        connection::ConnectionCallbackType::kWriteReplyToClient));
+    client->Connection()->SetWriteCallback(
+        CreateCallback(CallbackType::kWriteReplyToClient));
   }
 }
 }  // namespace
 
-connection::ConnectionCallback CreateReadFromClientCallback() {
+connection::ConnectionCallback CreateReadQueryFromClientCallback() {
   return ReadQueryFromClient;
 }
-}  // namespace redis_simple::networking
+}  // namespace redis_simple::client_connection

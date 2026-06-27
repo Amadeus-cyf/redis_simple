@@ -3,8 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace redis_simple {
-namespace reply {
+namespace redis_simple::reply {
 enum class ReplyStatus {
   kOk = 1,
   kError = -1,
@@ -21,5 +20,4 @@ std::string FromInt64(ReplyStatus status);
 std::string FromArray(const std::vector<std::string>& array);
 std::string FromFloat(double fl);
 std::string Null();
-}  // namespace reply
-}  // namespace redis_simple
+}  // namespace redis_simple::reply

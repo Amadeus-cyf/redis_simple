@@ -2,8 +2,8 @@
 
 namespace redis_simple {
 class Client;
-
-namespace command::t_zset {
-void ExecuteZScore(Client* client);
-}  // namespace command::t_zset
 }  // namespace redis_simple
+
+namespace redis_simple::command::t_zset {
+void ExecuteZScore(Client* client);
+}  // namespace redis_simple::command::t_zset

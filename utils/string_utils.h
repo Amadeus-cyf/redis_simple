@@ -5,8 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace redis_simple {
-namespace utils {
+namespace redis_simple::utils {
 std::vector<std::string> Split(const std::string& s,
                                const std::string& delimiter);
 // Shift a buffer by offset. If offset >= buffer len, clear the entire buffer.
@@ -22,5 +21,4 @@ int LL2String(char* dst, size_t dstlen, long long svalue);
 // the following article.
 // https://engineering.fb.com/2013/03/15/developer-tools/three-optimization-tips-for-c/
 int Ull2String(char* dst, size_t dstlen, unsigned long long value);
-}  // namespace utils
-}  // namespace redis_simple
+}  // namespace redis_simple::utils

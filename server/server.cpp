@@ -5,11 +5,11 @@
 
 #include <any>
 
+#include "client_connection/client_connection.h"
 #include "db/db.h"
 #include "event_loop/ae_file_event.h"
 #include "event_loop/ae_time_event.h"
 #include "expire.h"
-#include "networking/networking.h"
 
 namespace redis_simple {
 Server::Server() : db_(db::RedisDb::Init()), el_(ae::EventLoop::Create()) {}
@@ -51,8 +51,8 @@ bool Server::RemoveClient(Client* c) {
 
 void Server::InstallAcceptCallback() {
   auto* file_event =
-      ae::FileEvent::Create(networking::AcceptConnectionCallback, nullptr, this,
-                            ae::ToInt(ae::EventFlag::kReadable));
+      ae::FileEvent::Create(client_connection::AcceptConnectionCallback,
+                            nullptr, this, ae::ToInt(ae::EventFlag::kReadable));
   if (el_->CreateFileEvent(fd_, file_event) == ae::EventLoopStatus::kError) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
   }

@@ -10,8 +10,7 @@
 #include "connection/connection.h"
 #include "memory/dynamic_buffer.h"
 
-namespace redis_simple {
-namespace cli {
+namespace redis_simple::cli {
 enum class CliStatus {
   kOk = 1,
   kError = -1,
@@ -40,5 +39,4 @@ class RedisCli {
   std::unique_ptr<in_memory::DynamicBuffer> reply_buf_;
   std::mutex lock_;
 };
-}  // namespace cli
-}  // namespace redis_simple
+}  // namespace redis_simple::cli

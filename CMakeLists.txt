@@ -9,6 +9,14 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 find_package(spdlog QUIET)
 
+add_custom_target(
+  format
+  COMMAND "${CMAKE_SOURCE_DIR}/scripts/format.sh"
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  COMMENT "Format project C++ sources with clang-format"
+  VERBATIM
+)
+
 function(redis_simple_collect_sources out_var)
   set(sources)
   foreach(source_dir IN LISTS ARGN)

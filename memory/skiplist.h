@@ -10,8 +10,7 @@
 
 #include "logging/logger.h"
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 // Initial skiplist height
 static constexpr int kInitSkiplistLevel = 2;
 
@@ -1089,5 +1088,4 @@ template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::~Skiplist() {
   Reset();
 }
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

@@ -5,8 +5,7 @@
 #include <cstddef>
 #include <memory>
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 // Spec for LIMIT flag
 struct LimitSpec {
   // 0-based index
@@ -70,5 +69,4 @@ struct RangeByScoreSpec {
   // Reverse order?
   bool reverse;
 };
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

@@ -7,8 +7,7 @@
 #include "memory/skiplist.h"
 #include "storage/zset/zset_storage.h"
 
-namespace redis_simple {
-namespace zset {
+namespace redis_simple::zset {
 class ZSetSkiplist : public ZSetStorage {
  public:
   ZSetSkiplist();
@@ -64,5 +63,4 @@ class ZSetSkiplist : public ZSetStorage {
   // Min and max key value, used for RangeByScore
   mutable std::optional<std::string> max_key_, min_key_;
 };
-}  // namespace zset
-}  // namespace redis_simple
+}  // namespace redis_simple::zset

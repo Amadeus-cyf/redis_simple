@@ -1,11 +1,11 @@
-#include "write_client_callback.h"
+#include "server/client_connection/callback/write_reply_to_client.h"
 
 #include <any>
 
 #include "server/client.h"
 #include "server/server.h"
 
-namespace redis_simple::networking {
+namespace redis_simple::client_connection {
 namespace {
 ssize_t WriteToClient(Client* client) {
   ssize_t nwritten = 0;
@@ -40,7 +40,7 @@ void SendReplyToClient(connection::Connection* conn) {
 }
 }  // namespace
 
-connection::ConnectionCallback CreateWriteToClientCallback() {
+connection::ConnectionCallback CreateWriteReplyToClientCallback() {
   return SendReplyToClient;
 }
-}  // namespace redis_simple::networking
+}  // namespace redis_simple::client_connection

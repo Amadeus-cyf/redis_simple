@@ -6,8 +6,7 @@
 #include "storage/set/set.h"
 #include "storage/zset/zset.h"
 
-namespace redis_simple {
-namespace db {
+namespace redis_simple::db {
 class RedisObject {
  private:
   using DataType = std::variant<std::string, set::Set*, zset::ZSet*>;
@@ -45,5 +44,4 @@ class RedisObject {
   DataType val_;
   mutable int refcount_;
 };
-}  // namespace db
-}  // namespace redis_simple
+}  // namespace redis_simple::db

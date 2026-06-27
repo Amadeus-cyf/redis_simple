@@ -95,14 +95,14 @@ above is the project benchmark executable.
 
 ```text
 cli/          Simple client and RESP parsing
-connection/   Connection abstraction
+connection/          Connection abstraction
 event_loop/          Event loop and kqueue backend
 integration/command/ Server/client command integration tests
 integration/tcp/     TCP client/server integration tests
 logging/             Project logging wrapper
 memory/              Core in-memory data structures
 scripts/             Project automation and CTest runner scripts
-server/              Server, database objects, command handlers, replies
+server/              Server, client connection glue, commands, replies, DB
 storage/             Redis-like higher-level storage types
 tcp/                 TCP helpers
 utils/               Small shared utilities
@@ -120,11 +120,14 @@ Project management files are checked in:
 - `.github/workflows/build.yml` for CI on push and pull request.
 - `AGENTS.md` for AI coding-agent project guidance.
 
-Format changed C++ files with:
+Format project C++ files with:
 
 ```sh
-clang-format -i path/to/file.cpp path/to/file.h
+cmake --build --preset debug --target format
 ```
+
+For one-off formatting, `scripts/format.sh` discovers Homebrew's LLVM toolchain
+on macOS and honors `CLANG_FORMAT_BIN` when set.
 
 Run clang-tidy with the project wrapper:
 

@@ -3,10 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace redis_simple {
-class Client;
-
-namespace networking {
+namespace redis_simple::client_connection {
 // Lightweight command formatter used by integration helpers.
 class RedisCommand {
  public:
@@ -20,5 +17,4 @@ class RedisCommand {
   const std::string name_;
   const std::vector<std::string> args_;
 };
-}  // namespace networking
-}  // namespace redis_simple
+}  // namespace redis_simple::client_connection

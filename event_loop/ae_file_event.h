@@ -4,8 +4,7 @@
 #include <functional>
 #include <utility>
 
-namespace redis_simple {
-namespace ae {
+namespace redis_simple::ae {
 class EventLoop;
 enum class EventCallbackStatus;
 
@@ -97,5 +96,4 @@ class FileEvent {
   Callback write_callback_;
   bool has_separate_read_write_callbacks_;
 };
-}  // namespace ae
-}  // namespace redis_simple
+}  // namespace redis_simple::ae

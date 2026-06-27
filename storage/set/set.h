@@ -8,8 +8,7 @@
 #include "memory/intset.h"
 #include "memory/listpack.h"
 
-namespace redis_simple {
-namespace set {
+namespace redis_simple::set {
 class Set {
  public:
   enum class Encoding {
@@ -52,5 +51,4 @@ class Set {
   std::unique_ptr<in_memory::ListPack> listpack_;
   std::unique_ptr<in_memory::Dict<std::string, nullptr_t>> dict_;
 };
-}  // namespace set
-}  // namespace redis_simple
+}  // namespace redis_simple::set

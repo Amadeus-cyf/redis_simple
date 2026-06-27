@@ -7,8 +7,7 @@
 
 #include "memory/listpack.h"
 
-namespace redis_simple {
-namespace in_memory {
+namespace redis_simple::in_memory {
 class QuickList {
  public:
   static constexpr size_t kDefaultNodeMaxBytes = 8192;
@@ -49,5 +48,4 @@ class QuickList {
   size_t node_count_;
   size_t node_max_bytes_;
 };
-}  // namespace in_memory
-}  // namespace redis_simple
+}  // namespace redis_simple::in_memory

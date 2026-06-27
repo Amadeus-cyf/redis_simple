@@ -5,9 +5,9 @@
 #include "connection/connection.h"
 #include "memory/dynamic_buffer.h"
 #include "memory/reply_buffer.h"
+#include "server/client_connection/client_connection.h"
 #include "server/commands/command.h"
 #include "server/db/db.h"
-#include "server/networking/networking.h"
 
 namespace redis_simple {
 enum class ClientStatus {
