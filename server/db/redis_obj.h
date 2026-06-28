@@ -1,6 +1,8 @@
 #pragma once
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <variant>
 
 #include "storage/set/set.h"
@@ -9,7 +11,9 @@
 namespace redis_simple::db {
 class RedisObject {
  private:
-  using DataType = std::variant<std::string, set::Set*, zset::ZSet*>;
+  using SetPtr = std::unique_ptr<set::Set>;
+  using ZSetPtr = std::unique_ptr<zset::ZSet>;
+  using DataType = std::variant<std::string, SetPtr, ZSetPtr>;
 
  public:
   enum class ObjEncoding {
@@ -18,30 +22,31 @@ class RedisObject {
     kZSet = 3,
   };
 
-  static RedisObject* CreateWithString(const std::string& val) {
-    return Create(ObjEncoding::kString, val);
+  static std::unique_ptr<RedisObject> CreateWithString(const std::string& val) {
+    return Create(ObjEncoding::kString, DataType(val));
   }
-  static RedisObject* CreateWithSet(set::Set* const set) {
-    return Create(ObjEncoding::kSet, set);
+  static std::unique_ptr<RedisObject> CreateWithSet(
+      std::unique_ptr<set::Set> set) {
+    return Create(ObjEncoding::kSet, DataType(std::move(set)));
   }
-  static RedisObject* CreateWithZSet(zset::ZSet* const zset) {
-    return Create(ObjEncoding::kZSet, zset);
+  static std::unique_ptr<RedisObject> CreateWithZSet(
+      std::unique_ptr<zset::ZSet> zset) {
+    return Create(ObjEncoding::kZSet, DataType(std::move(zset)));
   }
-  static RedisObject* Create(const ObjEncoding encoding, const DataType& val) {
-    return new RedisObject(encoding, val);
+  static std::unique_ptr<RedisObject> Create(ObjEncoding encoding,
+                                             DataType val) {
+    return std::unique_ptr<RedisObject>(
+        new RedisObject(encoding, std::move(val)));
   }
   const std::string& String() const;
-  set::Set* const Set() const;
-  zset::ZSet* const ZSet() const;
+  set::Set* Set() const;
+  zset::ZSet* ZSet() const;
   ObjEncoding Encoding() const { return encoding_; }
-  void IncrRefCount() const { ++refcount_; }
-  void DecrRefCount() const;
 
  private:
-  explicit RedisObject(const ObjEncoding encoding, const DataType& val)
-      : encoding_(encoding), val_(val), refcount_(1) {}
+  explicit RedisObject(ObjEncoding encoding, DataType val)
+      : encoding_(encoding), val_(std::move(val)) {}
   ObjEncoding encoding_;
   DataType val_;
-  mutable int refcount_;
 };
 }  // namespace redis_simple::db

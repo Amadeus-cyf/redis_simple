@@ -1,5 +1,6 @@
 #include "server/commands/t_zset/zadd.h"
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -72,9 +73,10 @@ int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
     return -1;
   }
   if (obj == nullptr) {
-    obj = db::RedisObject::CreateWithZSet(zset::ZSet::Init());
-    const auto status = redis_db->SetKey(args->key, obj, 0);
-    obj->DecrRefCount();
+    auto new_obj = db::RedisObject::CreateWithZSet(
+        std::unique_ptr<zset::ZSet>(zset::ZSet::Init()));
+    obj = new_obj.get();
+    const auto status = redis_db->SetKey(args->key, std::move(new_obj), 0);
     if (status == db::DbStatus::kError) {
       return -1;
     }

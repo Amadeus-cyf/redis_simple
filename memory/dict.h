@@ -19,7 +19,9 @@ class Dict {
   static std::unique_ptr<Dict<K, V>> Init(const DictType& type);
   std::optional<V> Get(const K& key);
   std::optional<V> Get(K&& key);
+  V* FindValue(const K& key);
   void Set(const K& key, const V& val);
+  void Set(const K& key, V&& val);
   void Set(K&& key, V&& val);
   bool Insert(const K& key, const V& val);
   bool Insert(K&& key, V&& val);
@@ -57,6 +59,7 @@ class Dict {
   void FreeKey(DictEntry* entry);
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
+  DictEntry* FindEntry(const K& key);
   ssize_t KeyIndex(const K& key, size_t hash, DictEntry** existing);
   DictEntry* InsertRaw(const K& key, DictEntry** existing);
   void ExpandIfNeeded();
@@ -278,6 +281,26 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
  */
 template <typename K, typename V>
 std::optional<V> Dict<K, V>::Get(const K& key) {
+  DictEntry* entry = FindEntry(key);
+  if (entry == nullptr) {
+    return std::nullopt;
+  }
+  return entry->val;
+}
+
+template <typename K, typename V>
+typename std::optional<V> Dict<K, V>::Get(K&& key) {
+  return Get(key);
+}
+
+template <typename K, typename V>
+V* Dict<K, V>::FindValue(const K& key) {
+  DictEntry* entry = FindEntry(key);
+  return entry == nullptr ? nullptr : &entry->val;
+}
+
+template <typename K, typename V>
+typename Dict<K, V>::DictEntry* Dict<K, V>::FindEntry(const K& key) {
   RehashStepIfNeeded();
   size_t hash = KeyHash(key);
   for (size_t i = 0; i < tables_.size(); ++i) {
@@ -285,7 +308,7 @@ std::optional<V> Dict<K, V>::Get(const K& key) {
     DictEntry* entry = tables_[i][idx];
     while (entry) {
       if (entry->hash == hash && IsEqual(key, entry->key)) {
-        return entry->val;
+        return entry;
       }
       entry = entry->next;
     }
@@ -293,12 +316,7 @@ std::optional<V> Dict<K, V>::Get(const K& key) {
       break;
     }
   }
-  return std::nullopt;
-}
-
-template <typename K, typename V>
-typename std::optional<V> Dict<K, V>::Get(K&& key) {
-  return Get(key);
+  return nullptr;
 }
 
 /*
@@ -320,16 +338,22 @@ void Dict<K, V>::Set(const K& key, const V& val) {
 }
 
 template <typename K, typename V>
-void Dict<K, V>::Set(K&& key, V&& val) {
+void Dict<K, V>::Set(const K& key, V&& val) {
   DictEntry* existing = nullptr;
   DictEntry* entry = InsertRaw(key, &existing);
   if (entry) {
     SetVal(entry, std::move(val));
   } else if (existing) {
-    DictEntry auxentry = *existing;
+    DictEntry auxentry;
+    auxentry.val = std::move(existing->val);
     SetVal(existing, std::move(val));
     FreeVal(&auxentry);
   }
+}
+
+template <typename K, typename V>
+void Dict<K, V>::Set(K&& key, V&& val) {
+  Set(key, std::move(val));
 }
 
 /*

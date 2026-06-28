@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 #include "server/server.h"
 #include "utils/time_utils.h"
@@ -11,28 +12,22 @@ std::unique_ptr<RedisDb> RedisDb::Init() {
   return std::unique_ptr<RedisDb>(new RedisDb());
 }
 
-RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
+RedisDb::RedisDb() : expire_cursor_(0) {
   auto hash = [](const std::string& key) {
-    std::hash<std::string> h;
-    return h(key);
+    std::hash<std::string> hash_func;
+    return hash_func(key);
   };
-  auto key_compare = [](const std::string& k1, const std::string& k2) {
-    return k1.compare(k2);
+  auto key_compare = [](const std::string& key1, const std::string& key2) {
+    return key1.compare(key2);
   };
-  auto object_destructor = [this](const RedisObject* const object) {
-    if (!free_async_) {
-      object->DecrRefCount();
-    }
-  };
-
-  in_memory::Dict<std::string, const RedisObject*>::DictType db_type;
+  in_memory::Dict<std::string, RedisObjectPtr>::DictType db_type;
   db_type.hash_function = hash;
   db_type.key_dup = nullptr;
   db_type.val_dup = nullptr;
   db_type.key_destructor = nullptr;
-  db_type.val_destructor = object_destructor;
+  db_type.val_destructor = nullptr;
   db_type.key_compare = key_compare;
-  dict_ = in_memory::Dict<std::string, const RedisObject*>::Init(db_type);
+  dict_ = in_memory::Dict<std::string, RedisObjectPtr>::Init(db_type);
 
   in_memory::Dict<std::string, int64_t>::DictType expires_type;
   expires_type.hash_function = hash;
@@ -45,11 +40,11 @@ RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
 }
 
 const RedisObject* RedisDb::LookupKey(const std::string& key) {
-  const auto result = dict_->Get(key);
-  if (!result.has_value()) {
+  auto* const result = dict_->FindValue(key);
+  if (result == nullptr) {
     return nullptr;
   }
-  const RedisObject* val = *result;
+  const RedisObject* val = result->get();
   if (IsKeyExpired(key)) {
     RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
     // If key is already expired, delete the key and return a null pointer.
@@ -60,14 +55,17 @@ const RedisObject* RedisDb::LookupKey(const std::string& key) {
   return val;
 }
 
-DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
+DbStatus RedisDb::SetKey(const std::string& key, RedisObjectPtr val,
                          int64_t expire) {
-  return SetKey(key, val, expire, 0);
+  return SetKey(key, std::move(val), expire, 0);
 }
 
-DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
+DbStatus RedisDb::SetKey(const std::string& key, RedisObjectPtr val,
                          int64_t expire, int flags) {
-  dict_->Set(key, val);
+  if (val == nullptr) {
+    return DbStatus::kError;
+  }
+  dict_->Set(key, std::move(val));
   if (!HasFlag(flags, SetKeyFlag::kKeepTtl) && expire == 0) {
     expires_->Delete(key);
   }
@@ -75,7 +73,6 @@ DbStatus RedisDb::SetKey(const std::string& key, const RedisObject* const val,
     expires_->Set(key, expire);
     RS_LOG_DEBUG("add expire %lld\n", expire);
   }
-  val->IncrRefCount();
   return DbStatus::kOk;
 }
 

@@ -8,30 +8,17 @@ const std::string& RedisObject::String() const {
   return std::get<std::string>(val_);
 }
 
-set::Set* const RedisObject::Set() const {
+set::Set* RedisObject::Set() const {
   if (encoding_ != ObjEncoding::kSet) {
     throw std::invalid_argument("value type is not set");
   }
-  return std::get<set::Set*>(val_);
+  return std::get<SetPtr>(val_).get();
 }
 
-zset::ZSet* const RedisObject::ZSet() const {
+zset::ZSet* RedisObject::ZSet() const {
   if (encoding_ != ObjEncoding::kZSet) {
     throw std::invalid_argument("value type is not zset");
   }
-  return std::get<zset::ZSet*>(val_);
-}
-
-void RedisObject::DecrRefCount() const {
-  if (refcount_ == 1) {
-    if (encoding_ == ObjEncoding::kZSet) {
-      delete std::get<zset::ZSet*>(val_);
-    } else if (encoding_ == ObjEncoding::kSet) {
-      delete std::get<set::Set*>(val_);
-    }
-    delete this;
-  } else {
-    --refcount_;
-  }
+  return std::get<ZSetPtr>(val_).get();
 }
 }  // namespace redis_simple::db

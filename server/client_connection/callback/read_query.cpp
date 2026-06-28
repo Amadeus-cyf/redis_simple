@@ -37,7 +37,5 @@ void ReadQuery(connection::Connection* conn) {
 }
 }  // namespace
 
-connection::ConnectionCallback CreateReadQueryCallback() {
-  return ReadQuery;
-}
+connection::ConnectionCallback CreateReadQueryCallback() { return ReadQuery; }
 }  // namespace redis_simple::client_connection

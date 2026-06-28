@@ -1,5 +1,7 @@
 #include "server/commands/t_string/set.h"
 
+#include <utility>
+
 #include "server/client.h"
 #include "server/commands/t_string/args.h"
 #include "server/db/db.h"
@@ -57,9 +59,9 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
 }
 
 int Set(db::RedisDb* redis_db, const StringArgs* args) {
-  const auto* val = db::RedisObject::CreateWithString(args->val);
-  const auto status = redis_db->SetKey(args->key, val, args->expire, 0);
-  val->DecrRefCount();
+  auto val = db::RedisObject::CreateWithString(args->val);
+  const auto status =
+      redis_db->SetKey(args->key, std::move(val), args->expire, 0);
   return status == db::DbStatus::kError ? -1 : 0;
 }
 }  // namespace

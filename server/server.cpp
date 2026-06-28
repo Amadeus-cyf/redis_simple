@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <any>
+#include <utility>
 
 #include "client_connection/client_connection.h"
 #include "db/db.h"
@@ -47,10 +48,11 @@ bool Server::RemoveClient(Client* c) {
 }
 
 void Server::InstallAcceptCallback() {
-  auto* file_event =
+  auto file_event =
       ae::FileEvent::Create(client_connection::AcceptConnectionCallback,
                             nullptr, this, ae::ToInt(ae::EventFlag::kReadable));
-  if (el_->CreateFileEvent(fd_, file_event) == ae::EventLoopStatus::kError) {
+  if (el_->CreateFileEvent(fd_, std::move(file_event)) ==
+      ae::EventLoopStatus::kError) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
   }
 }

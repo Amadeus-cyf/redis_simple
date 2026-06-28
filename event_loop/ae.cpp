@@ -67,8 +67,7 @@ int WaitForEvent(int fd, int mask, long timeout) {
 }
 
 EventLoop::EventLoop(std::unique_ptr<KqueueEventApi> kq)
-    : file_events_(std::vector<FileEvent*>(kEventSize)),
-      time_event_head_(nullptr),
+    : file_events_(std::vector<std::unique_ptr<FileEvent>>(kEventSize)),
       event_api_(std::move(kq)),
       max_fd_(-1) {}
 
@@ -86,18 +85,18 @@ void EventLoop::Run() {
   }
 }
 
-EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
-  RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd,
-               file_event->Mask());
+EventLoopStatus EventLoop::CreateFileEvent(
+    int fd, std::unique_ptr<FileEvent> file_event) {
   if (file_event == nullptr) {
     return EventLoopStatus::kError;
   }
+  RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd,
+               file_event->Mask());
   if (fd < 0 || fd >= kEventSize) {
     RS_LOG_DEBUG("file descriptor out of range");
     return EventLoopStatus::kError;
   }
   if (event_api_->AddEvent(fd, file_event->Mask()) < 0) {
-    delete file_event;
     return EventLoopStatus::kError;
   }
   if (file_events_[fd] == nullptr) {
@@ -106,14 +105,16 @@ EventLoopStatus EventLoop::CreateFileEvent(int fd, FileEvent* file_event) {
   } else {
     // A descriptor stores one FileEvent, so merge separately registered
     // read/write callbacks before replacing the old event.
-    file_event->Merge(file_events_[fd]);
-    delete file_events_[fd];
+    file_event->Merge(file_events_[fd].get());
   }
-  file_events_[fd] = file_event;
+  file_events_[fd] = std::move(file_event);
   return EventLoopStatus::kOk;
 }
 
 EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
+  if (fd < 0 || fd >= kEventSize || file_events_[fd] == nullptr) {
+    return EventLoopStatus::kError;
+  }
   if (event_api_->DeleteEvent(fd, mask) < 0) {
     RS_LOG_DEBUG(
         "fail to delete the file event of file descriptor %d with errno: "
@@ -124,11 +125,9 @@ EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
   RS_LOG_DEBUG(
       "delete file event success for file descriptor = %d, mask = %d\n", fd,
       mask);
-  FileEvent* file_event = file_events_[fd];
+  FileEvent* file_event = file_events_[fd].get();
   if (file_event->Mask() == mask) {
-    file_events_[fd] = nullptr;
-    delete file_event;
-    file_event = nullptr;
+    file_events_[fd].reset();
   } else {
     int m = file_event->Mask();
     m &= ~mask;
@@ -137,13 +136,10 @@ EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
   return EventLoopStatus::kOk;
 }
 
-void EventLoop::CreateTimeEvent(TimeEvent* time_event) {
-  if (time_event_head_ == nullptr) {
-    time_event_head_ = time_event;
-    return;
+void EventLoop::CreateTimeEvent(std::unique_ptr<TimeEvent> time_event) {
+  if (time_event != nullptr) {
+    time_events_.push_front(std::move(time_event));
   }
-  time_event->SetNext(time_event_head_);
-  time_event_head_ = time_event;
 }
 
 void EventLoop::ProcessEvents() {
@@ -163,7 +159,10 @@ void EventLoop::ProcessFileEvents() {
   for (const auto& it : fd_to_mask) {
     int fd = it.first;
     int mask = it.second;
-    const FileEvent* file_event = file_events_[fd];
+    const FileEvent* file_event = file_events_[fd].get();
+    if (file_event == nullptr) {
+      continue;
+    }
     int inverted = file_event->Mask() & EventFlag::kBarrier;
     bool fired = false;
     // Normal order is read-before-write; kBarrier lets a pending write flush
@@ -189,26 +188,15 @@ void EventLoop::ProcessFileEvents() {
   }
 }
 
-void EventLoop::ProcessTimeEvents() const {
-  TimeEvent* time_event = time_event_head_;
-  while (time_event != nullptr) {
+void EventLoop::ProcessTimeEvents() {
+  for (auto it = time_events_.begin(); it != time_events_.end();) {
+    TimeEvent* time_event = it->get();
     const auto id = static_cast<EventFlag>(time_event->Id());
     if (id == EventFlag::kDeleteEventId) {
-      TimeEvent* prev = time_event->Prev();
-      TimeEvent* next = time_event->Next();
-      if (prev != nullptr) {
-        prev->SetNext(next);
-      } else {
-        time_event_head_ = next;
-      }
-      if (next != nullptr) {
-        next->SetPrev(prev);
-      }
       if (time_event->HasFinalizeCallback()) {
         time_event->CallFinalizeCallback();
       }
-      delete time_event;
-      time_event = next;
+      it = time_events_.erase(it);
     } else {
       int64_t now = utils::GetNowInMilliseconds();
       if (time_event->When() <= now) {
@@ -220,15 +208,8 @@ void EventLoop::ProcessTimeEvents() const {
           time_event->SetWhen(now + (static_cast<int64_t>(ret * 1000)));
         }
       }
-      time_event = time_event->Next();
+      ++it;
     }
-  }
-}
-
-EventLoop::~EventLoop() {
-  for (int i = 0; i < kEventSize; ++i) {
-    delete file_events_[i];
-    file_events_[i] = nullptr;
   }
 }
 }  // namespace redis_simple::ae

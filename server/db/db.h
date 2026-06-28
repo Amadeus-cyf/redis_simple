@@ -7,6 +7,8 @@
 #include "server/db/redis_obj.h"
 
 namespace redis_simple::db {
+using RedisObjectPtr = std::unique_ptr<RedisObject>;
+
 enum class DbStatus {
   kOk = 1 << 0,
   kError = -1,
@@ -25,10 +27,9 @@ class RedisDb {
  public:
   static std::unique_ptr<RedisDb> Init();
   const RedisObject* LookupKey(const std::string& key);
-  DbStatus SetKey(const std::string& key, const RedisObject* const val,
-                  int64_t expire);
-  DbStatus SetKey(const std::string& key, const RedisObject* const val,
-                  int64_t expire, int flags);
+  DbStatus SetKey(const std::string& key, RedisObjectPtr val, int64_t expire);
+  DbStatus SetKey(const std::string& key, RedisObjectPtr val, int64_t expire,
+                  int flags);
   DbStatus DeleteKey(const std::string& key);
   bool ScanExpires(
       in_memory::Dict<std::string, int64_t>::DictScanFunc callback);
@@ -39,9 +40,8 @@ class RedisDb {
  private:
   RedisDb();
   bool IsKeyExpired(const std::string& key) const;
-  std::unique_ptr<in_memory::Dict<std::string, const RedisObject*>> dict_;
+  std::unique_ptr<in_memory::Dict<std::string, RedisObjectPtr>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
-  bool free_async_;
   ssize_t expire_cursor_;
 };
 }  // namespace redis_simple::db

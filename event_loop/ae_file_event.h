@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <utility>
 
 namespace redis_simple::ae {
@@ -12,12 +13,12 @@ class FileEvent {
  public:
   using Callback = std::function<EventCallbackStatus(EventLoop*, int, int)>;
 
-  static FileEvent* Create(Callback read_callback, Callback write_callback,
-                           int mask) {
+  static std::unique_ptr<FileEvent> Create(Callback read_callback,
+                                           Callback write_callback, int mask) {
     const bool has_separate_callbacks =
         read_callback != nullptr && write_callback != nullptr;
-    return new FileEvent(std::move(read_callback), std::move(write_callback),
-                         mask, has_separate_callbacks);
+    return Create(std::move(read_callback), std::move(write_callback), mask,
+                  has_separate_callbacks);
   }
 
   template <typename T>
@@ -25,26 +26,26 @@ class FileEvent {
                                                 T* client_data, int mask);
 
   template <typename T>
-  static FileEvent* Create(TypedCallback<T> read_callback,
-                           TypedCallback<T> write_callback, T* client_data,
-                           int mask) {
+  static std::unique_ptr<FileEvent> Create(TypedCallback<T> read_callback,
+                                           TypedCallback<T> write_callback,
+                                           T* client_data, int mask) {
     return Create(Wrap(read_callback, client_data),
                   Wrap(write_callback, client_data), mask,
                   read_callback != write_callback);
   }
 
   template <typename T>
-  static FileEvent* Create(std::nullptr_t read_callback,
-                           TypedCallback<T> write_callback, T* client_data,
-                           int mask) {
+  static std::unique_ptr<FileEvent> Create(std::nullptr_t read_callback,
+                                           TypedCallback<T> write_callback,
+                                           T* client_data, int mask) {
     return Create<T>(static_cast<TypedCallback<T>>(read_callback),
                      write_callback, client_data, mask);
   }
 
   template <typename T>
-  static FileEvent* Create(TypedCallback<T> read_callback,
-                           std::nullptr_t write_callback, T* client_data,
-                           int mask) {
+  static std::unique_ptr<FileEvent> Create(TypedCallback<T> read_callback,
+                                           std::nullptr_t write_callback,
+                                           T* client_data, int mask) {
     return Create<T>(read_callback,
                      static_cast<TypedCallback<T>>(write_callback), client_data,
                      mask);
@@ -66,10 +67,12 @@ class FileEvent {
   void Merge(const FileEvent* file_event);
 
  private:
-  static FileEvent* Create(Callback read_callback, Callback write_callback,
-                           int mask, bool has_separate_callbacks) {
-    return new FileEvent(std::move(read_callback), std::move(write_callback),
-                         mask, has_separate_callbacks);
+  static std::unique_ptr<FileEvent> Create(Callback read_callback,
+                                           Callback write_callback, int mask,
+                                           bool has_separate_callbacks) {
+    return std::unique_ptr<FileEvent>(
+        new FileEvent(std::move(read_callback), std::move(write_callback), mask,
+                      has_separate_callbacks));
   }
 
   FileEvent(Callback read_callback, Callback write_callback, int mask,

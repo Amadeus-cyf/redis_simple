@@ -6,6 +6,7 @@
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include "event_loop/ae_file_event.h"
@@ -40,9 +41,10 @@ ConnectionStatus Connection::BindAndConnect(
     }
     fd_ = fd;
     state_ = ConnectionState::kConnecting;
-    auto* e = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
-                                    ae::ToInt(ae::EventFlag::kWritable));
-    if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
+    auto event = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
+                                       ae::ToInt(ae::EventFlag::kWritable));
+    if (event_loop->CreateFileEvent(fd_, std::move(event)) ==
+        ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("adding connection socket event callback error");
       return ConnectionStatus::kError;
     }
@@ -110,9 +112,10 @@ bool Connection::SetReadCallback(ConnectionCallback read_callback) {
     return UnsetReadCallback();
   }
   if (auto* event_loop = el_) {
-    auto* e = ae::FileEvent::Create(SocketEventCallback, nullptr, this,
-                                    ae::ToInt(ae::EventFlag::kReadable));
-    if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
+    auto event = ae::FileEvent::Create(SocketEventCallback, nullptr, this,
+                                       ae::ToInt(ae::EventFlag::kReadable));
+    if (event_loop->CreateFileEvent(fd_, std::move(event)) ==
+        ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to set read callback\n");
       return false;
     }
@@ -151,9 +154,10 @@ bool Connection::SetWriteCallback(ConnectionCallback callback, bool barrier) {
     return UnsetWriteCallback();
   }
   if (auto* event_loop = el_) {
-    auto* e = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
-                                    ae::ToInt(ae::EventFlag::kWritable));
-    if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
+    auto event = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
+                                       ae::ToInt(ae::EventFlag::kWritable));
+    if (event_loop->CreateFileEvent(fd_, std::move(event)) ==
+        ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to set write callback\n");
       return false;
     }

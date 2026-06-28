@@ -1,6 +1,8 @@
 #include "server/commands/t_set/sadd.h"
 
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "server/client.h"
@@ -62,9 +64,10 @@ int SAdd(db::RedisDb* redis_db, const SAddArgs* args) {
     return -1;
   }
   if (obj == nullptr) {
-    obj = db::RedisObject::CreateWithSet(set::Set::Init());
-    const auto status = redis_db->SetKey(args->key, obj, 0);
-    obj->DecrRefCount();
+    auto new_obj = db::RedisObject::CreateWithSet(
+        std::unique_ptr<set::Set>(set::Set::Init()));
+    obj = new_obj.get();
+    const auto status = redis_db->SetKey(args->key, std::move(new_obj), 0);
     if (status == db::DbStatus::kError) {
       return -1;
     }
