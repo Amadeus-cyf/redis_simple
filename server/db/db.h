@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "memory/dict.h"
@@ -22,7 +23,7 @@ constexpr bool HasFlag(int flags, SetKeyFlag flag) {
 
 class RedisDb {
  public:
-  static RedisDb* Init();
+  static std::unique_ptr<RedisDb> Init();
   const RedisObject* LookupKey(const std::string& key);
   DbStatus SetKey(const std::string& key, const RedisObject* const val,
                   int64_t expire);

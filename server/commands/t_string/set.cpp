@@ -10,25 +10,25 @@
 namespace redis_simple::command::t_string {
 namespace {
 int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args);
-int Set(const std::shared_ptr<db::RedisDb>& redis_db, const StringArgs* args);
+int Set(db::RedisDb* redis_db, const StringArgs* args);
 }  // namespace
 
 void ExecuteSet(Client* const client) {
   RS_LOG_DEBUG("set command called\n");
   StringArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     if (Set(redis_db, &args) < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
       return;
     }
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kOk));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -56,7 +56,7 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   return 0;
 }
 
-int Set(const std::shared_ptr<db::RedisDb>& redis_db, const StringArgs* args) {
+int Set(db::RedisDb* redis_db, const StringArgs* args) {
   const auto* val = db::RedisObject::CreateWithString(args->val);
   const auto status = redis_db->SetKey(args->key, val, args->expire, 0);
   val->DecrRefCount();

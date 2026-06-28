@@ -14,14 +14,14 @@ void ActiveExpireCycle() {
     if (expire_time < now) {
       RS_LOG_DEBUG("activeExpireCycle: expired key \"%s\" deleted\n",
                    key.c_str());
-      if (auto db = Server::Get()->DB().lock()) {
+      if (auto* db = Server::Get()->Db()) {
         assert(db->DeleteKey(key) == db::DbStatus::kOk);
       } else {
-        RS_LOG_DEBUG("db pointer expired\n");
+        RS_LOG_DEBUG("db unavailable\n");
       }
     }
   };
-  if (auto db = Server::Get()->DB().lock()) {
+  if (auto* db = Server::Get()->Db()) {
     int64_t start = utils::GetNowInMilliseconds();
     int64_t timelimit = 1000;
     int iteration = 0;
@@ -40,7 +40,7 @@ void ActiveExpireCycle() {
       }
     }
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
   }
 }
 }  // namespace redis_simple

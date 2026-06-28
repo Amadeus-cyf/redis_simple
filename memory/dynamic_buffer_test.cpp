@@ -26,42 +26,42 @@ TEST_F(DynamicBufferTest, Write) {
       buf[i] = c;
     }
   }
-  buffer->WriteToBuffer(buf, 4096);
-  ASSERT_EQ(buffer->Len(), 4096);
-  ASSERT_EQ(buffer->NRead(), 4096);
-  ASSERT_EQ(buffer->ProcessedOffset(), 0);
+  buffer->Append(buf, 4096);
+  ASSERT_EQ(buffer->Capacity(), 4096);
+  ASSERT_EQ(buffer->Size(), 4096);
+  ASSERT_EQ(buffer->Consumed(), 0);
 }
 
 TEST_F(DynamicBufferTest, ProcessInline) {
-  const std::string& s = buffer->ProcessInlineBuffer();
+  const std::string& s = buffer->ReadLine();
   ASSERT_EQ(s.length(), 1023);
   ASSERT_EQ(s, std::string(1023, 'a'));
-  ASSERT_EQ(buffer->Len(), 4096);
-  ASSERT_EQ(buffer->NRead(), 4096);
-  ASSERT_EQ(buffer->ProcessedOffset(), 1024);
+  ASSERT_EQ(buffer->Capacity(), 4096);
+  ASSERT_EQ(buffer->Size(), 4096);
+  ASSERT_EQ(buffer->Consumed(), 1024);
 
-  const std::string& s1 = buffer->ProcessInlineBuffer();
+  const std::string& s1 = buffer->ReadLine();
   ASSERT_EQ(s1.length(), 1023);
   ASSERT_EQ(s1, std::string(1023, 'b'));
-  ASSERT_EQ(buffer->Len(), 4096);
-  ASSERT_EQ(buffer->NRead(), 4096);
-  ASSERT_EQ(buffer->ProcessedOffset(), 2048);
+  ASSERT_EQ(buffer->Capacity(), 4096);
+  ASSERT_EQ(buffer->Size(), 4096);
+  ASSERT_EQ(buffer->Consumed(), 2048);
 
-  buffer->TrimProcessedBuffer();
-  ASSERT_EQ(buffer->Len(), 4096);
-  ASSERT_EQ(buffer->NRead(), 2048);
-  ASSERT_EQ(buffer->ProcessedOffset(), 0);
+  buffer->Compact();
+  ASSERT_EQ(buffer->Capacity(), 4096);
+  ASSERT_EQ(buffer->Size(), 2048);
+  ASSERT_EQ(buffer->Consumed(), 0);
 
-  const std::string& s2 = buffer->ProcessInlineBuffer();
+  const std::string& s2 = buffer->ReadLine();
   ASSERT_EQ(s2.length(), 1023);
   ASSERT_EQ(s2, std::string(1023, 'c'));
 }
 
 TEST_F(DynamicBufferTest, TrimProcessed) {
-  buffer->TrimProcessedBuffer();
-  ASSERT_EQ(buffer->Len(), 4096);
-  ASSERT_EQ(buffer->NRead(), 1024);
-  ASSERT_EQ(buffer->ProcessedOffset(), 0);
+  buffer->Compact();
+  ASSERT_EQ(buffer->Capacity(), 4096);
+  ASSERT_EQ(buffer->Size(), 1024);
+  ASSERT_EQ(buffer->Consumed(), 0);
 }
 
 TEST_F(DynamicBufferTest, Resize) {
@@ -69,10 +69,10 @@ TEST_F(DynamicBufferTest, Resize) {
   for (int i = 0; i < 8192; ++i) {
     buf[i] = (i + 1) % 1024 == 0 ? '\n' : 'c';
   }
-  ASSERT_EQ(buffer->NRead(), 1024);
-  buffer->WriteToBuffer(buf, 8192);
-  ASSERT_EQ(buffer->Len(), 18432);
-  ASSERT_EQ(buffer->NRead(), 9216);
-  ASSERT_EQ(buffer->ProcessedOffset(), 0);
+  ASSERT_EQ(buffer->Size(), 1024);
+  buffer->Append(buf, 8192);
+  ASSERT_EQ(buffer->Capacity(), 18432);
+  ASSERT_EQ(buffer->Size(), 9216);
+  ASSERT_EQ(buffer->Consumed(), 0);
 }
 }  // namespace redis_simple::in_memory

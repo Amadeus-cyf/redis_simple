@@ -35,8 +35,8 @@ class RedisCli {
   std::unique_ptr<connection::Connection> connection_;
   std::optional<std::string> ip_;
   std::optional<int> port_;
-  std::unique_ptr<in_memory::DynamicBuffer> query_buf_;
-  std::unique_ptr<in_memory::DynamicBuffer> reply_buf_;
+  in_memory::DynamicBuffer query_buf_;
+  in_memory::DynamicBuffer reply_buf_;
   std::mutex lock_;
 };
 }  // namespace redis_simple::cli

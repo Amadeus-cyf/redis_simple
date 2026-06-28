@@ -282,7 +282,7 @@ std::optional<std::string> EncodeZRangeReply(const zset::ZSetEntryList& result,
 }  // namespace
 
 void ExecuteZRange(Client* const client) {
-  const auto& args = client->CmdArgs();
+  const auto& args = client->Args();
   zset::ZSetEntryList range_entries;
   int status = 0;
   if (FlaggedByScore(args)) {
@@ -311,7 +311,7 @@ int RangeByRank(Client* const client, const std::vector<std::string>& args,
     RS_LOG_DEBUG("invalid arguments for zrange rank\n");
     return -1;
   }
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     const auto& key = args[0];
     const auto* obj = redis_db->LookupKey(key);
     if (obj == nullptr) {
@@ -329,7 +329,7 @@ int RangeByRank(Client* const client, const std::vector<std::string>& args,
       return -1;
     }
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     return -1;
   }
   return 0;
@@ -342,7 +342,7 @@ int RangeByScore(Client* const client, const std::vector<std::string>& args,
     RS_LOG_DEBUG("invalid arguments for zrange score\n");
     return -1;
   }
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     const auto& key = args[0];
     const auto* obj = redis_db->LookupKey(key);
     if (obj == nullptr) {
@@ -360,7 +360,7 @@ int RangeByScore(Client* const client, const std::vector<std::string>& args,
       return -1;
     }
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     return -1;
   }
   return 0;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "ae_file_event.h"
 #include "ae_kqueue.h"
 #include "ae_time_event.h"
@@ -52,7 +54,7 @@ inline int WaitForEvent(int fd, EventFlag mask, long timeout) {
 
 class EventLoop {
  public:
-  static EventLoop* Create();
+  static std::unique_ptr<EventLoop> Create();
   void Run();
   EventLoopStatus CreateFileEvent(int fd, FileEvent* file_event);
   EventLoopStatus DeleteFileEvent(int fd, int mask);
@@ -65,12 +67,12 @@ class EventLoop {
 
  private:
   static constexpr int kEventSize = 1024;
-  explicit EventLoop(KqueueEventApi* kq);
+  explicit EventLoop(std::unique_ptr<KqueueEventApi> kq);
   void ProcessFileEvents();
   void ProcessTimeEvents() const;
   std::vector<FileEvent*> file_events_;
   mutable TimeEvent* time_event_head_;
-  const KqueueEventApi* event_api_;
+  std::unique_ptr<KqueueEventApi> event_api_;
   mutable int max_fd_;
 };
 }  // namespace redis_simple::ae

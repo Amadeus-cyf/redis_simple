@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#include <algorithm>
 #include <any>
 
 #include "client_connection/client_connection.h"
@@ -15,23 +16,20 @@ namespace redis_simple {
 Server::Server() : db_(db::RedisDb::Init()), el_(ae::EventLoop::Create()) {}
 
 Server* const Server::Get() {
-  static std::unique_ptr<Server> server;
-  if (!server) {
-    server = std::unique_ptr<Server>(new Server());
-  }
-  return server.get();
+  static Server server;
+  return &server;
 }
 
 void Server::Run(const std::string& ip, const int& port) {
   connection::Context ctx;
-  ctx.event_loop = el_;
+  ctx.event_loop = el_.get();
   ctx.fd = -1;
   connection::Connection conn(ctx);
   const connection::AddressInfo addr_info(ip, port);
   if (conn.BindAndListen(addr_info) == connection::ConnectionStatus::kError) {
     return;
   }
-  fd_ = conn.Fd();
+  fd_ = conn.Descriptor();
   InstallAcceptCallback();
   el_->CreateTimeEvent(ae::TimeEvent::Create(
       [this](long long id) { return ServerCron(); }, nullptr));
@@ -39,11 +37,10 @@ void Server::Run(const std::string& ip, const int& port) {
 }
 
 bool Server::RemoveClient(Client* c) {
-  auto it = std::find(clients_.begin(), clients_.end(), c);
+  auto it = std::find_if(clients_.begin(), clients_.end(),
+                         [c](const auto& client) { return client.get() == c; });
   if (it != clients_.end()) {
     clients_.erase(it);
-    delete c;
-    c = nullptr;
     return true;
   }
   return false;

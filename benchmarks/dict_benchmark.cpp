@@ -19,7 +19,7 @@ static size_t RandomIndex(size_t size) {
   return dist(Rng());
 }
 
-static std::string RandString(int len) {
+static std::string RandomString(int len) {
   static constexpr char kAlphaNum[] =
       "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -38,9 +38,9 @@ static std::string RandString(int len) {
 static void DictAdd(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
-    const auto key = RandString(10);
+    const auto key = RandomString(10);
     g_keys.push_back(key);
-    g_dict->Insert(key, RandString(10));
+    g_dict->Insert(key, RandomString(10));
   }
 }
 
@@ -58,7 +58,7 @@ static void DictUpdate(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
     if (use_existing(Rng()) && !g_keys.empty()) {
-      g_dict->Set(g_keys[RandomIndex(g_keys.size())], RandString(10));
+      g_dict->Set(g_keys[RandomIndex(g_keys.size())], RandomString(10));
     } else {
       g_dict->Set("non-existing key", "val");
     }

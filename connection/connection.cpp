@@ -33,10 +33,7 @@ Connection::Connection(const Context& ctx)
 
 ConnectionStatus Connection::BindAndConnect(
     const AddressInfo& remote, const std::optional<AddressInfo>& local) {
-  if (auto event_loop = el_.lock()) {
-    if (!event_loop) {
-      return ConnectionStatus::kError;
-    }
+  if (auto* event_loop = el_) {
     int fd = BindAndConnectTcp(remote, local);
     if (fd < 0) {
       return ConnectionStatus::kError;
@@ -50,7 +47,7 @@ ConnectionStatus Connection::BindAndConnect(
       return ConnectionStatus::kError;
     }
   } else {
-    RS_LOG_DEBUG("event loop expired\n");
+    RS_LOG_DEBUG("no event loop\n");
     return ConnectionStatus::kError;
   }
   return ConnectionStatus::kOk;
@@ -112,11 +109,7 @@ bool Connection::SetReadCallback(ConnectionCallback read_callback) {
   if (!read_callback) {
     return UnsetReadCallback();
   }
-  if (auto event_loop = el_.lock()) {
-    if (!event_loop) {
-      RS_LOG_DEBUG("no event loop\n");
-      return false;
-    }
+  if (auto* event_loop = el_) {
     auto* e = ae::FileEvent::Create(SocketEventCallback, nullptr, this,
                                     ae::ToInt(ae::EventFlag::kReadable));
     if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
@@ -126,18 +119,14 @@ bool Connection::SetReadCallback(ConnectionCallback read_callback) {
     read_callback_ = std::move(read_callback);
     flags_ |= ae::EventFlag::kReadable;
   } else {
-    RS_LOG_DEBUG("event loop expired\n");
+    RS_LOG_DEBUG("no event loop\n");
     return false;
   }
   return true;
 }
 
 bool Connection::UnsetReadCallback() {
-  if (auto event_loop = el_.lock()) {
-    if (!event_loop) {
-      RS_LOG_DEBUG("no event loop\n");
-      return false;
-    }
+  if (auto* event_loop = el_) {
     if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kReadable) ==
         ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to unset read callback\n");
@@ -146,7 +135,7 @@ bool Connection::UnsetReadCallback() {
     read_callback_ = nullptr;
     flags_ &= ~ae::EventFlag::kReadable;
   } else {
-    RS_LOG_DEBUG("event loop expired\n");
+    RS_LOG_DEBUG("no event loop\n");
     return false;
   }
   return true;
@@ -161,11 +150,7 @@ bool Connection::SetWriteCallback(ConnectionCallback callback, bool barrier) {
   if (!callback) {
     return UnsetWriteCallback();
   }
-  if (auto event_loop = el_.lock()) {
-    if (!event_loop) {
-      RS_LOG_DEBUG("no event loop\n");
-      return false;
-    }
+  if (auto* event_loop = el_) {
     auto* e = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
                                     ae::ToInt(ae::EventFlag::kWritable));
     if (event_loop->CreateFileEvent(fd_, e) == ae::EventLoopStatus::kError) {
@@ -175,18 +160,14 @@ bool Connection::SetWriteCallback(ConnectionCallback callback, bool barrier) {
     write_callback_ = std::move(callback);
     flags_ |= ae::EventFlag::kWritable;
   } else {
-    RS_LOG_DEBUG("event loop expired\n");
+    RS_LOG_DEBUG("no event loop\n");
     return false;
   }
   return true;
 }
 
 bool Connection::UnsetWriteCallback() {
-  if (auto event_loop = el_.lock()) {
-    if (!event_loop) {
-      RS_LOG_DEBUG("no event loop\n");
-      return false;
-    }
+  if (auto* event_loop = el_) {
     if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kWritable) ==
         ae::EventLoopStatus::kError) {
       RS_LOG_DEBUG("failed to unset write callback\n");
@@ -195,7 +176,7 @@ bool Connection::UnsetWriteCallback() {
     write_callback_ = nullptr;
     flags_ &= ~ae::EventFlag::kWritable;
   } else {
-    RS_LOG_DEBUG("event loop expired\n");
+    RS_LOG_DEBUG("no event loop\n");
     return false;
   }
   return true;
@@ -323,7 +304,7 @@ ssize_t Connection::SyncWrite(const char* buffer, size_t len,
   return Write(buffer, len);
 }
 
-ssize_t Connection::Writev(
+ssize_t Connection::WriteVector(
     const std::vector<std::pair<char*, size_t>>& mem_blocks) const {
   if (mem_blocks.size() >
       static_cast<size_t>(std::numeric_limits<int>::max())) {

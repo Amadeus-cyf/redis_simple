@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -12,18 +13,14 @@ class Server {
  public:
   static Server* const Get();
   void Run(const std::string& ip, const int& port);
-  std::weak_ptr<ae::EventLoop> EventLoop() { return el_; }
-  std::weak_ptr<db::RedisDb> DB() { return db_; }
-  void AddClient(Client* c) { clients_.push_back(c); }
-  bool RemoveClient(Client* c);
-  const std::vector<Client*>& Clients() { return clients_; }
-  ~Server() {
-    for (const Client* c : clients_) {
-      c->Free();
-      delete c;
-      c = nullptr;
-    }
+  ae::EventLoop* EventLoop() { return el_.get(); }
+  db::RedisDb* Db() { return db_.get(); }
+  void AddClient(std::unique_ptr<Client> client) {
+    clients_.push_back(std::move(client));
   }
+  bool RemoveClient(Client* c);
+  const std::vector<std::unique_ptr<Client>>& Clients() { return clients_; }
+  ~Server() = default;
 
  private:
   Server();
@@ -31,8 +28,8 @@ class Server {
   static int ServerCron();
   int fd_{};
   int flags_{};
-  std::shared_ptr<ae::EventLoop> el_;
-  std::vector<Client*> clients_;
-  std::shared_ptr<db::RedisDb> db_;
+  std::unique_ptr<ae::EventLoop> el_;
+  std::vector<std::unique_ptr<Client>> clients_;
+  std::unique_ptr<db::RedisDb> db_;
 };
 }  // namespace redis_simple

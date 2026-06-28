@@ -55,21 +55,13 @@ std::string ReplyListToString(const std::vector<std::string>& reply) {
 const std::string& RedisCli::ErrResp = "error";
 const std::string& RedisCli::NoReplyResp = "no_reply";
 
-RedisCli::RedisCli()
-    : ip_(std::nullopt),
-      port_(std::nullopt),
-      query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
-      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()) {}
+RedisCli::RedisCli() : ip_(std::nullopt), port_(std::nullopt) {}
 
-RedisCli::RedisCli(const std::string& ip, int port)
-    : ip_(ip),
-      port_(port),
-      query_buf_(std::make_unique<in_memory::DynamicBuffer>()),
-      reply_buf_(std::make_unique<in_memory::DynamicBuffer>()) {}
+RedisCli::RedisCli(const std::string& ip, int port) : ip_(ip), port_(port) {}
 
 CliStatus RedisCli::Connect(const std::string& ip, int port) {
   connection::Context ctx;
-  ctx.event_loop = std::shared_ptr<ae::EventLoop>();
+  ctx.event_loop = nullptr;
   ctx.fd = -1;
   connection_ = std::make_unique<connection::Connection>(ctx);
   const connection::AddressInfo remote(ip, port);
@@ -85,7 +77,7 @@ CliStatus RedisCli::Connect(const std::string& ip, int port) {
 
 void RedisCli::AddCommand(const std::string& cmd) {
   const std::scoped_lock lock(lock_);
-  query_buf_->WriteToBuffer(cmd.c_str(), cmd.size());
+  query_buf_.Append(cmd.c_str(), cmd.size());
 }
 
 std::string RedisCli::GetReply() {
@@ -101,7 +93,7 @@ std::future<std::string> RedisCli::GetReplyAsync() {
 
 std::optional<std::string> RedisCli::MaybeGetReply() {
   std::vector<std::string> reply;
-  if (reply_buf_ && !reply_buf_->Empty() && ProcessReply(reply)) {
+  if (!reply_buf_.Empty() && ProcessReply(reply)) {
     return ReplyListToString(reply);
   }
   return std::nullopt;
@@ -109,20 +101,19 @@ std::optional<std::string> RedisCli::MaybeGetReply() {
 
 std::string RedisCli::GetReplyFromConnection() {
   std::vector<std::string> reply;
-  if (!query_buf_->Empty()) {
-    ssize_t sent =
-        WriteToConnection(connection_.get(), query_buf_->GetBufInString());
+  if (!query_buf_.Empty()) {
+    ssize_t sent = WriteToConnection(connection_.get(), query_buf_.ToString());
     if (sent <= 0) {
       return ErrResp;
     }
-    if (sent == query_buf_->NRead()) {
-      query_buf_->Clear();
+    if (sent == query_buf_.Size()) {
+      query_buf_.Clear();
     } else {
-      query_buf_->IncrProcessedOffset(sent);
-      query_buf_->TrimProcessedBuffer();
+      query_buf_.Consume(sent);
+      query_buf_.Compact();
     }
     const auto replies = ReadFromConnection(connection_.get());
-    reply_buf_->WriteToBuffer(replies.c_str(), replies.size());
+    reply_buf_.Append(replies.c_str(), replies.size());
     if (ProcessReply(reply)) {
       return ReplyListToString(reply);
     }
@@ -131,10 +122,10 @@ std::string RedisCli::GetReplyFromConnection() {
 }
 
 bool RedisCli::ProcessReply(std::vector<std::string>& reply) {
-  ssize_t processed = resp_parser::Parse(reply_buf_->GetBufInString(), reply);
+  ssize_t processed = resp_parser::Parse(reply_buf_.ToString(), reply);
   if (processed > 0) {
-    reply_buf_->IncrProcessedOffset(processed);
-    reply_buf_->TrimProcessedBuffer();
+    reply_buf_.Consume(processed);
+    reply_buf_.Compact();
     return true;
   }
   return false;

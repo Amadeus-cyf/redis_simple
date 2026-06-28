@@ -26,7 +26,7 @@ std::vector<std::string> Split(const std::string& s,
   return res;
 }
 
-void ShiftCStr(char* s, size_t len, size_t offset) {
+void ShiftCString(char* s, size_t len, size_t offset) {
   if ((s == nullptr) || offset == 0) {
     return;
   }
@@ -75,7 +75,7 @@ bool ToInt64(const std::string& s, int64_t* const v) {
   return true;
 }
 
-int LL2String(char* dst, size_t dstlen, long long svalue) {
+int Int64ToString(char* dst, size_t dstlen, long long svalue) {
   unsigned long long value = 0;
   int negative = 0;
   if (svalue < 0) {
@@ -99,14 +99,14 @@ int LL2String(char* dst, size_t dstlen, long long svalue) {
   } else {
     value = svalue;
   }
-  const int length = Ull2String(dst, dstlen, value);
+  const int length = Uint64ToString(dst, dstlen, value);
   if (length == 0) {
     return 0;
   }
   return length + negative;
 }
 
-int Ull2String(char* dst, size_t dstlen, unsigned long long value) {
+int Uint64ToString(char* dst, size_t dstlen, unsigned long long value) {
   static const char digits[201] =
       "0001020304050607080910111213141516171819"
       "2021222324252627282930313233343536373839"

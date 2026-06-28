@@ -10,6 +10,7 @@
 #include <ctime>
 #include <limits>
 #include <unordered_map>
+#include <utility>
 
 #include "event_loop/ae_kqueue.h"
 #include "utils/time_utils.h"
@@ -65,15 +66,18 @@ int WaitForEvent(int fd, int mask, long timeout) {
   return result_mask;
 }
 
-EventLoop::EventLoop(KqueueEventApi* kq)
+EventLoop::EventLoop(std::unique_ptr<KqueueEventApi> kq)
     : file_events_(std::vector<FileEvent*>(kEventSize)),
       time_event_head_(nullptr),
-      event_api_(kq),
+      event_api_(std::move(kq)),
       max_fd_(-1) {}
 
-EventLoop* EventLoop::Create() {
-  KqueueEventApi* kq = KqueueEventApi::Create(kEventSize);
-  return new EventLoop(kq);
+std::unique_ptr<EventLoop> EventLoop::Create() {
+  auto kq = KqueueEventApi::Create(kEventSize);
+  if (!kq) {
+    return nullptr;
+  }
+  return std::unique_ptr<EventLoop>(new EventLoop(std::move(kq)));
 }
 
 void EventLoop::Run() {
@@ -222,8 +226,6 @@ void EventLoop::ProcessTimeEvents() const {
 }
 
 EventLoop::~EventLoop() {
-  delete event_api_;
-  event_api_ = nullptr;
   for (int i = 0; i < kEventSize; ++i) {
     delete file_events_[i];
     file_events_[i] = nullptr;

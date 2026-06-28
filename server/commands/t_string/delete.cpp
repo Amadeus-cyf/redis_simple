@@ -8,19 +8,18 @@
 namespace redis_simple::command::t_string {
 namespace {
 int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args);
-int Delete(const std::shared_ptr<db::RedisDb>& redis_db,
-           const StringArgs* args);
+int Delete(db::RedisDb* redis_db, const StringArgs* args);
 }  // namespace
 
 void ExecuteDelete(Client* const client) {
   RS_LOG_DEBUG("delete command called\n");
   StringArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     const int deleted = Delete(redis_db, &args);
     if (deleted < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -28,7 +27,7 @@ void ExecuteDelete(Client* const client) {
     }
     client->AddReply(reply::FromInt64(deleted));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -44,8 +43,7 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   return 0;
 }
 
-int Delete(const std::shared_ptr<db::RedisDb>& redis_db,
-           const StringArgs* args) {
+int Delete(db::RedisDb* redis_db, const StringArgs* args) {
   return redis_db->DeleteKey(args->key) == db::DbStatus::kOk ? 1 : 0;
 }
 }  // namespace

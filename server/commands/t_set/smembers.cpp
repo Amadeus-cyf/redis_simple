@@ -15,18 +15,18 @@ struct SMembersArgs {
 };
 int ParseArgs(const std::vector<std::string>& args,
               SMembersArgs* smembers_args);
-int SMembers(const std::shared_ptr<db::RedisDb>& redis_db,
-             const SMembersArgs* args, std::vector<std::string>& members);
+int SMembers(db::RedisDb* redis_db, const SMembersArgs* args,
+             std::vector<std::string>& members);
 }  // namespace
 
 void ExecuteSMembers(Client* const client) {
   SMembersArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     std::vector<std::string> members;
     if (SMembers(redis_db, &args, members) < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -41,7 +41,7 @@ void ExecuteSMembers(Client* const client) {
     }
     client->AddReply(*result);
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -58,8 +58,8 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SMembers(const std::shared_ptr<db::RedisDb>& redis_db,
-             const SMembersArgs* args, std::vector<std::string>& members) {
+int SMembers(db::RedisDb* redis_db, const SMembersArgs* args,
+             std::vector<std::string>& members) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;

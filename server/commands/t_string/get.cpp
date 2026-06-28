@@ -10,19 +10,18 @@
 namespace redis_simple::command::t_string {
 namespace {
 int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args);
-std::optional<std::string> Get(const std::shared_ptr<db::RedisDb>& redis_db,
-                               const StringArgs* args);
+std::optional<std::string> Get(db::RedisDb* redis_db, const StringArgs* args);
 }  // namespace
 
 void ExecuteGet(Client* const client) {
   RS_LOG_DEBUG("get command called\n");
   StringArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     const auto value_result = Get(redis_db, &args);
     if (value_result.has_value()) {
       client->AddReply(reply::FromBulkString(*value_result));
@@ -30,7 +29,7 @@ void ExecuteGet(Client* const client) {
       client->AddReply(reply::Null());
     }
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -46,8 +45,7 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   return 0;
 }
 
-std::optional<std::string> Get(const std::shared_ptr<db::RedisDb>& redis_db,
-                               const StringArgs* args) {
+std::optional<std::string> Get(db::RedisDb* redis_db, const StringArgs* args) {
   if (!redis_db || (args == nullptr)) {
     return std::nullopt;
   }

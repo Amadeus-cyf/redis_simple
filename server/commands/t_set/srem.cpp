@@ -14,17 +14,17 @@ struct SRemArgs {
   std::vector<std::string> elements;
 };
 int ParseArgs(const std::vector<std::string>& args, SRemArgs* srem_args);
-int SRem(const std::shared_ptr<db::RedisDb>& redis_db, const SRemArgs* args);
+int SRem(db::RedisDb* redis_db, const SRemArgs* args);
 }  // namespace
 
 void ExecuteSRem(Client* const client) {
   SRemArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     int result = SRem(redis_db, &args);
     if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -32,7 +32,7 @@ void ExecuteSRem(Client* const client) {
     }
     client->AddReply(reply::FromInt64(result));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -51,7 +51,7 @@ int ParseArgs(const std::vector<std::string>& args, SRemArgs* const srem_args) {
   return 0;
 }
 
-int SRem(const std::shared_ptr<db::RedisDb>& redis_db, const SRemArgs* args) {
+int SRem(db::RedisDb* redis_db, const SRemArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;

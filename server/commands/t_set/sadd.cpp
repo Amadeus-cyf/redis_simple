@@ -15,17 +15,17 @@ struct SAddArgs {
   std::vector<std::string> elements;
 };
 int ParseArgs(const std::vector<std::string>& args, SAddArgs* sadd_args);
-int SAdd(const std::shared_ptr<db::RedisDb>& redis_db, const SAddArgs* args);
+int SAdd(db::RedisDb* redis_db, const SAddArgs* args);
 }  // namespace
 
 void ExecuteSAdd(Client* const client) {
   SAddArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     int result = SAdd(redis_db, &args);
     if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -33,7 +33,7 @@ void ExecuteSAdd(Client* const client) {
     }
     client->AddReply(reply::FromInt64(result));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -52,7 +52,7 @@ int ParseArgs(const std::vector<std::string>& args, SAddArgs* const sadd_args) {
   return 0;
 }
 
-int SAdd(const std::shared_ptr<db::RedisDb>& redis_db, const SAddArgs* args) {
+int SAdd(db::RedisDb* redis_db, const SAddArgs* args) {
   if (!redis_db || (args == nullptr)) {
     return -1;
   }

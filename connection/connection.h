@@ -28,8 +28,8 @@ enum class ConnectionState {
 };
 
 struct Context {
-  std::weak_ptr<ae::EventLoop> event_loop;
-  int fd;
+  ae::EventLoop* event_loop{nullptr};
+  int fd{-1};
 };
 
 struct AddressInfo {
@@ -55,7 +55,7 @@ class Connection {
   bool SetWriteCallback(ConnectionCallback callback, bool barrier = false);
   bool UnsetWriteCallback();
   bool HasWriteCallback() const { return static_cast<bool>(write_callback_); }
-  int Fd() const { return fd_; }
+  int Descriptor() const { return fd_; }
   ConnectionState State() const { return state_; }
   void SetState(ConnectionState state) { state_ = state; }
   void SetPrivateData(std::any private_data) { private_data_ = private_data; }
@@ -66,9 +66,15 @@ class Connection {
   ssize_t SyncBatchRead(std::string& s, long timeout) const;
   ssize_t SyncReadline(std::string& s, long timeout) const;
   ssize_t Write(const char* buffer, size_t len) const;
-  ssize_t Writev(const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
+  ssize_t WriteVector(
+      const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
   ssize_t SyncWrite(const char* buffer, size_t len, long timeout) const;
-  void Close() const { close(fd_); }
+  void Close() {
+    if (fd_ >= 0) {
+      close(fd_);
+      fd_ = -1;
+    }
+  }
   ~Connection() { Close(); }
 
  private:
@@ -89,7 +95,7 @@ class Connection {
   int flags_{};
   mutable ConnectionState state_;
   std::any private_data_;
-  std::weak_ptr<ae::EventLoop> el_;
+  ae::EventLoop* el_{nullptr};
   ConnectionCallback read_callback_;
   ConnectionCallback write_callback_;
 };

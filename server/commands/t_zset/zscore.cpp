@@ -14,18 +14,17 @@ struct ZScoreArgs {
   std::string element;
 };
 int ParseArgs(const std::vector<std::string>& args, ZScoreArgs* zscore_args);
-std::optional<double> ZScore(const std::shared_ptr<db::RedisDb>& redis_db,
-                             const ZScoreArgs* args);
+std::optional<double> ZScore(db::RedisDb* redis_db, const ZScoreArgs* args);
 }  // namespace
 
 void ExecuteZScore(Client* const client) {
   ZScoreArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     const auto opt_score = ZScore(redis_db, &args);
     if (opt_score.has_value()) {
       client->AddReply(reply::FromFloat(*opt_score));
@@ -33,7 +32,7 @@ void ExecuteZScore(Client* const client) {
       client->AddReply(reply::Null());
     }
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -51,8 +50,7 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<double> ZScore(const std::shared_ptr<db::RedisDb>& redis_db,
-                             const ZScoreArgs* args) {
+std::optional<double> ZScore(db::RedisDb* redis_db, const ZScoreArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
   if ((obj == nullptr) ||
       obj->Encoding() != db::RedisObject::ObjEncoding::kZSet) {

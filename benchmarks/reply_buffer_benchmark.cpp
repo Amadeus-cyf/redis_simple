@@ -24,7 +24,7 @@ static void ReplyBufferAdd(benchmark::State& state) {
   Init();
   for (auto _ : state) {
     (void)_;
-    g_reply_buffer.AddReplyToBufferOrList(g_buffer, kBufferSize);
+    g_reply_buffer.Append(g_buffer, kBufferSize);
   }
 }
 
@@ -33,7 +33,7 @@ static void ReplyBufferProcess(benchmark::State& state) {
     (void)_;
     std::uniform_int_distribution<size_t> bytes_dist(
         0, g_reply_buffer.ReplyBytes());
-    g_reply_buffer.ClearProcessed(
+    g_reply_buffer.Consume(
         std::min(bytes_dist(Rng()), g_reply_buffer.ReplyBytes()));
   }
 }

@@ -7,7 +7,9 @@
 #include "utils/time_utils.h"
 
 namespace redis_simple::db {
-RedisDb* RedisDb::Init() { return new RedisDb(); }
+std::unique_ptr<RedisDb> RedisDb::Init() {
+  return std::unique_ptr<RedisDb>(new RedisDb());
+}
 
 RedisDb::RedisDb() : free_async_(false), expire_cursor_(0) {
   auto hash = [](const std::string& key) {

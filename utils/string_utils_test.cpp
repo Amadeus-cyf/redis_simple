@@ -24,29 +24,29 @@ TEST(StringUtilsTest, Split) {
   ASSERT_EQ(str5, std::vector<std::string>({""}));
 }
 
-TEST(StringUtilsTest, ShiftCStr) {
+TEST(StringUtilsTest, ShiftCString) {
   char s1[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
                  'f', 'f', 'e', 'r', '_', '1'};
-  ShiftCStr(s1, 14, 10);
+  ShiftCString(s1, 14, 10);
   ASSERT_EQ(std::memcmp(s1, "r_1", sizeof("r_1")), 0);
 
   char s2[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
                  'f', 'f', 'e', 'r', '_', '2'};
-  ShiftCStr(s2, 14, 14);
+  ShiftCString(s2, 14, 14);
   ASSERT_EQ(std::memcmp(s2, "", sizeof("")), 0);
 
   char s3[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
                  'f', 'f', 'e', 'r', '_', '3'};
-  ShiftCStr(s3, 14, 0);
+  ShiftCString(s3, 14, 0);
   ASSERT_EQ(std::memcmp(s3, "test_buffer_3", sizeof("test_buffer_3")), 0);
 
   char s4[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
                  'f', 'f', 'e', 'r', '_', '4'};
-  ShiftCStr(s4, 14, -1);
+  ShiftCString(s4, 14, -1);
   ASSERT_EQ(std::memcmp(s4, "", sizeof("")), 0);
 
   char* s5 = nullptr;
-  ShiftCStr(s5, 0, 0);
+  ShiftCString(s5, 0, 0);
   ASSERT_EQ(s5, nullptr);
 }
 
@@ -149,73 +149,73 @@ TEST(StringUtilsTest, ToInt64) {
   ASSERT_FALSE(ToInt64(s19, nullptr));
 }
 
-TEST(StringUtilsTest, LL2String) {
+TEST(StringUtilsTest, Int64ToString) {
   char dst1[21];
   std::string s1("1234567");
-  ASSERT_EQ(LL2String(dst1, 21, 1234567), 7);
+  ASSERT_EQ(Int64ToString(dst1, 21, 1234567), 7);
   ASSERT_TRUE(std::equal(dst1, dst1 + 7, s1.c_str()));
 
   char dst2[21];
   std::string s2("-1234567");
-  ASSERT_EQ(LL2String(dst2, 21, -1234567), 8);
+  ASSERT_EQ(Int64ToString(dst2, 21, -1234567), 8);
   ASSERT_TRUE(std::equal(dst2, dst2 + 8, s2.c_str()));
 
   char dst3[21];
   std::string s3("9223372036854775807");
-  ASSERT_EQ(LL2String(dst3, 21, INT64_MAX), 19);
+  ASSERT_EQ(Int64ToString(dst3, 21, INT64_MAX), 19);
   ASSERT_TRUE(std::equal(dst3, dst3 + 19, s3.c_str()));
 
   char dst4[21];
   std::string s4("-9223372036854775808");
-  ASSERT_EQ(LL2String(dst4, 21, INT64_MIN), 20);
+  ASSERT_EQ(Int64ToString(dst4, 21, INT64_MIN), 20);
   ASSERT_TRUE(std::equal(dst4, dst4 + 20, s4.c_str()));
 
   char dst5[21];
   std::string s5("0");
-  ASSERT_EQ(LL2String(dst5, 21, 0), 1);
+  ASSERT_EQ(Int64ToString(dst5, 21, 0), 1);
   ASSERT_TRUE(std::equal(dst5, dst5 + 1, s5.c_str()));
 
   char dst6[1];
   std::string s6("1000");
-  ASSERT_EQ(LL2String(dst6, 1, 0), 0);
+  ASSERT_EQ(Int64ToString(dst6, 1, 0), 0);
   ASSERT_EQ(dst6[0], '\0');
 
   char dst7[7];
   std::string s7("10000000");
-  ASSERT_EQ(LL2String(dst7, 7, 10000000), 0);
+  ASSERT_EQ(Int64ToString(dst7, 7, 10000000), 0);
   ASSERT_EQ(dst7[0], '\0');
 
   char dst8[7];
   std::string s8("-10000000");
-  ASSERT_EQ(LL2String(dst8, 7, -10000000), 0);
+  ASSERT_EQ(Int64ToString(dst8, 7, -10000000), 0);
   ASSERT_EQ(dst8[0], '-');
   ASSERT_EQ(dst8[1], '\0');
 }
 
-TEST(StringUtilsTest, Ull2String) {
+TEST(StringUtilsTest, Uint64ToString) {
   char dst1[21];
   std::string s1("1234567");
-  ASSERT_EQ(Ull2String(dst1, 21, 1234567), 7);
+  ASSERT_EQ(Uint64ToString(dst1, 21, 1234567), 7);
   ASSERT_TRUE(std::equal(dst1, dst1 + 7, s1.c_str()));
 
   char dst2[21];
   std::string s2("9223372036854775807");
-  ASSERT_EQ(Ull2String(dst2, 21, INT64_MAX), 19);
+  ASSERT_EQ(Uint64ToString(dst2, 21, INT64_MAX), 19);
   ASSERT_TRUE(std::equal(dst2, dst2 + 19, s2.c_str()));
 
   char dst3[21];
   std::string s3("18446744073709551615");
-  ASSERT_EQ(Ull2String(dst3, 21, UINT64_MAX), 20);
+  ASSERT_EQ(Uint64ToString(dst3, 21, UINT64_MAX), 20);
   ASSERT_TRUE(std::equal(dst3, dst3 + 20, s3.c_str()));
 
   char dst4[21];
   std::string s4("0");
-  ASSERT_EQ(Ull2String(dst4, 21, 0), 1);
+  ASSERT_EQ(Uint64ToString(dst4, 21, 0), 1);
   ASSERT_TRUE(std::equal(dst4, dst4 + 1, s4.c_str()));
 
   char dst5[7];
   std::string s5("10000000");
-  ASSERT_EQ(Ull2String(dst5, 7, 10000000), 0);
+  ASSERT_EQ(Uint64ToString(dst5, 7, 10000000), 0);
   ASSERT_EQ(dst5[0], '\0');
 }
 }  // namespace redis_simple::utils

@@ -19,47 +19,47 @@ std::unique_ptr<ReplyBuffer> ReplyBufferTest::buf = nullptr;
 
 TEST_F(ReplyBufferTest, AddToBuf) {
   std::string s(2000, 'a');
-  size_t r = buf->AddReplyToBufferOrList(s.c_str(), 2000);
+  size_t r = buf->Append(s.c_str(), 2000);
   ASSERT_EQ(r, 2000);
-  ASSERT_EQ(buf->BufPosition(), 2000);
+  ASSERT_EQ(buf->BufferSize(), 2000);
 }
 
 TEST_F(ReplyBufferTest, AddToReplyList) {
   std::string s1(4096, 'b');
-  size_t r = buf->AddReplyToBufferOrList(s1.c_str(), 4096);
+  size_t r = buf->Append(s1.c_str(), 4096);
   ASSERT_EQ(r, 4096);
-  ASSERT_EQ(buf->SentLen(), 0);
-  ASSERT_EQ(buf->BufPosition(), 4096);
-  ASSERT_EQ(buf->ReplyLen(), 1);
+  ASSERT_EQ(buf->SentLength(), 0);
+  ASSERT_EQ(buf->BufferSize(), 4096);
+  ASSERT_EQ(buf->ReplyCount(), 1);
 
   // Add a new node to the reply list.
   std::string s2(1000, 'c');
-  r = buf->AddReplyToBufferOrList(s2.c_str(), 1000);
+  r = buf->Append(s2.c_str(), 1000);
   ASSERT_EQ(r, 1000);
-  ASSERT_EQ(buf->ReplyLen(), 2);
+  ASSERT_EQ(buf->ReplyCount(), 2);
 
   // no new node created
   std::string s3(24, 'c');
-  r = buf->AddReplyToBufferOrList(s3.c_str(), 24);
+  r = buf->Append(s3.c_str(), 24);
   ASSERT_EQ(r, 24);
-  ASSERT_EQ(buf->ReplyLen(), 2);
+  ASSERT_EQ(buf->ReplyCount(), 2);
 
   // Add a new node with available space remained.
   std::string s4(1024, 'c');
-  r = buf->AddReplyToBufferOrList(s4.c_str(), 1000);
+  r = buf->Append(s4.c_str(), 1000);
   ASSERT_EQ(r, 1000);
-  ASSERT_EQ(buf->BufPosition(), 4096);
-  ASSERT_EQ(buf->ReplyLen(), 3);
+  ASSERT_EQ(buf->BufferSize(), 4096);
+  ASSERT_EQ(buf->ReplyCount(), 3);
 
   // Partially append to the last node and add a new node for the remaining
   // memory.
   std::string s5(1024, 'd');
-  r = buf->AddReplyToBufferOrList(s5.c_str(), 1024);
+  r = buf->Append(s5.c_str(), 1024);
   ASSERT_EQ(r, 1024);
-  ASSERT_EQ(buf->BufPosition(), 4096);
-  ASSERT_EQ(buf->ReplyLen(), 4);
+  ASSERT_EQ(buf->BufferSize(), 4096);
+  ASSERT_EQ(buf->ReplyCount(), 4);
 
-  const auto mem_vec = buf->Memvec();
+  const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 5);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(2000, 'a').append(4096 - 2000, 'b'));
@@ -78,19 +78,19 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(mem_vec[4].second, 1000);
 }
 
-TEST_F(ReplyBufferTest, ClearProcessed) {
-  // Partially clear the main buffer.
-  buf->ClearProcessed(2047);
-  ASSERT_EQ(buf->BufPosition(), 4096);
-  ASSERT_EQ(buf->SentLen(), 2047);
+TEST_F(ReplyBufferTest, Consume) {
+  // Partially consume the main buffer.
+  buf->Consume(2047);
+  ASSERT_EQ(buf->BufferSize(), 4096);
+  ASSERT_EQ(buf->SentLength(), 2047);
 
-  // Clear the entire buffer and one list node.
-  buf->ClearProcessed(5000);
-  ASSERT_EQ(buf->BufPosition(), 0);
-  ASSERT_EQ(buf->SentLen(), 5000 - (4096 - 2047) - 2000);
-  ASSERT_EQ(buf->ReplyLen(), 3);
+  // Consume the rest of the main buffer and one list node.
+  buf->Consume(5000);
+  ASSERT_EQ(buf->BufferSize(), 0);
+  ASSERT_EQ(buf->SentLength(), 5000 - (4096 - 2047) - 2000);
+  ASSERT_EQ(buf->ReplyCount(), 3);
 
-  const auto mem_vec = buf->Memvec();
+  const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 3);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));
@@ -107,15 +107,15 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   BufNode* tail = buf->ReplyTail();
 
   tail->used_ /= 3;
-  std::memset(tail->buf_ + tail->used_, 0, tail->len_ - tail->used_);
+  std::memset(tail->buf_ + tail->used_, 0, tail->capacity_ - tail->used_);
 
   std::string s(5000, 'e');
-  size_t r = buf->AddReplyToBufferOrList(s.c_str(), 5000);
+  size_t r = buf->Append(s.c_str(), 5000);
   ASSERT_EQ(r, 5000);
-  ASSERT_EQ(buf->BufPosition(), 0);
-  ASSERT_EQ(buf->ReplyLen(), 4);
+  ASSERT_EQ(buf->BufferSize(), 0);
+  ASSERT_EQ(buf->ReplyCount(), 4);
 
-  const auto mem_vec = buf->Memvec();
+  const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
             std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));

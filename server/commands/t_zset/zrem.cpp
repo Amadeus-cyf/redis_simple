@@ -14,17 +14,17 @@ struct ZRemArgs {
   std::vector<std::string> elements;
 };
 int ParseArgs(const std::vector<std::string>& args, ZRemArgs* zset_args);
-int ZRem(const std::shared_ptr<db::RedisDb>& redis_db, const ZRemArgs* args);
+int ZRem(db::RedisDb* redis_db, const ZRemArgs* args);
 }  // namespace
 
 void ExecuteZRem(Client* const client) {
   ZRemArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     int result = ZRem(redis_db, &args);
     if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -32,7 +32,7 @@ void ExecuteZRem(Client* const client) {
     }
     client->AddReply(reply::FromInt64(result));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -51,7 +51,7 @@ int ParseArgs(const std::vector<std::string>& args, ZRemArgs* const zset_args) {
   return 0;
 }
 
-int ZRem(const std::shared_ptr<db::RedisDb>& redis_db, const ZRemArgs* args) {
+int ZRem(db::RedisDb* redis_db, const ZRemArgs* args) {
   if (!redis_db || (args == nullptr)) {
     return -1;
   }

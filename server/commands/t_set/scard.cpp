@@ -13,18 +13,17 @@ struct SCardArgs {
   std::string key;
 };
 int ParseArgs(const std::vector<std::string>& args, SCardArgs* scard_args);
-ssize_t SCard(const std::shared_ptr<db::RedisDb>& redis_db,
-              const SCardArgs* args);
+ssize_t SCard(db::RedisDb* redis_db, const SCardArgs* args);
 }  // namespace
 
 void ExecuteSCard(Client* const client) {
   SCardArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     ssize_t result = SCard(redis_db, &args);
     if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -32,7 +31,7 @@ void ExecuteSCard(Client* const client) {
     }
     client->AddReply(reply::FromInt64(result));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -49,8 +48,7 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-ssize_t SCard(const std::shared_ptr<db::RedisDb>& redis_db,
-              const SCardArgs* args) {
+ssize_t SCard(db::RedisDb* redis_db, const SCardArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;

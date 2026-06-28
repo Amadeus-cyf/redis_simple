@@ -22,18 +22,18 @@ static void DynamicBufferWrite(benchmark::State& state) {
   Init();
   for (auto _ : state) {
     (void)_;
-    g_dynamic_buffer.WriteToBuffer(g_buffer, kBufferSize);
+    g_dynamic_buffer.Append(g_buffer, kBufferSize);
   }
 }
 
 static void DynamicBufferProcessAndTrim(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
-    const auto s = g_dynamic_buffer.ProcessInlineBuffer();
+    const auto s = g_dynamic_buffer.ReadLine();
     benchmark::DoNotOptimize(s.data());
     benchmark::DoNotOptimize(s.size());
   }
-  g_dynamic_buffer.TrimProcessedBuffer();
+  g_dynamic_buffer.Compact();
 }
 
 BENCHMARK(DynamicBufferWrite);

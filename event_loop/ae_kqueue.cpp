@@ -14,12 +14,13 @@ namespace redis_simple::ae {
 KqueueEventApi::KqueueEventApi(int fd, int nevents_)
     : kqueue_fd_(fd), nevents_(nevents_), events_(nevents_) {}
 
-KqueueEventApi* KqueueEventApi::Create(int nevents_) {
+std::unique_ptr<KqueueEventApi> KqueueEventApi::Create(int nevents_) {
   int kqueue_fd = kqueue();
   if (kqueue_fd < 0) {
     return nullptr;
   }
-  return new KqueueEventApi(kqueue_fd, nevents_);
+  return std::unique_ptr<KqueueEventApi>(
+      new KqueueEventApi(kqueue_fd, nevents_));
 }
 
 int KqueueEventApi::AddEvent(int fd, int mask) const {

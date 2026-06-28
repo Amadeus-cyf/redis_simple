@@ -16,17 +16,17 @@ struct ZAddArgs {
   std::vector<std::pair<std::string, double>> ele_score_list;
 };
 int ParseArgs(const std::vector<std::string>& args, ZAddArgs* zset_args);
-int ZAdd(const std::shared_ptr<db::RedisDb>& redis_db, const ZAddArgs* args);
+int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args);
 }  // namespace
 
 void ExecuteZAdd(Client* const client) {
   ZAddArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     int result = ZAdd(redis_db, &args);
     if (result < 0) {
       client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -34,7 +34,7 @@ void ExecuteZAdd(Client* const client) {
     }
     client->AddReply(reply::FromInt64(result));
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -61,7 +61,7 @@ int ParseArgs(const std::vector<std::string>& args, ZAddArgs* const zset_args) {
   return 0;
 }
 
-int ZAdd(const std::shared_ptr<db::RedisDb>& redis_db, const ZAddArgs* args) {
+int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
   if (!redis_db || (args == nullptr)) {
     return -1;
   }

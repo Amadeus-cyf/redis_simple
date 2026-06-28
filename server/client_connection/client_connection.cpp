@@ -1,6 +1,7 @@
 #include "client_connection.h"
 
 #include <cstddef>
+#include <memory>
 
 #include "server/client.h"
 #include "server/client_connection/callback.h"
@@ -31,12 +32,10 @@ ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
     RS_LOG_DEBUG("invalid server / event loop\n");
     return ae::EventCallbackStatus::kError;
   }
-  // Keep the connection tied to the server-owned shared EventLoop, not the raw
-  // callback pointer.
   connection::Context ctx;
   ctx.event_loop = server->EventLoop();
   ctx.fd = fd;
-  auto* conn = new connection::Connection(ctx);
+  auto conn = std::make_unique<connection::Connection>(ctx);
   conn->SetState(connection::ConnectionState::kAccepting);
   connection::AddressInfo addr_info;
   if (conn->Accept(&addr_info) == connection::ConnectionStatus::kError) {
@@ -48,15 +47,17 @@ ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
     return ae::EventCallbackStatus::kError;
   }
   RS_LOG_DEBUG("accept connection from %s:%d with fd = %d\n",
-               addr_info.ip.c_str(), addr_info.port, conn->Fd());
+               addr_info.ip.c_str(), addr_info.port, conn->Descriptor());
   RS_LOG_DEBUG("start create client\n");
-  Client* client = Client::Create(conn);
-  conn->SetPrivateData(client);
-  if (!conn->SetReadCallback(CreateCallback(CallbackType::kReadQuery))) {
+  auto client = Client::Create(std::move(conn));
+  Client* client_ptr = client.get();
+  client_ptr->Connection()->SetPrivateData(client_ptr);
+  if (!client_ptr->Connection()->SetReadCallback(
+          CreateCallback(CallbackType::kReadQuery))) {
     RS_LOG_DEBUG("AcceptConnectionCallback: failed to set the read callback\n");
     return ae::EventCallbackStatus::kError;
   }
-  server->AddClient(client);
+  server->AddClient(std::move(client));
   return ae::EventCallbackStatus::kOk;
 }
 }  // namespace redis_simple::client_connection

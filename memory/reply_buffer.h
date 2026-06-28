@@ -8,39 +8,38 @@ namespace redis_simple::in_memory {
 class ReplyBuffer {
  public:
   ReplyBuffer();
-  const char* UnsentBuffer() const { return buf_ + sent_len_; }
-  size_t UnsentBufferLength() const { return buf_pos_ - sent_len_; }
-  size_t SentLen() const { return sent_len_; }
-  size_t ReplyLen() const { return reply_len_; }
+  const char* UnsentBuffer() const { return buf_ + sent_; }
+  size_t UnsentLength() const { return size_ - sent_; }
+  size_t SentLength() const { return sent_; }
+  size_t ReplyCount() const { return node_count_; }
   size_t ReplyBytes() const { return reply_bytes_; }
-  size_t BufPosition() const { return buf_pos_; }
+  size_t BufferSize() const { return size_; }
   BufNode* ReplyHead() const { return reply_head_; }
   BufNode* ReplyTail() const { return reply_tail_; }
-  size_t AddReplyToBufferOrList(const char* s, size_t len);
-  void ClearProcessed(size_t nwritten);
-  std::vector<std::pair<char*, size_t>> Memvec();
-  bool Empty() const { return buf_pos_ == 0 && reply_len_ == 0; }
+  size_t Append(const char* s, size_t len);
+  void Consume(size_t nwritten);
+  std::vector<std::pair<char*, size_t>> Blocks();
+  bool Empty() const { return size_ == 0 && node_count_ == 0; }
   ~ReplyBuffer();
 
  private:
   static constexpr size_t kDefaultBufferSize = 4096;
-  size_t AddReplyToBuffer(const char* s, size_t len);
-  size_t AddReplyProtoToList(const char* c, size_t len);
-  size_t ClearBufferProcessed(size_t nwritten);
-  void ClearListProcessed(size_t nwritten);
+  size_t AppendToBuffer(const char* s, size_t len);
+  size_t AppendToList(const char* c, size_t len);
+  size_t ConsumeBuffer(size_t nwritten);
+  void ConsumeList(size_t nwritten);
   void ClearBuffer();
-  void AddNodeToReplyList(BufNode* node);
-  void DeleteNodeFromReplyList(BufNode* node, BufNode* prev);
-  BufNode* CreateReplyNode(const char* buffer, size_t len);
-  static size_t AppendToReplyNode(BufNode* node, const char* buffer,
-                                  size_t len);
+  void PushNode(BufNode* node);
+  void DeleteNode(BufNode* node, BufNode* prev);
+  BufNode* NewNode(const char* buffer, size_t len);
+  static size_t AppendToNode(BufNode* node, const char* buffer, size_t len);
   char* buf_;
-  size_t buf_pos_;
+  size_t size_;
   size_t buf_usable_size_;
   BufNode* reply_head_{};
   BufNode* reply_tail_{};
-  size_t reply_len_{};
+  size_t node_count_{};
   size_t reply_bytes_{};
-  size_t sent_len_;
+  size_t sent_;
 };
 }  // namespace redis_simple::in_memory

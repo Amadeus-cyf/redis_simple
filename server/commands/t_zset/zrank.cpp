@@ -15,18 +15,17 @@ struct ZRankArgs {
   std::string ele;
 };
 int ParseArgs(const std::vector<std::string>& args, ZRankArgs* zset_args);
-std::optional<size_t> ZRank(const std::shared_ptr<db::RedisDb>& redis_db,
-                            const ZRankArgs* args);
+std::optional<size_t> ZRank(db::RedisDb* redis_db, const ZRankArgs* args);
 }  // namespace
 
 void ExecuteZRank(Client* const client) {
   ZRankArgs args;
-  if (ParseArgs(client->CmdArgs(), &args) < 0) {
+  if (ParseArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
 
-  if (auto redis_db = client->DB().lock()) {
+  if (auto* redis_db = client->Db()) {
     const auto opt_rank = ZRank(redis_db, &args);
     if (opt_rank.has_value()) {
       if (*opt_rank >
@@ -39,7 +38,7 @@ void ExecuteZRank(Client* const client) {
       client->AddReply(reply::Null());
     }
   } else {
-    RS_LOG_DEBUG("db pointer expired\n");
+    RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
   }
 }
@@ -57,8 +56,7 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<size_t> ZRank(const std::shared_ptr<db::RedisDb>& redis_db,
-                            const ZRankArgs* args) {
+std::optional<size_t> ZRank(db::RedisDb* redis_db, const ZRankArgs* args) {
   if (!redis_db || (args == nullptr)) {
     return std::nullopt;
   }

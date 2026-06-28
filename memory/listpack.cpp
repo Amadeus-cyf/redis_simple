@@ -307,8 +307,8 @@ unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
     val = static_cast<int64_t>(uval);
   }
   if (dst != nullptr) {
-    *len = utils::LL2String(reinterpret_cast<char*>(dst), kListPackIntBufSize,
-                            val);
+    *len = utils::Int64ToString(reinterpret_cast<char*>(dst),
+                                kListPackIntBufSize, val);
     return dst;
   }
   *sval = val;
