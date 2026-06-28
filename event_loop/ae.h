@@ -58,6 +58,7 @@ class EventLoop {
  public:
   static std::unique_ptr<EventLoop> Create();
   void Run();
+  void Stop() { stop_requested_ = true; }
   EventLoopStatus CreateFileEvent(int fd,
                                   std::unique_ptr<FileEvent> file_event);
   EventLoopStatus DeleteFileEvent(int fd, int mask);
@@ -77,5 +78,6 @@ class EventLoop {
   std::list<std::unique_ptr<TimeEvent>> time_events_;
   std::unique_ptr<KqueueEventApi> event_api_;
   int max_fd_;
+  bool stop_requested_{false};
 };
 }  // namespace redis_simple::ae

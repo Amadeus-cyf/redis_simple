@@ -4,6 +4,7 @@
 #include <sys/time.h>
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <cstddef>
 #include <cstring>
@@ -37,7 +38,7 @@ int WaitForEvent(int fd, int mask, long timeout) {
   if (timeout > std::numeric_limits<int>::max()) {
     timeout = std::numeric_limits<int>::max();
   }
-  struct pollfd poll_fds[1] = {};
+  std::array<pollfd, 1> poll_fds{};
   poll_fds[0].fd = fd;
   if ((mask & EventFlag::kReadable) != 0) {
     poll_fds[0].events |= POLLIN;
@@ -45,7 +46,7 @@ int WaitForEvent(int fd, int mask, long timeout) {
   if ((mask & EventFlag::kWritable) != 0) {
     poll_fds[0].events |= POLLOUT;
   }
-  int r = poll(poll_fds, fd_count, static_cast<int>(timeout));
+  int r = poll(poll_fds.data(), fd_count, static_cast<int>(timeout));
   if (r < 0) {
     RS_LOG_DEBUG("poll error: %s\n", std::strerror(errno));
     return r;
@@ -80,7 +81,8 @@ std::unique_ptr<EventLoop> EventLoop::Create() {
 }
 
 void EventLoop::Run() {
-  while (true) {
+  stop_requested_ = false;
+  while (!stop_requested_) {
     ProcessEvents();
   }
 }

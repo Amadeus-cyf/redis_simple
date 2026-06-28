@@ -11,8 +11,9 @@
 namespace redis_simple {
 class Server {
  public:
-  static Server* const Get();
-  void Run(const std::string& ip, const int& port);
+  static Server* Get();
+  bool Run(const std::string& ip, int port);
+  void Stop();
   ae::EventLoop* EventLoop() { return el_.get(); }
   db::RedisDb* Db() { return db_.get(); }
   void AddClient(std::unique_ptr<Client> client) {

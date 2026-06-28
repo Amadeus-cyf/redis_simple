@@ -16,25 +16,32 @@
 namespace redis_simple {
 Server::Server() : db_(db::RedisDb::Init()), el_(ae::EventLoop::Create()) {}
 
-Server* const Server::Get() {
+Server* Server::Get() {
   static Server server;
   return &server;
 }
 
-void Server::Run(const std::string& ip, const int& port) {
+bool Server::Run(const std::string& ip, int port) {
   connection::Context ctx;
   ctx.event_loop = el_.get();
   ctx.fd = -1;
   connection::Connection conn(ctx);
   const connection::AddressInfo addr_info(ip, port);
   if (conn.BindAndListen(addr_info) == connection::ConnectionStatus::kError) {
-    return;
+    return false;
   }
   fd_ = conn.Descriptor();
   InstallAcceptCallback();
   el_->CreateTimeEvent(ae::TimeEvent::Create(
       [this](long long id) { return ServerCron(); }, nullptr));
   el_->Run();
+  return true;
+}
+
+void Server::Stop() {
+  if (el_ != nullptr) {
+    el_->Stop();
+  }
 }
 
 bool Server::RemoveClient(Client* c) {

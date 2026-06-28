@@ -99,7 +99,7 @@ ClientStatus Client::ProcessCommand() {
   if (command_ == nullptr) {
     return ClientStatus::kError;
   }
-  RS_LOG_DEBUG("process command: %s\n", command_->name.c_str());
+  RS_LOG_DEBUG("process command: %s\n", command_->name);
   command_->callback(this);
   return ClientStatus::kOk;
 }

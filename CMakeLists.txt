@@ -150,22 +150,28 @@ redis_simple_add_executable(
 target_link_libraries(mock_command_server PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
-  mock_t_string_client
-  "integration/command/t_string/client_test.cpp"
+  mock_string_client
+  "integration/command/string/client_test.cpp"
 )
-target_link_libraries(mock_t_string_client PRIVATE redis_simple_cli)
+target_link_libraries(mock_string_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
-  mock_t_set_client
-  "integration/command/t_set/client_test.cpp"
+  mock_set_client
+  "integration/command/set/client_test.cpp"
 )
-target_link_libraries(mock_t_set_client PRIVATE redis_simple_cli)
+target_link_libraries(mock_set_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
-  mock_t_zset_client
-  "integration/command/t_zset/client_test.cpp"
+  mock_list_client
+  "integration/command/list/client_test.cpp"
 )
-target_link_libraries(mock_t_zset_client PRIVATE redis_simple_cli)
+target_link_libraries(mock_list_client PRIVATE redis_simple_cli)
+
+redis_simple_add_executable(
+  mock_zset_client
+  "integration/command/zset/client_test.cpp"
+)
+target_link_libraries(mock_zset_client PRIVATE redis_simple_cli)
 
 add_test(
   NAME redis_simple_integration_tcp
@@ -182,7 +188,7 @@ add_test(
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
     $<TARGET_FILE:mock_command_server>
-    $<TARGET_FILE:mock_t_string_client>
+    $<TARGET_FILE:mock_string_client>
 )
 
 add_test(
@@ -191,7 +197,16 @@ add_test(
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
     $<TARGET_FILE:mock_command_server>
-    $<TARGET_FILE:mock_t_set_client>
+    $<TARGET_FILE:mock_set_client>
+)
+
+add_test(
+  NAME redis_simple_integration_command_list
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
+    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:mock_list_client>
 )
 
 add_test(
@@ -200,13 +215,14 @@ add_test(
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
     $<TARGET_FILE:mock_command_server>
-    $<TARGET_FILE:mock_t_zset_client>
+    $<TARGET_FILE:mock_zset_client>
 )
 
 set_tests_properties(
   redis_simple_integration_tcp
   redis_simple_integration_command_string
   redis_simple_integration_command_set
+  redis_simple_integration_command_list
   redis_simple_integration_command_zset
   PROPERTIES
     LABELS integration

@@ -1,5 +1,6 @@
 #include "storage/list/list.h"
 
+#include <algorithm>
 #include <vector>
 
 namespace redis_simple::list {
@@ -26,6 +27,32 @@ size_t List::Size() const {
 
 size_t List::NodeCount() const {
   return quicklist_ ? quicklist_->NodeCount() : 0;
+}
+
+std::vector<std::string> List::Range(size_t start, size_t stop) const {
+  std::vector<std::string> values;
+  const size_t size = Size();
+  if (start > stop || start >= size) {
+    return values;
+  }
+  stop = std::min(stop, size - 1);
+  values.reserve(stop - start + 1);
+  if (listpack_) {
+    size_t index = 0;
+    ssize_t listpack_index = listpack_->First();
+    while (listpack_index != -1 && index <= stop) {
+      if (index >= start) {
+        auto value = listpack_->Get(static_cast<size_t>(listpack_index));
+        if (value.has_value()) {
+          values.push_back(*value);
+        }
+      }
+      ++index;
+      listpack_index = listpack_->Next(static_cast<size_t>(listpack_index));
+    }
+    return values;
+  }
+  return quicklist_->Range(start, stop);
 }
 
 List::Encoding List::GetEncoding() const {

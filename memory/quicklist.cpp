@@ -75,6 +75,36 @@ std::optional<std::string> QuickList::RPop() {
   return value;
 }
 
+std::vector<std::string> QuickList::Range(size_t start, size_t stop) const {
+  std::vector<std::string> values;
+  if (start > stop || start >= size_) {
+    return values;
+  }
+  stop = std::min(stop, size_ - 1);
+  values.reserve(stop - start + 1);
+
+  size_t index = 0;
+  for (const Node* node = head_.get(); node != nullptr;
+       node = node->next.get()) {
+    ssize_t listpack_index = node->listpack->First();
+    while (listpack_index != -1 && index <= stop) {
+      if (index >= start) {
+        auto value = node->listpack->Get(static_cast<size_t>(listpack_index));
+        if (value.has_value()) {
+          values.push_back(*value);
+        }
+      }
+      ++index;
+      listpack_index =
+          node->listpack->Next(static_cast<size_t>(listpack_index));
+    }
+    if (index > stop) {
+      break;
+    }
+  }
+  return values;
+}
+
 bool QuickList::PushToHeadNode(const std::string& value) {
   return head_ && head_->listpack->Prepend(value);
 }

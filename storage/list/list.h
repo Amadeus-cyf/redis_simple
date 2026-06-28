@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "memory/listpack.h"
 #include "memory/quicklist.h"
@@ -30,6 +31,7 @@ class List {
   std::optional<std::string> LPop();
   size_t Size() const;
   size_t NodeCount() const;
+  std::vector<std::string> Range(size_t start, size_t stop) const;
   Encoding GetEncoding() const;
 
  private:

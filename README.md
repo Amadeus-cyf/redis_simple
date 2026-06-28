@@ -63,6 +63,7 @@ This runs:
 - `redis_simple_integration_tcp`: TCP client/server integration check.
 - `redis_simple_integration_command_string`: string command integration checks.
 - `redis_simple_integration_command_set`: set command integration checks.
+- `redis_simple_integration_command_list`: list command integration checks.
 - `redis_simple_integration_command_zset`: sorted-set command integration
   checks.
 
@@ -70,7 +71,7 @@ For debugging a single executable directly:
 
 ```sh
 ./build/debug/redis_simple_tests
-./build/debug/mock_t_set_client
+./build/debug/mock_set_client
 ```
 
 For debugging one unit-test suite directly:

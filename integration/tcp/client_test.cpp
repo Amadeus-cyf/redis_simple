@@ -2,17 +2,19 @@
 #include <poll.h>
 #include <unistd.h>
 
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "tcp/tcp.h"
 
 namespace redis_simple {
 namespace {
-constexpr char kRequest[] = "ping";
-constexpr char kResponse[] = "pong";
+constexpr std::string_view kRequest = "ping";
+constexpr std::string_view kResponse = "pong";
 
 ssize_t ReadWithTimeout(int fd, char* buffer, size_t len) {
   pollfd pfd{};
@@ -34,20 +36,28 @@ int Run() {
     RS_LOG_DEBUG("failed to connect to tcp integration server\n");
     return EXIT_FAILURE;
   }
-  if (write(fd, kRequest, strlen(kRequest)) != strlen(kRequest)) {
+  if (write(fd, kRequest.data(), kRequest.size()) !=
+      static_cast<ssize_t>(kRequest.size())) {
     RS_LOG_DEBUG("failed to write tcp integration request\n");
     close(fd);
     return EXIT_FAILURE;
   }
-  char buffer[16] = {};
-  const ssize_t nread = ReadWithTimeout(fd, buffer, sizeof(buffer));
+  std::array<char, 16> buffer{};
+  const ssize_t nread = ReadWithTimeout(fd, buffer.data(), buffer.size());
   close(fd);
-  if (nread != strlen(kResponse) || std::string(buffer, nread) != kResponse) {
-    RS_LOG_DEBUG("unexpected tcp response: %s\n", buffer);
+  if (nread != static_cast<ssize_t>(kResponse.size()) ||
+      std::string_view(buffer.data(), nread) != kResponse) {
+    RS_LOG_DEBUG("unexpected tcp response: %s\n", buffer.data());
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }
 }  // namespace redis_simple
 
-int main() { return redis_simple::Run(); }
+int main() {
+  try {
+    return redis_simple::Run();
+  } catch (...) {
+    return EXIT_FAILURE;
+  }
+}

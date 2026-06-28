@@ -44,28 +44,28 @@ const RedisObject* RedisDb::LookupKey(const std::string& key) {
   if (result == nullptr) {
     return nullptr;
   }
-  const RedisObject* val = result->get();
+  const RedisObject* object = result->get();
   if (IsKeyExpired(key)) {
     RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
     // If key is already expired, delete the key and return a null pointer.
-    val = nullptr;
+    object = nullptr;
     assert(dict_->Delete(key));
     assert(expires_->Delete(key));
   }
-  return val;
+  return object;
 }
 
-DbStatus RedisDb::SetKey(const std::string& key, RedisObjectPtr val,
+DbStatus RedisDb::SetKey(const std::string& key, RedisObjectPtr object,
                          int64_t expire) {
-  return SetKey(key, std::move(val), expire, 0);
+  return SetKey(key, std::move(object), expire, 0);
 }
 
-DbStatus RedisDb::SetKey(const std::string& key, RedisObjectPtr val,
+DbStatus RedisDb::SetKey(const std::string& key, RedisObjectPtr object,
                          int64_t expire, int flags) {
-  if (val == nullptr) {
+  if (object == nullptr) {
     return DbStatus::kError;
   }
-  dict_->Set(key, std::move(val));
+  dict_->Set(key, std::move(object));
   if (!HasFlag(flags, SetKeyFlag::kKeepTtl) && expire == 0) {
     expires_->Delete(key);
   }

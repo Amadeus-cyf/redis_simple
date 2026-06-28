@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "memory/listpack.h"
 
@@ -21,6 +22,7 @@ class QuickList {
   bool RPush(const std::string& value);
   std::optional<std::string> LPop();
   std::optional<std::string> RPop();
+  std::vector<std::string> Range(size_t start, size_t stop) const;
 
   bool Empty() const { return size_ == 0; }
   size_t Size() const { return size_; }

@@ -27,8 +27,9 @@ class RedisDb {
  public:
   static std::unique_ptr<RedisDb> Init();
   const RedisObject* LookupKey(const std::string& key);
-  DbStatus SetKey(const std::string& key, RedisObjectPtr val, int64_t expire);
-  DbStatus SetKey(const std::string& key, RedisObjectPtr val, int64_t expire,
+  DbStatus SetKey(const std::string& key, RedisObjectPtr object,
+                  int64_t expire);
+  DbStatus SetKey(const std::string& key, RedisObjectPtr object, int64_t expire,
                   int flags);
   DbStatus DeleteKey(const std::string& key);
   bool ScanExpires(
