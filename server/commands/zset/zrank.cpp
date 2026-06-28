@@ -3,6 +3,7 @@
 #include <string>
 
 #include "server/client.h"
+#include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
 

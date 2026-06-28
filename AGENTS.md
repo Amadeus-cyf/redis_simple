@@ -9,6 +9,8 @@ Guidance for AI coding agents working in this repository.
 - Prefer clear, simple C++17 code over legacy C++11 patterns.
 - Keep naming consistent with nearby code.
 - Add comments only when they clarify non-obvious behavior.
+- Keep command handler declarations grouped in `server/commands/handlers.h`;
+  avoid per-command headers unless a handler becomes a broader shared API.
 
 ## Build And Test
 
@@ -36,7 +38,7 @@ Before committing, run the relevant build and tests.
   preserving same-suite fixture behavior.
 - Integration tests live under `integration/`.
 - Current integration coverage should stay focused:
-  - `integration/command/`
+  - `integration/commands/`
   - `integration/tcp/`
 - Register integration command tests as separate CTest entries by command
   family, so failures identify the affected area without log digging.

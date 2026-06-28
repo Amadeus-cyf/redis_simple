@@ -98,7 +98,7 @@ above is the project benchmark executable.
 cli/          Simple client and RESP parsing
 connection/          Connection abstraction
 event_loop/          Event loop and kqueue backend
-integration/command/ Server/client command integration tests
+integration/commands/ Server/client command integration tests
 integration/tcp/     TCP client/server integration tests
 logging/             Project logging wrapper
 memory/              Core in-memory data structures
@@ -109,6 +109,9 @@ tcp/                 TCP helpers
 utils/               Small shared utilities
 benchmarks/          Memory/data-structure benchmarks
 ```
+
+Command handler declarations are grouped in `server/commands/handlers.h`; the
+individual command `.cpp` files keep implementation details local.
 
 ## Tooling
 

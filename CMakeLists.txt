@@ -145,31 +145,31 @@ target_link_libraries(mock_tcp_client PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
   mock_command_server
-  "integration/command/server_test.cpp"
+  "integration/commands/server_test.cpp"
 )
 target_link_libraries(mock_command_server PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
   mock_string_client
-  "integration/command/string/client_test.cpp"
+  "integration/commands/string/client_test.cpp"
 )
 target_link_libraries(mock_string_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
   mock_set_client
-  "integration/command/set/client_test.cpp"
+  "integration/commands/set/client_test.cpp"
 )
 target_link_libraries(mock_set_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
   mock_list_client
-  "integration/command/list/client_test.cpp"
+  "integration/commands/list/client_test.cpp"
 )
 target_link_libraries(mock_list_client PRIVATE redis_simple_cli)
 
 redis_simple_add_executable(
   mock_zset_client
-  "integration/command/zset/client_test.cpp"
+  "integration/commands/zset/client_test.cpp"
 )
 target_link_libraries(mock_zset_client PRIVATE redis_simple_cli)
 

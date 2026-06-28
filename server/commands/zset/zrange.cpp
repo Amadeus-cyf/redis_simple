@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "server/client.h"
+#include "server/commands/handlers.h"
 #include "server/reply/reply.h"
 #include "server/reply_utils/reply_utils.h"
 #include "storage/zset/zset.h"
@@ -266,9 +267,7 @@ bool IsWithScores(const std::vector<std::string>& args) {
 std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
                                              bool with_scores) {
   if (!with_scores) {
-    auto to_string = [](const ZSetEntry* const& entry) {
-      return entry->key;
-    };
+    auto to_string = [](const ZSetEntry* const& entry) { return entry->key; };
     return reply_utils::EncodeList<const ZSetEntry*, to_string>(result);
   }
   std::vector<std::string> encoded_elements;

@@ -1,3 +1,5 @@
+#include "storage/list/list.h"
+
 #include <sys/types.h>
 
 #include <algorithm>
@@ -9,9 +11,9 @@
 #include <vector>
 
 #include "server/client.h"
+#include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
-#include "storage/list/list.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple::command::lists {
@@ -62,8 +64,7 @@ struct PopResult {
 
 int ParsePushArgs(const std::vector<std::string>& args, PushArgs* push_args);
 int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args);
-int ParseRangeArgs(const std::vector<std::string>& args,
-                   RangeArgs* range_args);
+int ParseRangeArgs(const std::vector<std::string>& args, RangeArgs* range_args);
 ListResult FindList(db::RedisDb* redis_db, const std::string& key);
 ListResult GetOrCreateList(db::RedisDb* redis_db, const std::string& key);
 std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
@@ -85,7 +86,8 @@ int ParsePushArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* const key_args) {
+int ParseKeyArgs(const std::vector<std::string>& args,
+                 KeyArgs* const key_args) {
   if (args.size() != 1) {
     return -1;
   }
@@ -160,9 +162,8 @@ ssize_t Push(db::RedisDb* const redis_db, const PushArgs* const args,
     return -1;
   }
   for (const auto& value : args->values) {
-    const bool pushed =
-        side == PushSide::kLeft ? result.list->LPush(value)
-                                : result.list->RPush(value);
+    const bool pushed = side == PushSide::kLeft ? result.list->LPush(value)
+                                                : result.list->RPush(value);
     if (!pushed) {
       return -1;
     }
@@ -179,8 +180,8 @@ PopResult Pop(db::RedisDb* const redis_db, const KeyArgs* const args,
   if (result.status != ListStatus::kOk) {
     return {std::nullopt, result.status};
   }
-  auto value = side == PopSide::kLeft ? result.list->LPop()
-                                      : result.list->RPop();
+  auto value =
+      side == PopSide::kLeft ? result.list->LPop() : result.list->RPop();
   if (result.list->Size() == 0) {
     redis_db->DeleteKey(args->key);
   }
@@ -257,9 +258,7 @@ void HandlePop(Client* const client, PopSide side) {
 
 void HandleLPush(Client* const client) { HandlePush(client, PushSide::kLeft); }
 
-void HandleRPush(Client* const client) {
-  HandlePush(client, PushSide::kRight);
-}
+void HandleRPush(Client* const client) { HandlePush(client, PushSide::kRight); }
 
 void HandleLPop(Client* const client) { HandlePop(client, PopSide::kLeft); }
 
