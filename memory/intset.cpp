@@ -4,11 +4,13 @@
 #include <cstddef>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <stdexcept>
 
 namespace redis_simple::in_memory {
 IntSet::IntSet()
-    : contents_(new unsigned char[static_cast<size_t>(kInitSize * kInt16)]),
+    : contents_(std::make_unique<unsigned char[]>(
+          static_cast<size_t>(kInitSize * kInt16))),
       length_(0),
       encoding_(kInt16) {}
 bool IntSet::Add(int64_t value) {
@@ -67,28 +69,27 @@ IntSet::EncodingType IntSet::ValueEncoding(int64_t value) {
 }
 
 void IntSet::Resize(unsigned int length) {
-  auto* new_contents =
-      new unsigned char[static_cast<size_t>(length * encoding_)];
+  auto new_contents = std::make_unique<unsigned char[]>(
+      static_cast<size_t>(length * encoding_));
   const size_t copy_bytes =
       static_cast<size_t>(std::min(length_, length)) * encoding_;
-  std::memcpy(new_contents, contents_, copy_bytes);
-  delete[] contents_;
-  contents_ = new_contents;
+  std::memcpy(new_contents.get(), contents_.get(), copy_bytes);
+  contents_ = std::move(new_contents);
 }
 
 void IntSet::UpgradeAndAdd(int64_t value) {
   const EncodingType old_encoding = encoding_;
   const unsigned int old_length = length_;
-  const unsigned char* old_contents = contents_;
+  auto old_contents = std::move(contents_);
   encoding_ = ValueEncoding(value);
-  contents_ =
-      new unsigned char[static_cast<size_t>((old_length + 1) * encoding_)];
+  contents_ = std::make_unique<unsigned char[]>(
+      static_cast<size_t>((old_length + 1) * encoding_));
   const unsigned int prepend = value < 0 ? 1 : 0;
   for (unsigned int idx = old_length; idx > 0; --idx) {
     const unsigned int old_idx = idx - 1;
     int64_t old_value = 0;
     const unsigned char* src =
-        old_contents + (static_cast<size_t>(old_idx * old_encoding));
+        old_contents.get() + (static_cast<size_t>(old_idx * old_encoding));
     if (old_encoding == kInt64) {
       std::memcpy(&old_value, src, sizeof(old_value));
     } else if (old_encoding == kInt32) {
@@ -107,7 +108,6 @@ void IntSet::UpgradeAndAdd(int64_t value) {
   } else {
     Set(old_length, value);
   }
-  delete[] old_contents;
   length_ = old_length + 1;
 }
 
@@ -150,7 +150,7 @@ int64_t IntSet::GetEncoded(unsigned int index, EncodingType encoding) const {
     throw std::out_of_range("index out of bound");
   }
   const unsigned char* src =
-      contents_ + (static_cast<size_t>(index * encoding));
+      contents_.get() + (static_cast<size_t>(index * encoding));
   if (encoding == kInt64) {
     int64_t v64 = 0;
     std::memcpy(&v64, src, sizeof(v64));
@@ -168,7 +168,8 @@ int64_t IntSet::GetEncoded(unsigned int index, EncodingType encoding) const {
 }
 
 void IntSet::Set(unsigned int index, int64_t value) {
-  unsigned char* dst = contents_ + (static_cast<size_t>(index * encoding_));
+  unsigned char* dst =
+      contents_.get() + (static_cast<size_t>(index * encoding_));
   if (encoding_ == kInt64) {
     std::memcpy(dst, &value, sizeof(value));
   } else if (encoding_ == kInt32) {
@@ -183,8 +184,8 @@ void IntSet::Set(unsigned int index, int64_t value) {
 void IntSet::MoveTail(unsigned int from, unsigned int to) {
   const size_t bytes = static_cast<size_t>(length_ - from) * encoding_;
   const unsigned char* src =
-      contents_ + (static_cast<size_t>(from * encoding_));
-  unsigned char* dst = contents_ + (static_cast<size_t>(to * encoding_));
+      contents_.get() + (static_cast<size_t>(from * encoding_));
+  unsigned char* dst = contents_.get() + (static_cast<size_t>(to * encoding_));
   std::memmove(dst, src, bytes);
 }
 }  // namespace redis_simple::in_memory

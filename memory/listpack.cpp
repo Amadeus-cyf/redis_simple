@@ -18,16 +18,17 @@ ssize_t ToSSize(size_t value) {
 }
 }  // namespace
 
-ListPack::ListPack() : lp_(new unsigned char[kListPackHeaderSize + 1]) {
+ListPack::ListPack()
+    : lp_(std::make_unique<unsigned char[]>(kListPackHeaderSize + 1)) {
   SetTotalBytes(kListPackHeaderSize + 1);
   SetNumOfElements(0);
   lp_[kListPackHeaderSize] = kListPackEof;
 }
 
 ListPack::ListPack(size_t capacity)
-    : lp_(new unsigned char[capacity > kListPackHeaderSize + 1
-                                ? capacity
-                                : kListPackHeaderSize + 1]) {
+    : lp_(std::make_unique<unsigned char[]>(capacity > kListPackHeaderSize + 1
+                                                ? capacity
+                                                : kListPackHeaderSize + 1)) {
   capacity = std::max<size_t>(capacity, kListPackHeaderSize + 1);
   SetTotalBytes(capacity);
   SetNumOfElements(0);
@@ -179,7 +180,7 @@ void ListPack::Delete(size_t idx) {
   uint8_t backlen_bytes = GetBacklenBytes(backlen);
   size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
   uint16_t num_of_elements = GetNumOfElements();
-  std::memmove(lp_ + idx, lp_ + idx + backlen + backlen_bytes,
+  std::memmove(lp_.get() + idx, lp_.get() + idx + backlen + backlen_bytes,
                listpack_bytes - idx - backlen - backlen_bytes);
   // Shrink after memmove so the source range remains valid.
   Realloc(new_listpack_bytes);
@@ -238,11 +239,11 @@ unsigned char* ListPack::GetString(size_t idx, size_t* const len,
   }
   switch (encoding_type) {
     case EncodingType::k6BitString:
-      return lp_ + idx + 1;
+      return lp_.get() + idx + 1;
     case EncodingType::k12BitString:
-      return lp_ + idx + 2;
+      return lp_.get() + idx + 2;
     case EncodingType::k32BitString:
-      return lp_ + idx + 5;
+      return lp_.get() + idx + 5;
     default:
       return nullptr;
   }
@@ -355,7 +356,8 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   if (new_listpack_bytes > listpack_bytes) {
     Realloc(new_listpack_bytes);
   }
-  std::memmove(lp_ + idx + backlen + backlen_bytes, lp_ + idx + replaced_bytes,
+  std::memmove(lp_.get() + idx + backlen + backlen_bytes,
+               lp_.get() + idx + replaced_bytes,
                listpack_bytes - idx - replaced_bytes);
   if (where == Position::kInsertBefore) {
     uint16_t num_of_elements = GetNumOfElements();
@@ -369,9 +371,9 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   }
   SetTotalBytes(new_listpack_bytes);
   if (encoding_type == EncodingGeneralType::kInteger) {
-    EncodeInteger(lp_ + idx, sval);
+    EncodeInteger(lp_.get() + idx, sval);
   } else {
-    EncodeString(lp_ + idx, element_string);
+    EncodeString(lp_.get() + idx, element_string);
   }
   return true;
 }
@@ -424,7 +426,8 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   }
   uint16_t num_of_elements = GetNumOfElements();
   Realloc(new_listpack_bytes);
-  std::memmove(lp_ + idx + inserted_bytes, lp_ + idx, listpack_bytes - idx);
+  std::memmove(lp_.get() + idx + inserted_bytes, lp_.get() + idx,
+               listpack_bytes - idx);
   // Update number of elements and total bytes.
   if (num_of_elements != kListPackNumEleUnknown) {
     if (encodings.size() > kListPackNumEleUnknown - num_of_elements) {
@@ -437,9 +440,9 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   // Insert elements based on encoding types.
   for (const Encoding& encoding : encodings) {
     if (encoding.encoding_type == EncodingGeneralType::kInteger) {
-      idx += EncodeInteger(lp_ + idx, encoding.sval);
+      idx += EncodeInteger(lp_.get() + idx, encoding.sval);
     } else {
-      idx += EncodeString(lp_ + idx, encoding.str);
+      idx += EncodeString(lp_.get() + idx, encoding.str);
     }
     idx += encoding.backlen_bytes;
   }
@@ -518,7 +521,7 @@ bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
  * The function assumes that the index is valid.
  */
 ListPack::EncodingType ListPack::GetEncodingType(size_t idx) const {
-  const unsigned char* buf = lp_ + idx;
+  const unsigned char* buf = lp_.get() + idx;
   if ((buf[0] & EncodingTypeMask::kType7BitUintMask) ==
       EncodingType::k7BitUnsignedInteger) {
     return EncodingType::k7BitUnsignedInteger;
@@ -760,7 +763,7 @@ size_t ListPack::DecodeBacklen(size_t idx) const {
  * of string type.
  */
 size_t ListPack::DecodeStringLength(size_t idx) const {
-  const unsigned char* buf = lp_ + idx;
+  const unsigned char* buf = lp_.get() + idx;
   switch (GetEncodingType(idx)) {
     case EncodingType::k6BitString:
       return buf[0] & 0x3f;
@@ -781,13 +784,10 @@ void ListPack::Realloc(size_t bytes) {
   if (bytes < kListPackHeaderSize + 1) {
     throw std::length_error("listpack allocation is smaller than its header");
   }
-  auto* new_lp = new unsigned char[bytes];
+  auto new_lp = std::make_unique<unsigned char[]>(bytes);
   const size_t copy_bytes =
       std::min(static_cast<size_t>(GetTotalBytes()), bytes);
-  std::memcpy(new_lp, lp_, copy_bytes);
-  delete[] lp_;
-  lp_ = new_lp;
+  std::memcpy(new_lp.get(), lp_.get(), copy_bytes);
+  lp_ = std::move(new_lp);
 }
-
-void ListPack::Free() { delete[] lp_; }
 }  // namespace redis_simple::in_memory

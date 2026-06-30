@@ -76,6 +76,8 @@ class Skiplist {
   explicit Skiplist(size_t level, const Comparator& compare);
   explicit Skiplist(size_t level, const Comparator& compare,
                     const Destructor& dtr);
+  Skiplist(const Skiplist&) = delete;
+  Skiplist& operator=(const Skiplist&) = delete;
   Iterator Begin() const;
   Iterator End() const;
   const Key& Insert(const Key& key);
@@ -180,21 +182,17 @@ class Skiplist<Key, Comparator, Destructor>::SkiplistNode {
   SkiplistNode* Prev() { return prev_; }
   void SetPrev(SkiplistNode* prev) { prev_ = prev; }
   void InitLevel(size_t level) {
-    levels_[level] = new SkiplistLevel(nullptr, 0);
+    levels_[level] = std::make_unique<SkiplistLevel>(nullptr, 0);
   }
   void Reset();
   ~SkiplistNode();
   Key key;
 
  private:
-  SkiplistNode(const Destructor& dtr) : prev_(nullptr), dtr_(dtr) {
-    std::memset(levels_, 0, sizeof levels_);
-  };
+  SkiplistNode(const Destructor& dtr) : prev_(nullptr), dtr_(dtr) {}
   explicit SkiplistNode(const Key& key, Destructor dtr)
-      : key(key), prev_(nullptr), dtr_(dtr) {
-    std::memset(levels_, 0, sizeof levels_);
-  };
-  SkiplistLevel* levels_[kMaxSkiplistLevel];
+      : key(key), prev_(nullptr), dtr_(dtr) {}
+  std::array<std::unique_ptr<SkiplistLevel>, kMaxSkiplistLevel> levels_;
   SkiplistNode* prev_;
   const Destructor dtr_;
 };
@@ -223,9 +221,8 @@ Skiplist<Key, Comparator, Destructor>::SkiplistNode::Create(
 
 template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::SkiplistNode::Reset() {
-  for (int i = 0; i < kMaxSkiplistLevel; ++i) {
-    delete levels_[i];
-    levels_[i] = nullptr;
+  for (auto& level : levels_) {
+    level.reset();
   }
   prev_ = nullptr;
 }

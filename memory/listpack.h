@@ -3,6 +3,7 @@
 #include <sys/types.h>
 
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -21,6 +22,8 @@ class ListPack {
   static constexpr int kListPackHeaderSize = 6;
   ListPack();
   explicit ListPack(size_t capacity);
+  ListPack(const ListPack&) = delete;
+  ListPack& operator=(const ListPack&) = delete;
   unsigned char* Get(size_t idx, size_t* const len) const;
   std::optional<std::string> Get(size_t idx) const;
   std::optional<int64_t> GetInteger(size_t idx) const;
@@ -46,10 +49,7 @@ class ListPack {
   size_t Size() const;
   static size_t EstimateBytes(int64_t lval, size_t repeat);
   static bool SafeToAdd(const ListPack* const lp, size_t bytes);
-  ~ListPack() {
-    delete[] lp_;
-    lp_ = nullptr;
-  }
+  ~ListPack() = default;
 
  private:
   // Enough space for INT64_MIN plus a null terminator.
@@ -128,8 +128,7 @@ class ListPack {
   size_t DecodeStringLength(size_t idx) const;
   static bool IsString(EncodingType encoding_type);
   void Realloc(size_t bytes);
-  void Free();
-  unsigned char* lp_;
+  std::unique_ptr<unsigned char[]> lp_;
   mutable unsigned char int_buf_[kListPackIntBufSize]{};
 };
 }  // namespace redis_simple::in_memory

@@ -3,7 +3,7 @@
 namespace redis_simple::in_memory {
 ReplyBuffer::ReplyBuffer()
     : buf_usable_size_(kDefaultBufferSize),
-      buf_(new char[kDefaultBufferSize]),
+      buf_(std::make_unique<char[]>(kDefaultBufferSize)),
       sent_(0),
       size_(0) {}
 
@@ -24,7 +24,7 @@ size_t ReplyBuffer::AppendToBuffer(const char* s, size_t len) {
   if (node_count_ == 0) {
     size_t available = buf_usable_size_ - size_;
     size_t nwritten = len < available ? len : available;
-    std::memcpy(buf_ + size_, s, nwritten);
+    std::memcpy(buf_.get() + size_, s, nwritten);
     size_ += nwritten;
     return nwritten;
   }
@@ -37,8 +37,8 @@ size_t ReplyBuffer::AppendToList(const char* c, size_t len) {
     appended = AppendToNode(reply_tail_, c, len);
   }
   if (appended < len) {
-    BufNode* node = NewNode(c + appended, len - appended);
-    PushNode(node);
+    auto node = NewNode(c + appended, len - appended);
+    PushNode(std::move(node));
   }
   return len;
 }
@@ -46,38 +46,28 @@ size_t ReplyBuffer::AppendToList(const char* c, size_t len) {
 std::vector<std::pair<char*, size_t>> ReplyBuffer::Blocks() {
   std::vector<std::pair<char*, size_t>> mem_vec;
   if (size_ > 0) {
-    mem_vec.emplace_back(buf_ + sent_, size_ - sent_);
+    mem_vec.emplace_back(buf_.get() + sent_, size_ - sent_);
   }
   size_t offset = size_ > 0 ? 0 : sent_;
-  BufNode* n = reply_head_;
+  BufNode* n = reply_head_.get();
   BufNode* prev = nullptr;
   while (n != nullptr) {
     if (n->used_ == 0) {
-      BufNode* next = n->next_;
+      BufNode* next = n->next_.get();
       DeleteNode(n, prev);
       n = next;
       offset = 0;
       continue;
     }
-    mem_vec.emplace_back(n->buf_ + offset, n->used_ - offset);
-    prev = n, n = n->next_;
+    mem_vec.emplace_back(n->buf_.get() + offset, n->used_ - offset);
+    prev = n, n = n->next_.get();
     offset = 0;
   }
   return mem_vec;
 }
 
-ReplyBuffer::~ReplyBuffer() {
-  if (buf_ != nullptr) {
-    delete[] buf_;
-    buf_ = nullptr;
-  }
-  while (reply_head_ != nullptr) {
-    DeleteNode(reply_head_, nullptr);
-  }
-}
-
 void ReplyBuffer::ClearBuffer() {
-  std::memset(buf_, '\0', size_);
+  std::memset(buf_.get(), '\0', size_);
   size_ = 0;
   sent_ = 0;
 }
@@ -113,47 +103,46 @@ void ReplyBuffer::ConsumeList(size_t nwritten) {
     }
     sent_ = 0;
     nwritten -= reply_head_->used_;
-    DeleteNode(reply_head_, nullptr);
+    DeleteNode(reply_head_.get(), nullptr);
   }
 }
 
-void ReplyBuffer::PushNode(BufNode* node) {
+void ReplyBuffer::PushNode(std::unique_ptr<BufNode> node) {
   ++node_count_;
   reply_bytes_ += node->capacity_;
+  BufNode* node_ptr = node.get();
   if (reply_head_ == nullptr) {
-    reply_head_ = node;
+    reply_head_ = std::move(node);
   } else {
-    reply_tail_->next_ = node;
+    reply_tail_->next_ = std::move(node);
   }
-  reply_tail_ = node;
+  reply_tail_ = node_ptr;
 }
 
 void ReplyBuffer::DeleteNode(BufNode* node, BufNode* prev) {
   reply_bytes_ -= node->capacity_;
   --node_count_;
-  BufNode* next = node->next_;
   if (prev != nullptr) {
-    prev->next_ = next;
+    auto owned_node = std::move(prev->next_);
+    prev->next_ = std::move(owned_node->next_);
   } else {
-    reply_head_ = next;
+    reply_head_ = std::move(reply_head_->next_);
   }
-  if (next == nullptr) {
+  if ((prev != nullptr && prev->next_ == nullptr) || reply_head_ == nullptr) {
     reply_tail_ = prev;
   }
-  delete node;
-  node = nullptr;
 }
 
-BufNode* ReplyBuffer::NewNode(const char* buffer, size_t len) {
-  BufNode* node = BufNode::Create(len);
-  AppendToNode(node, buffer, len);
+std::unique_ptr<BufNode> ReplyBuffer::NewNode(const char* buffer, size_t len) {
+  auto node = BufNode::Create(len);
+  AppendToNode(node.get(), buffer, len);
   return node;
 }
 
 size_t ReplyBuffer::AppendToNode(BufNode* node, const char* buffer,
                                  size_t len) {
   size_t nwritten = std::min(len, node->capacity_ - node->used_);
-  std::memcpy(node->buf_ + node->used_, buffer, nwritten);
+  std::memcpy(node->buf_.get() + node->used_, buffer, nwritten);
   node->used_ += nwritten;
   return nwritten;
 }

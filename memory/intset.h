@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 namespace redis_simple::in_memory {
 // An in memory set storing integers in ascending order.
@@ -9,6 +10,8 @@ class IntSet {
  public:
   class Iterator;
   IntSet();
+  IntSet(const IntSet&) = delete;
+  IntSet& operator=(const IntSet&) = delete;
   bool Add(int64_t value);
   int64_t Get(unsigned int index) const;
   bool Find(int64_t value) const;
@@ -16,10 +19,7 @@ class IntSet {
   int64_t Max() const;
   int64_t Min() const;
   unsigned int Size() const { return length_; }
-  ~IntSet() {
-    delete[] contents_;
-    contents_ = nullptr;
-  }
+  ~IntSet() = default;
 
  private:
   static constexpr unsigned kInitSize = 1;
@@ -35,7 +35,7 @@ class IntSet {
   bool Search(int64_t value, unsigned int* const index) const;
   void Set(unsigned int index, int64_t value);
   void MoveTail(unsigned int from, unsigned int to);
-  unsigned char* contents_;
+  std::unique_ptr<unsigned char[]> contents_;
   unsigned int length_;
   EncodingType encoding_;
 };

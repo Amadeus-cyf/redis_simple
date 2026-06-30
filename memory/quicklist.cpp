@@ -55,6 +55,9 @@ std::optional<std::string> QuickList::LPop() {
   --size_;
   if (head_->listpack->Size() == 0) {
     DeleteNode(head_.get());
+    MergeNext(head_.get());
+  } else {
+    MergeNext(head_.get());
   }
   return value;
 }
@@ -71,6 +74,9 @@ std::optional<std::string> QuickList::RPop() {
   --size_;
   if (node->listpack->Size() == 0) {
     DeleteNode(node);
+    MergeNext(tail_ != nullptr ? tail_->prev : nullptr);
+  } else if (node->prev != nullptr) {
+    MergeNext(node->prev);
   }
   return value;
 }
@@ -121,6 +127,33 @@ bool QuickList::CanAppendToNode(const Node* node,
   const size_t estimated_bytes = value.size() + kEntryOverheadEstimate;
   return node->listpack->Size() == 0 ||
          node->listpack->GetTotalBytes() + estimated_bytes <= node_max_bytes_;
+}
+
+bool QuickList::CanMergeNodes(const Node* left, const Node* right) const {
+  if (left == nullptr || right == nullptr) {
+    return false;
+  }
+  const size_t merged_bytes = left->listpack->GetTotalBytes() +
+                              right->listpack->GetTotalBytes() -
+                              ListPack::kListPackHeaderSize;
+  return merged_bytes <= node_max_bytes_;
+}
+
+void QuickList::MergeNext(Node* left) {
+  if (!CanMergeNodes(left, left == nullptr ? nullptr : left->next.get())) {
+    return;
+  }
+
+  Node* right = left->next.get();
+  ssize_t idx = right->listpack->First();
+  while (idx != -1) {
+    const auto value = right->listpack->Get(idx);
+    if (value.has_value()) {
+      left->listpack->Append(*value);
+    }
+    idx = right->listpack->Next(idx);
+  }
+  DeleteNode(right);
 }
 
 QuickList::Node* QuickList::AppendNode() {

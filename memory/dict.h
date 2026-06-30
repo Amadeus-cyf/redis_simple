@@ -17,6 +17,8 @@ class Dict {
   static std::unique_ptr<Dict<K, V>> Init();
   static std::unique_ptr<Dict<K, V>> Init(size_t capacity);
   static std::unique_ptr<Dict<K, V>> Init(const DictType& type);
+  Dict(const Dict&) = delete;
+  Dict& operator=(const Dict&) = delete;
   std::optional<V> Get(const K& key);
   std::optional<V> Get(K&& key);
   V* FindValue(const K& key);
@@ -114,15 +116,15 @@ class Dict<K, V>::Iterator {
   explicit Iterator(const Dict* dict);
   explicit Iterator(const Dict* dict, const DictEntry* entry);
   Iterator& operator=(const Iterator& it);
-  bool operator==(const Iterator& it);
-  bool operator!=(const Iterator& it);
+  bool operator==(const Iterator& it) const;
+  bool operator!=(const Iterator& it) const;
   bool Valid() const;
   void SeekToFirst();
   void SeekToLast();
   void Next();
   void operator++();
-  K Key() { return entry_->key; }
-  V Value() { return entry_->val; }
+  const K& Key() const { return entry_->key; }
+  const V& Value() const { return entry_->val; }
 
  private:
   void SeekToNextEntry();
@@ -151,13 +153,13 @@ typename Dict<K, V>::Iterator& Dict<K, V>::Iterator::operator=(
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::Iterator::operator==(const Iterator& it) {
+bool Dict<K, V>::Iterator::operator==(const Iterator& it) const {
   return dict_ == it.dict_ && table_ == it.table_ && idx_ == it.idx_ &&
          entry_ == it.entry_;
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::Iterator::operator!=(const Iterator& it) {
+bool Dict<K, V>::Iterator::operator!=(const Iterator& it) const {
   return !((*this) == it);
 }
 

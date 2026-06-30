@@ -107,7 +107,7 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   BufNode* tail = buf->ReplyTail();
 
   tail->used_ /= 3;
-  std::memset(tail->buf_ + tail->used_, 0, tail->capacity_ - tail->used_);
+  std::memset(tail->buf_.get() + tail->used_, 0, tail->capacity_ - tail->used_);
 
   std::string s(5000, 'e');
   size_t r = buf->Append(s.c_str(), 5000);

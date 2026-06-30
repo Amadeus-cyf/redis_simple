@@ -40,6 +40,8 @@ class QuickList {
   bool PushToHeadNode(const std::string& value);
   bool PushToTailNode(const std::string& value);
   bool CanAppendToNode(const Node* node, const std::string& value) const;
+  bool CanMergeNodes(const Node* left, const Node* right) const;
+  void MergeNext(Node* left);
   Node* AppendNode();
   Node* PrependNode();
   void DeleteNode(Node* node);
