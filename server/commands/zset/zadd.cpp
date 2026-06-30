@@ -73,8 +73,7 @@ int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
     return -1;
   }
   if (obj == nullptr) {
-    auto new_obj =
-        db::RedisObject::CreateWithZSet(std::unique_ptr<ZSet>(ZSet::Init()));
+    auto new_obj = db::RedisObject::CreateWithZSet(ZSet::Create());
     obj = new_obj.get();
     const auto status = redis_db->SetKey(args->key, std::move(new_obj), 0);
     if (status == db::DbStatus::kError) {

@@ -7,7 +7,7 @@
 
 namespace redis_simple {
 namespace {
-std::string GetCmdName(const std::vector<std::string>& args) {
+std::string CommandName(const std::vector<std::string>& args) {
   std::string name = args[0];
   utils::ToUppercase(name);
   return name;
@@ -83,7 +83,7 @@ ClientStatus Client::ParseLine() {
   if (args.empty()) {
     return ClientStatus::kError;
   }
-  const std::string& name = GetCmdName(args);
+  const std::string& name = CommandName(args);
   args.erase(args.begin());
   const auto* command = command::Find(name);
   if (command == nullptr) {

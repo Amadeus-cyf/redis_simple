@@ -14,7 +14,7 @@
 #include "expire.h"
 
 namespace redis_simple {
-Server::Server() : db_(db::RedisDb::Init()), el_(ae::EventLoop::Create()) {}
+Server::Server() : db_(db::RedisDb::Create()), el_(ae::EventLoop::Create()) {}
 
 Server* Server::Get() {
   static Server server;

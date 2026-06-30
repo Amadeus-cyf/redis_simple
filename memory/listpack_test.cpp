@@ -32,7 +32,7 @@ TEST_F(ListPackTest, Append) {
 
   size_t idx = listpack->First();
   ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
-  ASSERT_EQ(listpack->GetInteger(idx), -1234);
+  ASSERT_EQ(listpack->IntegerAt(idx), -1234);
   size_t l0 = 0;
   unsigned char* c0 = listpack->Get(idx, &l0);
   ASSERT_TRUE(std::equal(c0, c0 + 5, "-1234"));
@@ -61,21 +61,21 @@ TEST_F(ListPackTest, Append) {
 
   ASSERT_EQ(listpack->Size(), 10);
   idx = listpack->Next(idx);
-  ASSERT_EQ(listpack->GetInteger(idx), INT16_MAX >> 3);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT16_MAX >> 3);
   idx = listpack->Next(idx);
-  ASSERT_EQ(listpack->GetInteger(idx), INT16_MAX);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT16_MAX);
   idx = listpack->Next(idx);
-  ASSERT_EQ(listpack->GetInteger(idx), INT32_MAX >> 8);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT32_MAX >> 8);
   idx = listpack->Next(idx);
-  ASSERT_EQ(listpack->GetInteger(idx), INT32_MAX);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT32_MAX);
   idx = listpack->Next(idx);
-  ASSERT_EQ(listpack->GetInteger(idx), INT64_MAX);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT64_MAX);
 
   idx = listpack->Next(idx);
   size_t l2 = 0;
   unsigned char* c2 = listpack->Get(idx, &l2);
   ASSERT_TRUE(std::equal(c2, c2 + l2, "-1234567890"));
-  ASSERT_EQ(listpack->GetInteger(idx), -1234567890);
+  ASSERT_EQ(listpack->IntegerAt(idx), -1234567890);
 
   idx = listpack->Next(idx);
   size_t l3 = 0;
@@ -95,13 +95,12 @@ TEST_F(ListPackTest, Append) {
   // Invalid get for string type.
   ASSERT_THROW(listpack->Get(ListPack::kListPackHeaderSize - 1, nullptr),
                std::out_of_range);
-  ASSERT_THROW(listpack->Get(listpack->GetTotalBytes(), nullptr),
+  ASSERT_THROW(listpack->Get(listpack->TotalBytes(), nullptr),
                std::out_of_range);
 
   // Invalid get for integer type.
-  ASSERT_THROW(listpack->GetInteger(3), std::out_of_range);
-  ASSERT_THROW(listpack->GetInteger(listpack->GetTotalBytes()),
-               std::out_of_range);
+  ASSERT_THROW(listpack->IntegerAt(3), std::out_of_range);
+  ASSERT_THROW(listpack->IntegerAt(listpack->TotalBytes()), std::out_of_range);
 }
 
 TEST_F(ListPackTest, Prepend) {
@@ -123,7 +122,7 @@ TEST_F(ListPackTest, Prepend) {
   unsigned char* c0 = listpack->Get(idx, &l0);
   ASSERT_EQ(l0, s3.size());
   ASSERT_TRUE(std::equal(c0, c0 + l0, "123456789"));
-  ASSERT_EQ(listpack->GetInteger(idx), 123456789);
+  ASSERT_EQ(listpack->IntegerAt(idx), 123456789);
 
   idx = listpack->Next(idx);
   size_t l1 = 0;
@@ -136,7 +135,7 @@ TEST_F(ListPackTest, Prepend) {
   unsigned char* c2 = listpack->Get(idx, &l2);
   ASSERT_EQ(l2, 6);
   ASSERT_TRUE(std::equal(c2, c2 + l2, "-32765"));
-  ASSERT_EQ(listpack->GetInteger(idx), INT16_MIN + 3);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT16_MIN + 3);
 
   idx = listpack->Next(idx);
   size_t l3 = 0;
@@ -149,7 +148,7 @@ TEST_F(ListPackTest, Prepend) {
   unsigned char* c4 = listpack->Get(idx, &l4);
   ASSERT_EQ(l4, 19);
   ASSERT_TRUE(std::equal(c4, c4 + l4, "9223372036854775803"));
-  ASSERT_EQ(listpack->GetInteger(idx), INT64_MAX - 4);
+  ASSERT_EQ(listpack->IntegerAt(idx), INT64_MAX - 4);
 
   idx = listpack->Next(idx);
   size_t l5 = 0;
@@ -192,7 +191,7 @@ TEST_F(ListPackTest, Insert) {
 
   // Insert out of bound.
   ASSERT_THROW(listpack->Insert(0, "test invalid insert"), std::out_of_range);
-  ASSERT_THROW(listpack->Insert(listpack->GetTotalBytes(), 123456),
+  ASSERT_THROW(listpack->Insert(listpack->TotalBytes(), 123456),
                std::out_of_range);
 
   ASSERT_EQ(listpack->Size(), 21);
@@ -206,13 +205,13 @@ TEST_F(ListPackTest, Insert) {
   unsigned char* c1 = listpack->Get(i1, &l1);
   ASSERT_EQ(l1, 19);
   ASSERT_TRUE(std::equal(c1, c1 + l1, "9223372036854775800"));
-  ASSERT_EQ(listpack->GetInteger(i1), INT64_MAX - 7);
+  ASSERT_EQ(listpack->IntegerAt(i1), INT64_MAX - 7);
 
   size_t l2 = 0;
   unsigned char* c2 = listpack->Get(i2, &l2);
   ASSERT_EQ(l2, 11);
   ASSERT_TRUE(std::equal(c2, c2 + l2, "-2147483641"));
-  ASSERT_EQ(listpack->GetInteger(i2), INT32_MIN + 7);
+  ASSERT_EQ(listpack->IntegerAt(i2), INT32_MIN + 7);
 
   size_t l3 = 0;
   unsigned char* c3 = listpack->Get(i3, &l3);
@@ -270,7 +269,7 @@ TEST_F(ListPackTest, Replace) {
   unsigned char* c3 = listpack->Get(idx, &l3);
   ASSERT_EQ(l3, 2);
   ASSERT_TRUE(std::equal(c3, c3 + l3, "17"));
-  ASSERT_EQ(listpack->GetInteger(idx), 17);
+  ASSERT_EQ(listpack->IntegerAt(idx), 17);
   // Get the next element and check if it is not changed.
   size_t next3 = listpack->Next(idx);
   unsigned char* c3_next = listpack->Get(next3, &l3_next);
@@ -310,14 +309,14 @@ TEST_F(ListPackTest, Replace) {
   unsigned char* c7 = listpack->Get(idx, &l7);
   ASSERT_EQ(l7, 3);
   ASSERT_TRUE(std::equal(c7, c7 + l7, "217"));
-  ASSERT_EQ(listpack->GetInteger(idx), 217);
+  ASSERT_EQ(listpack->IntegerAt(idx), 217);
   // Check if the element is the last element.
   ASSERT_EQ(listpack->Next(idx), -1);
 
   // Replace out of bound.
   ASSERT_THROW(listpack->Replace(0, "test replace out of bound"),
                std::out_of_range);
-  ASSERT_THROW(listpack->Replace(listpack->GetTotalBytes(), 123456789),
+  ASSERT_THROW(listpack->Replace(listpack->TotalBytes(), 123456789),
                std::out_of_range);
 }
 
@@ -330,7 +329,7 @@ TEST_F(ListPackTest, BatchAppend) {
       IntEntry(INT32_MIN), IntEntry(INT32_MAX), IntEntry(INT32_MAX >> 8),
       IntEntry(127),       StrEntry(&s1),       StrEntry(&s2),
   };
-  ssize_t idx = listpack->GetTotalBytes() - 1;
+  ssize_t idx = listpack->TotalBytes() - 1;
   listpack->BatchAppend(entries);
   ASSERT_EQ(listpack->Size(), 30);
   for (const ListPack::ListPackEntry& entry : entries) {
@@ -345,7 +344,7 @@ TEST_F(ListPackTest, BatchAppend) {
       const std::string& sval_str = std::to_string(entry.sval);
       ASSERT_EQ(len, sval_str.size());
       ASSERT_TRUE(std::equal(c, c + len, sval_str.c_str()));
-      ASSERT_EQ(listpack->GetInteger(idx), entry.sval);
+      ASSERT_EQ(listpack->IntegerAt(idx), entry.sval);
     }
     idx = listpack->Next(idx);
   }
@@ -384,7 +383,7 @@ TEST_F(ListPackTest, BatchPrepend) {
       const std::string& sval_str = std::to_string(entry.sval);
       ASSERT_EQ(len, sval_str.size());
       ASSERT_TRUE(std::equal(c, c + len, sval_str.c_str()));
-      ASSERT_EQ(listpack->GetInteger(idx), entry.sval);
+      ASSERT_EQ(listpack->IntegerAt(idx), entry.sval);
     }
     idx = listpack->Next(idx);
   }
@@ -428,14 +427,14 @@ TEST_F(ListPackTest, BatchInsert) {
       const std::string& sval_str = std::to_string(entry.sval);
       ASSERT_EQ(len, sval_str.size());
       ASSERT_TRUE(std::equal(c, c + len, sval_str.c_str()));
-      ASSERT_EQ(listpack->GetInteger(idx), entry.sval);
+      ASSERT_EQ(listpack->IntegerAt(idx), entry.sval);
     }
     idx = listpack->Next(idx);
   }
 
   // Insert out of bound.
   ASSERT_THROW(listpack->BatchInsert(0, entries), std::out_of_range);
-  ASSERT_THROW(listpack->BatchInsert(listpack->GetTotalBytes(), entries),
+  ASSERT_THROW(listpack->BatchInsert(listpack->TotalBytes(), entries),
                std::out_of_range);
 
   // Insert an empty list.
@@ -445,11 +444,10 @@ TEST_F(ListPackTest, BatchInsert) {
 TEST_F(ListPackTest, InvalidGet) {
   // Out of bound
   ASSERT_THROW(listpack->Get(0, nullptr), std::out_of_range);
-  ASSERT_THROW(listpack->Get(listpack->GetTotalBytes(), nullptr),
+  ASSERT_THROW(listpack->Get(listpack->TotalBytes(), nullptr),
                std::out_of_range);
-  ASSERT_THROW(listpack->GetInteger(0), std::out_of_range);
-  ASSERT_THROW(listpack->GetInteger(listpack->GetTotalBytes()),
-               std::out_of_range);
+  ASSERT_THROW(listpack->IntegerAt(0), std::out_of_range);
+  ASSERT_THROW(listpack->IntegerAt(listpack->TotalBytes()), std::out_of_range);
 }
 
 TEST_F(ListPackTest, Find) {
@@ -526,6 +524,6 @@ TEST_F(ListPackTest, Delete) {
   // Delete out of bound.
   ASSERT_THROW(listpack->Delete(ListPack::kListPackHeaderSize - 1),
                std::out_of_range);
-  ASSERT_THROW(listpack->Delete(listpack->GetTotalBytes()), std::out_of_range);
+  ASSERT_THROW(listpack->Delete(listpack->TotalBytes()), std::out_of_range);
 }
 }  // namespace redis_simple::in_memory

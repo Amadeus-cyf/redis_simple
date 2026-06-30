@@ -66,7 +66,7 @@ int ParsePushArgs(const std::vector<std::string>& args, PushArgs* push_args);
 int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args);
 int ParseRangeArgs(const std::vector<std::string>& args, RangeArgs* range_args);
 ListResult FindList(db::RedisDb* redis_db, const std::string& key);
-ListResult GetOrCreateList(db::RedisDb* redis_db, const std::string& key);
+ListResult FindOrCreateList(db::RedisDb* redis_db, const std::string& key);
 std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
                                                         int64_t stop,
                                                         size_t size);
@@ -118,14 +118,13 @@ ListResult FindList(db::RedisDb* const redis_db, const std::string& key) {
   return {obj->List(), ListStatus::kOk};
 }
 
-ListResult GetOrCreateList(db::RedisDb* const redis_db,
-                           const std::string& key) {
+ListResult FindOrCreateList(db::RedisDb* const redis_db,
+                            const std::string& key) {
   ListResult result = FindList(redis_db, key);
   if (result.status != ListStatus::kMissing) {
     return result;
   }
-  auto new_obj =
-      db::RedisObject::CreateWithList(std::unique_ptr<List>(List::Init()));
+  auto new_obj = db::RedisObject::CreateWithList(List::Create());
   const auto* obj = new_obj.get();
   if (redis_db->SetKey(key, std::move(new_obj), 0) == db::DbStatus::kError) {
     return {nullptr, ListStatus::kError};
@@ -157,7 +156,7 @@ std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
 
 ssize_t Push(db::RedisDb* const redis_db, const PushArgs* const args,
              PushSide side) {
-  const ListResult result = GetOrCreateList(redis_db, args->key);
+  const ListResult result = FindOrCreateList(redis_db, args->key);
   if (result.status != ListStatus::kOk) {
     return -1;
   }

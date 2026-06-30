@@ -19,9 +19,9 @@ int TcpSetReuseAddr(int socket_fd) {
   int yes = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) ==
       -1) {
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
-  return ToInt(TcpStatusCode::kTcpOk);
+  return ToInt(TcpStatusCode::kOk);
 }
 
 int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
@@ -29,15 +29,15 @@ int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
   // mode when creating listening and client sockets.
   int socket_fd = socket(domain, type, protocol);
   if (socket_fd < 0) {
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
   if (TcpSetReuseAddr(socket_fd) < 0) {
     close(socket_fd);
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
-  if (non_block && NonBlock(socket_fd) == TcpStatusCode::kTcpError) {
+  if (non_block && NonBlock(socket_fd) == TcpStatusCode::kError) {
     close(socket_fd);
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
   return socket_fd;
 }
@@ -45,7 +45,7 @@ int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
 int TcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
   int s = -1;
   if ((s = accept(socket_fd, addr, len)) == -1) {
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
   return s;
 }
@@ -53,15 +53,15 @@ int TcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
 int SetBlock(int fd, bool block) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) {
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
   bool is_non_block = (flags & O_NONBLOCK) != 0;
   if (is_non_block == !block) {
-    return ToInt(TcpStatusCode::kTcpOk);
+    return ToInt(TcpStatusCode::kOk);
   }
   block ? flags &= ~O_NONBLOCK : flags |= O_NONBLOCK;
-  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kTcpError)
-                                       : ToInt(TcpStatusCode::kTcpOk);
+  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kError)
+                                       : ToInt(TcpStatusCode::kOk);
 }
 
 bool IsNonBlock(int fd) {
@@ -72,11 +72,11 @@ bool IsNonBlock(int fd) {
 int SetCloseOnExec(int fd) {
   int flags = fcntl(fd, F_GETFL);
   if ((flags & O_CLOEXEC) != 0) {
-    return ToInt(TcpStatusCode::kTcpOk);
+    return ToInt(TcpStatusCode::kOk);
   }
   flags |= O_CLOEXEC;
-  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kTcpError)
-                                       : ToInt(TcpStatusCode::kTcpOk);
+  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kError)
+                                       : ToInt(TcpStatusCode::kOk);
 }
 }  // namespace
 
@@ -92,7 +92,7 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(remote.ip.c_str(), std::to_string(remote.port).c_str(),
                   &hints, &info) < 0) {
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
   int socket_fd = -1;
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
@@ -121,7 +121,7 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
     break;
   }
   freeaddrinfo(info);
-  return socket_fd != -1 ? socket_fd : ToInt(TcpStatusCode::kTcpError);
+  return socket_fd != -1 ? socket_fd : ToInt(TcpStatusCode::kError);
 }
 
 int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info) {
@@ -133,10 +133,10 @@ int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info) {
     remote_fd =
         TcpGenericAccept(socket_fd, reinterpret_cast<sockaddr*>(&sa), &len);
   } while (remote_fd == -1 && errno == EINTR);
-  if (NonBlock(remote_fd) == TcpStatusCode::kTcpError ||
-      SetCloseOnExec(remote_fd) == TcpStatusCode::kTcpError) {
+  if (NonBlock(remote_fd) == TcpStatusCode::kError ||
+      SetCloseOnExec(remote_fd) == TcpStatusCode::kError) {
     close(remote_fd);
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
   auto* s = reinterpret_cast<sockaddr_in*>(&sa);
   if (addr_info != nullptr) {
@@ -153,15 +153,15 @@ int TcpBind(int socket_fd, const TcpAddrInfo& addr_info) {
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(addr_info.ip.c_str(), std::to_string(addr_info.port).c_str(),
                   &hints, &info) < 0) {
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
-  int r = ToInt(TcpStatusCode::kTcpError);
+  int r = ToInt(TcpStatusCode::kError);
   for (const addrinfo* p = info; p != nullptr; p = p->ai_next) {
     if (bind(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       continue;
     }
     RS_LOG_DEBUG("bind success\n");
-    r = ToInt(TcpStatusCode::kTcpOk);
+    r = ToInt(TcpStatusCode::kOk);
     break;
   }
   freeaddrinfo(info);
@@ -171,9 +171,9 @@ int TcpBind(int socket_fd, const TcpAddrInfo& addr_info) {
 int TcpListen(int socket_fd) {
   if (listen(socket_fd, kBacklog) < 0) {
     close(socket_fd);
-    return ToInt(TcpStatusCode::kTcpError);
+    return ToInt(TcpStatusCode::kError);
   }
-  return ToInt(TcpStatusCode::kTcpOk);
+  return ToInt(TcpStatusCode::kOk);
 }
 
 int NonBlock(int socket_fd) { return SetBlock(socket_fd, false); }

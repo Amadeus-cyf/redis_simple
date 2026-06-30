@@ -13,7 +13,7 @@ static std::mt19937& Rng() {
   return rng;
 }
 
-static void Init() {
+static void FillBenchmarkBuffer() {
   std::uniform_int_distribution<int> byte_dist(0, 254);
   for (char& i : g_buffer) {
     i = static_cast<char>(byte_dist(Rng()));
@@ -21,7 +21,7 @@ static void Init() {
 }
 
 static void ReplyBufferAdd(benchmark::State& state) {
-  Init();
+  FillBenchmarkBuffer();
   for (auto _ : state) {
     (void)_;
     g_reply_buffer.Append(g_buffer, kBufferSize);

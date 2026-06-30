@@ -9,7 +9,7 @@ namespace redis_simple::in_memory {
 class DictStrTest : public testing::Test {
  protected:
   static void SetUpTestSuite() {
-    dict_str = Dict<std::string, std::string>::Init();
+    dict_str = Dict<std::string, std::string>::Create();
   }
   static std::unique_ptr<Dict<std::string, std::string>> dict_str;
 };
@@ -17,7 +17,7 @@ class DictStrTest : public testing::Test {
 std::unique_ptr<Dict<std::string, std::string>> DictStrTest::dict_str = nullptr;
 
 TEST_F(DictStrTest, Init) {
-  dict_str = Dict<std::string, std::string>::Init();
+  dict_str = Dict<std::string, std::string>::Create();
   ASSERT_TRUE(dict_str);
   ASSERT_EQ(dict_str->Size(), 0);
 }
@@ -44,7 +44,7 @@ TEST_F(DictStrTest, Insert) {
 }
 
 TEST_F(DictStrTest, InsertDuplicate) {
-  dict_str = Dict<std::string, std::string>::Init();
+  dict_str = Dict<std::string, std::string>::Create();
 
   ASSERT_TRUE(dict_str->Insert("key", "val"));
   ASSERT_FALSE(dict_str->Insert("key", "new_val"));
@@ -56,7 +56,7 @@ TEST_F(DictStrTest, InsertDuplicate) {
 }
 
 TEST_F(DictStrTest, Delete) {
-  dict_str = Dict<std::string, std::string>::Init();
+  dict_str = Dict<std::string, std::string>::Create();
   ASSERT_TRUE(dict_str->Insert("key", "val"));
 
   auto status = dict_str->Delete("key");
@@ -71,7 +71,7 @@ TEST_F(DictStrTest, Delete) {
 
 class DictIntTest : public testing::Test {
  protected:
-  static void SetUpTestSuite() { dict_int = Dict<int, int>::Init(); }
+  static void SetUpTestSuite() { dict_int = Dict<int, int>::Create(); }
   static std::unique_ptr<Dict<int, int>> dict_int;
 };
 

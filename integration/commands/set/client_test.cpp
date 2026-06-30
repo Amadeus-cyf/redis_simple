@@ -27,7 +27,7 @@ std::vector<std::string> NonEmptyLines(const std::string& reply) {
 
 bool ExpectReply(cli::RedisCli* cli, const Case& test_case) {
   cli->AddCommand(test_case.command);
-  const std::string reply = cli->GetReply();
+  const std::string reply = cli->ReadReply();
   if (reply != test_case.expected_reply) {
     RS_LOG_DEBUG("command failed: %s expected: %s actual: %s\n",
                  test_case.command.c_str(), test_case.expected_reply.c_str(),
@@ -40,7 +40,7 @@ bool ExpectReply(cli::RedisCli* cli, const Case& test_case) {
 bool ExpectMembers(cli::RedisCli* cli, const std::string& command,
                    std::vector<std::string> expected_members) {
   cli->AddCommand(command);
-  std::vector<std::string> actual_members = NonEmptyLines(cli->GetReply());
+  std::vector<std::string> actual_members = NonEmptyLines(cli->ReadReply());
   std::sort(actual_members.begin(), actual_members.end());
   std::sort(expected_members.begin(), expected_members.end());
   if (actual_members != expected_members) {

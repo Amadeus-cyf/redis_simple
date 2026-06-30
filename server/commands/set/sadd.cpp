@@ -64,8 +64,7 @@ int SAdd(db::RedisDb* redis_db, const SAddArgs* args) {
     return -1;
   }
   if (obj == nullptr) {
-    auto new_obj =
-        db::RedisObject::CreateWithSet(std::unique_ptr<Set>(Set::Init()));
+    auto new_obj = db::RedisObject::CreateWithSet(Set::Create());
     obj = new_obj.get();
     const auto status = redis_db->SetKey(args->key, std::move(new_obj), 0);
     if (status == db::DbStatus::kError) {

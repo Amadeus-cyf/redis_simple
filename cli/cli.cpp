@@ -80,18 +80,18 @@ void RedisCli::AddCommand(const std::string& cmd) {
   query_buf_.Append(cmd.c_str(), cmd.size());
 }
 
-std::string RedisCli::GetReply() {
+std::string RedisCli::ReadReply() {
   const std::scoped_lock lock(lock_);
   // Drain any buffered complete reply before touching the socket.
-  const auto result = MaybeGetReply();
-  return result.has_value() ? *result : GetReplyFromConnection();
+  const auto result = MaybeReadReply();
+  return result.has_value() ? *result : ReadReplyFromConnection();
 }
 
-std::future<std::string> RedisCli::GetReplyAsync() {
-  return std::async(std::launch::async, [this]() { return GetReply(); });
+std::future<std::string> RedisCli::ReadReplyAsync() {
+  return std::async(std::launch::async, [this]() { return ReadReply(); });
 }
 
-std::optional<std::string> RedisCli::MaybeGetReply() {
+std::optional<std::string> RedisCli::MaybeReadReply() {
   std::vector<std::string> reply;
   if (!reply_buf_.Empty() && ProcessReply(reply)) {
     return ReplyListToString(reply);
@@ -99,7 +99,7 @@ std::optional<std::string> RedisCli::MaybeGetReply() {
   return std::nullopt;
 }
 
-std::string RedisCli::GetReplyFromConnection() {
+std::string RedisCli::ReadReplyFromConnection() {
   std::vector<std::string> reply;
   if (!query_buf_.Empty()) {
     ssize_t sent = WriteToConnection(connection_.get(), query_buf_.ToString());

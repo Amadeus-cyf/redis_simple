@@ -55,7 +55,7 @@ std::vector<std::string> List::Range(size_t start, size_t stop) const {
   return quicklist_->Range(start, stop);
 }
 
-List::Encoding List::GetEncoding() const {
+enum List::Encoding List::Encoding() const {
   return listpack_ ? Encoding::kListPack : Encoding::kQuickList;
 }
 
@@ -91,7 +91,7 @@ bool List::WouldExceedListpackLimit(const std::string& value) const {
   if (!listpack_) {
     return false;
   }
-  return listpack_->GetTotalBytes() + value.size() + kEntryOverheadEstimate >
+  return listpack_->TotalBytes() + value.size() + kEntryOverheadEstimate >
          list_max_listpack_bytes_;
 }
 
@@ -133,7 +133,7 @@ void List::TryConvertQuickListToListPack() {
       return;
     }
   }
-  if (listpack->GetTotalBytes() > list_max_listpack_bytes_ / 2) {
+  if (listpack->TotalBytes() > list_max_listpack_bytes_ / 2) {
     auto quicklist =
         std::make_unique<in_memory::QuickList>(list_max_listpack_bytes_);
     for (const auto& value : values) {

@@ -148,6 +148,13 @@ sources are discovered from scoped project directories with
 `GLOB_RECURSE CONFIGURE_DEPENDS`, while test files and executable entry points
 are excluded from library targets explicitly.
 
+## C++ Style
+
+The code follows Google C++ style with project-local conventions: owning factory
+functions are named `Create()` and return `std::unique_ptr`, while concise
+accessors such as `Type()`, `Encoding()`, and `TotalBytes()` are preferred over
+Java-style `Get...` names.
+
 ## CI
 
 GitHub Actions runs the same flow recommended locally:

@@ -9,8 +9,8 @@ class ZSetListPack : public ZSetStorage {
   ZSetListPack();
   bool InsertOrUpdate(const std::string& key, double score) override;
   bool Delete(const std::string& key) override;
-  std::optional<double> GetScoreOfKey(const std::string& key) const override;
-  std::optional<size_t> GetRankOfKey(const std::string& key) const override;
+  std::optional<double> Score(const std::string& key) const override;
+  std::optional<size_t> Rank(const std::string& key) const override;
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const override;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const override;
   size_t Count(const RangeByScoreSpec* spec) const override;
@@ -22,7 +22,7 @@ class ZSetListPack : public ZSetStorage {
 
  private:
   void DeleteKeyScorePair(size_t idx);
-  double GetScore(size_t idx);
+  double ScoreAt(size_t idx);
   ZSetEntryList RangeByRankUtil(const RangeByRankSpec* spec) const;
   ZSetEntryList RevRangeByRankUtil(const RangeByRankSpec* spec) const;
   ZSetEntryList RangeByScoreUtil(const RangeByScoreSpec* spec) const;

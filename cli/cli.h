@@ -22,15 +22,15 @@ class RedisCli {
   RedisCli(const std::string& ip, int port);
   CliStatus Connect(const std::string& ip, int port);
   void AddCommand(const std::string& cmd);
-  std::string GetReply();
-  std::future<std::string> GetReplyAsync();
+  std::string ReadReply();
+  std::future<std::string> ReadReplyAsync();
   ~RedisCli() = default;
 
  private:
   static const std::string& ErrResp;
   static const std::string& NoReplyResp;
-  std::optional<std::string> MaybeGetReply();
-  std::string GetReplyFromConnection();
+  std::optional<std::string> MaybeReadReply();
+  std::string ReadReplyFromConnection();
   bool ProcessReply(std::vector<std::string>& reply);
   std::unique_ptr<connection::Connection> connection_;
   std::optional<std::string> ip_;

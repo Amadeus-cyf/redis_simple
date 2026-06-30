@@ -16,28 +16,26 @@ class ZSet {
     kSkiplist,
   };
 
-  static ZSet* Init() { return new ZSet(); }
+  static std::unique_ptr<ZSet> Create() {
+    return std::unique_ptr<ZSet>(new ZSet());
+  }
   bool InsertOrUpdate(const std::string& key, double score);
   bool Delete(const std::string& key);
-  std::optional<double> GetScoreOfKey(const std::string& key) const;
-  std::optional<size_t> GetRankOfKey(const std::string& key) const;
+  std::optional<double> Score(const std::string& key) const;
+  std::optional<size_t> Rank(const std::string& key) const;
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
   size_t Size() const { return storage_->Size(); }
-  Encoding GetEncoding() const;
+  Encoding Encoding() const;
 
  private:
-  enum class ZSetEncodingType {
-    kListPack = 1,
-    kSkiplist = 2,
-  };
   static constexpr size_t kListPackMaxEntries = 128;
   static constexpr size_t kListPackMaxElementLength = 64;
   ZSet();
   bool ShouldConvertToSkiplist(const std::string& key, bool inserted) const;
   void ConvertAndExpand();
-  ZSetEncodingType encoding_;
+  enum Encoding encoding_;
   std::unique_ptr<ZSetStorage> storage_;
 };
 }  // namespace redis_simple::zset

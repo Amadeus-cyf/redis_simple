@@ -19,9 +19,9 @@ class ZSetStorage {
   // Return true if the key is deleted.
   virtual bool Delete(const std::string& key) = 0;
   // Return the score of the given key.
-  virtual std::optional<double> GetScoreOfKey(const std::string& key) const = 0;
+  virtual std::optional<double> Score(const std::string& key) const = 0;
   // Return the index of the given key.
-  virtual std::optional<size_t> GetRankOfKey(const std::string& key) const = 0;
+  virtual std::optional<size_t> Rank(const std::string& key) const = 0;
   // Return a list of keys within the given index range.
   virtual ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const = 0;
   // Get a list of keys within the given score range.

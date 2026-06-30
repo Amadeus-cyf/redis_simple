@@ -79,10 +79,10 @@ ConnectionStatus Connection::BindAndListen(const AddressInfo& addr_info) {
     return ConnectionStatus::kError;
   }
   const tcp::TcpAddrInfo tcp_addr(addr_info.ip, addr_info.port);
-  if (tcp::TcpBind(s, tcp_addr) == tcp::TcpStatusCode::kTcpError) {
+  if (tcp::TcpBind(s, tcp_addr) == tcp::TcpStatusCode::kError) {
     return ConnectionStatus::kError;
   }
-  if (tcp::TcpListen(s) == tcp::TcpStatusCode::kTcpError) {
+  if (tcp::TcpListen(s) == tcp::TcpStatusCode::kError) {
     return ConnectionStatus::kError;
   }
   fd_ = s;

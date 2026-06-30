@@ -8,7 +8,7 @@
 namespace redis_simple {
 in_memory::DynamicBuffer g_dynamic_buffer;
 
-static void Init() {
+static void FillBenchmarkBuffer() {
   static std::mt19937 rng(std::mt19937::default_seed);
   std::uniform_int_distribution<int> letter_dist(0, 25);
   std::uniform_int_distribution<int> newline_dist(0, 1023);
@@ -19,7 +19,7 @@ static void Init() {
 }
 
 static void DynamicBufferWrite(benchmark::State& state) {
-  Init();
+  FillBenchmarkBuffer();
   for (auto _ : state) {
     (void)_;
     g_dynamic_buffer.Append(g_buffer, kBufferSize);

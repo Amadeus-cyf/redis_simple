@@ -13,7 +13,7 @@ struct Case {
 
 bool ExpectReply(cli::RedisCli* cli, const Case& test_case) {
   cli->AddCommand(test_case.command);
-  const std::string reply = cli->GetReply();
+  const std::string reply = cli->ReadReply();
   if (reply != test_case.expected_reply) {
     RS_LOG_DEBUG("command failed: %s expected: %s actual: %s\n",
                  test_case.command.c_str(), test_case.expected_reply.c_str(),

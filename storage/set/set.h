@@ -17,20 +17,17 @@ class Set {
     kDict,
   };
 
-  static Set* Init() { return new Set(); }
+  static std::unique_ptr<Set> Create() {
+    return std::unique_ptr<Set>(new Set());
+  }
   bool Add(const std::string& value);
   bool HasMember(const std::string& value) const;
   std::vector<std::string> ListAllMembers() const;
   bool Remove(const std::string& value);
   size_t Size() const;
-  Encoding GetEncoding() const;
+  Encoding Encoding() const;
 
  private:
-  enum class SetEncodingType {
-    kIntSet = 1,
-    kListPack = 2,
-    kDict = 3,
-  };
   static constexpr size_t kIntSetMaxEntries = 512;
   static constexpr size_t kListPackMaxEntries = 128;
   static constexpr size_t kListPackElementMaxLength = 64;
@@ -46,7 +43,7 @@ class Set {
   std::vector<std::string> ListIntSetMembers() const;
   std::vector<std::string> ListListPackMembers() const;
   std::vector<std::string> ListDictMembers() const;
-  SetEncodingType encoding_;
+  enum Encoding encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;
   std::unique_ptr<in_memory::ListPack> listpack_;
   std::unique_ptr<in_memory::Dict<std::string, nullptr_t>> dict_;

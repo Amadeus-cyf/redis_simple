@@ -26,7 +26,7 @@ std::vector<std::string> NonEmptyLines(const std::string& reply) {
 
 bool ExpectReply(cli::RedisCli* cli, const Case& test_case) {
   cli->AddCommand(test_case.command);
-  const std::string reply = cli->GetReply();
+  const std::string reply = cli->ReadReply();
   if (reply != test_case.expected_reply) {
     RS_LOG_DEBUG("command failed: %s expected: %s actual: %s\n",
                  test_case.command.c_str(), test_case.expected_reply.c_str(),
@@ -39,7 +39,7 @@ bool ExpectReply(cli::RedisCli* cli, const Case& test_case) {
 bool ExpectLines(cli::RedisCli* cli, const std::string& command,
                  const std::vector<std::string>& expected_lines) {
   cli->AddCommand(command);
-  const std::vector<std::string> actual_lines = NonEmptyLines(cli->GetReply());
+  const std::vector<std::string> actual_lines = NonEmptyLines(cli->ReadReply());
   if (actual_lines != expected_lines) {
     RS_LOG_DEBUG("line command failed: %s\n", command.c_str());
     return false;
@@ -72,8 +72,7 @@ int Run() {
   if (!ExpectLines(&cli, "LRANGE integration_list 0 -1\r\n", {"one", "two"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectLines(&cli, "LRANGE integration_list -2 -1\r\n",
-                   {"one", "two"})) {
+  if (!ExpectLines(&cli, "LRANGE integration_list -2 -1\r\n", {"one", "two"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectLines(&cli, "LRANGE integration_list 10 20\r\n", {})) {

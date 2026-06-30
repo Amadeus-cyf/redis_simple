@@ -15,7 +15,7 @@ bool ZSetListPack::InsertOrUpdate(const std::string& key, double score) {
   bool inserted = key_idx < 0;
   if (key_idx >= 0) {
     ssize_t score_idx = listpack_->Next(key_idx);
-    double curscore = GetScore(score_idx);
+    double curscore = ScoreAt(score_idx);
     if (curscore == score) {
       return false;
     }
@@ -30,7 +30,7 @@ bool ZSetListPack::InsertOrUpdate(const std::string& key, double score) {
     }
     const std::string& ele = *string_result;
     ssize_t score_idx = listpack_->Next(idx);
-    double ele_score = GetScore(score_idx);
+    double ele_score = ScoreAt(score_idx);
     if (score < ele_score || (score == ele_score && key < ele)) {
       assert(listpack_->Insert(idx, key));
       idx = listpack_->Next(idx);
@@ -53,8 +53,7 @@ bool ZSetListPack::Delete(const std::string& key) {
   return true;
 }
 
-std::optional<double> ZSetListPack::GetScoreOfKey(
-    const std::string& key) const {
+std::optional<double> ZSetListPack::Score(const std::string& key) const {
   // Find the index of the key.
   ssize_t idx = listpack_->FindAndSkip(key, 1);
   if (idx < 0) {
@@ -69,7 +68,7 @@ std::optional<double> ZSetListPack::GetScoreOfKey(
   return std::stod(*score);
 }
 
-std::optional<size_t> ZSetListPack::GetRankOfKey(const std::string& key) const {
+std::optional<size_t> ZSetListPack::Rank(const std::string& key) const {
   ssize_t key_idx = listpack_->FindAndSkip(key, 1);
   if (key_idx < 0) {
     return std::nullopt;
@@ -151,7 +150,7 @@ void ZSetListPack::DeleteKeyScorePair(size_t idx) {
 /*
  * Get the score of the key at the given index.
  */
-double ZSetListPack::GetScore(size_t idx) {
+double ZSetListPack::ScoreAt(size_t idx) {
   const auto string_result = listpack_->Get(idx);
   return string_result.has_value() ? std::stod(*string_result) : 0;
 }

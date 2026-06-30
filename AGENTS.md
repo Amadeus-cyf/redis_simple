@@ -8,6 +8,10 @@ Guidance for AI coding agents working in this repository.
 - Follow Google C++ style and the checked-in `.clang-format`.
 - Prefer clear, simple C++17 code over legacy C++11 patterns.
 - Keep naming consistent with nearby code.
+- Use `Create()` for owning factory functions and return `std::unique_ptr`
+  instead of owning raw pointers.
+- Prefer concise accessor names such as `Type()`, `Encoding()`, and
+  `TotalBytes()` over Java-style `Get...` names for new or renamed APIs.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.

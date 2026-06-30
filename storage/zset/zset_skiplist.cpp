@@ -2,7 +2,7 @@
 
 namespace redis_simple::zset {
 ZSetSkiplist::ZSetSkiplist()
-    : dict_(in_memory::Dict<std::string, double>::Init()),
+    : dict_(in_memory::Dict<std::string, double>::Create()),
       skiplist_(std::make_unique<SkiplistType>(in_memory::kInitSkiplistLevel,
                                                Comparator(), Destructor())) {}
 
@@ -56,7 +56,7 @@ bool ZSetSkiplist::Delete(const std::string& key) {
   return deleted;
 }
 
-std::optional<size_t> ZSetSkiplist::GetRankOfKey(const std::string& key) const {
+std::optional<size_t> ZSetSkiplist::Rank(const std::string& key) const {
   const auto result = dict_->Get(key);
   if (!result.has_value()) {
     return std::nullopt;

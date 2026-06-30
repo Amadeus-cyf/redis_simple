@@ -34,12 +34,12 @@ int Run() {
     return EXIT_FAILURE;
   }
   const tcp::TcpAddrInfo local("localhost", 8080);
-  if (tcp::TcpBind(s, local) != tcp::TcpStatusCode::kTcpOk) {
+  if (tcp::TcpBind(s, local) != tcp::TcpStatusCode::kOk) {
     RS_LOG_DEBUG("failed to bind tcp integration server\n");
     close(s);
     return EXIT_FAILURE;
   }
-  if (tcp::TcpListen(s) != tcp::TcpStatusCode::kTcpOk) {
+  if (tcp::TcpListen(s) != tcp::TcpStatusCode::kOk) {
     RS_LOG_DEBUG("failed to listen on tcp integration server\n");
     close(s);
     return EXIT_FAILURE;

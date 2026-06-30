@@ -8,7 +8,7 @@
 #include "utils/time_utils.h"
 
 namespace redis_simple::db {
-std::unique_ptr<RedisDb> RedisDb::Init() {
+std::unique_ptr<RedisDb> RedisDb::Create() {
   return std::unique_ptr<RedisDb>(new RedisDb());
 }
 
@@ -27,7 +27,7 @@ RedisDb::RedisDb() : expire_cursor_(0) {
   db_type.key_destructor = nullptr;
   db_type.val_destructor = nullptr;
   db_type.key_compare = key_compare;
-  dict_ = in_memory::Dict<std::string, RedisObjectPtr>::Init(db_type);
+  dict_ = in_memory::Dict<std::string, RedisObjectPtr>::Create(db_type);
 
   in_memory::Dict<std::string, int64_t>::DictType expires_type;
   expires_type.hash_function = hash;
@@ -36,7 +36,7 @@ RedisDb::RedisDb() : expire_cursor_(0) {
   expires_type.key_destructor = nullptr;
   expires_type.val_destructor = nullptr;
   expires_type.key_compare = nullptr;
-  expires_ = in_memory::Dict<std::string, int64_t>::Init(expires_type);
+  expires_ = in_memory::Dict<std::string, int64_t>::Create(expires_type);
 }
 
 const RedisObject* RedisDb::LookupKey(const std::string& key) {
@@ -104,7 +104,7 @@ bool RedisDb::IsKeyExpired(const std::string& key) const {
   if (!result.has_value()) {
     return false;
   }
-  int64_t now = utils::GetNowInMilliseconds();
+  int64_t now = utils::NowInMilliseconds();
   return *result < now;
 }
 }  // namespace redis_simple::db

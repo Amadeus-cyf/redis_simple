@@ -36,22 +36,22 @@ ListPack::ListPack(size_t capacity)
 }
 
 unsigned char* ListPack::Get(size_t idx, size_t* const len) const {
-  size_t listpack_bytes = GetTotalBytes();
+  size_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
   if (idx == listpack_bytes - 1) {
     return nullptr;
   }
-  EncodingType encoding_type = GetEncodingType(idx);
+  EncodingType encoding_type = EncodingAt(idx);
   if (IsString(encoding_type)) {
-    return GetString(idx, len, encoding_type);
+    return StringAt(idx, len, encoding_type);
   }
-  return GetInteger(idx, int_buf_, len, nullptr, encoding_type);
+  return IntegerAt(idx, int_buf_, len, nullptr, encoding_type);
 }
 
 std::optional<std::string> ListPack::Get(size_t idx) const {
-  size_t listpack_bytes = GetTotalBytes();
+  size_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
@@ -61,28 +61,28 @@ std::optional<std::string> ListPack::Get(size_t idx) const {
 
   size_t len = 0;
   unsigned char int_buf[kListPackIntBufSize];
-  EncodingType encoding_type = GetEncodingType(idx);
+  EncodingType encoding_type = EncodingAt(idx);
   const unsigned char* buf =
       IsString(encoding_type)
-          ? GetString(idx, &len, encoding_type)
-          : GetInteger(idx, int_buf, &len, nullptr, encoding_type);
+          ? StringAt(idx, &len, encoding_type)
+          : IntegerAt(idx, int_buf, &len, nullptr, encoding_type);
   return std::string(reinterpret_cast<const char*>(buf), len);
 }
 
-std::optional<int64_t> ListPack::GetInteger(size_t idx) const {
-  size_t listpack_bytes = GetTotalBytes();
+std::optional<int64_t> ListPack::IntegerAt(size_t idx) const {
+  size_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
   if (idx == listpack_bytes - 1) {
     return std::nullopt;
   }
-  EncodingType encoding_type = GetEncodingType(idx);
+  EncodingType encoding_type = EncodingAt(idx);
   if (IsString(encoding_type)) {
     return std::nullopt;
   }
   int64_t val = 0;
-  GetInteger(idx, nullptr, nullptr, &val, encoding_type);
+  IntegerAt(idx, nullptr, nullptr, &val, encoding_type);
   return val;
 }
 
@@ -117,13 +117,13 @@ ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
 }
 
 bool ListPack::Append(const std::string& element_string) {
-  uint32_t listpack_bytes = GetTotalBytes();
+  uint32_t listpack_bytes = TotalBytes();
   return Insert(listpack_bytes - 1, Position::kInsertBefore, &element_string,
                 nullptr);
 }
 
 bool ListPack::Append(int64_t element_integer) {
-  uint32_t listpack_bytes = GetTotalBytes();
+  uint32_t listpack_bytes = TotalBytes();
   return Insert(listpack_bytes - 1, Position::kInsertBefore, nullptr,
                 &element_integer);
 }
@@ -155,7 +155,7 @@ bool ListPack::Replace(size_t idx, int64_t element_integer) {
 }
 
 bool ListPack::BatchAppend(const std::vector<ListPackEntry>& entries) {
-  uint32_t listpack_bytes = GetTotalBytes();
+  uint32_t listpack_bytes = TotalBytes();
   return BatchInsert(listpack_bytes - 1, Position::kInsertBefore, entries);
 }
 
@@ -169,17 +169,17 @@ bool ListPack::BatchInsert(size_t idx,
 }
 
 void ListPack::Delete(size_t idx) {
-  uint32_t listpack_bytes = GetTotalBytes();
+  uint32_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
   if (idx == listpack_bytes - 1) {
     return;
   }
-  size_t backlen = GetBacklen(idx);
-  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  size_t backlen = Backlen(idx);
+  uint8_t backlen_bytes = BacklenBytes(backlen);
   size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
-  uint16_t num_of_elements = GetNumOfElements();
+  uint16_t num_of_elements = ElementCount();
   std::memmove(lp_.get() + idx, lp_.get() + idx + backlen + backlen_bytes,
                listpack_bytes - idx - backlen - backlen_bytes);
   // Shrink after memmove so the source range remains valid.
@@ -191,7 +191,7 @@ void ListPack::Delete(size_t idx) {
 }
 
 ssize_t ListPack::First() const {
-  size_t listpack_bytes = GetTotalBytes();
+  size_t listpack_bytes = TotalBytes();
   if (listpack_bytes <= ListPack::kListPackHeaderSize + 1) {
     return -1;
   }
@@ -199,7 +199,7 @@ ssize_t ListPack::First() const {
 }
 
 ssize_t ListPack::Last() const {
-  size_t listpack_bytes = GetTotalBytes();
+  size_t listpack_bytes = TotalBytes();
   if (listpack_bytes <= ListPack::kListPackHeaderSize + 1) {
     return -1;
   }
@@ -207,7 +207,7 @@ ssize_t ListPack::Last() const {
 }
 
 ssize_t ListPack::Next(size_t idx) const {
-  if (idx < kListPackHeaderSize || idx >= GetTotalBytes()) {
+  if (idx < kListPackHeaderSize || idx >= TotalBytes()) {
     throw std::out_of_range("index out of bound");
   }
   if (lp_[idx] == kListPackEof) {
@@ -218,7 +218,7 @@ ssize_t ListPack::Next(size_t idx) const {
 }
 
 ssize_t ListPack::Prev(size_t idx) const {
-  size_t listpack_bytes = GetTotalBytes();
+  size_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
@@ -228,12 +228,12 @@ ssize_t ListPack::Prev(size_t idx) const {
   // Decode the backlen starting from the last byte of the previous element's
   // backlen.
   size_t backlen = DecodeBacklen(--idx);
-  size_t backlen_bytes = GetBacklenBytes(backlen);
+  size_t backlen_bytes = BacklenBytes(backlen);
   return ToSSize(idx - backlen - backlen_bytes + 1);
 }
 
-unsigned char* ListPack::GetString(size_t idx, size_t* const len,
-                                   EncodingType encoding_type) const {
+unsigned char* ListPack::StringAt(size_t idx, size_t* const len,
+                                  EncodingType encoding_type) const {
   if (len != nullptr) {
     *len = DecodeStringLength(idx);
   }
@@ -249,9 +249,9 @@ unsigned char* ListPack::GetString(size_t idx, size_t* const len,
   }
 }
 
-unsigned char* ListPack::GetInteger(size_t idx, unsigned char* dst,
-                                    size_t* const len, int64_t* sval,
-                                    EncodingType encoding_type) const {
+unsigned char* ListPack::IntegerAt(size_t idx, unsigned char* dst,
+                                   size_t* const len, int64_t* sval,
+                                   EncodingType encoding_type) const {
   int64_t val = 0;
   uint64_t uval = 0;
   uint64_t negstart = 0;
@@ -323,7 +323,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   if ((element_string == nullptr) && (element_integer == nullptr)) {
     return false;
   }
-  uint32_t listpack_bytes = GetTotalBytes();
+  uint32_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
@@ -340,11 +340,11 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     backlen = EncodeString(nullptr, element_string);
     encoding_type = EncodingGeneralType::kString;
   }
-  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  uint8_t backlen_bytes = BacklenBytes(backlen);
   size_t replaced_bytes = 0;
   if (where == Position::kReplace) {
-    size_t cur_backlen = GetBacklen(idx);
-    size_t cur_backlen_bytes = GetBacklenBytes(cur_backlen);
+    size_t cur_backlen = Backlen(idx);
+    size_t cur_backlen_bytes = BacklenBytes(cur_backlen);
     replaced_bytes = cur_backlen + cur_backlen_bytes;
   }
   size_t new_listpack_bytes =
@@ -360,7 +360,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
                lp_.get() + idx + replaced_bytes,
                listpack_bytes - idx - replaced_bytes);
   if (where == Position::kInsertBefore) {
-    uint16_t num_of_elements = GetNumOfElements();
+    uint16_t num_of_elements = ElementCount();
     if (num_of_elements != kListPackNumEleUnknown) {
       SetNumOfElements(num_of_elements + 1);
     }
@@ -383,7 +383,7 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   if (entries.empty()) {
     return false;
   }
-  uint32_t listpack_bytes = GetTotalBytes();
+  uint32_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
@@ -402,7 +402,7 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
       encoding.str = nullptr;
       encoding.sval = sval;
       encoding.encoding_type = EncodingGeneralType::kInteger;
-      encoding.backlen_bytes = GetBacklenBytes(backlen);
+      encoding.backlen_bytes = BacklenBytes(backlen);
       encodings.push_back(encoding);
     } else {
       backlen = EncodeString(nullptr, entry.str);
@@ -410,10 +410,10 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
       encoding.str = entry.str;
       encoding.sval = 0;
       encoding.encoding_type = EncodingGeneralType::kString;
-      encoding.backlen_bytes = GetBacklenBytes(backlen);
+      encoding.backlen_bytes = BacklenBytes(backlen);
       encodings.push_back(encoding);
     }
-    inserted_bytes += (backlen + GetBacklenBytes(backlen));
+    inserted_bytes += (backlen + BacklenBytes(backlen));
   }
   size_t new_listpack_bytes = listpack_bytes + inserted_bytes;
   // Total bytes is a 4 byte unsigned integer, so the maximum bytes for the
@@ -424,7 +424,7 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   if (new_listpack_bytes < kListPackHeaderSize + 1) {
     return false;
   }
-  uint16_t num_of_elements = GetNumOfElements();
+  uint16_t num_of_elements = ElementCount();
   Realloc(new_listpack_bytes);
   std::memmove(lp_.get() + idx + inserted_bytes, lp_.get() + idx,
                listpack_bytes - idx);
@@ -449,7 +449,7 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   return true;
 }
 
-uint32_t ListPack::GetTotalBytes() const {
+uint32_t ListPack::TotalBytes() const {
   return (lp_[0] << 24) | (lp_[1] << 16) | (lp_[2] << 8) | lp_[3];
 }
 
@@ -461,7 +461,7 @@ void ListPack::SetTotalBytes(uint32_t listpack_bytes) {
 }
 
 size_t ListPack::Size() const {
-  uint16_t num_of_elements = GetNumOfElements();
+  uint16_t num_of_elements = ElementCount();
   if (num_of_elements != kListPackNumEleUnknown) {
     return num_of_elements;
   }
@@ -479,7 +479,7 @@ size_t ListPack::Size() const {
   return count;
 }
 
-uint16_t ListPack::GetNumOfElements() const { return (lp_[4] << 8) | lp_[5]; }
+uint16_t ListPack::ElementCount() const { return (lp_[4] << 8) | lp_[5]; }
 
 void ListPack::SetNumOfElements(uint16_t num_of_elements) const {
   lp_[4] = (num_of_elements >> 8) & 0xff;
@@ -494,8 +494,8 @@ size_t ListPack::Skip(size_t idx) const {
   if (lp_[idx] == kListPackEof) {
     return idx;
   }
-  size_t backlen = GetBacklen(idx);
-  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  size_t backlen = Backlen(idx);
+  uint8_t backlen_bytes = BacklenBytes(backlen);
   size_t next_idx = idx + backlen + backlen_bytes;
   return next_idx;
 }
@@ -512,7 +512,7 @@ size_t ListPack::EstimateBytes(int64_t lval, size_t repeat) {
  * Return whether adding bytes keeps the listpack within the safe size limit.
  */
 bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
-  size_t len = (lp != nullptr) ? lp->GetTotalBytes() : 0;
+  size_t len = (lp != nullptr) ? lp->TotalBytes() : 0;
   return len + bytes <= ListPack::kListPackMaxSafetySize;
 }
 
@@ -520,7 +520,7 @@ bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
  * Get the encoding type of the element at the given index of the listpack.
  * The function assumes that the index is valid.
  */
-ListPack::EncodingType ListPack::GetEncodingType(size_t idx) const {
+ListPack::EncodingType ListPack::EncodingAt(size_t idx) const {
   const unsigned char* buf = lp_.get() + idx;
   if ((buf[0] & EncodingTypeMask::kType7BitUintMask) ==
       EncodingType::k7BitUnsignedInteger) {
@@ -556,8 +556,8 @@ ListPack::EncodingType ListPack::GetEncodingType(size_t idx) const {
  * Get back length from the given element of the listpack. Note that the index
  * provided is the beginning of the element.
  */
-size_t ListPack::GetBacklen(size_t idx) const {
-  switch (GetEncodingType(idx)) {
+size_t ListPack::Backlen(size_t idx) const {
+  switch (EncodingAt(idx)) {
     case EncodingType::k7BitUnsignedInteger:
       return 1;
     case EncodingType::k6BitString:
@@ -582,7 +582,7 @@ size_t ListPack::GetBacklen(size_t idx) const {
 /*
  * Get number of bytes required to encode the back length.
  */
-uint8_t ListPack::GetBacklenBytes(size_t backlen) {
+uint8_t ListPack::BacklenBytes(size_t backlen) {
   if (backlen >= 0 && backlen <= BacklenThreshold::kSize1ByteBacklenMax) {
     return 1;
   }
@@ -731,7 +731,7 @@ size_t ListPack::EncodeInteger(unsigned char* const buf, int64_t v) {
  * Encode the back length to the given pointer of the listpack.
  */
 void ListPack::EncodeBacklen(unsigned char* const buf, size_t backlen) {
-  uint8_t backlen_bytes = GetBacklenBytes(backlen);
+  uint8_t backlen_bytes = BacklenBytes(backlen);
   for (uint8_t i = 0; i < backlen_bytes; ++i) {
     buf[i] = backlen & 127;
     if (i > 0) {
@@ -764,7 +764,7 @@ size_t ListPack::DecodeBacklen(size_t idx) const {
  */
 size_t ListPack::DecodeStringLength(size_t idx) const {
   const unsigned char* buf = lp_.get() + idx;
-  switch (GetEncodingType(idx)) {
+  switch (EncodingAt(idx)) {
     case EncodingType::k6BitString:
       return buf[0] & 0x3f;
     case EncodingType::k12BitString:
@@ -785,8 +785,7 @@ void ListPack::Realloc(size_t bytes) {
     throw std::length_error("listpack allocation is smaller than its header");
   }
   auto new_lp = std::make_unique<unsigned char[]>(bytes);
-  const size_t copy_bytes =
-      std::min(static_cast<size_t>(GetTotalBytes()), bytes);
+  const size_t copy_bytes = std::min(static_cast<size_t>(TotalBytes()), bytes);
   std::memcpy(new_lp.get(), lp_.get(), copy_bytes);
   lp_ = std::move(new_lp);
 }

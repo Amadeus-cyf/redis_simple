@@ -10,7 +10,7 @@ namespace redis_simple {
 void ActiveExpireCycle() {
   auto expire_callback = [](const std::string& key,
                             const int64_t& expire_time) {
-    int64_t now = utils::GetNowInMilliseconds();
+    int64_t now = utils::NowInMilliseconds();
     if (expire_time < now) {
       RS_LOG_DEBUG("activeExpireCycle: expired key \"%s\" deleted\n",
                    key.c_str());
@@ -22,7 +22,7 @@ void ActiveExpireCycle() {
     }
   };
   if (auto* db = Server::Get()->Db()) {
-    int64_t start = utils::GetNowInMilliseconds();
+    int64_t start = utils::NowInMilliseconds();
     int64_t timelimit = 1000;
     int iteration = 0;
     bool timeout = false;
@@ -33,7 +33,7 @@ void ActiveExpireCycle() {
       }
       ++iteration;
       if ((iteration & 0xf) == 0) {
-        int64_t now = utils::GetNowInMilliseconds();
+        int64_t now = utils::NowInMilliseconds();
         if (now - start >= timelimit) {
           timeout = true;
         }

@@ -26,7 +26,7 @@ class ListPack {
   ListPack& operator=(const ListPack&) = delete;
   unsigned char* Get(size_t idx, size_t* const len) const;
   std::optional<std::string> Get(size_t idx) const;
-  std::optional<int64_t> GetInteger(size_t idx) const;
+  std::optional<int64_t> IntegerAt(size_t idx) const;
   ssize_t Find(const std::string& val) const;
   ssize_t FindAndSkip(const std::string& val, size_t skip) const;
   bool Append(const std::string& element_string);
@@ -45,7 +45,7 @@ class ListPack {
   ssize_t Last() const;
   ssize_t Next(size_t idx) const;
   ssize_t Prev(size_t idx) const;
-  uint32_t GetTotalBytes() const;
+  uint32_t TotalBytes() const;
   size_t Size() const;
   static size_t EstimateBytes(int64_t lval, size_t repeat);
   static bool SafeToAdd(const ListPack* const lp, size_t bytes);
@@ -105,22 +105,22 @@ class ListPack {
     EncodingGeneralType encoding_type;
     size_t backlen_bytes;
   };
-  unsigned char* GetString(size_t idx, size_t* const len,
-                           EncodingType encoding_type) const;
-  unsigned char* GetInteger(size_t idx, unsigned char* dst, size_t* const len,
-                            int64_t* val, EncodingType encoding_type) const;
+  unsigned char* StringAt(size_t idx, size_t* const len,
+                          EncodingType encoding_type) const;
+  unsigned char* IntegerAt(size_t idx, unsigned char* dst, size_t* const len,
+                           int64_t* val, EncodingType encoding_type) const;
   bool Insert(size_t idx, ListPack::Position where,
               const std::string* element_string,
               const int64_t* element_integer);
   bool BatchInsert(size_t idx, ListPack::Position where,
                    const std::vector<ListPackEntry>& entries);
   void SetTotalBytes(uint32_t listpack_bytes);
-  uint16_t GetNumOfElements() const;
+  uint16_t ElementCount() const;
   void SetNumOfElements(uint16_t num_of_elements) const;
   size_t Skip(size_t idx) const;
-  EncodingType GetEncodingType(size_t idx) const;
-  size_t GetBacklen(size_t idx) const;
-  static uint8_t GetBacklenBytes(size_t backlen);
+  EncodingType EncodingAt(size_t idx) const;
+  size_t Backlen(size_t idx) const;
+  static uint8_t BacklenBytes(size_t backlen);
   static size_t EncodeString(unsigned char* const buf, const std::string* ele);
   static size_t EncodeInteger(unsigned char* const buf, int64_t v);
   static void EncodeBacklen(unsigned char* const buf, size_t backlen);

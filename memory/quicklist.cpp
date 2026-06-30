@@ -126,15 +126,15 @@ bool QuickList::CanAppendToNode(const Node* node,
   }
   const size_t estimated_bytes = value.size() + kEntryOverheadEstimate;
   return node->listpack->Size() == 0 ||
-         node->listpack->GetTotalBytes() + estimated_bytes <= node_max_bytes_;
+         node->listpack->TotalBytes() + estimated_bytes <= node_max_bytes_;
 }
 
 bool QuickList::CanMergeNodes(const Node* left, const Node* right) const {
   if (left == nullptr || right == nullptr) {
     return false;
   }
-  const size_t merged_bytes = left->listpack->GetTotalBytes() +
-                              right->listpack->GetTotalBytes() -
+  const size_t merged_bytes = left->listpack->TotalBytes() +
+                              right->listpack->TotalBytes() -
                               ListPack::kListPackHeaderSize;
   return merged_bytes <= node_max_bytes_;
 }

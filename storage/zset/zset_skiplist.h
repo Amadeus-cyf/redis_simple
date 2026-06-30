@@ -13,10 +13,10 @@ class ZSetSkiplist : public ZSetStorage {
   ZSetSkiplist();
   bool InsertOrUpdate(const std::string& key, double score) override;
   bool Delete(const std::string& key) override;
-  std::optional<double> GetScoreOfKey(const std::string& key) const override {
+  std::optional<double> Score(const std::string& key) const override {
     return dict_->Get(key);
   }
-  std::optional<size_t> GetRankOfKey(const std::string& key) const override;
+  std::optional<size_t> Rank(const std::string& key) const override;
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const override;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const override;
   size_t Count(const RangeByScoreSpec* spec) const override;

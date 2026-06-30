@@ -8,7 +8,7 @@
 
 namespace redis_simple::set {
 TEST(SetTest, IntegerMembersUseIntSet) {
-  auto set = std::unique_ptr<Set>(Set::Init());
+  auto set = Set::Create();
 
   ASSERT_TRUE(set->Add("1"));
   ASSERT_TRUE(set->Add("65535"));
@@ -18,7 +18,7 @@ TEST(SetTest, IntegerMembersUseIntSet) {
   ASSERT_TRUE(set->Add("9223372036854775807"));
   ASSERT_TRUE(set->Add("-9223372036854775808"));
 
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kIntSet);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kIntSet);
   ASSERT_EQ(set->Size(), 7);
   ASSERT_TRUE(set->HasMember("-9223372036854775808"));
   ASSERT_TRUE(set->HasMember("4294967295"));
@@ -31,13 +31,13 @@ TEST(SetTest, IntegerMembersUseIntSet) {
 }
 
 TEST(SetTest, AddingFirstNonIntegerConvertsIntSetToListPack) {
-  auto set = std::unique_ptr<Set>(Set::Init());
+  auto set = Set::Create();
 
   ASSERT_TRUE(set->Add("1"));
   ASSERT_TRUE(set->Add("2"));
   ASSERT_TRUE(set->Add("member"));
 
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kListPack);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kListPack);
   ASSERT_EQ(set->Size(), 3);
   ASSERT_TRUE(set->HasMember("1"));
   ASSERT_TRUE(set->HasMember("2"));
@@ -46,19 +46,19 @@ TEST(SetTest, AddingFirstNonIntegerConvertsIntSetToListPack) {
 }
 
 TEST(SetTest, ListPackConversionToDictReportsNewMemberAdded) {
-  auto set = std::unique_ptr<Set>(Set::Init());
+  auto set = Set::Create();
 
   ASSERT_TRUE(set->Add("member_0"));
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kListPack);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kListPack);
   for (size_t i = 1; i < 128; ++i) {
     ASSERT_TRUE(set->Add("member_" + std::to_string(i)));
   }
   ASSERT_EQ(set->Size(), 128);
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kListPack);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kListPack);
 
   ASSERT_TRUE(set->Add("member_128"));
 
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kDict);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kDict);
   ASSERT_EQ(set->Size(), 129);
   ASSERT_TRUE(set->HasMember("member_0"));
   ASSERT_TRUE(set->HasMember("member_128"));
@@ -66,15 +66,15 @@ TEST(SetTest, ListPackConversionToDictReportsNewMemberAdded) {
 }
 
 TEST(SetTest, LongMemberConvertsListPackToDict) {
-  auto set = std::unique_ptr<Set>(Set::Init());
+  auto set = Set::Create();
 
   ASSERT_TRUE(set->Add("member"));
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kListPack);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kListPack);
 
   const std::string long_member(65, 'x');
   ASSERT_TRUE(set->Add(long_member));
 
-  ASSERT_EQ(set->GetEncoding(), Set::Encoding::kDict);
+  ASSERT_EQ(set->Encoding(), Set::Encoding::kDict);
   ASSERT_EQ(set->Size(), 2);
   ASSERT_TRUE(set->HasMember("member"));
   ASSERT_TRUE(set->HasMember(long_member));
@@ -82,22 +82,22 @@ TEST(SetTest, LongMemberConvertsListPackToDict) {
 }
 
 TEST(SetTest, RemoveMembersFromEachEncoding) {
-  auto intset = std::unique_ptr<Set>(Set::Init());
+  auto intset = Set::Create();
   ASSERT_TRUE(intset->Add("1"));
   ASSERT_TRUE(intset->Remove("1"));
   ASSERT_FALSE(intset->HasMember("1"));
   ASSERT_FALSE(intset->Remove("1"));
 
-  auto listpack = std::unique_ptr<Set>(Set::Init());
+  auto listpack = Set::Create();
   ASSERT_TRUE(listpack->Add("member"));
   ASSERT_TRUE(listpack->Remove("member"));
   ASSERT_FALSE(listpack->HasMember("member"));
   ASSERT_FALSE(listpack->Remove("member"));
 
-  auto dict = std::unique_ptr<Set>(Set::Init());
+  auto dict = Set::Create();
   ASSERT_TRUE(dict->Add("member"));
   ASSERT_TRUE(dict->Add(std::string(65, 'x')));
-  ASSERT_EQ(dict->GetEncoding(), Set::Encoding::kDict);
+  ASSERT_EQ(dict->Encoding(), Set::Encoding::kDict);
   ASSERT_TRUE(dict->Remove("member"));
   ASSERT_FALSE(dict->HasMember("member"));
   ASSERT_FALSE(dict->Remove("member"));

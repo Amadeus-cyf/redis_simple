@@ -14,9 +14,9 @@ class Dict {
   class Iterator;
   struct DictType;
   using DictScanFunc = void (*)(const K& key, const V& value);
-  static std::unique_ptr<Dict<K, V>> Init();
-  static std::unique_ptr<Dict<K, V>> Init(size_t capacity);
-  static std::unique_ptr<Dict<K, V>> Init(const DictType& type);
+  static std::unique_ptr<Dict<K, V>> Create();
+  static std::unique_ptr<Dict<K, V>> Create(size_t capacity);
+  static std::unique_ptr<Dict<K, V>> Create(const DictType& type);
   Dict(const Dict&) = delete;
   Dict& operator=(const Dict&) = delete;
   std::optional<V> Get(const K& key);
@@ -38,8 +38,8 @@ class Dict {
   struct DictEntry;
   Dict();
   Dict(const DictType& type);
-  void InitTables();
-  void InitTableWithSize(int i, int exp, size_t size);
+  void InitializeTables();
+  void InitializeTableWithSize(int i, int exp, size_t size);
   void InsertEntry(DictEntry* entry, int i);
   DictEntry* Unlink(const K& key);
   void UnlinkEntry(DictEntry* entry, DictEntry* prev, int i);
@@ -237,7 +237,7 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
  * Initialize the dict with default functions.
  */
 template <typename K, typename V>
-std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
+std::unique_ptr<Dict<K, V>> Dict<K, V>::Create() {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
   if (!dict->Expand(kTableInitSize)) {
     return nullptr;
@@ -253,7 +253,7 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init() {
  * Initialize the dict with default functions and custom capacity.
  */
 template <typename K, typename V>
-std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(size_t capacity) {
+std::unique_ptr<Dict<K, V>> Dict<K, V>::Create(size_t capacity) {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
   if (!dict->Expand(capacity)) {
     return nullptr;
@@ -269,7 +269,7 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(size_t capacity) {
  * Initialize the dict with customized functions.
  */
 template <typename K, typename V>
-std::unique_ptr<Dict<K, V>> Dict<K, V>::Init(
+std::unique_ptr<Dict<K, V>> Dict<K, V>::Create(
     const typename Dict<K, V>::DictType& type) {
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>(type));
   if (!dict->Expand(kTableInitSize)) {
@@ -445,24 +445,24 @@ Dict<K, V>::~Dict() {
 
 template <typename K, typename V>
 Dict<K, V>::Dict() : rehash_idx_(-1), pause_rehash_(0) {
-  InitTables();
+  InitializeTables();
 }
 
 template <typename K, typename V>
 Dict<K, V>::Dict(const DictType& type)
     : rehash_idx_(-1), pause_rehash_(0), type_(type) {
-  InitTables();
+  InitializeTables();
 }
 
 template <typename K, typename V>
-void Dict<K, V>::InitTables() {
+void Dict<K, V>::InitializeTables() {
   tables_.resize(2);
   Reset(0);
   Reset(1);
 }
 
 template <typename K, typename V>
-void Dict<K, V>::InitTableWithSize(int i, int exp, size_t size) {
+void Dict<K, V>::InitializeTableWithSize(int i, int exp, size_t size) {
   table_size_exp_[i] = exp;
   tables_[i].resize(size);
   table_used_[i] = 0;
@@ -650,11 +650,11 @@ bool Dict<K, V>::Expand(size_t size) {
   }
   // First allocation initializes table 0; later expansions rehash into table 1.
   if (table_size_exp_[0] < 0) {
-    InitTableWithSize(0, new_exp, new_size);
+    InitializeTableWithSize(0, new_exp, new_size);
     rehash_idx_ = -1;
     return true;
   }
-  InitTableWithSize(1, new_exp, new_size);
+  InitializeTableWithSize(1, new_exp, new_size);
   rehash_idx_ = 0;
   return true;
 }

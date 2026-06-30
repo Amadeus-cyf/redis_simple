@@ -25,7 +25,7 @@ constexpr bool HasFlag(int flags, SetKeyFlag flag) {
 
 class RedisDb {
  public:
-  static std::unique_ptr<RedisDb> Init();
+  static std::unique_ptr<RedisDb> Create();
   const RedisObject* LookupKey(const std::string& key);
   DbStatus SetKey(const std::string& key, RedisObjectPtr object,
                   int64_t expire);

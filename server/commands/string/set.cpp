@@ -45,7 +45,7 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   string_args->value = args[1];
   string_args->expire = 0;
   if (args.size() >= 3) {
-    int64_t now = utils::GetNowInMilliseconds();
+    int64_t now = utils::NowInMilliseconds();
     int64_t ttl = 0;
     if (utils::ToInt64(args[2], &ttl)) {
       string_args->expire = now + ttl;

@@ -5,7 +5,7 @@
 
 namespace redis_simple::zset {
 ZSet::ZSet()
-    : encoding_(ZSetEncodingType::kListPack),
+    : encoding_(Encoding::kListPack),
       storage_(std::make_unique<ZSetListPack>()) {}
 
 /*
@@ -13,7 +13,7 @@ ZSet::ZSet()
  * element. Return true if the element is newly inserted.
  */
 bool ZSet::InsertOrUpdate(const std::string& key, double score) {
-  if (encoding_ == ZSetEncodingType::kListPack &&
+  if (encoding_ == Encoding::kListPack &&
       key.size() > kListPackMaxElementLength) {
     ConvertAndExpand();
   }
@@ -26,12 +26,12 @@ bool ZSet::InsertOrUpdate(const std::string& key, double score) {
 
 bool ZSet::Delete(const std::string& key) { return storage_->Delete(key); }
 
-std::optional<double> ZSet::GetScoreOfKey(const std::string& key) const {
-  return storage_->GetScoreOfKey(key);
+std::optional<double> ZSet::Score(const std::string& key) const {
+  return storage_->Score(key);
 }
 
-std::optional<size_t> ZSet::GetRankOfKey(const std::string& key) const {
-  return storage_->GetRankOfKey(key);
+std::optional<size_t> ZSet::Rank(const std::string& key) const {
+  return storage_->Rank(key);
 }
 
 ZSetEntryList ZSet::RangeByRank(const RangeByRankSpec* spec) const {
@@ -49,21 +49,18 @@ size_t ZSet::Count(const RangeByScoreSpec* spec) const {
   return storage_->Count(spec);
 }
 
-ZSet::Encoding ZSet::GetEncoding() const {
-  return encoding_ == ZSetEncodingType::kListPack ? Encoding::kListPack
-                                                  : Encoding::kSkiplist;
-}
+enum ZSet::Encoding ZSet::Encoding() const { return encoding_; }
 
 bool ZSet::ShouldConvertToSkiplist(const std::string& key,
                                    bool inserted) const {
-  return encoding_ == ZSetEncodingType::kListPack &&
+  return encoding_ == Encoding::kListPack &&
          ((inserted && storage_->Size() > kListPackMaxEntries) ||
           key.size() > kListPackMaxElementLength);
 }
 
 void ZSet::ConvertAndExpand() {
-  assert(encoding_ == ZSetEncodingType::kListPack);
-  encoding_ = ZSetEncodingType::kSkiplist;
+  assert(encoding_ == Encoding::kListPack);
+  encoding_ = Encoding::kSkiplist;
   if (!storage_) {
     storage_ = std::make_unique<ZSetSkiplist>();
     return;

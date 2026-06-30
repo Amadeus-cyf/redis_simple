@@ -33,7 +33,7 @@ bool IntSet::Add(int64_t value) {
 }
 
 int64_t IntSet::Get(unsigned int index) const {
-  return GetEncoded(index, encoding_);
+  return EncodedValue(index, encoding_);
 }
 
 bool IntSet::Find(int64_t value) const {
@@ -112,13 +112,13 @@ void IntSet::UpgradeAndAdd(int64_t value) {
 }
 
 bool IntSet::Search(int64_t value, unsigned int* const index) const {
-  if (length_ > 0 && value < GetEncoded(0, encoding_)) {
+  if (length_ > 0 && value < EncodedValue(0, encoding_)) {
     if (index != nullptr) {
       *index = 0;
     }
     return false;
   }
-  if (length_ > 0 && value > GetEncoded(length_ - 1, encoding_)) {
+  if (length_ > 0 && value > EncodedValue(length_ - 1, encoding_)) {
     if (index) *index = length_;
     return false;
   }
@@ -126,7 +126,7 @@ bool IntSet::Search(int64_t value, unsigned int* const index) const {
   unsigned int max_idx = length_;
   while (min_idx < max_idx) {
     const unsigned int mid = min_idx + ((max_idx - min_idx) / 2);
-    int64_t val = GetEncoded(mid, encoding_);
+    int64_t val = EncodedValue(mid, encoding_);
     if (val == value) {
       if (index != nullptr) {
         *index = mid;
@@ -145,7 +145,7 @@ bool IntSet::Search(int64_t value, unsigned int* const index) const {
   return false;
 }
 
-int64_t IntSet::GetEncoded(unsigned int index, EncodingType encoding) const {
+int64_t IntSet::EncodedValue(unsigned int index, EncodingType encoding) const {
   if (index >= length_) {
     throw std::out_of_range("index out of bound");
   }

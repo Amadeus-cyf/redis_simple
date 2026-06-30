@@ -200,7 +200,7 @@ void EventLoop::ProcessTimeEvents() {
       }
       it = time_events_.erase(it);
     } else {
-      int64_t now = utils::GetNowInMilliseconds();
+      int64_t now = utils::NowInMilliseconds();
       if (time_event->When() <= now) {
         int ret = time_event->CallTimeCallback();
         if (ret == EventFlag::kNoMore) {

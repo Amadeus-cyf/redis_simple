@@ -70,7 +70,7 @@ std::optional<size_t> ZRank(db::RedisDb* redis_db, const ZRankArgs* args) {
   }
   try {
     const auto* zset = obj->ZSet();
-    return zset->GetRankOfKey(args->element);
+    return zset->Rank(args->element);
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
     return std::nullopt;

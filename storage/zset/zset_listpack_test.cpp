@@ -35,20 +35,20 @@ TEST_F(ZSetListPackTest, Add) {
   ASSERT_EQ(zset_listpack->Size(), 4);
 }
 
-TEST_F(ZSetListPackTest, GetRankOfKey) {
-  auto r1 = zset_listpack->GetRankOfKey("key1");
+TEST_F(ZSetListPackTest, Rank) {
+  auto r1 = zset_listpack->Rank("key1");
   ASSERT_EQ(r1.value_or(-1), 3);
 
-  auto r2 = zset_listpack->GetRankOfKey("key2");
+  auto r2 = zset_listpack->Rank("key2");
   ASSERT_EQ(r2.value_or(-1), 2);
 
-  auto r3 = zset_listpack->GetRankOfKey("key3");
+  auto r3 = zset_listpack->Rank("key3");
   ASSERT_EQ(r3.value_or(-1), 0);
 
-  auto r4 = zset_listpack->GetRankOfKey("key4");
+  auto r4 = zset_listpack->Rank("key4");
   ASSERT_EQ(r4.value_or(-1), 1);
 
-  auto r5 = zset_listpack->GetRankOfKey("key_not_exist");
+  auto r5 = zset_listpack->Rank("key_not_exist");
   ASSERT_FALSE(r5.has_value());
 }
 
@@ -56,7 +56,7 @@ TEST_F(ZSetListPackTest, Update) {
   // Update score with no change in rank.
   ASSERT_FALSE(zset_listpack->InsertOrUpdate("key1", 10.0));
   ASSERT_EQ(zset_listpack->Size(), 4);
-  auto r0 = zset_listpack->GetRankOfKey("key1");
+  auto r0 = zset_listpack->Rank("key1");
   ASSERT_EQ(r0.value_or(-1), 3);
 
   // Update score with change in rank.
@@ -65,25 +65,25 @@ TEST_F(ZSetListPackTest, Update) {
   ASSERT_FALSE(zset_listpack->InsertOrUpdate("key3", 4.0));
   ASSERT_EQ(zset_listpack->Size(), 4);
 
-  auto r1 = zset_listpack->GetRankOfKey("key1");
+  auto r1 = zset_listpack->Rank("key1");
   ASSERT_EQ(r1.value_or(-1), 0);
 
-  auto r2 = zset_listpack->GetRankOfKey("key2");
+  auto r2 = zset_listpack->Rank("key2");
   ASSERT_EQ(r2.value_or(-1), 2);
 
-  auto r3 = zset_listpack->GetRankOfKey("key3");
+  auto r3 = zset_listpack->Rank("key3");
   ASSERT_EQ(r3.value_or(-1), 3);
 
-  auto r4 = zset_listpack->GetRankOfKey("key4");
+  auto r4 = zset_listpack->Rank("key4");
   ASSERT_EQ(r4.value_or(-1), 1);
 
   ASSERT_FALSE(zset_listpack->InsertOrUpdate("key1", 5.0));
   ASSERT_EQ(zset_listpack->Size(), 4);
 
-  r1 = zset_listpack->GetRankOfKey("key1");
+  r1 = zset_listpack->Rank("key1");
   ASSERT_EQ(r1, 3);
 
-  r4 = zset_listpack->GetRankOfKey("key4");
+  r4 = zset_listpack->Rank("key4");
   ASSERT_EQ(r4, 0);
 }
 
@@ -361,7 +361,7 @@ TEST_F(ZSetListPackTest, Delete) {
   ASSERT_TRUE(r1);
   ASSERT_EQ(zset_listpack->Size(), 3);
 
-  auto rank = zset_listpack->GetRankOfKey("key1");
+  auto rank = zset_listpack->Rank("key1");
   ASSERT_FALSE(rank.has_value());
 
   bool r2 = zset_listpack->Delete("key not exist");

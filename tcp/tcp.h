@@ -7,8 +7,8 @@
 
 namespace redis_simple::tcp {
 enum class TcpStatusCode {
-  kTcpError = -1,
-  kTcpOk = 0,
+  kError = -1,
+  kOk = 0,
 };
 
 constexpr int ToInt(TcpStatusCode status) { return static_cast<int>(status); }

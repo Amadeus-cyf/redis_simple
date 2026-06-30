@@ -6,7 +6,7 @@
 
 namespace redis_simple {
 std::unique_ptr<in_memory::Dict<std::string, std::string>> g_dict =
-    in_memory::Dict<std::string, std::string>::Init();
+    in_memory::Dict<std::string, std::string>::Create();
 std::vector<std::string> g_keys;
 
 static std::mt19937& Rng() {

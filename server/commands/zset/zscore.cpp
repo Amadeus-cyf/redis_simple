@@ -56,7 +56,7 @@ std::optional<double> ZScore(db::RedisDb* redis_db, const ZScoreArgs* args) {
   }
   try {
     const auto* zset = obj->ZSet();
-    return zset->GetScoreOfKey(args->element);
+    return zset->Score(args->element);
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
     return std::nullopt;

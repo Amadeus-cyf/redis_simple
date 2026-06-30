@@ -30,7 +30,7 @@ class IntSet {
   };
   static EncodingType ValueEncoding(int64_t value);
   void Resize(unsigned int length_);
-  int64_t GetEncoded(unsigned int index, EncodingType encoding) const;
+  int64_t EncodedValue(unsigned int index, EncodingType encoding) const;
   void UpgradeAndAdd(int64_t value);
   bool Search(int64_t value, unsigned int* const index) const;
   void Set(unsigned int index, int64_t value);
