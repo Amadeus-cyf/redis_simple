@@ -1,16 +1,23 @@
 #include <benchmark/benchmark.h>
 
 #include <random>
+#include <string_view>
 
 #include "memory/dict.h"
 
 namespace redis_simple {
-std::unique_ptr<in_memory::Dict<std::string, std::string>> g_dict =
-    in_memory::Dict<std::string, std::string>::Create();
-std::vector<std::string> g_keys;
+in_memory::Dict<std::string, std::string>& BenchmarkDict() {
+  static auto dict = in_memory::Dict<std::string, std::string>::Create();
+  return *dict;
+}
+
+std::vector<std::string>& BenchmarkKeys() {
+  static std::vector<std::string> keys;
+  return keys;
+}
 
 static std::mt19937& Rng() {
-  static std::mt19937 rng(std::mt19937::default_seed);
+  static std::mt19937 rng(std::random_device{}());
   return rng;
 }
 
@@ -20,11 +27,11 @@ static size_t RandomIndex(size_t size) {
 }
 
 static std::string RandomString(int len) {
-  static constexpr char kAlphaNum[] =
+  static constexpr std::string_view kAlphaNum =
       "0123456789"
       "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
       "abcdefghijklmnopqrstuvwxyz";
-  std::uniform_int_distribution<size_t> dist(0, sizeof(kAlphaNum) - 2);
+  std::uniform_int_distribution<size_t> dist(0, kAlphaNum.size() - 1);
   std::string str;
   str.reserve(len);
 
@@ -39,16 +46,17 @@ static void DictAdd(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
     const auto key = RandomString(10);
-    g_keys.push_back(key);
-    g_dict->Insert(key, RandomString(10));
+    BenchmarkKeys().push_back(key);
+    BenchmarkDict().Insert(key, RandomString(10));
   }
 }
 
 static void DictFind(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
-    if (!g_keys.empty()) {
-      benchmark::DoNotOptimize(g_dict->Get(g_keys[RandomIndex(g_keys.size())]));
+    if (!BenchmarkKeys().empty()) {
+      benchmark::DoNotOptimize(BenchmarkDict().Get(
+          BenchmarkKeys()[RandomIndex(BenchmarkKeys().size())]));
     }
   }
 }
@@ -57,10 +65,11 @@ static void DictUpdate(benchmark::State& state) {
   std::bernoulli_distribution use_existing(0.5);
   for (auto _ : state) {
     (void)_;
-    if (use_existing(Rng()) && !g_keys.empty()) {
-      g_dict->Set(g_keys[RandomIndex(g_keys.size())], RandomString(10));
+    if (use_existing(Rng()) && !BenchmarkKeys().empty()) {
+      BenchmarkDict().Set(BenchmarkKeys()[RandomIndex(BenchmarkKeys().size())],
+                          RandomString(10));
     } else {
-      g_dict->Set("non-existing key", "val");
+      BenchmarkDict().Set("non-existing key", "val");
     }
   }
 }
@@ -69,18 +78,22 @@ static void DictDelete(benchmark::State& state) {
   std::bernoulli_distribution use_existing(0.5);
   for (auto _ : state) {
     (void)_;
-    if (use_existing(Rng()) && !g_keys.empty()) {
-      g_dict->Delete(g_keys[RandomIndex(g_keys.size())]);
+    if (use_existing(Rng()) && !BenchmarkKeys().empty()) {
+      BenchmarkDict().Delete(
+          BenchmarkKeys()[RandomIndex(BenchmarkKeys().size())]);
     } else {
-      g_dict->Delete("non-existing key");
+      BenchmarkDict().Delete("non-existing key");
     }
   }
 }
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 BENCHMARK(DictAdd);
 BENCHMARK(DictFind);
 BENCHMARK(DictUpdate);
 BENCHMARK(DictDelete);
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 }  // namespace redis_simple
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 BENCHMARK_MAIN();

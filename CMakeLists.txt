@@ -150,6 +150,12 @@ redis_simple_add_executable(
 target_link_libraries(mock_command_server PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
+  mock_key_client
+  "integration/commands/key/client_test.cpp"
+)
+target_link_libraries(mock_key_client PRIVATE redis_simple_cli)
+
+redis_simple_add_executable(
   mock_string_client
   "integration/commands/string/client_test.cpp"
 )
@@ -180,6 +186,15 @@ add_test(
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_tcp.sh"
     $<TARGET_FILE:mock_tcp_server>
     $<TARGET_FILE:mock_tcp_client>
+)
+
+add_test(
+  NAME redis_simple_integration_command_key
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
+    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:mock_key_client>
 )
 
 add_test(
@@ -220,6 +235,7 @@ add_test(
 
 set_tests_properties(
   redis_simple_integration_tcp
+  redis_simple_integration_command_key
   redis_simple_integration_command_string
   redis_simple_integration_command_set
   redis_simple_integration_command_list

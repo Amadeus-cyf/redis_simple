@@ -394,7 +394,7 @@ TEST(ZSetSkiplistStandaloneTest, DeleteRecomputesRangeBoundaries) {
 std::vector<KeyScorePair> ToKeyScorePairs(const ZSetEntryList& keys) {
   std::vector<std::pair<std::string, double>> pairs;
   pairs.reserve(keys.size());
-  for (auto key : keys) {
+  for (const auto* key : keys) {
     pairs.emplace_back(key->key, key->score);
   }
   return pairs;

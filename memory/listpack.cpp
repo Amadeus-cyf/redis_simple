@@ -19,6 +19,7 @@ ssize_t ToSSize(size_t value) {
 }  // namespace
 
 ListPack::ListPack()
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): packed byte storage
     : lp_(std::make_unique<unsigned char[]>(kListPackHeaderSize + 1)) {
   SetTotalBytes(kListPackHeaderSize + 1);
   SetNumOfElements(0);
@@ -26,6 +27,7 @@ ListPack::ListPack()
 }
 
 ListPack::ListPack(size_t capacity)
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): packed byte storage
     : lp_(std::make_unique<unsigned char[]>(capacity > kListPackHeaderSize + 1
                                                 ? capacity
                                                 : kListPackHeaderSize + 1)) {
@@ -47,7 +49,7 @@ unsigned char* ListPack::Get(size_t idx, size_t* const len) const {
   if (IsString(encoding_type)) {
     return StringAt(idx, len, encoding_type);
   }
-  return IntegerAt(idx, int_buf_, len, nullptr, encoding_type);
+  return IntegerAt(idx, int_buf_.data(), len, nullptr, encoding_type);
 }
 
 std::optional<std::string> ListPack::Get(size_t idx) const {
@@ -60,12 +62,12 @@ std::optional<std::string> ListPack::Get(size_t idx) const {
   }
 
   size_t len = 0;
-  unsigned char int_buf[kListPackIntBufSize];
+  std::array<unsigned char, kListPackIntBufSize> int_buf{};
   EncodingType encoding_type = EncodingAt(idx);
   const unsigned char* buf =
       IsString(encoding_type)
           ? StringAt(idx, &len, encoding_type)
-          : IntegerAt(idx, int_buf, &len, nullptr, encoding_type);
+          : IntegerAt(idx, int_buf.data(), &len, nullptr, encoding_type);
   return std::string(reinterpret_cast<const char*>(buf), len);
 }
 
@@ -308,11 +310,16 @@ unsigned char* ListPack::IntegerAt(size_t idx, unsigned char* dst,
     val = static_cast<int64_t>(uval);
   }
   if (dst != nullptr) {
-    *len = utils::Int64ToString(reinterpret_cast<char*>(dst),
-                                kListPackIntBufSize, val);
+    const int string_len = utils::Int64ToString(reinterpret_cast<char*>(dst),
+                                                kListPackIntBufSize, val);
+    if (len != nullptr) {
+      *len = string_len;
+    }
     return dst;
   }
-  *sval = val;
+  if (sval != nullptr) {
+    *sval = val;
+  }
 
   return nullptr;
 }
@@ -331,7 +338,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     idx = Skip(idx);
   }
   size_t backlen = 0;
-  EncodingGeneralType encoding_type;
+  EncodingGeneralType encoding_type = EncodingGeneralType::kInteger;
   int64_t sval = (element_integer != nullptr) ? *element_integer : 0;
   if ((element_integer != nullptr) || utils::ToInt64(*element_string, &sval)) {
     backlen = EncodeInteger(nullptr, sval);
@@ -589,15 +596,16 @@ uint8_t ListPack::BacklenBytes(size_t backlen) {
   if (backlen > BacklenThreshold::kSize1ByteBacklenMax &&
       backlen <= BacklenThreshold::kSize2BytesBacklenMax) {
     return 2;
-  } else if (backlen > BacklenThreshold::kSize2BytesBacklenMax &&
-             backlen <= BacklenThreshold::kSize3BytesBacklenMax) {
-    return 3;
-  } else if (backlen > BacklenThreshold::kSize3BytesBacklenMax &&
-             backlen <= BacklenThreshold::kSize4BytesBacklenMax) {
-    return 4;
-  } else {
-    return 5;
   }
+  if (backlen > BacklenThreshold::kSize2BytesBacklenMax &&
+      backlen <= BacklenThreshold::kSize3BytesBacklenMax) {
+    return 3;
+  }
+  if (backlen > BacklenThreshold::kSize3BytesBacklenMax &&
+      backlen <= BacklenThreshold::kSize4BytesBacklenMax) {
+    return 4;
+  }
+  return 5;
 }
 
 /*
@@ -751,9 +759,14 @@ void ListPack::EncodeBacklen(unsigned char* const buf, size_t backlen) {
  */
 size_t ListPack::DecodeBacklen(size_t idx) const {
   size_t backlen = 0;
-  do {
-    backlen = (backlen << 7) | (lp_[idx] & 127);
-  } while ((lp_[idx--] & 128) != 0);
+  while (true) {
+    const unsigned char byte = lp_[idx];
+    backlen = (backlen << 7) | (byte & 127);
+    if ((byte & 128) == 0) {
+      break;
+    }
+    --idx;
+  }
   return backlen;
 }
 
@@ -784,6 +797,7 @@ void ListPack::Realloc(size_t bytes) {
   if (bytes < kListPackHeaderSize + 1) {
     throw std::length_error("listpack allocation is smaller than its header");
   }
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): packed byte storage
   auto new_lp = std::make_unique<unsigned char[]>(bytes);
   const size_t copy_bytes = std::min(static_cast<size_t>(TotalBytes()), bytes);
   std::memcpy(new_lp.get(), lp_.get(), copy_bytes);

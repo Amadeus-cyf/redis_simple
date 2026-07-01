@@ -1,5 +1,6 @@
 #include "client.h"
 
+#include <array>
 #include <vector>
 
 #include "server.h"
@@ -18,15 +19,15 @@ Client::Client(std::unique_ptr<connection::Connection> connection)
     : connection_(std::move(connection)), db_(Server::Get()->Db()) {}
 
 ssize_t Client::ReadQuery() {
-  char buf[4096];
-  ssize_t nread = connection_->Read(buf, 4096);
+  std::array<char, 4096> buf{};
+  ssize_t nread = connection_->Read(buf.data(), buf.size());
   if (nread <= 0) {
     RS_LOG_DEBUG("nread %zd\n", nread);
     return nread;
   }
   RS_LOG_DEBUG("nread %zd, buf %.*s end\n", nread, static_cast<int>(nread),
-               buf);
-  query_buf_.Append(buf, nread);
+               buf.data());
+  query_buf_.Append(buf.data(), nread);
   return nread;
 }
 

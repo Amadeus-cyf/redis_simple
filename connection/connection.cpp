@@ -3,6 +3,7 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <array>
 #include <cstring>
 #include <limits>
 #include <optional>
@@ -201,14 +202,14 @@ ssize_t Connection::Read(char* const buffer, size_t readlen) const {
 }
 
 ssize_t Connection::BatchRead(std::string& s) const {
-  char buffer[1024];
+  std::array<char, 1024> buffer{};
   ssize_t r = 0;
-  while ((r = read(fd_, buffer, sizeof(buffer))) != EOF) {
+  while ((r = read(fd_, buffer.data(), buffer.size())) != EOF) {
     RS_LOG_DEBUG("read %zu\n", r);
     if (r == 0) {
       break;
     }
-    s.append(buffer, r);
+    s.append(buffer.data(), r);
   }
   if (s.empty() && r < 0 && errno != EAGAIN) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {
@@ -233,7 +234,8 @@ ssize_t Connection::SyncRead(char* buffer, size_t readlen, long timeout) const {
   }
   if (r == 0) {
     return 0;
-  } else if (r < 0 && errno != EAGAIN) {
+  }
+  if (r < 0 && errno != EAGAIN) {
     return -1;
   }
   if (WaitRead(timeout) < 0) {
@@ -254,12 +256,12 @@ ssize_t Connection::SyncReadline(std::string& s, long timeout) const {
     return -1;
   }
   ssize_t r = 0;
-  char buffer[1];
-  while ((r = read(fd_, buffer, 1)) != EOF) {
-    if (r == 0 || buffer[0] == '\n') {
+  char buffer = '\0';
+  while ((r = read(fd_, &buffer, 1)) != EOF) {
+    if (r == 0 || buffer == '\n') {
       break;
     }
-    s.push_back(buffer[0]);
+    s.push_back(buffer);
   }
   if (r < 0 && errno != EAGAIN) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {

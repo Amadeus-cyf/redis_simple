@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 
+#include <array>
 #include <cstdio>
 #include <future>
 
@@ -14,12 +15,12 @@ namespace {
 std::string ReadFromConnection(const connection::Connection* connection) {
   std::string reply;
   ssize_t nread = 0;
-  char buf[4096];
-  while ((nread = connection->SyncRead(buf, 4096, 1000)) != EOF) {
+  std::array<char, 4096> buf{};
+  while ((nread = connection->SyncRead(buf.data(), buf.size(), 1000)) != EOF) {
     if (nread == 0) {
       break;
     }
-    reply.append(buf, nread);
+    reply.append(buf.data(), nread);
     if (reply.size() >= 2 && reply[reply.size() - 2] == '\r' &&
         reply[reply.size() - 1] == '\n') {
       break;
@@ -51,9 +52,6 @@ std::string ReplyListToString(const std::vector<std::string>& reply) {
   return reply_str;
 }
 }  // namespace
-
-const std::string& RedisCli::ErrResp = "error";
-const std::string& RedisCli::NoReplyResp = "no_reply";
 
 RedisCli::RedisCli() : ip_(std::nullopt), port_(std::nullopt) {}
 
@@ -104,7 +102,7 @@ std::string RedisCli::ReadReplyFromConnection() {
   if (!query_buf_.Empty()) {
     ssize_t sent = WriteToConnection(connection_.get(), query_buf_.ToString());
     if (sent <= 0) {
-      return ErrResp;
+      return kErrResp;
     }
     if (sent == query_buf_.Size()) {
       query_buf_.Clear();
@@ -118,7 +116,7 @@ std::string RedisCli::ReadReplyFromConnection() {
       return ReplyListToString(reply);
     }
   }
-  return NoReplyResp;
+  return kNoReplyResp;
 }
 
 bool RedisCli::ProcessReply(std::vector<std::string>& reply) {

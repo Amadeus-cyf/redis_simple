@@ -43,8 +43,8 @@ int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
 }
 
 int TcpGenericAccept(int socket_fd, sockaddr* addr, socklen_t* len) {
-  int s = -1;
-  if ((s = accept(socket_fd, addr, len)) == -1) {
+  int s = accept(socket_fd, addr, len);
+  if (s == -1) {
     return ToInt(TcpStatusCode::kError);
   }
   return s;
@@ -101,12 +101,14 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
     if (socket_fd < 0) {
       continue;
     }
+
     if (local.has_value() && TcpBind(socket_fd, *local) < 0) {
       RS_LOG_DEBUG("bind error: %s\n", std::strerror(errno));
       close(socket_fd);
       socket_fd = -1;
       continue;
     }
+
     if (connect(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       // For nonblocking sockets, EINPROGRESS means the connection attempt is
       // still valid and completion will be reported by the writable event.
@@ -129,10 +131,13 @@ int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info) {
   socklen_t len = sizeof(sa);
   int remote_fd = -1;
   // accept() may be interrupted by a signal; retry those transient failures.
-  do {
+  while (true) {
     remote_fd =
         TcpGenericAccept(socket_fd, reinterpret_cast<sockaddr*>(&sa), &len);
-  } while (remote_fd == -1 && errno == EINTR);
+    if (remote_fd != -1 || errno != EINTR) {
+      break;
+    }
+  }
   if (NonBlock(remote_fd) == TcpStatusCode::kError ||
       SetCloseOnExec(remote_fd) == TcpStatusCode::kError) {
     close(remote_fd);

@@ -7,6 +7,13 @@
 #include <vector>
 
 namespace redis_simple::in_memory {
+namespace {
+constexpr size_t kExpectedSentAfterConsume = 5000 - (4096 - 2047) - 2000;
+constexpr size_t kTailInitialUsed = 1000 / 3;
+constexpr size_t kTailFillBytes = 1024 - kTailInitialUsed;
+constexpr size_t kRemainingBytes = 5000 - kTailFillBytes;
+}  // namespace
+
 class ReplyBufferTest : public testing::Test {
  protected:
   static void SetUpTestSuite() { buf = std::make_unique<ReplyBuffer>(); }
@@ -87,14 +94,14 @@ TEST_F(ReplyBufferTest, Consume) {
   // Consume the rest of the main buffer and one list node.
   buf->Consume(5000);
   ASSERT_EQ(buf->BufferSize(), 0);
-  ASSERT_EQ(buf->SentLength(), 5000 - (4096 - 2047) - 2000);
+  ASSERT_EQ(buf->SentLength(), kExpectedSentAfterConsume);
   ASSERT_EQ(buf->ReplyCount(), 3);
 
   const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 3);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
-            std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));
-  ASSERT_EQ(mem_vec[0].second, 1024 - (5000 - (4096 - 2047) - 2000));
+            std::string(1024 - kExpectedSentAfterConsume, 'c'));
+  ASSERT_EQ(mem_vec[0].second, 1024 - kExpectedSentAfterConsume);
   ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
             std::string(1000, 'c') + std::string(24, 'd'));
   ASSERT_EQ(mem_vec[1].second, 1024);
@@ -118,16 +125,16 @@ TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
   const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
-            std::string(1024 - (5000 - (4096 - 2047) - 2000), 'c'));
-  ASSERT_EQ(mem_vec[0].second, 1024 - (5000 - (4096 - 2047) - 2000));
+            std::string(1024 - kExpectedSentAfterConsume, 'c'));
+  ASSERT_EQ(mem_vec[0].second, 1024 - kExpectedSentAfterConsume);
   ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
             std::string(1000, 'c') + std::string(24, 'd'));
   ASSERT_EQ(mem_vec[1].second, 1024);
   ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[2].second),
-            std::string(1000 / 3, 'd').append(1024 - 1000 / 3, 'e'));
+            std::string(kTailInitialUsed, 'd').append(kTailFillBytes, 'e'));
   ASSERT_EQ(mem_vec[2].second, 1024);
   ASSERT_EQ(std::string(mem_vec[3].first, mem_vec[3].second),
-            std::string(5000 - (1024 - 1000 / 3), 'e'));
-  ASSERT_EQ(mem_vec[3].second, 5000 - (1024 - 1000 / 3));
+            std::string(kRemainingBytes, 'e'));
+  ASSERT_EQ(mem_vec[3].second, kRemainingBytes);
 }
 }  // namespace redis_simple::in_memory

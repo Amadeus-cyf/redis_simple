@@ -7,10 +7,12 @@
 
 namespace redis_simple::command {
 namespace {
-constexpr std::array<Command, 20> kCommandTable = {{
+constexpr std::array<Command, 22> kCommandTable = {{
     {"GET", strings::HandleGet},
     {"SET", strings::HandleSet},
     {"DEL", key::HandleDel},
+    {"EXISTS", key::HandleExists},
+    {"TYPE", key::HandleType},
     {"LPUSH", lists::HandleLPush},
     {"RPUSH", lists::HandleRPush},
     {"LPOP", lists::HandleLPop},

@@ -6,38 +6,45 @@
 #include "memory/reply_buffer.h"
 
 namespace redis_simple {
-in_memory::ReplyBuffer g_reply_buffer;
+namespace {
+in_memory::ReplyBuffer& ReplyBufferBenchmarkBuffer() {
+  static in_memory::ReplyBuffer buffer;
+  return buffer;
+}
 
-static std::mt19937& Rng() {
-  static std::mt19937 rng(std::mt19937::default_seed);
+std::mt19937& Rng() {
+  static std::mt19937 rng(std::random_device{}());
   return rng;
 }
 
-static void FillBenchmarkBuffer() {
+void FillBenchmarkBuffer() {
   std::uniform_int_distribution<int> byte_dist(0, 254);
   for (char& i : g_buffer) {
     i = static_cast<char>(byte_dist(Rng()));
   }
 }
 
-static void ReplyBufferAdd(benchmark::State& state) {
+void ReplyBufferAdd(benchmark::State& state) {
   FillBenchmarkBuffer();
   for (auto _ : state) {
     (void)_;
-    g_reply_buffer.Append(g_buffer, kBufferSize);
+    ReplyBufferBenchmarkBuffer().Append(g_buffer.data(), g_buffer.size());
   }
 }
 
-static void ReplyBufferProcess(benchmark::State& state) {
+void ReplyBufferProcess(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
     std::uniform_int_distribution<size_t> bytes_dist(
-        0, g_reply_buffer.ReplyBytes());
-    g_reply_buffer.Consume(
-        std::min(bytes_dist(Rng()), g_reply_buffer.ReplyBytes()));
+        0, ReplyBufferBenchmarkBuffer().ReplyBytes());
+    ReplyBufferBenchmarkBuffer().Consume(
+        std::min(bytes_dist(Rng()), ReplyBufferBenchmarkBuffer().ReplyBytes()));
   }
 }
+}  // namespace
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 BENCHMARK(ReplyBufferAdd);
 BENCHMARK(ReplyBufferProcess);
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 }  // namespace redis_simple

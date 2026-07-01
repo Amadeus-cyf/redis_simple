@@ -19,11 +19,11 @@ bool Set::Add(const std::string& value) {
   }
   if (encoding_ == Encoding::kListPack) {
     return ListPackAddAndMaybeConvert(value);
-  } else if (encoding_ == Encoding::kDict) {
-    return DictAdd(value);
-  } else {
-    throw std::invalid_argument("unknown encoding type");
   }
+  if (encoding_ == Encoding::kDict) {
+    return DictAdd(value);
+  }
+  throw std::invalid_argument("unknown encoding type");
 }
 
 bool Set::HasMember(const std::string& value) const {
@@ -39,11 +39,11 @@ bool Set::HasMember(const std::string& value) const {
   }
   if (encoding_ == Encoding::kListPack) {
     return listpack_->Find(value) != -1;
-  } else if (encoding_ == Encoding::kDict) {
-    return dict_->Get(value).has_value();
-  } else {
-    throw std::invalid_argument("unknown encoding type");
   }
+  if (encoding_ == Encoding::kDict) {
+    return dict_->Get(value).has_value();
+  }
+  throw std::invalid_argument("unknown encoding type");
 }
 
 std::vector<std::string> Set::ListAllMembers() const {
@@ -55,11 +55,11 @@ std::vector<std::string> Set::ListAllMembers() const {
   }
   if (encoding_ == Encoding::kListPack) {
     return ListListPackMembers();
-  } else if (encoding_ == Encoding::kDict) {
-    return ListDictMembers();
-  } else {
-    throw std::invalid_argument("unknown encoding type");
   }
+  if (encoding_ == Encoding::kDict) {
+    return ListDictMembers();
+  }
+  throw std::invalid_argument("unknown encoding type");
 }
 
 bool Set::Remove(const std::string& value) {
@@ -75,14 +75,16 @@ bool Set::Remove(const std::string& value) {
   }
   if (encoding_ == Encoding::kListPack) {
     ssize_t idx = listpack_->Find(value);
-    if (idx < 0) return false;
+    if (idx < 0) {
+      return false;
+    }
     listpack_->Delete(idx);
     return true;
-  } else if (encoding_ == Encoding::kDict) {
-    return dict_->Delete(value);
-  } else {
-    throw std::invalid_argument("unknown encoding type");
   }
+  if (encoding_ == Encoding::kDict) {
+    return dict_->Delete(value);
+  }
+  throw std::invalid_argument("unknown encoding type");
 }
 
 size_t Set::Size() const {
@@ -141,7 +143,9 @@ bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
     return listpack_->Append(value);
   }
   ConvertListPackToDict(listpack_->Size() + 1);
-  if (dict_->Get(value).has_value()) return false;
+  if (dict_->Get(value).has_value()) {
+    return false;
+  }
   dict_->Set(value, nullptr);
   return true;
 }

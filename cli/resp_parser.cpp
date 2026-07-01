@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <limits>
+#include <string_view>
 
 namespace redis_simple::cli::resp_parser {
 namespace {
@@ -14,7 +15,7 @@ struct Prefix {
   static constexpr char kNullPrefix = '_';
 };
 
-constexpr char kNilResp[] = "(nil)";
+constexpr std::string_view kNilResp = "(nil)";
 
 ssize_t Parse(const std::string& resp, size_t start,
               std::vector<std::string>* reply);
@@ -140,6 +141,7 @@ ssize_t ParseInt64(const std::string& resp, size_t start,
       sign = resp[j] == '+' ? 1 : -1;
       continue;
     }
+
     if (std::isdigit(static_cast<unsigned char>(resp[j])) == 0) {
       return -1;
     }
@@ -160,7 +162,6 @@ ssize_t ParseArray(const std::string& resp, size_t start,
     return -1;
   }
   const auto end = static_cast<size_t>(i);
-  std::string len_str;
   size_t len = 0;
   size_t parsed = end - start + 2;
   bool has_digit = false;
@@ -217,10 +218,12 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
       sign = resp[j] == '+' ? 1 : -1;
       continue;
     }
+
     if (!floating_point && !exponential && resp[j] == '.') {
       floating_point = true;
       continue;
     }
+
     if (!exponential &&
         std::tolower(static_cast<unsigned char>(resp[j])) == 'e') {
       if (!has_digit || j == end - 1) {
@@ -238,6 +241,7 @@ ssize_t ParseFloat(const std::string& resp, size_t start,
       exponential = true;
       continue;
     }
+
     if (std::isdigit(static_cast<unsigned char>(resp[j])) == 0) {
       return -1;
     }

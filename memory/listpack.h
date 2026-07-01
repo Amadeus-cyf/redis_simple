@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 
+#include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -129,6 +130,6 @@ class ListPack {
   static bool IsString(EncodingType encoding_type);
   void Realloc(size_t bytes);
   std::unique_ptr<unsigned char[]> lp_;
-  mutable unsigned char int_buf_[kListPackIntBufSize]{};
+  mutable std::array<unsigned char, kListPackIntBufSize> int_buf_{};
 };
 }  // namespace redis_simple::in_memory

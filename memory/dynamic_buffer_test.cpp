@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <memory>
 
 namespace redis_simple::in_memory {
@@ -16,9 +17,9 @@ class DynamicBufferTest : public testing::Test {
 std::unique_ptr<DynamicBuffer> DynamicBufferTest::buffer = nullptr;
 
 TEST_F(DynamicBufferTest, Write) {
-  char buf[4096];
+  std::array<char, 4096> buf{};
   char c = 'a';
-  for (int i = 0; i < 4096; ++i) {
+  for (size_t i = 0; i < buf.size(); ++i) {
     if ((i + 1) % 1024 == 0) {
       ++c;
       buf[i] = '\n';
@@ -26,7 +27,7 @@ TEST_F(DynamicBufferTest, Write) {
       buf[i] = c;
     }
   }
-  buffer->Append(buf, 4096);
+  buffer->Append(buf.data(), buf.size());
   ASSERT_EQ(buffer->Capacity(), 4096);
   ASSERT_EQ(buffer->Size(), 4096);
   ASSERT_EQ(buffer->Consumed(), 0);
@@ -65,12 +66,12 @@ TEST_F(DynamicBufferTest, TrimProcessed) {
 }
 
 TEST_F(DynamicBufferTest, Resize) {
-  char buf[8192];
-  for (int i = 0; i < 8192; ++i) {
+  std::array<char, 8192> buf{};
+  for (size_t i = 0; i < buf.size(); ++i) {
     buf[i] = (i + 1) % 1024 == 0 ? '\n' : 'c';
   }
   ASSERT_EQ(buffer->Size(), 1024);
-  buffer->Append(buf, 8192);
+  buffer->Append(buf.data(), buf.size());
   ASSERT_EQ(buffer->Capacity(), 18432);
   ASSERT_EQ(buffer->Size(), 9216);
   ASSERT_EQ(buffer->Consumed(), 0);

@@ -2,10 +2,11 @@
 
 namespace redis_simple::in_memory {
 ReplyBuffer::ReplyBuffer()
-    : buf_usable_size_(kDefaultBufferSize),
-      buf_(std::make_unique<char[]>(kDefaultBufferSize)),
-      sent_(0),
-      size_(0) {}
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): contiguous byte buffer
+    : buf_(std::make_unique<char[]>(kDefaultBufferSize)),
+      size_(0),
+      buf_usable_size_(kDefaultBufferSize),
+      sent_(0) {}
 
 size_t ReplyBuffer::Append(const char* s, size_t len) {
   if (len == 0) {

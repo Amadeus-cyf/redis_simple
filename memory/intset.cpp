@@ -9,8 +9,9 @@
 
 namespace redis_simple::in_memory {
 IntSet::IntSet()
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): compact byte storage
     : contents_(std::make_unique<unsigned char[]>(
-          static_cast<size_t>(kInitSize * kInt16))),
+          static_cast<size_t>(kInitSize) * kInt16)),
       length_(0),
       encoding_(kInt16) {}
 bool IntSet::Add(int64_t value) {
@@ -63,14 +64,14 @@ IntSet::EncodingType IntSet::ValueEncoding(int64_t value) {
   }
   if (value < INT16_MIN || value > INT16_MAX) {
     return kInt32;
-  } else {
-    return kInt16;
   }
+  return kInt16;
 }
 
 void IntSet::Resize(unsigned int length) {
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): compact byte storage
   auto new_contents = std::make_unique<unsigned char[]>(
-      static_cast<size_t>(length * encoding_));
+      static_cast<size_t>(length) * encoding_);
   const size_t copy_bytes =
       static_cast<size_t>(std::min(length_, length)) * encoding_;
   std::memcpy(new_contents.get(), contents_.get(), copy_bytes);
@@ -82,8 +83,9 @@ void IntSet::UpgradeAndAdd(int64_t value) {
   const unsigned int old_length = length_;
   auto old_contents = std::move(contents_);
   encoding_ = ValueEncoding(value);
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): compact byte storage
   contents_ = std::make_unique<unsigned char[]>(
-      static_cast<size_t>((old_length + 1) * encoding_));
+      static_cast<size_t>(old_length + 1) * encoding_);
   const unsigned int prepend = value < 0 ? 1 : 0;
   for (unsigned int idx = old_length; idx > 0; --idx) {
     const unsigned int old_idx = idx - 1;
@@ -119,7 +121,9 @@ bool IntSet::Search(int64_t value, unsigned int* const index) const {
     return false;
   }
   if (length_ > 0 && value > EncodedValue(length_ - 1, encoding_)) {
-    if (index) *index = length_;
+    if (index != nullptr) {
+      *index = length_;
+    }
     return false;
   }
   unsigned int min_idx = 0;
@@ -157,14 +161,13 @@ int64_t IntSet::EncodedValue(unsigned int index, EncodingType encoding) const {
     return v64;
   }
   if (encoding == kInt32) {
-    int32_t v32;
+    int32_t v32 = 0;
     std::memcpy(&v32, src, sizeof(v32));
     return v32;
-  } else {
-    int16_t v16;
-    std::memcpy(&v16, src, sizeof(v16));
-    return v16;
   }
+  int16_t v16 = 0;
+  std::memcpy(&v16, src, sizeof(v16));
+  return v16;
 }
 
 void IntSet::Set(unsigned int index, int64_t value) {

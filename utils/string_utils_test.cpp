@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstring>
+
 namespace redis_simple::utils {
 TEST(StringUtilsTest, Split) {
   const auto str0 = Split("string for testing", " ");
@@ -25,25 +28,26 @@ TEST(StringUtilsTest, Split) {
 }
 
 TEST(StringUtilsTest, ShiftCString) {
-  char s1[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
-                 'f', 'f', 'e', 'r', '_', '1'};
-  ShiftCString(s1, 14, 10);
-  ASSERT_EQ(std::memcmp(s1, "r_1", sizeof("r_1")), 0);
+  std::array<char, 14> s1 = {'t', 'e', 's', 't', '_', 'b', 'u',
+                             'f', 'f', 'e', 'r', '_', '1'};
+  ShiftCString(s1.data(), s1.size(), 10);
+  ASSERT_EQ(std::memcmp(s1.data(), "r_1", sizeof("r_1")), 0);
 
-  char s2[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
-                 'f', 'f', 'e', 'r', '_', '2'};
-  ShiftCString(s2, 14, 14);
-  ASSERT_EQ(std::memcmp(s2, "", sizeof("")), 0);
+  std::array<char, 14> s2 = {'t', 'e', 's', 't', '_', 'b', 'u',
+                             'f', 'f', 'e', 'r', '_', '2'};
+  ShiftCString(s2.data(), s2.size(), 14);
+  ASSERT_EQ(std::memcmp(s2.data(), "", sizeof("")), 0);
 
-  char s3[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
-                 'f', 'f', 'e', 'r', '_', '3'};
-  ShiftCString(s3, 14, 0);
-  ASSERT_EQ(std::memcmp(s3, "test_buffer_3", sizeof("test_buffer_3")), 0);
+  std::array<char, 14> s3 = {'t', 'e', 's', 't', '_', 'b', 'u',
+                             'f', 'f', 'e', 'r', '_', '3'};
+  ShiftCString(s3.data(), s3.size(), 0);
+  ASSERT_EQ(std::memcmp(s3.data(), "test_buffer_3", sizeof("test_buffer_3")),
+            0);
 
-  char s4[14] = {'t', 'e', 's', 't', '_', 'b', 'u',
-                 'f', 'f', 'e', 'r', '_', '4'};
-  ShiftCString(s4, 14, -1);
-  ASSERT_EQ(std::memcmp(s4, "", sizeof("")), 0);
+  std::array<char, 14> s4 = {'t', 'e', 's', 't', '_', 'b', 'u',
+                             'f', 'f', 'e', 'r', '_', '4'};
+  ShiftCString(s4.data(), s4.size(), -1);
+  ASSERT_EQ(std::memcmp(s4.data(), "", sizeof("")), 0);
 
   char* s5 = nullptr;
   ShiftCString(s5, 0, 0);
@@ -150,72 +154,68 @@ TEST(StringUtilsTest, ToInt64) {
 }
 
 TEST(StringUtilsTest, Int64ToString) {
-  char dst1[21];
+  std::array<char, 21> dst1{};
   std::string s1("1234567");
-  ASSERT_EQ(Int64ToString(dst1, 21, 1234567), 7);
-  ASSERT_TRUE(std::equal(dst1, dst1 + 7, s1.c_str()));
+  ASSERT_EQ(Int64ToString(dst1.data(), dst1.size(), 1234567), 7);
+  ASSERT_TRUE(std::equal(dst1.data(), dst1.data() + 7, s1.c_str()));
 
-  char dst2[21];
+  std::array<char, 21> dst2{};
   std::string s2("-1234567");
-  ASSERT_EQ(Int64ToString(dst2, 21, -1234567), 8);
-  ASSERT_TRUE(std::equal(dst2, dst2 + 8, s2.c_str()));
+  ASSERT_EQ(Int64ToString(dst2.data(), dst2.size(), -1234567), 8);
+  ASSERT_TRUE(std::equal(dst2.data(), dst2.data() + 8, s2.c_str()));
 
-  char dst3[21];
+  std::array<char, 21> dst3{};
   std::string s3("9223372036854775807");
-  ASSERT_EQ(Int64ToString(dst3, 21, INT64_MAX), 19);
-  ASSERT_TRUE(std::equal(dst3, dst3 + 19, s3.c_str()));
+  ASSERT_EQ(Int64ToString(dst3.data(), dst3.size(), INT64_MAX), 19);
+  ASSERT_TRUE(std::equal(dst3.data(), dst3.data() + 19, s3.c_str()));
 
-  char dst4[21];
+  std::array<char, 21> dst4{};
   std::string s4("-9223372036854775808");
-  ASSERT_EQ(Int64ToString(dst4, 21, INT64_MIN), 20);
-  ASSERT_TRUE(std::equal(dst4, dst4 + 20, s4.c_str()));
+  ASSERT_EQ(Int64ToString(dst4.data(), dst4.size(), INT64_MIN), 20);
+  ASSERT_TRUE(std::equal(dst4.data(), dst4.data() + 20, s4.c_str()));
 
-  char dst5[21];
+  std::array<char, 21> dst5{};
   std::string s5("0");
-  ASSERT_EQ(Int64ToString(dst5, 21, 0), 1);
-  ASSERT_TRUE(std::equal(dst5, dst5 + 1, s5.c_str()));
+  ASSERT_EQ(Int64ToString(dst5.data(), dst5.size(), 0), 1);
+  ASSERT_TRUE(std::equal(dst5.data(), dst5.data() + 1, s5.c_str()));
 
-  char dst6[1];
-  std::string s6("1000");
-  ASSERT_EQ(Int64ToString(dst6, 1, 0), 0);
+  std::array<char, 1> dst6{};
+  ASSERT_EQ(Int64ToString(dst6.data(), dst6.size(), 0), 0);
   ASSERT_EQ(dst6[0], '\0');
 
-  char dst7[7];
-  std::string s7("10000000");
-  ASSERT_EQ(Int64ToString(dst7, 7, 10000000), 0);
+  std::array<char, 7> dst7{};
+  ASSERT_EQ(Int64ToString(dst7.data(), dst7.size(), 10000000), 0);
   ASSERT_EQ(dst7[0], '\0');
 
-  char dst8[7];
-  std::string s8("-10000000");
-  ASSERT_EQ(Int64ToString(dst8, 7, -10000000), 0);
+  std::array<char, 7> dst8{};
+  ASSERT_EQ(Int64ToString(dst8.data(), dst8.size(), -10000000), 0);
   ASSERT_EQ(dst8[0], '-');
   ASSERT_EQ(dst8[1], '\0');
 }
 
 TEST(StringUtilsTest, Uint64ToString) {
-  char dst1[21];
+  std::array<char, 21> dst1{};
   std::string s1("1234567");
-  ASSERT_EQ(Uint64ToString(dst1, 21, 1234567), 7);
-  ASSERT_TRUE(std::equal(dst1, dst1 + 7, s1.c_str()));
+  ASSERT_EQ(Uint64ToString(dst1.data(), dst1.size(), 1234567), 7);
+  ASSERT_TRUE(std::equal(dst1.data(), dst1.data() + 7, s1.c_str()));
 
-  char dst2[21];
+  std::array<char, 21> dst2{};
   std::string s2("9223372036854775807");
-  ASSERT_EQ(Uint64ToString(dst2, 21, INT64_MAX), 19);
-  ASSERT_TRUE(std::equal(dst2, dst2 + 19, s2.c_str()));
+  ASSERT_EQ(Uint64ToString(dst2.data(), dst2.size(), INT64_MAX), 19);
+  ASSERT_TRUE(std::equal(dst2.data(), dst2.data() + 19, s2.c_str()));
 
-  char dst3[21];
+  std::array<char, 21> dst3{};
   std::string s3("18446744073709551615");
-  ASSERT_EQ(Uint64ToString(dst3, 21, UINT64_MAX), 20);
-  ASSERT_TRUE(std::equal(dst3, dst3 + 20, s3.c_str()));
+  ASSERT_EQ(Uint64ToString(dst3.data(), dst3.size(), UINT64_MAX), 20);
+  ASSERT_TRUE(std::equal(dst3.data(), dst3.data() + 20, s3.c_str()));
 
-  char dst4[21];
+  std::array<char, 21> dst4{};
   std::string s4("0");
-  ASSERT_EQ(Uint64ToString(dst4, 21, 0), 1);
-  ASSERT_TRUE(std::equal(dst4, dst4 + 1, s4.c_str()));
+  ASSERT_EQ(Uint64ToString(dst4.data(), dst4.size(), 0), 1);
+  ASSERT_TRUE(std::equal(dst4.data(), dst4.data() + 1, s4.c_str()));
 
-  char dst5[7];
-  std::string s5("10000000");
-  ASSERT_EQ(Uint64ToString(dst5, 7, 10000000), 0);
+  std::array<char, 7> dst5{};
+  ASSERT_EQ(Uint64ToString(dst5.data(), dst5.size(), 10000000), 0);
   ASSERT_EQ(dst5[0], '\0');
 }
 }  // namespace redis_simple::utils

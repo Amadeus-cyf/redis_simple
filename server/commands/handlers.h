@@ -6,6 +6,8 @@ class Client;
 
 namespace redis_simple::command::key {
 void HandleDel(Client* client);
+void HandleExists(Client* client);
+void HandleType(Client* client);
 }  // namespace redis_simple::command::key
 
 namespace redis_simple::command::strings {

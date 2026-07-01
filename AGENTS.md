@@ -44,6 +44,8 @@ Before committing, run the relevant build and tests.
 - Current integration coverage should stay focused:
   - `integration/commands/`
   - `integration/tcp/`
+- Keep command-family integration tests split by area, including key, string,
+  set, list, and zset commands.
 - Register integration command tests as separate CTest entries by command
   family, so failures identify the affected area without log digging.
 - Project runner scripts live under `scripts/`.

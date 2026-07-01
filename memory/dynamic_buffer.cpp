@@ -7,6 +7,7 @@
 
 namespace redis_simple::in_memory {
 DynamicBuffer::DynamicBuffer()
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): contiguous byte buffer
     : buf_(std::make_unique<char[]>(4096)),
       size_(0),
       processed_(0),
@@ -53,6 +54,7 @@ void DynamicBuffer::Resize(size_t n) {
   } else {
     n += 1000;
   }
+  // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): contiguous byte buffer
   auto new_buf = std::make_unique<char[]>(n * 2);
   std::memcpy(new_buf.get(), buf_.get(), capacity_);
   buf_ = std::move(new_buf);

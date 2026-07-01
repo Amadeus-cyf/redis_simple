@@ -1,8 +1,9 @@
 #pragma once
 
+#include <array>
 #include <cstddef>
 
 namespace redis_simple {
 static constexpr size_t kBufferSize = 4096;
-static char g_buffer[kBufferSize];
+static std::array<char, kBufferSize> g_buffer{};
 }  // namespace redis_simple

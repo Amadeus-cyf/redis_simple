@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstring>
 #include <limits>
+#include <string_view>
 
 #include "utils/int_utils.h"
 
@@ -50,24 +51,28 @@ bool ToInt64(const std::string& s, int64_t* const v) {
   }
   int sign = 1;
   int64_t val = 0;
+  const bool has_sign = s[0] == '+' || s[0] == '-';
   for (size_t i = 0; i < s.size(); ++i) {
-    if (i == 0 && (s[i] == '+' || s[i] == '-')) {
+    const bool has_redundant_leading_zero =
+        (s[i] == '0') &&
+        ((i == 0 && s.size() > 1) || (i == 1 && has_sign && s.size() > 2));
+    if (i == 0 && has_sign) {
       sign = s[i] == '-' ? -1 : 1;
-    } else if (i == 0 && s.size() > 1 && s[i] == '0') {
-      return false;
-    } else if (i == 1 && s.size() > 2 && (s[0] == '+' || s[0] == '-') &&
-               s[i] == '0') {
-      return false;
-    } else if (s[i] >= '0' && s[i] <= '9') {
-      int64_t tmp = (val * 10) + (static_cast<int64_t>(sign * (s[i] - '0')));
-      // Check integer overflow.
-      if ((tmp < 0 && val > 0) || (tmp > 0 && val < 0)) {
-        return false;
-      }
-      val = tmp;
-    } else {
+      continue;
+    }
+
+    if (has_redundant_leading_zero) {
       return false;
     }
+    if (s[i] < '0' || s[i] > '9') {
+      return false;
+    }
+    int64_t tmp = (val * 10) + (static_cast<int64_t>(sign * (s[i] - '0')));
+    // Check integer overflow.
+    if ((tmp < 0 && val > 0) || (tmp > 0 && val < 0)) {
+      return false;
+    }
+    val = tmp;
   }
   if (v != nullptr) {
     *v = val;
@@ -107,7 +112,7 @@ int Int64ToString(char* dst, size_t dstlen, long long svalue) {
 }
 
 int Uint64ToString(char* dst, size_t dstlen, unsigned long long value) {
-  static const char digits[201] =
+  static constexpr std::string_view kDigits =
       "0001020304050607080910111213141516171819"
       "2021222324252627282930313233343536373839"
       "4041424344454647484950515253545556575859"
@@ -127,8 +132,8 @@ int Uint64ToString(char* dst, size_t dstlen, unsigned long long value) {
   while (value >= 100) {
     const int i = static_cast<int>((value % 100) * 2);
     value /= 100;
-    dst[next] = digits[i + 1];
-    dst[next - 1] = digits[i];
+    dst[next] = kDigits[i + 1];
+    dst[next - 1] = kDigits[i];
     next -= 2;
   }
   // Handle the last 1-2 digits.
@@ -136,8 +141,8 @@ int Uint64ToString(char* dst, size_t dstlen, unsigned long long value) {
     dst[next] = static_cast<char>('0' + static_cast<uint32_t>(value));
   } else {
     const int i = static_cast<int>(static_cast<uint32_t>(value) * 2);
-    dst[next] = digits[i + 1];
-    dst[next - 1] = digits[i];
+    dst[next] = kDigits[i + 1];
+    dst[next - 1] = kDigits[i];
   }
   return static_cast<int>(length);
 }

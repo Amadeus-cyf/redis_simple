@@ -61,6 +61,8 @@ This runs:
 - `redis_simple_unit_<SuiteName>`: unit tests compiled into
   `redis_simple_tests` and registered in CTest by GoogleTest suite.
 - `redis_simple_integration_tcp`: TCP client/server integration check.
+- `redis_simple_integration_command_key`: generic key command integration
+  checks.
 - `redis_simple_integration_command_string`: string command integration checks.
 - `redis_simple_integration_command_set`: set command integration checks.
 - `redis_simple_integration_command_list`: list command integration checks.

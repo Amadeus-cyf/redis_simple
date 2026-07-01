@@ -23,9 +23,9 @@ struct RangeByRankSpecTestCase {
                           std::vector<std::string> keys,
                           std::vector<std::string> revkeys)
       : spec(spec), keys(std::move(keys)), revkeys(std::move(revkeys)) {}
-  const Skiplist<std::string>::SkiplistRangeByRankSpec spec;
-  const std::vector<std::string> keys;
-  const std::vector<std::string> revkeys;
+  Skiplist<std::string>::SkiplistRangeByRankSpec spec;
+  std::vector<std::string> keys;
+  std::vector<std::string> revkeys;
 };
 
 struct RangeByKeySpecTestCase {
@@ -36,12 +36,12 @@ struct RangeByKeySpecTestCase {
         keys(std::move(keys)),
         revkeys(std::move(revkeys)),
         count(count) {}
-  const Skiplist<std::string>::SkiplistRangeByKeySpec spec;
-  const std::vector<std::string> keys;
-  const std::vector<std::string> revkeys;
+  Skiplist<std::string>::SkiplistRangeByKeySpec spec;
+  std::vector<std::string> keys;
+  std::vector<std::string> revkeys;
   // The value used for testing Skiplist.Count(), the result is not related to
   // SkiplistLimitSpec
-  const ssize_t count;
+  ssize_t count;
 };
 
 std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
@@ -322,7 +322,13 @@ void ScanSkiplist(const Skiplist<std::string>* skiplist) {
 
 struct Comparator {
   int operator()(const std::string& k1, const std::string& k2) const {
-    return k1 < k2 ? 1 : (k1 == k2 ? 0 : -1);
+    if (k1 < k2) {
+      return 1;
+    }
+    if (k1 == k2) {
+      return 0;
+    }
+    return -1;
   }
 };
 

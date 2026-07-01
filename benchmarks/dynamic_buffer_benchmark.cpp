@@ -6,10 +6,14 @@
 #include "memory/dynamic_buffer.h"
 
 namespace redis_simple {
-in_memory::DynamicBuffer g_dynamic_buffer;
+namespace {
+in_memory::DynamicBuffer& DynamicBufferBenchmarkBuffer() {
+  static in_memory::DynamicBuffer buffer;
+  return buffer;
+}
 
-static void FillBenchmarkBuffer() {
-  static std::mt19937 rng(std::mt19937::default_seed);
+void FillBenchmarkBuffer() {
+  static std::mt19937 rng(std::random_device{}());
   std::uniform_int_distribution<int> letter_dist(0, 25);
   std::uniform_int_distribution<int> newline_dist(0, 1023);
   for (char& i : g_buffer) {
@@ -18,24 +22,27 @@ static void FillBenchmarkBuffer() {
   }
 }
 
-static void DynamicBufferWrite(benchmark::State& state) {
+void DynamicBufferWrite(benchmark::State& state) {
   FillBenchmarkBuffer();
   for (auto _ : state) {
     (void)_;
-    g_dynamic_buffer.Append(g_buffer, kBufferSize);
+    DynamicBufferBenchmarkBuffer().Append(g_buffer.data(), g_buffer.size());
   }
 }
 
-static void DynamicBufferProcessAndTrim(benchmark::State& state) {
+void DynamicBufferProcessAndTrim(benchmark::State& state) {
   for (auto _ : state) {
     (void)_;
-    const auto s = g_dynamic_buffer.ReadLine();
+    const auto s = DynamicBufferBenchmarkBuffer().ReadLine();
     benchmark::DoNotOptimize(s.data());
     benchmark::DoNotOptimize(s.size());
   }
-  g_dynamic_buffer.Compact();
+  DynamicBufferBenchmarkBuffer().Compact();
 }
+}  // namespace
 
+// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 BENCHMARK(DynamicBufferWrite);
 BENCHMARK(DynamicBufferProcessAndTrim);
+// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables,bugprone-throwing-static-initialization)
 }  // namespace redis_simple

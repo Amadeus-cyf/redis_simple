@@ -32,7 +32,7 @@ class ReplyBuffer {
   void ClearBuffer();
   void PushNode(std::unique_ptr<BufNode> node);
   void DeleteNode(BufNode* node, BufNode* prev);
-  std::unique_ptr<BufNode> NewNode(const char* buffer, size_t len);
+  static std::unique_ptr<BufNode> NewNode(const char* buffer, size_t len);
   static size_t AppendToNode(BufNode* node, const char* buffer, size_t len);
   std::unique_ptr<char[]> buf_;
   size_t size_;

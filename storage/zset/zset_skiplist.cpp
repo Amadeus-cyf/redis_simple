@@ -28,7 +28,7 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, double score) {
     }
     inserted = true;
   }
-  ze.release();
+  [[maybe_unused]] auto* skiplist_owned_entry = ze.release();
   dict_->Set(key, score);
   // Update min and max key.
   if (!min_key_.has_value() || key < *min_key_) {
@@ -47,7 +47,8 @@ bool ZSetSkiplist::Delete(const std::string& key) {
   }
   double score = *result;
   const ZSetEntry ze(key, score);
-  assert(dict_->Delete(key));
+  [[maybe_unused]] const bool dict_deleted = dict_->Delete(key);
+  assert(dict_deleted);
   bool deleted = skiplist_->Delete(&ze);
   if (deleted && ((min_key_.has_value() && *min_key_ == key) ||
                   (max_key_.has_value() && *max_key_ == key))) {

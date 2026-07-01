@@ -241,8 +241,8 @@ TEST_F(ListPackTest, Replace) {
   // Replace and get the element.
   listpack->Replace(idx, s0);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l1;
-  size_t l1_next;
+  size_t l1 = 0;
+  size_t l1_next = 0;
   unsigned char* c1 = listpack->Get(idx, &l1);
   ASSERT_EQ(l1, s0.size());
   ASSERT_TRUE(std::equal(c1, c1 + l1, s0.c_str()));
@@ -264,8 +264,8 @@ TEST_F(ListPackTest, Replace) {
   // Replace and get the element.
   listpack->Replace(idx, 17);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l3;
-  size_t l3_next;
+  size_t l3 = 0;
+  size_t l3_next = 0;
   unsigned char* c3 = listpack->Get(idx, &l3);
   ASSERT_EQ(l3, 2);
   ASSERT_TRUE(std::equal(c3, c3 + l3, "17"));
@@ -287,8 +287,8 @@ TEST_F(ListPackTest, Replace) {
   // Replace and get the element.
   listpack->Replace(idx, s1);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l5;
-  size_t l5_next;
+  size_t l5 = 0;
+  size_t l5_next = 0;
   unsigned char* c5 = listpack->Get(idx, &l5);
   ASSERT_EQ(l5, s1.size());
   ASSERT_TRUE(std::equal(c5, c5 + l5, s1.c_str()));
@@ -304,8 +304,8 @@ TEST_F(ListPackTest, Replace) {
   // Replace and get the element.
   listpack->Replace(idx, 217);
   ASSERT_EQ(listpack->Size(), num_of_elements);
-  size_t l7;
-  size_t l7_next;
+  size_t l7 = 0;
+  [[maybe_unused]] size_t l7_next = 0;
   unsigned char* c7 = listpack->Get(idx, &l7);
   ASSERT_EQ(l7, 3);
   ASSERT_TRUE(std::equal(c7, c7 + l7, "217"));
