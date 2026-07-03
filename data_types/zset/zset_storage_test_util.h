@@ -9,8 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "data_types/zset/zset_storage.h"
 #include "gtest/gtest.h"
-#include "storage/zset/zset_storage.h"
 
 namespace redis_simple::zset::zset_storage_test {
 using KeyScorePair = std::pair<std::string, double>;
@@ -19,8 +19,7 @@ inline std::unique_ptr<LimitSpec> MakeLimit(size_t offset, ssize_t count) {
   return std::make_unique<LimitSpec>(offset, count);
 }
 
-inline std::vector<KeyScorePair> ToKeyScorePairs(
-    const ZSetEntryList& entries) {
+inline std::vector<KeyScorePair> ToKeyScorePairs(const ZSetEntryList& entries) {
   std::vector<KeyScorePair> pairs;
   pairs.reserve(entries.size());
   for (const auto* entry : entries) {
@@ -136,24 +135,19 @@ void TestUpdate() {
 template <typename Storage>
 void TestRangeByRank() {
   const auto zset = MakeUpdatedStorage<Storage>();
-  ExpectRangeByRank(*zset, 0, 3, false, false, 0, -1, false,
-                    {{"key4", 1.0},
-                     {"key2", 2.0},
-                     {"key3", 4.0},
-                     {"key1", 5.0}});
+  ExpectRangeByRank(
+      *zset, 0, 3, false, false, 0, -1, false,
+      {{"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}});
   ExpectRangeByRank(*zset, 1, 3, true, false, 0, -1, false,
                     {{"key3", 4.0}, {"key1", 5.0}});
   ExpectRangeByRank(*zset, 1, 3, false, true, 0, -1, false,
                     {{"key2", 2.0}, {"key3", 4.0}});
-  ExpectRangeByRank(*zset, 1, 3, true, true, 0, -1, false,
-                    {{"key3", 4.0}});
+  ExpectRangeByRank(*zset, 1, 3, true, true, 0, -1, false, {{"key3", 4.0}});
   ExpectRangeByRank(*zset, 0, 3, false, false, 2, 3, false,
                     {{"key3", 4.0}, {"key1", 5.0}});
-  ExpectRangeByRank(*zset, 0, 3, false, false, 0, -1, true,
-                    {{"key1", 5.0},
-                     {"key3", 4.0},
-                     {"key2", 2.0},
-                     {"key4", 1.0}});
+  ExpectRangeByRank(
+      *zset, 0, 3, false, false, 0, -1, true,
+      {{"key1", 5.0}, {"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}});
   ExpectRangeByRank(*zset, 0, 3, false, false, 1, 2, true,
                     {{"key3", 4.0}, {"key2", 2.0}});
   ExpectRangeByRank(*zset, 0, 3, false, false, 0, 0, false, {});
@@ -180,16 +174,12 @@ void TestRangeByScore() {
   const auto zset = MakeUpdatedStorage<Storage>();
   const auto infinity = std::numeric_limits<double>::infinity();
 
-  ExpectRangeByScore(*zset, 1.0, 5.0, false, false, 0, -1, false,
-                     {{"key4", 1.0},
-                      {"key2", 2.0},
-                      {"key3", 4.0},
-                      {"key1", 5.0}});
-  ExpectRangeByScore(*zset, -infinity, infinity, false, false, 0, -1, false,
-                     {{"key4", 1.0},
-                      {"key2", 2.0},
-                      {"key3", 4.0},
-                      {"key1", 5.0}});
+  ExpectRangeByScore(
+      *zset, 1.0, 5.0, false, false, 0, -1, false,
+      {{"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}});
+  ExpectRangeByScore(
+      *zset, -infinity, infinity, false, false, 0, -1, false,
+      {{"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}});
   ExpectRangeByScore(*zset, 2.0, 5.0, true, false, 0, -1, false,
                      {{"key3", 4.0}, {"key1", 5.0}});
   ExpectRangeByScore(*zset, 2.0, 5.0, false, true, 0, -1, false,

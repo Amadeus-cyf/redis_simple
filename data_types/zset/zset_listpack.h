@@ -1,7 +1,7 @@
 #pragma once
 
+#include "data_types/zset/zset_storage.h"
 #include "memory/listpack.h"
-#include "storage/zset/zset_storage.h"
 
 namespace redis_simple::zset {
 class ZSetListPack : public ZSetStorage {

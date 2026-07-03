@@ -3,11 +3,11 @@
 #include <utility>
 #include <vector>
 
+#include "data_types/set/set.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
-#include "storage/set/set.h"
 
 namespace redis_simple::command::sets {
 namespace {

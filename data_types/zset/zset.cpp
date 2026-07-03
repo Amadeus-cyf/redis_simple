@@ -1,7 +1,7 @@
 #include "zset.h"
 
-#include "storage/zset/zset_listpack.h"
-#include "storage/zset/zset_skiplist.h"
+#include "data_types/zset/zset_listpack.h"
+#include "data_types/zset/zset_skiplist.h"
 
 namespace redis_simple::zset {
 ZSet::ZSet()

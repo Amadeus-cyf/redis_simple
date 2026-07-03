@@ -5,9 +5,9 @@
 #include <utility>
 #include <variant>
 
-#include "storage/list/list.h"
-#include "storage/set/set.h"
-#include "storage/zset/zset.h"
+#include "data_types/list/list.h"
+#include "data_types/set/set.h"
+#include "data_types/zset/zset.h"
 
 namespace redis_simple::db {
 class RedisObject {

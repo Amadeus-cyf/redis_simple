@@ -2,10 +2,10 @@
 
 #include <memory>
 
+#include "data_types/zset/zset_storage.h"
 #include "logging/logger.h"
 #include "memory/dict.h"
 #include "memory/skiplist.h"
-#include "storage/zset/zset_storage.h"
 
 namespace redis_simple::zset {
 class ZSetSkiplist : public ZSetStorage {

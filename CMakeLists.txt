@@ -69,7 +69,7 @@ redis_simple_collect_sources(REDIS_SIMPLE_CORE_SOURCES
   event_loop
   memory
   server
-  storage
+  data_types
   tcp
   utils
 )
@@ -100,7 +100,7 @@ redis_simple_collect_sources(REDIS_SIMPLE_UNIT_TEST_SOURCES
   server/commands
   server/db
   server/reply
-  storage
+  data_types
   utils
 )
 list(FILTER REDIS_SIMPLE_UNIT_TEST_SOURCES INCLUDE REGEX "_test\\.cpp$")

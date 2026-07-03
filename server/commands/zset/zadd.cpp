@@ -3,11 +3,11 @@
 #include <utility>
 #include <vector>
 
+#include "data_types/zset/zset.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
-#include "storage/zset/zset.h"
 
 namespace redis_simple::command::zsets {
 namespace {

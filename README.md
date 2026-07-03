@@ -106,7 +106,7 @@ logging/             Project logging wrapper
 memory/              Core in-memory data structures
 scripts/             Project automation and CTest runner scripts
 server/              Server, client connection glue, commands, replies, DB
-storage/             Redis-like higher-level storage types
+data_types/          Redis list, set, and sorted-set implementations
 tcp/                 TCP helpers
 utils/               Small shared utilities
 benchmarks/          Memory/data-structure benchmarks

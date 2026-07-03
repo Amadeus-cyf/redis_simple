@@ -1,4 +1,4 @@
-#include "storage/zset/zset_listpack.h"
+#include "data_types/zset/zset_listpack.h"
 
 #include <cassert>
 #include <limits>

@@ -22,9 +22,9 @@ TEST(RedisDbTest, SetLookupAndDeleteKey) {
 
 TEST(RedisDbTest, ExpiredKeyIsRemovedOnLookup) {
   auto redis_db = RedisDb::Create();
-  ASSERT_EQ(redis_db->SetKey("expired", RedisObject::CreateWithString("gone"),
-                            1),
-            DbStatus::kOk);
+  ASSERT_EQ(
+      redis_db->SetKey("expired", RedisObject::CreateWithString("gone"), 1),
+      DbStatus::kOk);
 
   EXPECT_EQ(redis_db->LookupKey("expired"), nullptr);
   EXPECT_EQ(redis_db->DeleteKey("expired"), DbStatus::kError);
@@ -34,13 +34,13 @@ TEST(RedisDbTest, ReplacingKeyCanClearOrKeepTtl) {
   auto redis_db = RedisDb::Create();
   const int64_t future = utils::NowInMilliseconds() + 60'000;
 
-  ASSERT_EQ(redis_db->SetKey("key", RedisObject::CreateWithString("old"),
-                            future),
-            DbStatus::kOk);
+  ASSERT_EQ(
+      redis_db->SetKey("key", RedisObject::CreateWithString("old"), future),
+      DbStatus::kOk);
   EXPECT_EQ(redis_db->ExpiredPercentage(), 1.0);
 
   ASSERT_EQ(redis_db->SetKey("key", RedisObject::CreateWithString("new"), 0,
-                            ToInt(SetKeyFlag::kKeepTtl)),
+                             ToInt(SetKeyFlag::kKeepTtl)),
             DbStatus::kOk);
   EXPECT_EQ(redis_db->ExpiredPercentage(), 1.0);
   ASSERT_NE(redis_db->LookupKey("key"), nullptr);

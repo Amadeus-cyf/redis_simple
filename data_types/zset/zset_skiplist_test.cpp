@@ -1,9 +1,9 @@
-#include "storage/zset/zset_skiplist.h"
+#include "data_types/zset/zset_skiplist.h"
 
 #include <vector>
 
+#include "data_types/zset/zset_storage_test_util.h"
 #include "gtest/gtest.h"
-#include "storage/zset/zset_storage_test_util.h"
 
 namespace redis_simple::zset {
 using zset_storage_test::KeyScorePair;
