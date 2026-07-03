@@ -8,16 +8,6 @@
 #include <vector>
 
 namespace redis_simple::in_memory {
-class SkiplistTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() {
-    skiplist = std::make_unique<Skiplist<std::string>>(4);
-  }
-  static void TearDownTestSuite() { skiplist.reset(); }
-
-  static std::unique_ptr<Skiplist<std::string>> skiplist;
-};
-
 struct RangeByRankSpecTestCase {
   RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec spec,
                           std::vector<std::string> keys,
@@ -48,9 +38,27 @@ std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
 std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases();
 void ScanSkiplist(const Skiplist<std::string>* skiplist);
 
-std::unique_ptr<Skiplist<std::string>> SkiplistTest::skiplist = nullptr;
+namespace {
+std::unique_ptr<Skiplist<std::string>> MakeInsertedSkiplist() {
+  auto skiplist = std::make_unique<Skiplist<std::string>>(4);
+  skiplist->Insert("key1");
+  skiplist->Insert("key2");
+  skiplist->Insert("key0");
+  return skiplist;
+}
 
-TEST_F(SkiplistTest, Insertion) {
+std::unique_ptr<Skiplist<std::string>> MakeRankedSkiplist() {
+  auto skiplist = std::make_unique<Skiplist<std::string>>(4);
+  skiplist->Insert("key0");
+  skiplist->Insert("key2");
+  skiplist->Insert("key4");
+  skiplist->Insert("key5");
+  return skiplist;
+}
+}  // namespace
+
+TEST(SkiplistTest, Insertion) {
+  auto skiplist = std::make_unique<Skiplist<std::string>>(4);
   ASSERT_EQ(skiplist->Insert("key1"), "key1");
   ASSERT_EQ(skiplist->Insert("key2"), "key2");
   ASSERT_EQ(skiplist->Insert("key0"), "key0");
@@ -63,7 +71,8 @@ TEST_F(SkiplistTest, Insertion) {
   ASSERT_TRUE(!skiplist->Contains("key_not_exist"));
 }
 
-TEST_F(SkiplistTest, Deletion) {
+TEST(SkiplistTest, Deletion) {
+  auto skiplist = MakeInsertedSkiplist();
   ASSERT_TRUE(skiplist->Delete("key1"));
   ASSERT_FALSE(skiplist->Contains("key1"));
   ASSERT_EQ(skiplist->Size(), 2);
@@ -79,7 +88,9 @@ TEST_F(SkiplistTest, Deletion) {
   ASSERT_FALSE(skiplist->Delete("key_not_exist"));
 }
 
-TEST_F(SkiplistTest, Update) {
+TEST(SkiplistTest, Update) {
+  auto skiplist = std::make_unique<Skiplist<std::string>>(4);
+  ASSERT_EQ(skiplist->Insert("key0"), "key0");
   ASSERT_EQ("key1", skiplist->Insert("key1"));
   ASSERT_EQ("key2", skiplist->Insert("key2"));
   ASSERT_EQ("key3", skiplist->Insert("key3"));
@@ -100,7 +111,8 @@ TEST_F(SkiplistTest, Update) {
   ASSERT_EQ(skiplist->Size(), 4);
 }
 
-TEST_F(SkiplistTest, FindKeyByRank) {
+TEST(SkiplistTest, FindKeyByRank) {
+  auto skiplist = MakeRankedSkiplist();
   const std::string& s0 = skiplist->FindKeyByRank(0);
   ASSERT_EQ(s0, "key0");
 
@@ -123,7 +135,8 @@ TEST_F(SkiplistTest, FindKeyByRank) {
   ASSERT_THROW(skiplist->FindKeyByRank(INT_MIN), std::out_of_range);
 }
 
-TEST_F(SkiplistTest, FindRankOfKey) {
+TEST(SkiplistTest, FindRankOfKey) {
+  auto skiplist = MakeRankedSkiplist();
   ssize_t r0 = skiplist->FindRankOfKey("key0");
   ASSERT_EQ(r0, 0);
 
@@ -137,7 +150,8 @@ TEST_F(SkiplistTest, FindRankOfKey) {
   ASSERT_EQ(r3, -1);
 }
 
-TEST_F(SkiplistTest, ArrayAccess) {
+TEST(SkiplistTest, ArrayAccess) {
+  auto skiplist = MakeRankedSkiplist();
   ASSERT_EQ((*skiplist)[0], "key0");
   ASSERT_EQ((*skiplist)[1], "key2");
   ASSERT_EQ((*skiplist)[2], "key4");
@@ -150,35 +164,40 @@ TEST_F(SkiplistTest, ArrayAccess) {
   ASSERT_THROW((*skiplist)[INT_MIN], std::out_of_range);
 }
 
-TEST_F(SkiplistTest, RangeByRank) {
+TEST(SkiplistTest, RangeByRank) {
+  auto skiplist = MakeRankedSkiplist();
   const auto tests = RangeByRankSpecTestCases();
   for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RangeByRank(&test.spec), test.keys);
   }
 }
 
-TEST_F(SkiplistTest, RevRangeByRank) {
+TEST(SkiplistTest, RevRangeByRank) {
+  auto skiplist = MakeRankedSkiplist();
   const auto tests = RangeByRankSpecTestCases();
   for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RevRangeByRank(&test.spec), test.revkeys);
   }
 }
 
-TEST_F(SkiplistTest, RangeByKey) {
+TEST(SkiplistTest, RangeByKey) {
+  auto skiplist = MakeRankedSkiplist();
   const auto tests = RangeByKeySpecTestCases();
   for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RangeByKey(&test.spec), test.keys);
   }
 }
 
-TEST_F(SkiplistTest, RevRangeByKey) {
+TEST(SkiplistTest, RevRangeByKey) {
+  auto skiplist = MakeRankedSkiplist();
   const auto tests = RangeByKeySpecTestCases();
   for (const auto& test : tests) {
     ASSERT_EQ(skiplist->RevRangeByKey(&test.spec), test.revkeys);
   }
 }
 
-TEST_F(SkiplistTest, Count) {
+TEST(SkiplistTest, Count) {
+  auto skiplist = MakeRankedSkiplist();
   const auto tests = RangeByKeySpecTestCases();
   for (const auto& test : tests) {
     ASSERT_EQ(skiplist->Count(&test.spec), test.count);
@@ -284,7 +303,8 @@ std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   };
 }
 
-TEST_F(SkiplistTest, Iteration) {
+TEST(SkiplistTest, Iteration) {
+  auto skiplist = MakeRankedSkiplist();
   auto it = Skiplist<std::string>::Iterator(skiplist.get());
   it.SeekToLast();
   ASSERT_EQ(*it, "key5");
@@ -332,21 +352,15 @@ struct Comparator {
   }
 };
 
-class CustomSkiplistTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() {
-    Comparator cmp;
-    skiplist = std::make_unique<Skiplist<std::string, Comparator>>(4, cmp);
-  }
-  static void TearDownTestSuite() { skiplist.reset(); }
+namespace {
+std::unique_ptr<Skiplist<std::string, Comparator>> MakeCustomSkiplist() {
+  Comparator cmp;
+  return std::make_unique<Skiplist<std::string, Comparator>>(4, cmp);
+}
+}  // namespace
 
-  static std::unique_ptr<Skiplist<std::string, Comparator>> skiplist;
-};
-
-std::unique_ptr<Skiplist<std::string, Comparator>>
-    CustomSkiplistTest::skiplist = nullptr;
-
-TEST_F(CustomSkiplistTest, Insertion) {
+TEST(CustomSkiplistTest, Insertion) {
+  auto skiplist = MakeCustomSkiplist();
   ASSERT_EQ(skiplist->Insert("key1"), "key1");
   ASSERT_EQ(skiplist->Insert("key2"), "key2");
   ASSERT_EQ(skiplist->Insert("key0"), "key0");
@@ -359,7 +373,11 @@ TEST_F(CustomSkiplistTest, Insertion) {
   ASSERT_TRUE(!skiplist->Contains("key_not_exist"));
 }
 
-TEST_F(CustomSkiplistTest, ArrayAccess) {
+TEST(CustomSkiplistTest, ArrayAccess) {
+  auto skiplist = MakeCustomSkiplist();
+  skiplist->Insert("key1");
+  skiplist->Insert("key2");
+  skiplist->Insert("key0");
   ASSERT_EQ((*skiplist)[0], "key2");
   ASSERT_EQ((*skiplist)[1], "key1");
   ASSERT_EQ((*skiplist)[2], "key0");

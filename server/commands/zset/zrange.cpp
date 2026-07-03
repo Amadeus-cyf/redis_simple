@@ -6,7 +6,7 @@
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/reply/reply.h"
-#include "server/reply_utils/reply_utils.h"
+#include "server/reply/reply_utils.h"
 #include "storage/zset/zset.h"
 #include "utils/string_utils.h"
 

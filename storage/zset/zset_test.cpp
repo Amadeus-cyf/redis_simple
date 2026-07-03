@@ -6,16 +6,8 @@
 #include "gtest/gtest.h"
 
 namespace redis_simple::zset {
-class ZSetTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() { zset = ZSet::Create(); }
-  static void TearDownTestSuite() { zset.reset(); }
-
-  static std::unique_ptr<ZSet> zset;
-};
-
-std::unique_ptr<ZSet> ZSetTest::zset = nullptr;
-TEST_F(ZSetTest, InsertAndConvert) {
+TEST(ZSetTest, InsertAndConvert) {
+  auto zset = ZSet::Create();
   for (int i = 0; i < 256; ++i) {
     std::string prefix("key_");
     prefix.append(std::to_string(i));

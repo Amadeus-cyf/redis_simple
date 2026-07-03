@@ -97,8 +97,9 @@ enable_testing()
 redis_simple_collect_sources(REDIS_SIMPLE_UNIT_TEST_SOURCES
   cli
   memory
+  server/commands
+  server/db
   server/reply
-  server/reply_utils
   storage
   utils
 )
@@ -123,8 +124,13 @@ redis_simple_add_gtest_suite(QuickListTest)
 redis_simple_add_gtest_suite(ReplyBufferTest)
 redis_simple_add_gtest_suite(SkiplistTest)
 redis_simple_add_gtest_suite(CustomSkiplistTest)
+redis_simple_add_gtest_suite(CommandRegistryTest)
+redis_simple_add_gtest_suite(RedisDbTest)
+redis_simple_add_gtest_suite(RedisObjectTest)
 redis_simple_add_gtest_suite(ReplyTest)
 redis_simple_add_gtest_suite(TestReplyUtils)
+redis_simple_add_gtest_suite(FloatUtilsTest)
+redis_simple_add_gtest_suite(IntUtilsTest)
 redis_simple_add_gtest_suite(ListTest)
 redis_simple_add_gtest_suite(ListEncodingTest)
 redis_simple_add_gtest_suite(SetTest)

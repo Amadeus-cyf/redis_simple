@@ -5,7 +5,7 @@
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
-#include "server/reply_utils/reply_utils.h"
+#include "server/reply/reply_utils.h"
 
 namespace redis_simple::command::sets {
 namespace {

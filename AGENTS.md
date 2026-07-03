@@ -15,6 +15,8 @@ Guidance for AI coding agents working in this repository.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.
+- Keep reply encoding helpers under `server/reply/`, and keep database state
+  and Redis object wrappers under `server/db/`.
 
 ## Build And Test
 

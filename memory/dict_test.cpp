@@ -6,23 +6,14 @@
 #include <string>
 
 namespace redis_simple::in_memory {
-class DictStrTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() {
-    dict_str = Dict<std::string, std::string>::Create();
-  }
-  static std::unique_ptr<Dict<std::string, std::string>> dict_str;
-};
-
-std::unique_ptr<Dict<std::string, std::string>> DictStrTest::dict_str = nullptr;
-
-TEST_F(DictStrTest, Init) {
-  dict_str = Dict<std::string, std::string>::Create();
+TEST(DictStrTest, Init) {
+  auto dict_str = Dict<std::string, std::string>::Create();
   ASSERT_TRUE(dict_str);
   ASSERT_EQ(dict_str->Size(), 0);
 }
 
-TEST_F(DictStrTest, Insert) {
+TEST(DictStrTest, Insert) {
+  auto dict_str = Dict<std::string, std::string>::Create();
   auto status = dict_str->Insert("key", "val");
   ASSERT_TRUE(status);
   ASSERT_EQ(dict_str->Size(), 1);
@@ -43,9 +34,8 @@ TEST_F(DictStrTest, Insert) {
   ASSERT_EQ(dict_str->Size(), 1);
 }
 
-TEST_F(DictStrTest, InsertDuplicate) {
-  dict_str = Dict<std::string, std::string>::Create();
-
+TEST(DictStrTest, InsertDuplicate) {
+  auto dict_str = Dict<std::string, std::string>::Create();
   ASSERT_TRUE(dict_str->Insert("key", "val"));
   ASSERT_FALSE(dict_str->Insert("key", "new_val"));
   ASSERT_EQ(dict_str->Size(), 1);
@@ -55,8 +45,8 @@ TEST_F(DictStrTest, InsertDuplicate) {
   ASSERT_EQ(result.value_or(""), "val");
 }
 
-TEST_F(DictStrTest, Delete) {
-  dict_str = Dict<std::string, std::string>::Create();
+TEST(DictStrTest, Delete) {
+  auto dict_str = Dict<std::string, std::string>::Create();
   ASSERT_TRUE(dict_str->Insert("key", "val"));
 
   auto status = dict_str->Delete("key");
@@ -69,30 +59,32 @@ TEST_F(DictStrTest, Delete) {
   ASSERT_EQ(dict_str->Size(), 0);
 }
 
-class DictIntTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() { dict_int = Dict<int, int>::Create(); }
-  static std::unique_ptr<Dict<int, int>> dict_int;
-};
+namespace {
+std::unique_ptr<Dict<int, int>> MakeIntDictWithEntries() {
+  auto dict_int = Dict<int, int>::Create();
+  for (int i = 0; i < 129; ++i) {
+    dict_int->Insert(i, i);
+  }
+  return dict_int;
+}
+}  // namespace
 
-std::unique_ptr<Dict<int, int>> DictIntTest::dict_int = nullptr;
-
-TEST_F(DictIntTest, Init) {
+TEST(DictIntTest, Init) {
+  auto dict_int = Dict<int, int>::Create();
   ASSERT_TRUE(dict_int);
   ASSERT_EQ(dict_int->Size(), 0);
 }
 
-TEST_F(DictIntTest, BatchInsert) {
-  for (int i = 0; i < 129; ++i) {
-    dict_int->Insert(i, i);
-  }
+TEST(DictIntTest, BatchInsert) {
+  auto dict_int = MakeIntDictWithEntries();
   ASSERT_EQ(dict_int->Size(), 129);
   const auto result = dict_int->Get(96);
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result.value_or(0), 96);
 }
 
-TEST_F(DictIntTest, Iterator) {
+TEST(DictIntTest, Iterator) {
+  auto dict_int = MakeIntDictWithEntries();
   auto it = in_memory::Dict<int, int>::Iterator(dict_int.get());
   it.SeekToFirst();
   ASSERT_TRUE(it.Valid());
@@ -123,7 +115,8 @@ TEST_F(DictIntTest, Iterator) {
   ASSERT_FALSE(it.Valid());
 }
 
-TEST_F(DictIntTest, Clear) {
+TEST(DictIntTest, Clear) {
+  auto dict_int = MakeIntDictWithEntries();
   dict_int->Clear();
   ASSERT_EQ(dict_int->Size(), 0);
 

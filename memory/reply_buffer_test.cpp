@@ -12,26 +12,44 @@ constexpr size_t kExpectedSentAfterConsume = 5000 - (4096 - 2047) - 2000;
 constexpr size_t kTailInitialUsed = 1000 / 3;
 constexpr size_t kTailFillBytes = 1024 - kTailInitialUsed;
 constexpr size_t kRemainingBytes = 5000 - kTailFillBytes;
+
+std::unique_ptr<ReplyBuffer> MakeBufferWithMainBytes() {
+  auto buf = std::make_unique<ReplyBuffer>();
+  std::string s(2000, 'a');
+  buf->Append(s.c_str(), 2000);
+  return buf;
+}
+
+std::unique_ptr<ReplyBuffer> MakeBufferWithReplyList() {
+  auto buf = MakeBufferWithMainBytes();
+  std::string s1(4096, 'b');
+  buf->Append(s1.c_str(), 4096);
+  std::string s2(1000, 'c');
+  buf->Append(s2.c_str(), 1000);
+  std::string s3(24, 'c');
+  buf->Append(s3.c_str(), 24);
+  std::string s4(1024, 'c');
+  buf->Append(s4.c_str(), 1000);
+  std::string s5(1024, 'd');
+  buf->Append(s5.c_str(), 1024);
+  return buf;
+}
+
+std::unique_ptr<ReplyBuffer> MakeConsumedBuffer() {
+  auto buf = MakeBufferWithReplyList();
+  buf->Consume(2047);
+  buf->Consume(5000);
+  return buf;
+}
 }  // namespace
 
-class ReplyBufferTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() { buf = std::make_unique<ReplyBuffer>(); }
-  static void TearDownTestSuite() { buf.reset(); }
-
-  static std::unique_ptr<ReplyBuffer> buf;
-};
-
-std::unique_ptr<ReplyBuffer> ReplyBufferTest::buf = nullptr;
-
-TEST_F(ReplyBufferTest, AddToBuf) {
-  std::string s(2000, 'a');
-  size_t r = buf->Append(s.c_str(), 2000);
-  ASSERT_EQ(r, 2000);
+TEST(ReplyBufferTest, AddToBuf) {
+  auto buf = MakeBufferWithMainBytes();
   ASSERT_EQ(buf->BufferSize(), 2000);
 }
 
-TEST_F(ReplyBufferTest, AddToReplyList) {
+TEST(ReplyBufferTest, AddToReplyList) {
+  auto buf = MakeBufferWithMainBytes();
   std::string s1(4096, 'b');
   size_t r = buf->Append(s1.c_str(), 4096);
   ASSERT_EQ(r, 4096);
@@ -85,7 +103,8 @@ TEST_F(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(mem_vec[4].second, 1000);
 }
 
-TEST_F(ReplyBufferTest, Consume) {
+TEST(ReplyBufferTest, Consume) {
+  auto buf = MakeBufferWithReplyList();
   // Partially consume the main buffer.
   buf->Consume(2047);
   ASSERT_EQ(buf->BufferSize(), 4096);
@@ -110,7 +129,8 @@ TEST_F(ReplyBufferTest, Consume) {
   ASSERT_EQ(mem_vec[2].second, 1000);
 }
 
-TEST_F(ReplyBufferTest, AppendNewNodeToReplyList) {
+TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
+  auto buf = MakeConsumedBuffer();
   BufNode* tail = buf->ReplyTail();
 
   tail->used_ /= 3;

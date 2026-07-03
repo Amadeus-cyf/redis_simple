@@ -5,47 +5,40 @@
 #include <memory>
 
 namespace redis_simple::in_memory {
-class IntSetTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() { intset = std::make_unique<IntSet>(); }
-  static void TearDownTestSuite() { intset.reset(); }
+namespace {
+std::unique_ptr<IntSet> MakeFullIntSet() {
+  auto intset = std::make_unique<IntSet>();
+  intset->Add(1);
+  intset->Add(5);
+  intset->Add(7);
+  intset->Add(3);
+  intset->Add(2);
+  intset->Add(-1);
+  intset->Add(INT16_MIN);
+  intset->Add(INT16_MAX);
+  intset->Add(INT32_MIN);
+  intset->Add(INT32_MAX);
+  intset->Add(INT64_MIN);
+  intset->Add(INT64_MAX);
+  return intset;
+}
 
-  static std::unique_ptr<IntSet> intset;
-};
+std::unique_ptr<IntSet> MakeIntSetAfterRemovals() {
+  auto intset = MakeFullIntSet();
+  intset->Remove(INT16_MAX);
+  intset->Remove(INT64_MIN);
+  intset->Remove(INT64_MAX);
+  return intset;
+}
+}  // namespace
 
-std::unique_ptr<IntSet> IntSetTest::intset = nullptr;
-
-TEST_F(IntSetTest, AddAndUpgradeAndGet) {
-  ASSERT_TRUE(intset->Add(1));
-  ASSERT_EQ(intset->Size(), 1);
-  ASSERT_TRUE(intset->Add(5));
-  ASSERT_EQ(intset->Size(), 2);
-  ASSERT_TRUE(intset->Add(7));
-  ASSERT_EQ(intset->Size(), 3);
-  ASSERT_TRUE(intset->Add(3));
-  ASSERT_EQ(intset->Size(), 4);
-  ASSERT_TRUE(intset->Add(2));
-  ASSERT_EQ(intset->Size(), 5);
-  ASSERT_TRUE(intset->Add(-1));
-  ASSERT_EQ(intset->Size(), 6);
-  ASSERT_TRUE(intset->Add(INT16_MIN));
-  ASSERT_EQ(intset->Size(), 7);
-  ASSERT_TRUE(intset->Add(INT16_MAX));
-  ASSERT_EQ(intset->Size(), 8);
-  ASSERT_TRUE(intset->Add(INT32_MIN));
-  ASSERT_EQ(intset->Size(), 9);
-  ASSERT_TRUE(intset->Add(INT32_MAX));
-  ASSERT_EQ(intset->Size(), 10);
-  ASSERT_TRUE(intset->Add(INT64_MIN));
-  ASSERT_EQ(intset->Size(), 11);
-  ASSERT_TRUE(intset->Add(INT64_MAX));
-  ASSERT_EQ(intset->Size(), 12);
+TEST(IntSetTest, AddAndUpgradeAndGet) {
+  auto intset = MakeFullIntSet();
   ASSERT_FALSE(intset->Add(1));
   ASSERT_EQ(intset->Size(), 12);
   ASSERT_FALSE(intset->Add(INT64_MIN));
   ASSERT_EQ(intset->Size(), 12);
   ASSERT_FALSE(intset->Add(INT64_MAX));
-  ASSERT_EQ(intset->Size(), 12);
   ASSERT_EQ(intset->Size(), 12);
 
   ASSERT_EQ(intset->Get(0), INT64_MIN);
@@ -64,7 +57,8 @@ TEST_F(IntSetTest, AddAndUpgradeAndGet) {
   ASSERT_THROW(intset->Get(12), std::out_of_range);
 }
 
-TEST_F(IntSetTest, Find) {
+TEST(IntSetTest, Find) {
+  auto intset = MakeFullIntSet();
   ASSERT_TRUE(intset->Find(INT64_MIN));
   ASSERT_TRUE(intset->Find(INT64_MAX));
   ASSERT_TRUE(intset->Find(INT16_MIN));
@@ -79,7 +73,8 @@ TEST_F(IntSetTest, Find) {
   ASSERT_FALSE(intset->Find(INT32_MAX - 1));
 }
 
-TEST_F(IntSetTest, Remove) {
+TEST(IntSetTest, Remove) {
+  auto intset = MakeFullIntSet();
   ASSERT_TRUE(intset->Remove(INT16_MAX));
   ASSERT_FALSE(intset->Find(INT16_MAX));
   ASSERT_EQ(intset->Size(), 11);
@@ -99,7 +94,8 @@ TEST_F(IntSetTest, Remove) {
   ASSERT_EQ(intset->Size(), 9);
 }
 
-TEST_F(IntSetTest, Iterator) {
+TEST(IntSetTest, Iterator) {
+  auto intset = MakeIntSetAfterRemovals();
   auto it = IntSet::Iterator(intset.get());
   it.SeekToFirst();
   ASSERT_EQ(it.Value(), INT32_MIN);

@@ -1,4 +1,4 @@
-#include "server/reply_utils/reply_utils.h"
+#include "server/reply/reply_utils.h"
 
 #include <gtest/gtest.h>
 

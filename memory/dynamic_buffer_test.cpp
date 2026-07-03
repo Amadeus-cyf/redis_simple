@@ -4,19 +4,11 @@
 
 #include <array>
 #include <memory>
+#include <string>
 
 namespace redis_simple::in_memory {
-class DynamicBufferTest : public testing::Test {
- protected:
-  static void SetUpTestSuite() { buffer = std::make_unique<DynamicBuffer>(); }
-  static void TearDownTestSuite() { buffer.reset(); }
-
-  static std::unique_ptr<DynamicBuffer> buffer;
-};
-
-std::unique_ptr<DynamicBuffer> DynamicBufferTest::buffer = nullptr;
-
-TEST_F(DynamicBufferTest, Write) {
+namespace {
+std::array<char, 4096> MakeLineBuffer() {
   std::array<char, 4096> buf{};
   char c = 'a';
   for (size_t i = 0; i < buf.size(); ++i) {
@@ -27,13 +19,36 @@ TEST_F(DynamicBufferTest, Write) {
       buf[i] = c;
     }
   }
+  return buf;
+}
+
+std::unique_ptr<DynamicBuffer> MakeFilledBuffer() {
+  auto buffer = std::make_unique<DynamicBuffer>();
+  const auto buf = MakeLineBuffer();
   buffer->Append(buf.data(), buf.size());
+  return buffer;
+}
+
+std::unique_ptr<DynamicBuffer> MakeTrimmedBuffer() {
+  auto buffer = MakeFilledBuffer();
+  buffer->ReadLine();
+  buffer->ReadLine();
+  buffer->Compact();
+  buffer->ReadLine();
+  buffer->Compact();
+  return buffer;
+}
+}  // namespace
+
+TEST(DynamicBufferTest, Write) {
+  auto buffer = MakeFilledBuffer();
   ASSERT_EQ(buffer->Capacity(), 4096);
   ASSERT_EQ(buffer->Size(), 4096);
   ASSERT_EQ(buffer->Consumed(), 0);
 }
 
-TEST_F(DynamicBufferTest, ProcessInline) {
+TEST(DynamicBufferTest, ProcessInline) {
+  auto buffer = MakeFilledBuffer();
   const std::string& s = buffer->ReadLine();
   ASSERT_EQ(s.length(), 1023);
   ASSERT_EQ(s, std::string(1023, 'a'));
@@ -58,14 +73,15 @@ TEST_F(DynamicBufferTest, ProcessInline) {
   ASSERT_EQ(s2, std::string(1023, 'c'));
 }
 
-TEST_F(DynamicBufferTest, TrimProcessed) {
-  buffer->Compact();
+TEST(DynamicBufferTest, TrimProcessed) {
+  const auto buffer = MakeTrimmedBuffer();
   ASSERT_EQ(buffer->Capacity(), 4096);
   ASSERT_EQ(buffer->Size(), 1024);
   ASSERT_EQ(buffer->Consumed(), 0);
 }
 
-TEST_F(DynamicBufferTest, Resize) {
+TEST(DynamicBufferTest, Resize) {
+  auto buffer = MakeTrimmedBuffer();
   std::array<char, 8192> buf{};
   for (size_t i = 0; i < buf.size(); ++i) {
     buf[i] = (i + 1) % 1024 == 0 ? '\n' : 'c';
