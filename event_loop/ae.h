@@ -4,8 +4,8 @@
 #include <memory>
 #include <vector>
 
+#include "ae_event_api.h"
 #include "ae_file_event.h"
-#include "ae_kqueue.h"
 #include "ae_time_event.h"
 
 namespace redis_simple::ae {
@@ -71,12 +71,12 @@ class EventLoop {
 
  private:
   static constexpr int kEventSize = 1024;
-  explicit EventLoop(std::unique_ptr<KqueueEventApi> kq);
+  explicit EventLoop(std::unique_ptr<EventApi> event_api);
   void ProcessFileEvents();
   void ProcessTimeEvents();
   std::vector<std::unique_ptr<FileEvent>> file_events_;
   std::list<std::unique_ptr<TimeEvent>> time_events_;
-  std::unique_ptr<KqueueEventApi> event_api_;
+  std::unique_ptr<EventApi> event_api_;
   int max_fd_;
   bool stop_requested_{false};
 };

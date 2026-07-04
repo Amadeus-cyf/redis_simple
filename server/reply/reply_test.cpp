@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 namespace redis_simple::reply {
 TEST(ReplyTest, FromSimpleString) {
   ASSERT_EQ(FromString("OK"), "+OK\r\n");

@@ -1,5 +1,7 @@
 #include "redis_obj.h"
 
+#include <stdexcept>
+
 namespace redis_simple::db {
 const std::string& RedisObject::String() const {
   if (type_ != ObjectType::kString) {

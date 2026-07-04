@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 namespace redis_simple::db {
 TEST(RedisObjectTest, StringObjectExposesStringValue) {
   const auto object = RedisObject::CreateWithString("value");

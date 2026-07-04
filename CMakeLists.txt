@@ -77,6 +77,17 @@ redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
   "_test\\.cpp$"
   "/server/main\\.cpp$"
 )
+if(APPLE)
+  redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
+    "/event_loop/ae_epoll\\.(cpp|h)$"
+  )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
+    "/event_loop/ae_kqueue\\.(cpp|h)$"
+  )
+else()
+  message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
+endif()
 
 redis_simple_collect_sources(REDIS_SIMPLE_CLI_SOURCES cli)
 redis_simple_exclude_sources(REDIS_SIMPLE_CLI_SOURCES "_test\\.cpp$")

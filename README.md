@@ -13,7 +13,7 @@ to the code they cover, while runnable end-to-end checks live under
 - CMake 3.21+
 - A C++17 compiler
 - Git submodules for third-party dependencies
-- macOS for the current event-loop backend (`kqueue`)
+- macOS (`kqueue`) or Linux (`epoll`) for the event-loop backend
 
 ## Setup
 
@@ -100,7 +100,7 @@ above is the project benchmark executable.
 ```text
 cli/          Simple client and RESP parsing
 connection/          Connection abstraction
-event_loop/          Event loop and kqueue backend
+event_loop/          Event loop with kqueue and epoll backends
 integration/commands/ Server/client command integration tests
 integration/tcp/     TCP client/server integration tests
 logging/             Project logging wrapper
@@ -151,7 +151,19 @@ Homebrew's LLVM toolchain on macOS. Set `BUILD_DIR`, `CLANG_TIDY_BIN`, or
 The root `CMakeLists.txt` is target-based. Production, test, and benchmark
 sources are discovered from scoped project directories with
 `GLOB_RECURSE CONFIGURE_DEPENDS`, while test files and executable entry points
-are excluded from library targets explicitly.
+are excluded from library targets explicitly. Platform-specific event-loop
+backends are selected at configure time: `kqueue` on macOS and `epoll` on Linux.
+
+Run the Linux build and test flow locally from macOS through Docker:
+
+```sh
+scripts/run_linux_docker_check.sh
+```
+
+The Docker helper uses Ubuntu 24.04 by default and builds under `/tmp` inside
+the container, so it validates the Linux `epoll` backend without writing Linux
+build artifacts into the working tree. Set `DOCKER_IMAGE` or
+`LINUX_DOCKER_BUILD_DIR` to override those defaults.
 
 ## C++ Style
 
@@ -162,7 +174,8 @@ Java-style `Get...` names.
 
 ## CI
 
-GitHub Actions runs the same flow recommended locally:
+GitHub Actions runs the same flow recommended locally on macOS and Ubuntu, so
+both event-loop backends are built and tested:
 
 ```sh
 cmake --preset debug

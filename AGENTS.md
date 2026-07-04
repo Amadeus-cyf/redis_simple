@@ -34,6 +34,12 @@ ctest --preset debug -L unit --output-on-failure
 ctest --preset debug -L integration --output-on-failure
 ```
 
+Use Docker for a local Linux build and test check from macOS:
+
+```sh
+scripts/run_linux_docker_check.sh
+```
+
 Before committing, run the relevant build and tests.
 
 ## Test Layout
@@ -62,6 +68,8 @@ Before committing, run the relevant build and tests.
 - Keep CMake target-based. Source files are discovered by scoped directory
   globs in `CMakeLists.txt`; exclude generated, test, or entry-point sources
   explicitly when they do not belong in a library target.
+- Keep event-loop backends platform-selected in `CMakeLists.txt`: `kqueue` for
+  macOS and `epoll` for Linux.
 - Keep `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/build.yml`,
   `.clang-format`, `.clang-tidy`, and `.editorconfig` aligned with project
   conventions.

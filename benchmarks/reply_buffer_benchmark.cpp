@@ -1,5 +1,6 @@
 #include <benchmark/benchmark.h>
 
+#include <algorithm>
 #include <random>
 
 #include "benchmarks/buffer.h"

@@ -1,7 +1,9 @@
 #include "set.h"
 
+#include <algorithm>
 #include <cassert>
 #include <optional>
+#include <stdexcept>
 
 #include "utils/int_utils.h"
 #include "utils/string_utils.h"

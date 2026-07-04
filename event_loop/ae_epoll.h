@@ -1,6 +1,6 @@
 #pragma once
 
-#include <sys/event.h>
+#include <sys/epoll.h>
 
 #include <memory>
 #include <unordered_map>
@@ -9,19 +9,20 @@
 #include "event_loop/ae_event_api.h"
 
 namespace redis_simple::ae {
-class KqueueEventApi final : public EventApi {
+class EpollEventApi final : public EventApi {
  public:
-  static std::unique_ptr<KqueueEventApi> Create(int nevents);
+  static std::unique_ptr<EpollEventApi> Create(int nevents);
   int AddEvent(int fd, int mask) const override;
   int DeleteEvent(int fd, int mask) const override;
   std::unordered_map<int, int> Poll(
       struct timespec* timeout_spec) const override;
-  ~KqueueEventApi() override;
+  ~EpollEventApi() override;
 
  private:
-  explicit KqueueEventApi(int fd, int nevents);
-  int kqueue_fd_;
+  explicit EpollEventApi(int fd, int nevents);
+  int epoll_fd_;
   int nevents_;
-  mutable std::vector<struct kevent> events_;
+  mutable std::vector<struct epoll_event> events_;
+  mutable std::unordered_map<int, int> masks_;
 };
 }  // namespace redis_simple::ae

@@ -1,5 +1,7 @@
 #include "reply_buffer.h"
 
+#include <algorithm>
+
 namespace redis_simple::in_memory {
 ReplyBuffer::ReplyBuffer()
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): contiguous byte buffer

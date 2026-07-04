@@ -2,8 +2,10 @@
 
 #include <gtest/gtest.h>
 
+#include <climits>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>

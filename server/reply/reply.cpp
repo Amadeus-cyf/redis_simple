@@ -1,6 +1,7 @@
 #include "reply.h"
 
 #include <sstream>
+#include <stdexcept>
 #include <string_view>
 
 #include "utils/float_utils.h"

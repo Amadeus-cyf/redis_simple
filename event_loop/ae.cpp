@@ -13,8 +13,15 @@
 #include <unordered_map>
 #include <utility>
 
-#include "event_loop/ae_kqueue.h"
 #include "utils/time_utils.h"
+
+#ifdef __APPLE__
+#include "event_loop/ae_kqueue.h"
+#elif defined(__linux__)
+#include "event_loop/ae_epoll.h"
+#else
+#error "Unsupported event loop platform"
+#endif
 
 namespace redis_simple::ae {
 void FileEvent::Merge(const FileEvent* file_event) {
@@ -67,17 +74,21 @@ int WaitForEvent(int fd, int mask, long timeout) {
   return result_mask;
 }
 
-EventLoop::EventLoop(std::unique_ptr<KqueueEventApi> kq)
+EventLoop::EventLoop(std::unique_ptr<EventApi> event_api)
     : file_events_(std::vector<std::unique_ptr<FileEvent>>(kEventSize)),
-      event_api_(std::move(kq)),
+      event_api_(std::move(event_api)),
       max_fd_(-1) {}
 
 std::unique_ptr<EventLoop> EventLoop::Create() {
-  auto kq = KqueueEventApi::Create(kEventSize);
-  if (!kq) {
+#ifdef __APPLE__
+  auto event_api = KqueueEventApi::Create(kEventSize);
+#elif defined(__linux__)
+  auto event_api = EpollEventApi::Create(kEventSize);
+#endif
+  if (!event_api) {
     return nullptr;
   }
-  return std::unique_ptr<EventLoop>(new EventLoop(std::move(kq)));
+  return std::unique_ptr<EventLoop>(new EventLoop(std::move(event_api)));
 }
 
 void EventLoop::Run() {

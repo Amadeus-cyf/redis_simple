@@ -2,7 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <memory>
+#include <stdexcept>
 
 namespace redis_simple::in_memory {
 namespace {
