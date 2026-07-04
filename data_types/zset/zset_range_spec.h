@@ -1,18 +1,19 @@
 #pragma once
 
-#include <sys/types.h>
-
 #include <cstddef>
 #include <memory>
+#include <optional>
 
 namespace redis_simple::zset {
 // Spec for LIMIT flag
 struct LimitSpec {
   // 0-based index
   size_t offset;
-  ssize_t count;
-  LimitSpec() : offset(0), count(0) {}
-  LimitSpec(size_t offset, ssize_t count) : offset(offset), count(count) {}
+  // Empty count means an unbounded range.
+  std::optional<size_t> count;
+  LimitSpec() : offset(0), count(std::nullopt) {}
+  LimitSpec(size_t offset, std::optional<size_t> count)
+      : offset(offset), count(count) {}
 };
 
 // Spec for range by rank

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -53,7 +54,7 @@ class Dict {
   size_t TableMask(int i) const;
   size_t HashIndex(size_t hash, int i) const;
   size_t KeyHash(const K& key) const;
-  int NextExp(ssize_t size) const;
+  int NextExp(size_t size) const;
   bool IsEqual(const K& key1, const K& key2) const;
   void SetKey(DictEntry* entry, const K& key);
   void SetVal(DictEntry* entry, const V& val);
@@ -62,7 +63,8 @@ class Dict {
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
   DictEntry* FindEntry(const K& key);
-  ssize_t KeyIndex(const K& key, size_t hash, DictEntry** existing);
+  std::optional<size_t> KeyIndex(const K& key, size_t hash,
+                                 DictEntry** existing);
   DictEntry* InsertRaw(const K& key, DictEntry** existing);
   void ExpandIfNeeded();
   bool Expand(size_t size);
@@ -544,8 +546,7 @@ size_t Dict<K, V>::KeyHash(const K& key) const {
 }
 
 template <typename K, typename V>
-int Dict<K, V>::NextExp(ssize_t size) const {
-  if (size < 0) return kTableInitExp;
+int Dict<K, V>::NextExp(size_t size) const {
   int i = 1;
   while ((1 << i) < size) ++i;
   return i;
@@ -597,10 +598,10 @@ void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
 }
 
 template <typename K, typename V>
-ssize_t Dict<K, V>::KeyIndex(const K& key, size_t hash,
-                             Dict<K, V>::DictEntry** existing) {
+std::optional<size_t> Dict<K, V>::KeyIndex(const K& key, size_t hash,
+                                           Dict<K, V>::DictEntry** existing) {
   if (existing) *existing = nullptr;
-  ssize_t idx = -1;
+  size_t idx = 0;
   for (size_t i = 0; i < tables_.size(); ++i) {
     if (tables_[i].empty()) {
       if (!IsRehashing()) {
@@ -615,7 +616,7 @@ ssize_t Dict<K, V>::KeyIndex(const K& key, size_t hash,
         if (existing) {
           *existing = entry;
         }
-        return -1;
+        return std::nullopt;
       }
       entry = entry->next;
     }
@@ -632,8 +633,8 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
   ExpandIfNeeded();
   RehashStepIfNeeded();
   size_t hash = KeyHash(key);
-  ssize_t idx = KeyIndex(key, hash, existing);
-  if (idx < 0) {
+  const auto idx = KeyIndex(key, hash, existing);
+  if (!idx.has_value()) {
     return nullptr;
   }
   int i = IsRehashing() ? 1 : 0;

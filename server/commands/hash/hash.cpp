@@ -1,8 +1,8 @@
 #include "data_types/hash/hash.h"
 
-#include <sys/types.h>
-
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -56,18 +56,18 @@ struct GetResult {
 };
 
 int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args);
-int ParseFieldArgs(const std::vector<std::string>& args,
-                   FieldArgs* field_args);
+int ParseFieldArgs(const std::vector<std::string>& args, FieldArgs* field_args);
 int ParseSetArgs(const std::vector<std::string>& args, SetArgs* set_args);
 int ParseDeleteArgs(const std::vector<std::string>& args,
                     DeleteArgs* delete_args);
 HashResult FindHash(db::RedisDb* redis_db, const std::string& key);
 HashResult FindOrCreateHash(db::RedisDb* redis_db, const std::string& key);
-std::optional<ssize_t> HSet(db::RedisDb* redis_db, const SetArgs* args);
+std::optional<int64_t> ToReplyInteger(size_t value);
+std::optional<int64_t> HSet(db::RedisDb* redis_db, const SetArgs* args);
 GetResult HGet(db::RedisDb* redis_db, const FieldArgs* args);
-std::optional<ssize_t> HDel(db::RedisDb* redis_db, const DeleteArgs* args);
-std::optional<ssize_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
-std::optional<ssize_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
+std::optional<int64_t> HDel(db::RedisDb* redis_db, const DeleteArgs* args);
+std::optional<int64_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
+std::optional<int64_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
 std::optional<std::vector<HashEntry>> HGetAll(db::RedisDb* redis_db,
                                               const KeyArgs* args);
 std::vector<std::string> EncodeEntries(const std::vector<HashEntry>& entries);
@@ -139,13 +139,20 @@ HashResult FindOrCreateHash(db::RedisDb* const redis_db,
   return {obj->Hash(), HashStatus::kOk};
 }
 
-std::optional<ssize_t> HSet(db::RedisDb* const redis_db,
+std::optional<int64_t> ToReplyInteger(size_t value) {
+  if (value > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+    return std::nullopt;
+  }
+  return static_cast<int64_t>(value);
+}
+
+std::optional<int64_t> HSet(db::RedisDb* const redis_db,
                             const SetArgs* const args) {
   const HashResult result = FindOrCreateHash(redis_db, args->key);
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  ssize_t added = 0;
+  int64_t added = 0;
   for (const auto& entry : args->entries) {
     added += result.hash->Set(entry.field, entry.value) ? 1 : 0;
   }
@@ -163,7 +170,7 @@ GetResult HGet(db::RedisDb* const redis_db, const FieldArgs* const args) {
   return {result.hash->Get(args->field), HashStatus::kOk};
 }
 
-std::optional<ssize_t> HDel(db::RedisDb* const redis_db,
+std::optional<int64_t> HDel(db::RedisDb* const redis_db,
                             const DeleteArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
@@ -172,7 +179,7 @@ std::optional<ssize_t> HDel(db::RedisDb* const redis_db,
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  ssize_t deleted = 0;
+  int64_t deleted = 0;
   for (const auto& field : args->fields) {
     deleted += result.hash->Delete(field) ? 1 : 0;
   }
@@ -182,7 +189,7 @@ std::optional<ssize_t> HDel(db::RedisDb* const redis_db,
   return deleted;
 }
 
-std::optional<ssize_t> HLen(db::RedisDb* const redis_db,
+std::optional<int64_t> HLen(db::RedisDb* const redis_db,
                             const KeyArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
@@ -191,10 +198,10 @@ std::optional<ssize_t> HLen(db::RedisDb* const redis_db,
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  return static_cast<ssize_t>(result.hash->Size());
+  return ToReplyInteger(result.hash->Size());
 }
 
-std::optional<ssize_t> HExists(db::RedisDb* const redis_db,
+std::optional<int64_t> HExists(db::RedisDb* const redis_db,
                                const FieldArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {

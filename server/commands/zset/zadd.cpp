@@ -1,4 +1,7 @@
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -18,7 +21,7 @@ struct ZAddArgs {
   std::vector<std::pair<std::string, double>> element_scores;
 };
 int ParseArgs(const std::vector<std::string>& args, ZAddArgs* zset_args);
-int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args);
+std::optional<int64_t> ZAdd(db::RedisDb* redis_db, const ZAddArgs* args);
 }  // namespace
 
 void HandleZAdd(Client* const client) {
@@ -29,12 +32,10 @@ void HandleZAdd(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    int result = ZAdd(redis_db, &args);
-    if (result < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
-      return;
-    }
-    client->AddReply(reply::FromInt64(result));
+    const auto result = ZAdd(redis_db, &args);
+    client->AddReply(result.has_value()
+                         ? reply::FromInt64(*result)
+                         : reply::FromInt64(reply::ReplyStatus::kError));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -49,7 +50,7 @@ int ParseArgs(const std::vector<std::string>& args, ZAddArgs* const zset_args) {
     return -1;
   }
   zset_args->key = args[0];
-  for (int i = 1; i < args.size() - 1; i += 2) {
+  for (size_t i = 1; i < args.size() - 1; i += 2) {
     const std::string& element = args[i + 1];
     double score = 0.0;
     try {
@@ -63,26 +64,26 @@ int ParseArgs(const std::vector<std::string>& args, ZAddArgs* const zset_args) {
   return 0;
 }
 
-int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
+std::optional<int64_t> ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
   if (redis_db == nullptr || args == nullptr) {
-    return -1;
+    return std::nullopt;
   }
   const auto* obj = redis_db->LookupKey(args->key);
   if ((obj != nullptr) && obj->Type() != db::RedisObject::ObjectType::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
-    return -1;
+    return std::nullopt;
   }
   if (obj == nullptr) {
     auto new_obj = db::RedisObject::CreateWithZSet(ZSet::Create());
     obj = new_obj.get();
     const auto status = redis_db->SetKey(args->key, std::move(new_obj), 0);
     if (status == db::DbStatus::kError) {
-      return -1;
+      return std::nullopt;
     }
   }
   try {
     auto* zset = obj->ZSet();
-    int added = 0;
+    int64_t added = 0;
     for (const auto& element_score : args->element_scores) {
       const std::string& element = element_score.first;
       const double score = element_score.second;
@@ -91,7 +92,7 @@ int ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
     return added;
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
-    return -1;
+    return std::nullopt;
   }
 }
 }  // namespace

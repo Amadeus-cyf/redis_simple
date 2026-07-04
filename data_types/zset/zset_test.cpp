@@ -1,6 +1,7 @@
 #include "data_types/zset/zset.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "gtest/gtest.h"
@@ -23,7 +24,7 @@ TEST(ZSetTest, InsertAndConvert) {
   spec.max = 255;
   spec.minex = false;
   spec.maxex = false;
-  spec.limit = std::make_unique<LimitSpec>(0, -1);
+  spec.limit = std::make_unique<LimitSpec>(0, std::nullopt);
   spec.reverse = false;
   const auto entries = zset->RangeByRank(&spec);
   ASSERT_EQ(entries.size(), 256);

@@ -70,6 +70,7 @@ int Run() {
       {"ZREM missing_zset ele1 ele2\r\n", "0\n"},
       {"ZRANGE integration_zset 0 1 WTHSCORES\r\n", "-1\n"},
       {"ZRANGE integration_zset 0 1 LIMIT 0\r\n", "-1\n"},
+      {"ZRANGE integration_zset 0 1 LIMIT -1 1\r\n", "-1\n"},
   };
   for (const Case& test_case : cases) {
     if (!ExpectReply(&cli, test_case)) {
@@ -78,6 +79,10 @@ int Run() {
   }
 
   if (!ExpectMembers(&cli, "ZRANGE integration_zset 0 1\r\n",
+                     {"ele1", "ele2"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "ZRANGE integration_zset 0 1 LIMIT 0 -1\r\n",
                      {"ele1", "ele2"})) {
     return EXIT_FAILURE;
   }

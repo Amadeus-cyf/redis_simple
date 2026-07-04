@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <limits>
+#include <optional>
 
 #include "memory/listpack.h"
 #include "utils/float_utils.h"
@@ -156,8 +157,9 @@ double ZSetListPack::ScoreAt(size_t idx) {
 }
 
 ZSetEntryList ZSetListPack::RangeByRankUtil(const RangeByRankSpec* spec) const {
-  ssize_t count = spec->limit ? spec->limit->count : -1;
-  if (count == 0) {
+  const std::optional<size_t> count =
+      spec->limit ? spec->limit->count : std::nullopt;
+  if (count.has_value() && *count == 0) {
     return {};
   }
   ssize_t idx = listpack_->First();
@@ -173,7 +175,7 @@ ZSetEntryList ZSetListPack::RangeByRankUtil(const RangeByRankSpec* spec) const {
       const auto opt_score = listpack_->Get(score_idx);
       if (opt_key.has_value() && opt_score.has_value() && rank >= offset) {
         keys.push_back(AddRangeResult(*opt_key, std::stod(*opt_score)));
-        if (count >= 0 && keys.size() >= count) {
+        if (count.has_value() && keys.size() >= *count) {
           break;
         }
       }
@@ -190,8 +192,9 @@ ZSetEntryList ZSetListPack::RangeByRankUtil(const RangeByRankSpec* spec) const {
 
 ZSetEntryList ZSetListPack::RevRangeByRankUtil(
     const RangeByRankSpec* spec) const {
-  ssize_t count = spec->limit ? spec->limit->count : -1;
-  if (count == 0) {
+  const std::optional<size_t> count =
+      spec->limit ? spec->limit->count : std::nullopt;
+  if (count.has_value() && *count == 0) {
     return {};
   }
   ssize_t idx = listpack_->Last();
@@ -207,7 +210,7 @@ ZSetEntryList ZSetListPack::RevRangeByRankUtil(
       const auto opt_key = listpack_->Get(key_idx);
       if (opt_key.has_value() && opt_score.has_value() && rank >= offset) {
         keys.push_back(AddRangeResult(*opt_key, std::stod(*opt_score)));
-        if (count >= 0 && keys.size() >= count) {
+        if (count.has_value() && keys.size() >= *count) {
           break;
         }
       }
@@ -224,8 +227,9 @@ ZSetEntryList ZSetListPack::RevRangeByRankUtil(
 
 ZSetEntryList ZSetListPack::RangeByScoreUtil(
     const RangeByScoreSpec* spec) const {
-  ssize_t count = spec->limit ? spec->limit->count : -1;
-  if (count == 0) {
+  const std::optional<size_t> count =
+      spec->limit ? spec->limit->count : std::nullopt;
+  if (count.has_value() && *count == 0) {
     return {};
   }
   ssize_t key_idx = FindKeyGreaterOrEqual(spec);
@@ -243,7 +247,7 @@ ZSetEntryList ZSetListPack::RangeByScoreUtil(
       if (key_opt.has_value()) {
         double score = std::stod(*score_opt);
         keys.push_back(AddRangeResult(*key_opt, score));
-        if (count >= 0 && keys.size() == count) {
+        if (count.has_value() && keys.size() == *count) {
           break;
         }
       }
@@ -260,8 +264,9 @@ ZSetEntryList ZSetListPack::RangeByScoreUtil(
 
 ZSetEntryList ZSetListPack::RevRangeByScoreUtil(
     const RangeByScoreSpec* spec) const {
-  ssize_t count = spec->limit ? spec->limit->count : -1;
-  if (count == 0) {
+  const std::optional<size_t> count =
+      spec->limit ? spec->limit->count : std::nullopt;
+  if (count.has_value() && *count == 0) {
     return {};
   }
   ssize_t key_idx = FindKeyLessOrEqual(spec);
@@ -279,7 +284,7 @@ ZSetEntryList ZSetListPack::RevRangeByScoreUtil(
       if (key_opt.has_value()) {
         double score = std::stod(*score_opt);
         keys.push_back(AddRangeResult(*key_opt, score));
-        if (count >= 0 && keys.size() == count) {
+        if (count.has_value() && keys.size() == *count) {
           break;
         }
       }

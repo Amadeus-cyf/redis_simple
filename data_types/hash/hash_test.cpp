@@ -81,13 +81,11 @@ TEST(HashEncodingTest, ConvertsToDictWhenFieldOrValueIsLong) {
 
   const std::vector<Hash::Entry> entries = hash->Entries();
   const auto field_entry =
-      std::find_if(entries.begin(), entries.end(), [](const auto& entry) {
-        return entry.field == "field";
-      });
-  const auto long_field_entry =
-      std::find_if(entries.begin(), entries.end(), [&](const auto& entry) {
-        return entry.field == long_field;
-      });
+      std::find_if(entries.begin(), entries.end(),
+                   [](const auto& entry) { return entry.field == "field"; });
+  const auto long_field_entry = std::find_if(
+      entries.begin(), entries.end(),
+      [&](const auto& entry) { return entry.field == long_field; });
 
   ASSERT_EQ(entries.size(), 2);
   ASSERT_NE(field_entry, entries.end());
@@ -100,8 +98,8 @@ TEST(HashEncodingTest, ConvertsToDictWhenEntryCountExceedsLimit) {
   auto hash = Hash::Create();
 
   for (int i = 0; i < 129; ++i) {
-    EXPECT_TRUE(hash->Set("field" + std::to_string(i),
-                          "value" + std::to_string(i)));
+    EXPECT_TRUE(
+        hash->Set("field" + std::to_string(i), "value" + std::to_string(i)));
   }
 
   EXPECT_EQ(hash->Encoding(), Hash::Encoding::kDict);

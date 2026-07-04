@@ -1,3 +1,5 @@
+#include <cstdint>
+#include <optional>
 #include <string>
 
 #include "server/client.h"
@@ -13,7 +15,8 @@ struct SIsMemberArgs {
 };
 int ParseArgs(const std::vector<std::string>& args,
               SIsMemberArgs* sismember_args);
-int SIsMember(db::RedisDb* redis_db, const SIsMemberArgs* args);
+std::optional<int64_t> SIsMember(db::RedisDb* redis_db,
+                                 const SIsMemberArgs* args);
 }  // namespace
 
 void HandleSIsMember(Client* const client) {
@@ -24,12 +27,10 @@ void HandleSIsMember(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    int result = SIsMember(redis_db, &args);
-    if (result < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
-      return;
-    }
-    client->AddReply(reply::FromInt64(result));
+    const auto result = SIsMember(redis_db, &args);
+    client->AddReply(result.has_value()
+                         ? reply::FromInt64(*result)
+                         : reply::FromInt64(reply::ReplyStatus::kError));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -49,20 +50,21 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SIsMember(db::RedisDb* redis_db, const SIsMemberArgs* args) {
+std::optional<int64_t> SIsMember(db::RedisDb* redis_db,
+                                 const SIsMemberArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }
   if (obj->Type() != db::RedisObject::ObjectType::kSet) {
-    return -1;
+    return std::nullopt;
   }
   try {
     const auto* set = obj->Set();
     return set->HasMember(args->element) ? 1 : 0;
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
-    return -1;
+    return std::nullopt;
   }
 }
 }  // namespace

@@ -1,11 +1,39 @@
 #include "data_types/hash/hash.h"
 
+#include <sys/types.h>
+
 #include <cassert>
+#include <cstddef>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
 namespace redis_simple::hash {
+namespace {
+constexpr size_t kListPackMaxEntries = 128;
+constexpr size_t kListPackMaxElementLength = 64;
+
+bool CanStoreInListPack(const std::string& field, const std::string& value) {
+  return field.size() <= kListPackMaxElementLength &&
+         value.size() <= kListPackMaxElementLength;
+}
+
+std::optional<size_t> ToListPackIndex(ssize_t index) {
+  return index < 0 ? std::nullopt
+                   : std::optional<size_t>(static_cast<size_t>(index));
+}
+
+std::optional<size_t> FirstIndex(const in_memory::ListPack* const listpack) {
+  return ToListPackIndex(listpack->First());
+}
+
+std::optional<size_t> NextIndex(const in_memory::ListPack* const listpack,
+                                size_t index) {
+  return ToListPackIndex(listpack->Next(index));
+}
+}  // namespace
+
 Hash::Hash()
     : encoding_(Encoding::kListPack),
       listpack_(std::make_unique<in_memory::ListPack>()),
@@ -27,12 +55,11 @@ std::optional<std::string> Hash::Get(const std::string& field) const {
     if (!field_idx.has_value()) {
       return std::nullopt;
     }
-    const ssize_t value_idx =
-        listpack_->Next(static_cast<size_t>(*field_idx));
-    if (value_idx < 0) {
+    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
+    if (!value_idx.has_value()) {
       return std::nullopt;
     }
-    return listpack_->Get(static_cast<size_t>(value_idx));
+    return listpack_->Get(*value_idx);
   }
   if (encoding_ == Encoding::kDict) {
     const auto* value = dict_->FindValue(field);
@@ -88,12 +115,6 @@ std::vector<Hash::Entry> Hash::Entries() const {
   throw std::invalid_argument("unknown hash encoding type");
 }
 
-bool Hash::CanStoreInListPack(const std::string& field,
-                              const std::string& value) {
-  return field.size() <= kListPackMaxElementLength &&
-         value.size() <= kListPackMaxElementLength;
-}
-
 bool Hash::CanAppendToListPack(const std::string& field,
                                const std::string& value) const {
   return Size() < kListPackMaxEntries && CanStoreInListPack(field, value) &&
@@ -110,12 +131,11 @@ bool Hash::SetListPack(const std::string& field, const std::string& value) {
       SetDict(field, value);
       return false;
     }
-    const ssize_t value_idx =
-        listpack_->Next(static_cast<size_t>(*field_idx));
-    if (value_idx < 0) {
+    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
+    if (!value_idx.has_value()) {
       return false;
     }
-    listpack_->Replace(static_cast<size_t>(value_idx), value);
+    listpack_->Replace(*value_idx, value);
     return false;
   }
 
@@ -154,35 +174,34 @@ void Hash::ConvertListPackToDict(size_t capacity) {
   if (listpack_ == nullptr) {
     return;
   }
-  ssize_t field_idx = listpack_->First();
-  while (field_idx != -1) {
-    const ssize_t value_idx = listpack_->Next(static_cast<size_t>(field_idx));
-    if (value_idx < 0) {
+  auto field_idx = FirstIndex(listpack_.get());
+  while (field_idx.has_value()) {
+    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
+    if (!value_idx.has_value()) {
       break;
     }
-    auto field = listpack_->Get(static_cast<size_t>(field_idx));
-    auto value = listpack_->Get(static_cast<size_t>(value_idx));
+    auto field = listpack_->Get(*field_idx);
+    auto value = listpack_->Get(*value_idx);
     if (field.has_value() && value.has_value()) {
       dict_->Set(*field, *value);
     }
-    field_idx = listpack_->Next(static_cast<size_t>(value_idx));
+    field_idx = NextIndex(listpack_.get(), *value_idx);
   }
   listpack_.reset();
 }
 
-std::optional<ssize_t> Hash::FindListPackField(
-    const std::string& field) const {
+std::optional<size_t> Hash::FindListPackField(const std::string& field) const {
   assert(encoding_ == Encoding::kListPack);
-  ssize_t idx = listpack_->First();
+  auto idx = FirstIndex(listpack_.get());
   bool is_field = true;
-  while (idx != -1) {
+  while (idx.has_value()) {
     if (is_field) {
-      const auto value = listpack_->Get(static_cast<size_t>(idx));
+      const auto value = listpack_->Get(*idx);
       if (value.has_value() && *value == field) {
         return idx;
       }
     }
-    idx = listpack_->Next(static_cast<size_t>(idx));
+    idx = NextIndex(listpack_.get(), *idx);
     is_field = !is_field;
   }
   return std::nullopt;
@@ -191,18 +210,18 @@ std::optional<ssize_t> Hash::FindListPackField(
 std::vector<Hash::Entry> Hash::ListPackEntries() const {
   std::vector<Entry> entries;
   entries.reserve(Size());
-  ssize_t field_idx = listpack_->First();
-  while (field_idx != -1) {
-    const ssize_t value_idx = listpack_->Next(static_cast<size_t>(field_idx));
-    if (value_idx < 0) {
+  auto field_idx = FirstIndex(listpack_.get());
+  while (field_idx.has_value()) {
+    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
+    if (!value_idx.has_value()) {
       break;
     }
-    auto field = listpack_->Get(static_cast<size_t>(field_idx));
-    auto value = listpack_->Get(static_cast<size_t>(value_idx));
+    auto field = listpack_->Get(*field_idx);
+    auto value = listpack_->Get(*value_idx);
     if (field.has_value() && value.has_value()) {
       entries.push_back({std::move(*field), std::move(*value)});
     }
-    field_idx = listpack_->Next(static_cast<size_t>(value_idx));
+    field_idx = NextIndex(listpack_.get(), *value_idx);
   }
   return entries;
 }

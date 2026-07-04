@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sys/types.h>
-
 #include <cstddef>
 #include <memory>
 #include <optional>
@@ -37,18 +35,13 @@ class Hash {
   Encoding Encoding() const { return encoding_; }
 
  private:
-  static constexpr size_t kListPackMaxEntries = 128;
-  static constexpr size_t kListPackMaxElementLength = 64;
-
   Hash();
-  static bool CanStoreInListPack(const std::string& field,
-                                 const std::string& value);
   bool CanAppendToListPack(const std::string& field,
                            const std::string& value) const;
   bool SetListPack(const std::string& field, const std::string& value);
   bool SetDict(const std::string& field, const std::string& value);
   void ConvertListPackToDict(size_t capacity);
-  std::optional<ssize_t> FindListPackField(const std::string& field) const;
+  std::optional<size_t> FindListPackField(const std::string& field) const;
   std::vector<Entry> ListPackEntries() const;
   std::vector<Entry> DictEntries() const;
 

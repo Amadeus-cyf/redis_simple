@@ -1,4 +1,7 @@
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "server/client.h"
@@ -12,7 +15,8 @@ struct ZCardArgs {
   std::string key;
 };
 int ParseArgs(const std::vector<std::string>& args, ZCardArgs* zcard_args);
-ssize_t ZCard(db::RedisDb* redis_db, const ZCardArgs* args);
+std::optional<int64_t> ToReplyInteger(size_t value);
+std::optional<int64_t> ZCard(db::RedisDb* redis_db, const ZCardArgs* args);
 }  // namespace
 
 void HandleZCard(Client* const client) {
@@ -23,12 +27,10 @@ void HandleZCard(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    ssize_t result = ZCard(redis_db, &args);
-    if (result < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
-      return;
-    }
-    client->AddReply(reply::FromInt64(result));
+    const auto result = ZCard(redis_db, &args);
+    client->AddReply(result.has_value()
+                         ? reply::FromInt64(*result)
+                         : reply::FromInt64(reply::ReplyStatus::kError));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
@@ -47,24 +49,27 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-ssize_t ZCard(db::RedisDb* redis_db, const ZCardArgs* args) {
+std::optional<int64_t> ToReplyInteger(size_t value) {
+  if (value > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+    return std::nullopt;
+  }
+  return static_cast<int64_t>(value);
+}
+
+std::optional<int64_t> ZCard(db::RedisDb* redis_db, const ZCardArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }
   if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
-    return -1;
+    return std::nullopt;
   }
   try {
     const auto* zset = obj->ZSet();
-    const size_t size = zset->Size();
-    if (size > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
-      return -1;
-    }
-    return static_cast<ssize_t>(size);
+    return ToReplyInteger(zset->Size());
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
-    return -1;
+    return std::nullopt;
   }
 }
 }  // namespace

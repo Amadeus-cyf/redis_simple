@@ -97,9 +97,7 @@ int Run() {
   }
 
   if (!ExpectPairs(&cli, "HGETALL integration_hash\r\n",
-                   {{"name", "redis"},
-                    {"version", "8"},
-                    {"mode", "simple"}})) {
+                   {{"name", "redis"}, {"version", "8"}, {"mode", "simple"}})) {
     return EXIT_FAILURE;
   }
   if (!ExpectPairs(&cli, "HGETALL missing_hash\r\n", {})) {
@@ -107,13 +105,13 @@ int Run() {
   }
 
   const std::string long_value(65, 'v');
-  if (!ExpectReply(&cli, {"HSET integration_hash_long field " + long_value +
-                              "\r\n",
-                          "1\n"})) {
+  if (!ExpectReply(
+          &cli,
+          {"HSET integration_hash_long field " + long_value + "\r\n", "1\n"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectReply(&cli,
-                   {"HGET integration_hash_long field\r\n", long_value + "\n"})) {
+  if (!ExpectReply(
+          &cli, {"HGET integration_hash_long field\r\n", long_value + "\n"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectPairs(&cli, "HGETALL integration_hash_long\r\n",

@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -21,7 +22,7 @@ struct RangeByRankSpecTestCase {
 struct RangeByKeySpecTestCase {
   RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec spec,
                          std::vector<std::string> keys,
-                         std::vector<std::string> revkeys, ssize_t count)
+                         std::vector<std::string> revkeys, size_t count)
       : spec(std::move(spec)),
         keys(std::move(keys)),
         revkeys(std::move(revkeys)),
@@ -31,7 +32,7 @@ struct RangeByKeySpecTestCase {
   std::vector<std::string> revkeys;
   // The value used for testing Skiplist.Count(), the result is not related to
   // SkiplistLimitSpec
-  ssize_t count;
+  size_t count;
 };
 
 std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases();
@@ -206,13 +207,15 @@ TEST(SkiplistTest, Count) {
 
 std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
   static auto limit1 =
-      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, -1);
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0,
+                                                                 std::nullopt);
   static auto limit2 =
       std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, 2);
   static auto limit3 =
       std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(2, 3);
   static auto limit4 =
-      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(10, -1);
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(10,
+                                                                 std::nullopt);
 
   return {
       RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec(
@@ -254,13 +257,15 @@ std::vector<RangeByRankSpecTestCase> RangeByRankSpecTestCases() {
 
 std::vector<RangeByKeySpecTestCase> RangeByKeySpecTestCases() {
   static auto limit1 =
-      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, -1);
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0,
+                                                                 std::nullopt);
   static auto limit2 =
       std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(0, 2);
   static auto limit3 =
       std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(2, 3);
   static auto limit4 =
-      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(10, -1);
+      std::make_unique<Skiplist<std::string>::SkiplistLimitSpec>(10,
+                                                                 std::nullopt);
 
   return {
       RangeByKeySpecTestCase(Skiplist<std::string>::SkiplistRangeByKeySpec(

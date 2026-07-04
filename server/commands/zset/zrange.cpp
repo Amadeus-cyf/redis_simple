@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -51,7 +52,7 @@ int RangeByScore(Client* client, const std::vector<std::string>& args,
 bool FlaggedByScore(const std::vector<std::string>& args) {
   // The command parser stores args as key/start/end/options, so options begin
   // after the first three entries.
-  for (int i = 3; i < args.size(); ++i) {
+  for (size_t i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagByScore) {
@@ -213,7 +214,7 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
                              const std::unique_ptr<LimitSpec>& spec) {
   // LIMIT is optional; when absent, the zset implementation uses an unbounded
   // range.
-  int i = 3;
+  size_t i = 3;
   for (; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
@@ -222,28 +223,37 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
     }
   }
   if (i == args.size()) {
-    spec->offset = 0, spec->count = -1;
+    spec->offset = 0;
+    spec->count = std::nullopt;
     return 0;
   }
   if (i + 2 >= args.size()) {
     return -1;
   }
+  long offset = 0;
+  long count = 0;
   try {
-    spec->offset = std::stol(args[i + 1]);
+    offset = std::stol(args[i + 1]);
   } catch (const std::exception&) {
     return -1;
   }
   try {
-    spec->count = std::stol(args[i + 2]);
+    count = std::stol(args[i + 2]);
   } catch (const std::exception&) {
     return -1;
   }
+  if (offset < 0) {
+    return -1;
+  }
+  spec->offset = static_cast<size_t>(offset);
+  spec->count = count < 0 ? std::nullopt
+                          : std::optional<size_t>(static_cast<size_t>(count));
   return 0;
 }
 
 bool IsReverse(const std::vector<std::string>& args) {
   // REV is an option token, so it can appear after key/start/end.
-  for (int i = 3; i < args.size(); ++i) {
+  for (size_t i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagReverse) {
@@ -254,7 +264,7 @@ bool IsReverse(const std::vector<std::string>& args) {
 }
 
 bool IsWithScores(const std::vector<std::string>& args) {
-  for (int i = 3; i < args.size(); ++i) {
+  for (size_t i = 3; i < args.size(); ++i) {
     std::string upper = args[i];
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagWithScores) {

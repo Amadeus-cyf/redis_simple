@@ -1,9 +1,9 @@
 #include "data_types/list/list.h"
 
-#include <sys/types.h>
-
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -70,9 +70,11 @@ ListResult FindOrCreateList(db::RedisDb* redis_db, const std::string& key);
 std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
                                                         int64_t stop,
                                                         size_t size);
-ssize_t Push(db::RedisDb* redis_db, const PushArgs* args, PushSide side);
+std::optional<int64_t> ToReplyInteger(size_t value);
+std::optional<int64_t> Push(db::RedisDb* redis_db, const PushArgs* args,
+                            PushSide side);
 PopResult Pop(db::RedisDb* redis_db, const KeyArgs* args, PopSide side);
-std::optional<ssize_t> LLen(db::RedisDb* redis_db, const KeyArgs* args);
+std::optional<int64_t> LLen(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<std::vector<std::string>> LRange(db::RedisDb* redis_db,
                                                const RangeArgs* args);
 
@@ -154,20 +156,27 @@ std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
                                    static_cast<size_t>(stop));
 }
 
-ssize_t Push(db::RedisDb* const redis_db, const PushArgs* const args,
-             PushSide side) {
+std::optional<int64_t> ToReplyInteger(size_t value) {
+  if (value > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+    return std::nullopt;
+  }
+  return static_cast<int64_t>(value);
+}
+
+std::optional<int64_t> Push(db::RedisDb* const redis_db,
+                            const PushArgs* const args, PushSide side) {
   const ListResult result = FindOrCreateList(redis_db, args->key);
   if (result.status != ListStatus::kOk) {
-    return -1;
+    return std::nullopt;
   }
   for (const auto& value : args->values) {
     const bool pushed = side == PushSide::kLeft ? result.list->LPush(value)
                                                 : result.list->RPush(value);
     if (!pushed) {
-      return -1;
+      return std::nullopt;
     }
   }
-  return static_cast<ssize_t>(result.list->Size());
+  return ToReplyInteger(result.list->Size());
 }
 
 PopResult Pop(db::RedisDb* const redis_db, const KeyArgs* const args,
@@ -187,7 +196,7 @@ PopResult Pop(db::RedisDb* const redis_db, const KeyArgs* const args,
   return {value, ListStatus::kOk};
 }
 
-std::optional<ssize_t> LLen(db::RedisDb* const redis_db,
+std::optional<int64_t> LLen(db::RedisDb* const redis_db,
                             const KeyArgs* const args) {
   const ListResult result = FindList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
@@ -196,7 +205,7 @@ std::optional<ssize_t> LLen(db::RedisDb* const redis_db,
   if (result.status != ListStatus::kOk) {
     return std::nullopt;
   }
-  return static_cast<ssize_t>(result.list->Size());
+  return ToReplyInteger(result.list->Size());
 }
 
 std::optional<std::vector<std::string>> LRange(db::RedisDb* const redis_db,
@@ -224,9 +233,10 @@ void HandlePush(Client* const client, PushSide side) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const ssize_t result = Push(redis_db, &args, side);
-    client->AddReply(result < 0 ? reply::FromInt64(reply::ReplyStatus::kError)
-                                : reply::FromInt64(result));
+    const auto result = Push(redis_db, &args, side);
+    client->AddReply(result.has_value()
+                         ? reply::FromInt64(*result)
+                         : reply::FromInt64(reply::ReplyStatus::kError));
     return;
   }
   client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
