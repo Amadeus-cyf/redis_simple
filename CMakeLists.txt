@@ -134,6 +134,8 @@ redis_simple_add_gtest_suite(IntUtilsTest)
 redis_simple_add_gtest_suite(ListTest)
 redis_simple_add_gtest_suite(ListEncodingTest)
 redis_simple_add_gtest_suite(SetTest)
+redis_simple_add_gtest_suite(HashTest)
+redis_simple_add_gtest_suite(HashEncodingTest)
 redis_simple_add_gtest_suite(ZSetListPackTest)
 redis_simple_add_gtest_suite(ZSetSkiplistTest)
 redis_simple_add_gtest_suite(ZSetSkiplistStandaloneTest)
@@ -184,6 +186,12 @@ redis_simple_add_executable(
   "integration/commands/zset/client_test.cpp"
 )
 target_link_libraries(mock_zset_client PRIVATE redis_simple_cli)
+
+redis_simple_add_executable(
+  mock_hash_client
+  "integration/commands/hash/client_test.cpp"
+)
+target_link_libraries(mock_hash_client PRIVATE redis_simple_cli)
 
 add_test(
   NAME redis_simple_integration_tcp
@@ -239,6 +247,15 @@ add_test(
     $<TARGET_FILE:mock_zset_client>
 )
 
+add_test(
+  NAME redis_simple_integration_command_hash
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
+    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:mock_hash_client>
+)
+
 set_tests_properties(
   redis_simple_integration_tcp
   redis_simple_integration_command_key
@@ -246,6 +263,7 @@ set_tests_properties(
   redis_simple_integration_command_set
   redis_simple_integration_command_list
   redis_simple_integration_command_zset
+  redis_simple_integration_command_hash
   PROPERTIES
     LABELS integration
     RESOURCE_LOCK redis_simple_port_8080

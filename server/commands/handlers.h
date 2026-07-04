@@ -40,3 +40,12 @@ void HandleZRank(Client* client);
 void HandleZRem(Client* client);
 void HandleZScore(Client* client);
 }  // namespace redis_simple::command::zsets
+
+namespace redis_simple::command::hashes {
+void HandleHDel(Client* client);
+void HandleHExists(Client* client);
+void HandleHGet(Client* client);
+void HandleHGetAll(Client* client);
+void HandleHLen(Client* client);
+void HandleHSet(Client* client);
+}  // namespace redis_simple::command::hashes

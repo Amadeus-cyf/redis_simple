@@ -36,6 +36,8 @@ std::string ObjectTypeName(const db::RedisObject* const object) {
       return "list";
     case db::RedisObject::ObjectType::kZSet:
       return "zset";
+    case db::RedisObject::ObjectType::kHash:
+      return "hash";
   }
   return "none";
 }

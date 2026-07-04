@@ -306,6 +306,12 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::FindEntry(const K& key) {
   RehashStepIfNeeded();
   size_t hash = KeyHash(key);
   for (size_t i = 0; i < tables_.size(); ++i) {
+    if (tables_[i].empty()) {
+      if (!IsRehashing()) {
+        break;
+      }
+      continue;
+    }
     size_t idx = HashIndex(hash, i);
     DictEntry* entry = tables_[i][idx];
     while (entry) {
@@ -481,6 +487,12 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
   RehashStepIfNeeded();
   size_t hash = KeyHash(key);
   for (size_t i = 0; i < tables_.size(); ++i) {
+    if (tables_[i].empty()) {
+      if (!IsRehashing()) {
+        break;
+      }
+      continue;
+    }
     size_t idx = HashIndex(hash, i);
     DictEntry *entry = tables_[i][idx], *prev = nullptr;
     while (entry) {
@@ -590,6 +602,12 @@ ssize_t Dict<K, V>::KeyIndex(const K& key, size_t hash,
   if (existing) *existing = nullptr;
   ssize_t idx = -1;
   for (size_t i = 0; i < tables_.size(); ++i) {
+    if (tables_[i].empty()) {
+      if (!IsRehashing()) {
+        break;
+      }
+      continue;
+    }
     idx = HashIndex(hash, i);
     DictEntry* entry = tables_[i][idx];
     while (entry) {
@@ -628,8 +646,9 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
 
 template <typename K, typename V>
 void Dict<K, V>::ExpandIfNeeded() {
-  if ((double)table_used_[0] / TableSize(table_size_exp_[0]) >=
-      kDictForceResizeRatio) {
+  const size_t table_size = TableSize(table_size_exp_[0]);
+  if (table_size == 0 || static_cast<double>(table_used_[0]) / table_size >=
+                             kDictForceResizeRatio) {
     Expand(table_used_[0] + 1);
   }
 }

@@ -28,4 +28,11 @@ zset::ZSet* RedisObject::ZSet() const {
   }
   return std::get<ZSetPtr>(value_).get();
 }
+
+hash::Hash* RedisObject::Hash() const {
+  if (type_ != ObjectType::kHash) {
+    throw std::invalid_argument("value type is not hash");
+  }
+  return std::get<HashPtr>(value_).get();
+}
 }  // namespace redis_simple::db

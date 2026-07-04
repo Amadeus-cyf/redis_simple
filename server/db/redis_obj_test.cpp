@@ -11,6 +11,7 @@ TEST(RedisObjectTest, StringObjectExposesStringValue) {
   EXPECT_THROW(object->Set(), std::invalid_argument);
   EXPECT_THROW(object->List(), std::invalid_argument);
   EXPECT_THROW(object->ZSet(), std::invalid_argument);
+  EXPECT_THROW(object->Hash(), std::invalid_argument);
 }
 
 TEST(RedisObjectTest, CollectionObjectsExposeTypedStorage) {
@@ -28,5 +29,10 @@ TEST(RedisObjectTest, CollectionObjectsExposeTypedStorage) {
   EXPECT_EQ(zset_object->Type(), RedisObject::ObjectType::kZSet);
   ASSERT_NE(zset_object->ZSet(), nullptr);
   EXPECT_THROW(zset_object->List(), std::invalid_argument);
+
+  const auto hash_object = RedisObject::CreateWithHash(hash::Hash::Create());
+  EXPECT_EQ(hash_object->Type(), RedisObject::ObjectType::kHash);
+  ASSERT_NE(hash_object->Hash(), nullptr);
+  EXPECT_THROW(hash_object->ZSet(), std::invalid_argument);
 }
 }  // namespace redis_simple::db

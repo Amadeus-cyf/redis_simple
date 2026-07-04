@@ -5,6 +5,7 @@
 #include <utility>
 #include <variant>
 
+#include "data_types/hash/hash.h"
 #include "data_types/list/list.h"
 #include "data_types/set/set.h"
 #include "data_types/zset/zset.h"
@@ -15,7 +16,8 @@ class RedisObject {
   using SetPtr = std::unique_ptr<set::Set>;
   using ListPtr = std::unique_ptr<list::List>;
   using ZSetPtr = std::unique_ptr<zset::ZSet>;
-  using Value = std::variant<std::string, SetPtr, ListPtr, ZSetPtr>;
+  using HashPtr = std::unique_ptr<hash::Hash>;
+  using Value = std::variant<std::string, SetPtr, ListPtr, ZSetPtr, HashPtr>;
 
  public:
   enum class ObjectType {
@@ -23,6 +25,7 @@ class RedisObject {
     kSet = 2,
     kList = 3,
     kZSet = 4,
+    kHash = 5,
   };
 
   static std::unique_ptr<RedisObject> CreateWithString(
@@ -41,6 +44,10 @@ class RedisObject {
       std::unique_ptr<zset::ZSet> zset) {
     return Create(ObjectType::kZSet, Value(std::move(zset)));
   }
+  static std::unique_ptr<RedisObject> CreateWithHash(
+      std::unique_ptr<hash::Hash> hash) {
+    return Create(ObjectType::kHash, Value(std::move(hash)));
+  }
   static std::unique_ptr<RedisObject> Create(ObjectType type, Value value) {
     return std::unique_ptr<RedisObject>(
         new RedisObject(type, std::move(value)));
@@ -49,6 +56,7 @@ class RedisObject {
   set::Set* Set() const;
   list::List* List() const;
   zset::ZSet* ZSet() const;
+  hash::Hash* Hash() const;
   ObjectType Type() const { return type_; }
 
  private:

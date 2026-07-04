@@ -123,5 +123,9 @@ TEST(DictIntTest, Clear) {
   const auto result = dict_int->Get(96);
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result, std::nullopt);
+
+  ASSERT_TRUE(dict_int->Insert(1, 10));
+  ASSERT_EQ(dict_int->Size(), 1);
+  ASSERT_EQ(dict_int->Get(1), 10);
 }
 }  // namespace redis_simple::in_memory

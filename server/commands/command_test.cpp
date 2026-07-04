@@ -13,6 +13,11 @@ TEST(CommandRegistryTest, FindsCommandsCaseInsensitively) {
   ASSERT_NE(zrange, nullptr);
   EXPECT_STREQ(zrange->name, "ZRANGE");
   EXPECT_NE(zrange->callback, nullptr);
+
+  const auto* hset = Find("hset");
+  ASSERT_NE(hset, nullptr);
+  EXPECT_STREQ(hset->name, "HSET");
+  EXPECT_NE(hset->callback, nullptr);
 }
 
 TEST(CommandRegistryTest, ReturnsNullForUnknownCommand) {

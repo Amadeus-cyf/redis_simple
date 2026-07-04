@@ -68,6 +68,7 @@ This runs:
 - `redis_simple_integration_command_list`: list command integration checks.
 - `redis_simple_integration_command_zset`: sorted-set command integration
   checks.
+- `redis_simple_integration_command_hash`: hash command integration checks.
 
 For debugging a single executable directly:
 
@@ -106,7 +107,7 @@ logging/             Project logging wrapper
 memory/              Core in-memory data structures
 scripts/             Project automation and CTest runner scripts
 server/              Server, client connection glue, commands, replies, DB
-data_types/          Redis list, set, and sorted-set implementations
+data_types/          Redis hash, list, set, and sorted-set implementations
 tcp/                 TCP helpers
 utils/               Small shared utilities
 benchmarks/          Memory/data-structure benchmarks
