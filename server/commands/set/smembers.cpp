@@ -21,27 +21,27 @@ int SMembers(db::RedisDb* redis_db, const SMembersArgs* args,
 void HandleSMembers(Client* const client) {
   SMembersArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
     std::vector<std::string> members;
     if (SMembers(redis_db, &args, members) < 0) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+      client->AddReply(reply::WrongTypeError());
       return;
     }
     auto to_string = [](const std::string& member) { return member; };
     const auto result =
         reply_utils::EncodeList<std::string, to_string>(members);
     if (!result.has_value()) {
-      client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+      client->AddReply(reply::FromError("ERR smembers encode failed"));
       return;
     }
     client->AddReply(*result);
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 

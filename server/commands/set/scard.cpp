@@ -22,18 +22,17 @@ std::optional<int64_t> SCard(db::RedisDb* redis_db, const SCardArgs* args);
 void HandleSCard(Client* const client) {
   SCardArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
     const auto result = SCard(redis_db, &args);
-    client->AddReply(result.has_value()
-                         ? reply::FromInt64(*result)
-                         : reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(result.has_value() ? reply::FromInt64(*result)
+                                        : reply::WrongTypeError());
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 

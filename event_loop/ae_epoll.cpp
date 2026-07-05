@@ -42,19 +42,19 @@ int ToTimeoutMilliseconds(const struct timespec* const timeout_spec) {
 }
 }  // namespace
 
-EpollEventApi::EpollEventApi(int fd, int nevents)
+EpollPoller::EpollPoller(int fd, int nevents)
     : epoll_fd_(fd), nevents_(nevents), events_(nevents) {}
 
-std::unique_ptr<EpollEventApi> EpollEventApi::Create(int nevents) {
+std::unique_ptr<EpollPoller> EpollPoller::Create(int nevents) {
   const int epoll_fd = epoll_create1(EPOLL_CLOEXEC);
   if (epoll_fd < 0) {
     RS_LOG_DEBUG("epoll_create1 failed: %s\n", std::strerror(errno));
     return nullptr;
   }
-  return std::unique_ptr<EpollEventApi>(new EpollEventApi(epoll_fd, nevents));
+  return std::unique_ptr<EpollPoller>(new EpollPoller(epoll_fd, nevents));
 }
 
-int EpollEventApi::AddEvent(int fd, int mask) const {
+int EpollPoller::AddEvent(int fd, int mask) const {
   const auto existing_mask = masks_.find(fd);
   const int new_mask =
       existing_mask == masks_.end() ? mask : (existing_mask->second | mask);
@@ -72,7 +72,7 @@ int EpollEventApi::AddEvent(int fd, int mask) const {
   return 0;
 }
 
-int EpollEventApi::DeleteEvent(int fd, int mask) const {
+int EpollPoller::DeleteEvent(int fd, int mask) const {
   const auto existing_mask = masks_.find(fd);
   if (existing_mask == masks_.end()) {
     return -1;
@@ -98,7 +98,7 @@ int EpollEventApi::DeleteEvent(int fd, int mask) const {
   return 0;
 }
 
-std::unordered_map<int, int> EpollEventApi::Poll(
+std::unordered_map<int, int> EpollPoller::Poll(
     struct timespec* timeout_spec) const {
   std::unordered_map<int, int> fd_to_mask_map;
   const int numevents = epoll_wait(epoll_fd_, events_.data(), nevents_,
@@ -120,5 +120,5 @@ std::unordered_map<int, int> EpollEventApi::Poll(
   return fd_to_mask_map;
 }
 
-EpollEventApi::~EpollEventApi() { close(epoll_fd_); }
+EpollPoller::~EpollPoller() { close(epoll_fd_); }
 }  // namespace redis_simple::ae

@@ -68,9 +68,14 @@ int Run() {
       {"ZCARD integration_zset\r\n", "2\n"},
       {"ZCARD missing_zset\r\n", "0\n"},
       {"ZREM missing_zset ele1 ele2\r\n", "0\n"},
-      {"ZRANGE integration_zset 0 1 WTHSCORES\r\n", "-1\n"},
-      {"ZRANGE integration_zset 0 1 LIMIT 0\r\n", "-1\n"},
-      {"ZRANGE integration_zset 0 1 LIMIT -1 1\r\n", "-1\n"},
+      {"ZCOUNT integration_zset 1 2\r\n", "2\n"},
+      {"ZCOUNT missing_zset 1 2\r\n", "0\n"},
+      {"SET zset_wrong_type value\r\n", "1\n"},
+      {"ZCARD zset_wrong_type\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
+      {"ZRANGE integration_zset 0 1 WTHSCORES\r\n", "ERR syntax error\n"},
+      {"ZRANGE integration_zset 0 1 LIMIT 0\r\n", "ERR syntax error\n"},
+      {"ZRANGE integration_zset 0 1 LIMIT -1 1\r\n", "ERR syntax error\n"},
   };
   for (const Case& test_case : cases) {
     if (!ExpectReply(&cli, test_case)) {
@@ -87,6 +92,14 @@ int Run() {
     return EXIT_FAILURE;
   }
   if (!ExpectMembers(&cli, "ZRANGE integration_zset 1.0 2.0 BYSCORE\r\n",
+                     {"ele1", "ele2"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "ZREVRANGE integration_zset 0 1\r\n",
+                     {"ele1", "ele2"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "ZRANGEBYSCORE integration_zset 1.0 2.0\r\n",
                      {"ele1", "ele2"})) {
     return EXIT_FAILURE;
   }

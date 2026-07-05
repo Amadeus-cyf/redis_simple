@@ -62,6 +62,19 @@ bool ExpectPairs(
   }
   return true;
 }
+
+bool ExpectMembers(cli::RedisCli* cli, const std::string& command,
+                   std::vector<std::string> expected_members) {
+  cli->AddCommand(command);
+  std::vector<std::string> actual_members = NonEmptyLines(cli->ReadReply());
+  std::sort(actual_members.begin(), actual_members.end());
+  std::sort(expected_members.begin(), expected_members.end());
+  if (actual_members != expected_members) {
+    RS_LOG_DEBUG("hash member command failed: %s\n", command.c_str());
+    return false;
+  }
+  return true;
+}
 }  // namespace
 
 int Run() {
@@ -84,11 +97,20 @@ int Run() {
       {"HLEN integration_hash\r\n", "3\n"},
       {"HLEN missing_hash\r\n", "0\n"},
       {"HDEL missing_hash field\r\n", "0\n"},
+      {"HMGET integration_hash name missing version\r\n",
+       "redis\n(nil)\n8\n\n\n"},
+      {"HINCRBY integration_hash counter 2\r\n", "2\n"},
+      {"HINCRBY integration_hash counter -1\r\n", "1\n"},
+      {"HGET integration_hash counter\r\n", "1\n"},
       {"SET hash_wrong_type value\r\n", "1\n"},
-      {"HSET hash_wrong_type field value\r\n", "-1\n"},
-      {"HGET hash_wrong_type field\r\n", "-1\n"},
-      {"HLEN hash_wrong_type\r\n", "-1\n"},
-      {"HGETALL hash_wrong_type\r\n", "-1\n"},
+      {"HSET hash_wrong_type field value\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
+      {"HGET hash_wrong_type field\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
+      {"HLEN hash_wrong_type\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
+      {"HGETALL hash_wrong_type\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
   };
   for (const Case& test_case : cases) {
     if (!ExpectReply(&cli, test_case)) {
@@ -97,7 +119,18 @@ int Run() {
   }
 
   if (!ExpectPairs(&cli, "HGETALL integration_hash\r\n",
-                   {{"name", "redis"}, {"version", "8"}, {"mode", "simple"}})) {
+                   {{"name", "redis"},
+                    {"version", "8"},
+                    {"mode", "simple"},
+                    {"counter", "1"}})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "HKEYS integration_hash\r\n",
+                     {"name", "version", "mode", "counter"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "HVALS integration_hash\r\n",
+                     {"redis", "8", "simple", "1"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectPairs(&cli, "HGETALL missing_hash\r\n", {})) {
@@ -121,8 +154,8 @@ int Run() {
 
   const std::vector<Case> delete_cases = {
       {"HDEL integration_hash name missing\r\n", "1\n"},
-      {"HLEN integration_hash\r\n", "2\n"},
-      {"HDEL integration_hash version mode\r\n", "2\n"},
+      {"HLEN integration_hash\r\n", "3\n"},
+      {"HDEL integration_hash version mode counter\r\n", "3\n"},
       {"HLEN integration_hash\r\n", "0\n"},
       {"TYPE integration_hash\r\n", "none\n"},
       {"HSET integration_hash recreated value\r\n", "1\n"},

@@ -50,4 +50,48 @@ TEST(RedisDbTest, ReplacingKeyCanClearOrKeepTtl) {
             DbStatus::kOk);
   EXPECT_EQ(redis_db->ExpiredPercentage(), 0.0);
 }
+
+TEST(RedisDbTest, ExpirePersistAndTtl) {
+  auto redis_db = RedisDb::Create();
+  const int64_t future = utils::NowInMilliseconds() + 60'000;
+
+  EXPECT_EQ(redis_db->TimeToLive("missing", TtlResolution::kMilliseconds), -2);
+  ASSERT_EQ(redis_db->SetKey("key", RedisObject::CreateWithString("value"), 0),
+            DbStatus::kOk);
+  EXPECT_EQ(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), -1);
+
+  EXPECT_EQ(redis_db->ExpireKeyAt("key", future), DbStatus::kOk);
+  EXPECT_GT(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), 0);
+  EXPECT_GT(redis_db->TimeToLive("key", TtlResolution::kSeconds), 0);
+  EXPECT_EQ(redis_db->PersistKey("key"), DbStatus::kOk);
+  EXPECT_EQ(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), -1);
+  EXPECT_EQ(redis_db->PersistKey("key"), DbStatus::kError);
+
+  EXPECT_EQ(redis_db->ExpireKeyAt("key", 1), DbStatus::kOk);
+  EXPECT_EQ(redis_db->LookupKey("key"), nullptr);
+}
+
+TEST(RedisDbTest, RenameAndFlush) {
+  auto redis_db = RedisDb::Create();
+  const int64_t future = utils::NowInMilliseconds() + 60'000;
+
+  ASSERT_EQ(
+      redis_db->SetKey("old", RedisObject::CreateWithString("value"), future),
+      DbStatus::kOk);
+  ASSERT_EQ(
+      redis_db->SetKey("target", RedisObject::CreateWithString("stale"), 0),
+      DbStatus::kOk);
+
+  EXPECT_EQ(redis_db->RenameKey("old", "target"), DbStatus::kOk);
+  ASSERT_EQ(redis_db->LookupKey("old"), nullptr);
+  ASSERT_NE(redis_db->LookupKey("target"), nullptr);
+  EXPECT_EQ(redis_db->LookupKey("target")->String(), "value");
+  EXPECT_GT(redis_db->TimeToLive("target", TtlResolution::kMilliseconds), 0);
+  EXPECT_EQ(redis_db->RenameKey("missing", "new"), DbStatus::kError);
+
+  EXPECT_EQ(redis_db->KeyCount(), 1);
+  redis_db->Flush();
+  EXPECT_EQ(redis_db->KeyCount(), 0);
+  EXPECT_EQ(redis_db->LookupKey("target"), nullptr);
+}
 }  // namespace redis_simple::db

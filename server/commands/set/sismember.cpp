@@ -22,18 +22,17 @@ std::optional<int64_t> SIsMember(db::RedisDb* redis_db,
 void HandleSIsMember(Client* const client) {
   SIsMemberArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
     const auto result = SIsMember(redis_db, &args);
-    client->AddReply(result.has_value()
-                         ? reply::FromInt64(*result)
-                         : reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(result.has_value() ? reply::FromInt64(*result)
+                                        : reply::WrongTypeError());
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 

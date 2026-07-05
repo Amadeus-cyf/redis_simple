@@ -15,6 +15,8 @@ Guidance for AI coding agents working in this repository.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.
+- When adding or changing supported commands, update the README command
+  coverage list and the relevant command-family integration test.
 - Keep reply encoding helpers under `server/reply/`, and keep database state
   and Redis object wrappers under `server/db/`.
 
@@ -68,7 +70,7 @@ Before committing, run the relevant build and tests.
 - Keep CMake target-based. Source files are discovered by scoped directory
   globs in `CMakeLists.txt`; exclude generated, test, or entry-point sources
   explicitly when they do not belong in a library target.
-- Keep event-loop backends platform-selected in `CMakeLists.txt`: `kqueue` for
+- Keep event-loop pollers platform-selected in `CMakeLists.txt`: `kqueue` for
   macOS and `epoll` for Linux.
 - Keep `CMakeLists.txt`, `CMakePresets.json`, `.github/workflows/build.yml`,
   `.clang-format`, `.clang-tidy`, and `.editorconfig` aligned with project

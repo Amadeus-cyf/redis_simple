@@ -18,6 +18,11 @@ enum class SetKeyFlag {
   kKeepTtl = 1,
 };
 
+enum class TtlResolution {
+  kSeconds,
+  kMilliseconds,
+};
+
 constexpr int ToInt(SetKeyFlag flag) { return static_cast<int>(flag); }
 constexpr bool HasFlag(int flags, SetKeyFlag flag) {
   return (flags & ToInt(flag)) != 0;
@@ -32,6 +37,12 @@ class RedisDb {
   DbStatus SetKey(const std::string& key, RedisObjectPtr object, int64_t expire,
                   int flags);
   DbStatus DeleteKey(const std::string& key);
+  DbStatus ExpireKeyAt(const std::string& key, int64_t expire);
+  DbStatus PersistKey(const std::string& key);
+  DbStatus RenameKey(const std::string& old_key, const std::string& new_key);
+  int64_t TimeToLive(const std::string& key, TtlResolution resolution);
+  size_t KeyCount() const { return dict_->Size(); }
+  void Flush();
   bool ScanExpires(
       in_memory::Dict<std::string, int64_t>::DictScanFunc callback);
   double ExpiredPercentage() const {

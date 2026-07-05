@@ -13,7 +13,7 @@ to the code they cover, while runnable end-to-end checks live under
 - CMake 3.21+
 - A C++17 compiler
 - Git submodules for third-party dependencies
-- macOS (`kqueue`) or Linux (`epoll`) for the event-loop backend
+- macOS (`kqueue`) or Linux (`epoll`) for the event-loop poller
 
 ## Setup
 
@@ -40,6 +40,25 @@ Start the server:
 
 In another terminal, run a mock command client or your own TCP client against
 `localhost:8080`.
+
+## Command Coverage
+
+The server supports Redis-style RESP replies for the implemented command set,
+including protocol errors such as `ERR wrong number of arguments` and
+`WRONGTYPE`.
+
+- Keys: `DEL`, `UNLINK`, `EXISTS`, `TYPE`, `EXPIRE`, `PEXPIRE`, `TTL`, `PTTL`,
+  `PERSIST`, `RENAME`, `DBSIZE`, `FLUSHDB`
+- Strings: `GET`, `SET` with `EX`, `PX`, and `KEEPTTL`, `INCR`, `DECR`,
+  `APPEND`, `MGET`, `MSET`
+- Lists: `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LLEN`, `LRANGE`, `LINDEX`, `LSET`,
+  `LREM`, `LTRIM`
+- Sets: `SADD`, `SCARD`, `SREM`, `SMEMBERS`, `SISMEMBER`, `SINTER`, `SUNION`,
+  `SDIFF`
+- Sorted sets: `ZADD`, `ZCARD`, `ZREM`, `ZRANK`, `ZRANGE`, `ZREVRANGE`,
+  `ZRANGEBYSCORE`, `ZCOUNT`, `ZSCORE`
+- Hashes: `HSET`, `HGET`, `HDEL`, `HLEN`, `HEXISTS`, `HGETALL`, `HMGET`,
+  `HKEYS`, `HVALS`, `HINCRBY`
 
 ## Test
 
@@ -100,7 +119,7 @@ above is the project benchmark executable.
 ```text
 cli/          Simple client and RESP parsing
 connection/          Connection abstraction
-event_loop/          Event loop with kqueue and epoll backends
+event_loop/          Event loop with kqueue and epoll pollers
 integration/commands/ Server/client command integration tests
 integration/tcp/     TCP client/server integration tests
 logging/             Project logging wrapper
@@ -152,7 +171,7 @@ The root `CMakeLists.txt` is target-based. Production, test, and benchmark
 sources are discovered from scoped project directories with
 `GLOB_RECURSE CONFIGURE_DEPENDS`, while test files and executable entry points
 are excluded from library targets explicitly. Platform-specific event-loop
-backends are selected at configure time: `kqueue` on macOS and `epoll` on Linux.
+pollers are selected at configure time: `kqueue` on macOS and `epoll` on Linux.
 
 Run the Linux build and test flow locally from macOS through Docker:
 
@@ -161,7 +180,7 @@ scripts/run_linux_docker_check.sh
 ```
 
 The Docker helper uses Ubuntu 24.04 by default and builds under `/tmp` inside
-the container, so it validates the Linux `epoll` backend without writing Linux
+the container, so it validates the Linux `epoll` poller without writing Linux
 build artifacts into the working tree. Set `DOCKER_IMAGE` or
 `LINUX_DOCKER_BUILD_DIR` to override those defaults.
 
@@ -175,7 +194,7 @@ Java-style `Get...` names.
 ## CI
 
 GitHub Actions runs the same flow recommended locally on macOS and Ubuntu, so
-both event-loop backends are built and tested:
+both event-loop pollers are built and tested:
 
 ```sh
 cmake --preset debug

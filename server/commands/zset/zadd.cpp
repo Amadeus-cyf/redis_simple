@@ -27,18 +27,17 @@ std::optional<int64_t> ZAdd(db::RedisDb* redis_db, const ZAddArgs* args);
 void HandleZAdd(Client* const client) {
   ZAddArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::SyntaxError());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
     const auto result = ZAdd(redis_db, &args);
-    client->AddReply(result.has_value()
-                         ? reply::FromInt64(*result)
-                         : reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(result.has_value() ? reply::FromInt64(*result)
+                                        : reply::WrongTypeError());
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 

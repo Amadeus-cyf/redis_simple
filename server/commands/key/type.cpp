@@ -47,7 +47,7 @@ void HandleType(Client* const client) {
   RS_LOG_DEBUG("type command called\n");
   TypeArgs args;
   if (ParseTypeArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
@@ -56,7 +56,7 @@ void HandleType(Client* const client) {
         reply::FromString(ObjectTypeName(redis_db->LookupKey(args.key))));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 }  // namespace redis_simple::command::key

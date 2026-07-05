@@ -57,6 +57,30 @@ TEST(ListTest, RangeWithListPackEncoding) {
   ASSERT_TRUE(list->Range(2, 1).empty());
 }
 
+TEST(ListTest, IndexSetRemoveAndTrimWithListPackEncoding) {
+  auto list = List::Create();
+  ASSERT_TRUE(list->RPush("one"));
+  ASSERT_TRUE(list->RPush("two"));
+  ASSERT_TRUE(list->RPush("two"));
+  ASSERT_TRUE(list->RPush("three"));
+
+  ASSERT_EQ(list->At(0), "one");
+  ASSERT_EQ(list->At(3), "three");
+  ASSERT_EQ(list->At(4), std::nullopt);
+
+  ASSERT_TRUE(list->Set(1, "changed"));
+  ASSERT_FALSE(list->Set(4, "missing"));
+  ASSERT_EQ(list->Range(0, 3),
+            (std::vector<std::string>{"one", "changed", "two", "three"}));
+
+  ASSERT_EQ(list->Remove("two", 0), 1);
+  ASSERT_EQ(list->Range(0, 2),
+            (std::vector<std::string>{"one", "changed", "three"}));
+
+  ASSERT_TRUE(list->Trim(1, 2));
+  ASSERT_EQ(list->Range(0, 1), (std::vector<std::string>{"changed", "three"}));
+}
+
 TEST(ListEncodingTest, ConvertsFromListPackToQuickListWhenListGrows) {
   auto list = List::Create(96);
   const std::string value(32, 'x');
@@ -106,5 +130,24 @@ TEST(ListEncodingTest, RangeWithQuickListEncoding) {
 
   ASSERT_EQ(list->Range(1, 3),
             (std::vector<std::string>{value + "2", value + "3", value + "4"}));
+}
+
+TEST(ListEncodingTest, MutatesQuickListEncoding) {
+  auto list = List::Create(96);
+  const std::string value(32, 'q');
+
+  ASSERT_TRUE(list->RPush(value + "1"));
+  ASSERT_TRUE(list->RPush(value + "2"));
+  ASSERT_TRUE(list->RPush(value + "3"));
+  ASSERT_TRUE(list->RPush(value + "2"));
+  ASSERT_EQ(list->Encoding(), List::Encoding::kQuickList);
+
+  ASSERT_EQ(list->At(2), value + "3");
+  ASSERT_TRUE(list->Set(2, value + "4"));
+  ASSERT_EQ(list->Remove(value + "2", -1), 1);
+  ASSERT_TRUE(list->Trim(1, 2));
+
+  ASSERT_EQ(list->Range(0, 1),
+            (std::vector<std::string>{value + "2", value + "4"}));
 }
 }  // namespace redis_simple::list

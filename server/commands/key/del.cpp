@@ -41,7 +41,7 @@ void HandleDel(Client* const client) {
   RS_LOG_DEBUG("del command called\n");
   DeleteArgs args;
   if (ParseDeleteArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
@@ -49,7 +49,9 @@ void HandleDel(Client* const client) {
     client->AddReply(reply::FromInt64(DeleteKeys(redis_db, &args)));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
+
+void HandleUnlink(Client* const client) { HandleDel(client); }
 }  // namespace redis_simple::command::key

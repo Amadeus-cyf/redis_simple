@@ -6,20 +6,20 @@
 #include <unordered_map>
 #include <vector>
 
-#include "event_loop/ae_event_api.h"
+#include "event_loop/ae_event_poller.h"
 
 namespace redis_simple::ae {
-class EpollEventApi final : public EventApi {
+class EpollPoller final : public EventPoller {
  public:
-  static std::unique_ptr<EpollEventApi> Create(int nevents);
+  static std::unique_ptr<EpollPoller> Create(int nevents);
   int AddEvent(int fd, int mask) const override;
   int DeleteEvent(int fd, int mask) const override;
   std::unordered_map<int, int> Poll(
       struct timespec* timeout_spec) const override;
-  ~EpollEventApi() override;
+  ~EpollPoller() override;
 
  private:
-  explicit EpollEventApi(int fd, int nevents);
+  explicit EpollPoller(int fd, int nevents);
   int epoll_fd_;
   int nevents_;
   mutable std::vector<struct epoll_event> events_;

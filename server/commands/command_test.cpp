@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+
 namespace redis_simple::command {
 TEST(CommandRegistryTest, FindsCommandsCaseInsensitively) {
   const auto* get = Find("get");
@@ -18,6 +20,20 @@ TEST(CommandRegistryTest, FindsCommandsCaseInsensitively) {
   ASSERT_NE(hset, nullptr);
   EXPECT_STREQ(hset->name, "HSET");
   EXPECT_NE(hset->callback, nullptr);
+}
+
+TEST(CommandRegistryTest, FindsExpandedRedisCommandSet) {
+  const std::array names = {
+      "EXPIRE", "PEXPIRE", "TTL",    "PTTL",      "PERSIST",       "RENAME",
+      "DBSIZE", "FLUSHDB", "INCR",   "DECR",      "APPEND",        "MGET",
+      "MSET",   "LINDEX",  "LSET",   "LREM",      "LTRIM",         "SINTER",
+      "SUNION", "SDIFF",   "ZCOUNT", "ZREVRANGE", "ZRANGEBYSCORE", "HMGET",
+      "HKEYS",  "HVALS",   "HINCRBY"};
+  for (const auto* name : names) {
+    const auto* command = Find(name);
+    ASSERT_NE(command, nullptr) << name;
+    EXPECT_NE(command->callback, nullptr);
+  }
 }
 
 TEST(CommandRegistryTest, ReturnsNullForUnknownCommand) {

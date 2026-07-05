@@ -13,6 +13,7 @@ struct Prefix {
   static constexpr char kArrayPrefix = '*';
   static constexpr char kDoublePrefix = ',';
   static constexpr char kNullPrefix = '_';
+  static constexpr char kErrorPrefix = '-';
 };
 
 constexpr std::string_view kNilResp = "(nil)";
@@ -50,6 +51,7 @@ ssize_t Parse(const std::string& resp, size_t start,
   }
   switch (resp[start]) {
     case Prefix::kStringPrefix:
+    case Prefix::kErrorPrefix:
       return ParseString(resp, start, reply);
     case Prefix::kBulkStringPrefix:
       return ParseBulkString(resp, start, reply);

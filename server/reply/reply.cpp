@@ -14,6 +14,7 @@ constexpr char kInt64Prefix = ':';
 constexpr char kArrayPrefix = '*';
 constexpr char kDoublePrefix = ',';
 constexpr char kNullPrefix = '_';
+constexpr char kErrorPrefix = '-';
 
 std::string FromString(const std::string& s) {
   std::string reply;
@@ -61,6 +62,26 @@ std::string FromFloat(double fl) {
   reply.push_back(kDoublePrefix);
   reply.append(utils::FloatToString(fl)).append(kCrlf.data(), kCrlf.size());
   return reply;
+}
+
+std::string FromError(std::string_view message) {
+  std::string reply;
+  reply.push_back(kErrorPrefix);
+  reply.append(message.data(), message.size())
+      .append(kCrlf.data(), kCrlf.size());
+  return reply;
+}
+
+std::string WrongNumberOfArguments() {
+  return FromError("ERR wrong number of arguments");
+}
+
+std::string SyntaxError() { return FromError("ERR syntax error"); }
+
+std::string WrongTypeError() {
+  return FromError(
+      "WRONGTYPE Operation against a key holding the wrong kind of "
+      "value");
 }
 
 std::string Null() { return "_\r\n"; }

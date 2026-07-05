@@ -1,4 +1,6 @@
+#include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -8,28 +10,41 @@
 
 namespace redis_simple::command::strings {
 namespace {
+enum class GetStatus : std::uint8_t {
+  kOk,
+  kMissing,
+  kWrongType,
+};
+
+struct GetResult {
+  std::optional<std::string> value;
+  GetStatus status;
+};
+
 int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args);
-std::optional<std::string> Get(db::RedisDb* redis_db, const StringArgs* args);
+GetResult Get(db::RedisDb* redis_db, const StringArgs* args);
 }  // namespace
 
 void HandleGet(Client* const client) {
   RS_LOG_DEBUG("get command called\n");
   StringArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
     const auto value_result = Get(redis_db, &args);
-    if (value_result.has_value()) {
-      client->AddReply(reply::FromBulkString(*value_result));
+    if (value_result.status == GetStatus::kWrongType) {
+      client->AddReply(reply::WrongTypeError());
+    } else if (value_result.value.has_value()) {
+      client->AddReply(reply::FromBulkString(*value_result.value));
     } else {
       client->AddReply(reply::Null());
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 
@@ -44,18 +59,18 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   return 0;
 }
 
-std::optional<std::string> Get(db::RedisDb* redis_db, const StringArgs* args) {
+GetResult Get(db::RedisDb* redis_db, const StringArgs* args) {
   if (redis_db == nullptr || args == nullptr) {
-    return std::nullopt;
+    return {std::nullopt, GetStatus::kMissing};
   }
   const auto* obj = redis_db->LookupKey(args->key);
   if ((obj != nullptr) && obj->Type() != db::RedisObject::ObjectType::kString) {
-    return std::nullopt;
+    return {std::nullopt, GetStatus::kWrongType};
   }
   if (obj != nullptr) {
-    return obj->String();
+    return {obj->String(), GetStatus::kOk};
   }
-  return std::nullopt;
+  return {std::nullopt, GetStatus::kMissing};
 }
 }  // namespace
 }  // namespace redis_simple::command::strings

@@ -72,6 +72,9 @@ int Run() {
       {"SCARD missing_set\r\n", "0\n"},
       {"SISMEMBER missing_set ele1\r\n", "0\n"},
       {"SREM missing_set ele1 ele2\r\n", "0\n"},
+      {"SET set_wrong_type value\r\n", "1\n"},
+      {"SCARD set_wrong_type\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
   };
   for (const Case& test_case : setup_cases) {
     if (!ExpectReply(&cli, test_case)) {
@@ -85,6 +88,37 @@ int Run() {
     return EXIT_FAILURE;
   }
   if (!ExpectMembers(&cli, "SMEMBERS missing_set\r\n", {})) {
+    return EXIT_FAILURE;
+  }
+  const std::vector<Case> operation_setup = {
+      {"SADD integration_set_b ele2 ele3 other\r\n", "3\n"},
+      {"SADD integration_set_c ele3 ele4\r\n", "2\n"},
+  };
+  for (const Case& test_case : operation_setup) {
+    if (!ExpectReply(&cli, test_case)) {
+      return EXIT_FAILURE;
+    }
+  }
+  if (!ExpectMembers(&cli, "SINTER integration_set integration_set_b\r\n",
+                     {"ele2", "ele3"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(
+          &cli, "SUNION integration_set integration_set_c\r\n",
+          {"ele1", "ele2", "ele3", "ele4", "ele5", "ele6", "ele7"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "SDIFF integration_set integration_set_b\r\n",
+                     {"ele1", "ele4", "ele5", "ele6", "ele7"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "SINTER integration_set missing_set\r\n", {})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(
+          &cli, {"SUNION integration_set set_wrong_type\r\n",
+                 "WRONGTYPE Operation against a key holding the wrong kind of "
+                 "value\n"})) {
     return EXIT_FAILURE;
   }
 

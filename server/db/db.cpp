@@ -86,6 +86,73 @@ DbStatus RedisDb::DeleteKey(const std::string& key) {
   return DbStatus::kOk;
 }
 
+DbStatus RedisDb::ExpireKeyAt(const std::string& key, int64_t expire) {
+  if (LookupKey(key) == nullptr) {
+    return DbStatus::kError;
+  }
+  if (expire <= utils::NowInMilliseconds()) {
+    return DeleteKey(key);
+  }
+  expires_->Set(key, expire);
+  return DbStatus::kOk;
+}
+
+DbStatus RedisDb::PersistKey(const std::string& key) {
+  if (LookupKey(key) == nullptr || !expires_->Get(key).has_value()) {
+    return DbStatus::kError;
+  }
+  return expires_->Delete(key) ? DbStatus::kOk : DbStatus::kError;
+}
+
+DbStatus RedisDb::RenameKey(const std::string& old_key,
+                            const std::string& new_key) {
+  if (LookupKey(old_key) == nullptr) {
+    return DbStatus::kError;
+  }
+  if (old_key == new_key) {
+    return DbStatus::kOk;
+  }
+
+  auto* object = dict_->FindValue(old_key);
+  if (object == nullptr) {
+    return DbStatus::kError;
+  }
+  auto expire = expires_->Get(old_key);
+  RedisObjectPtr moved_object = std::move(*object);
+  dict_->Delete(old_key);
+  dict_->Set(new_key, std::move(moved_object));
+  expires_->Delete(old_key);
+  if (expire.has_value()) {
+    expires_->Set(new_key, *expire);
+  } else {
+    expires_->Delete(new_key);
+  }
+  return DbStatus::kOk;
+}
+
+int64_t RedisDb::TimeToLive(const std::string& key, TtlResolution resolution) {
+  if (LookupKey(key) == nullptr) {
+    return -2;
+  }
+  const auto expire = expires_->Get(key);
+  if (!expire.has_value()) {
+    return -1;
+  }
+  const int64_t ttl =
+      std::max<int64_t>(*expire - utils::NowInMilliseconds(), 0);
+  if (resolution == TtlResolution::kMilliseconds) {
+    return ttl;
+  }
+  constexpr int64_t kMillisecondsPerSecond = 1000;
+  return (ttl + kMillisecondsPerSecond - 1) / kMillisecondsPerSecond;
+}
+
+void RedisDb::Flush() {
+  dict_->Clear();
+  expires_->Clear();
+  expire_cursor_ = 0;
+}
+
 /*
  * Scan to delete expired keys. Return true if the scanning is not finished.
  */

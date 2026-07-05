@@ -1,6 +1,8 @@
 #include "data_types/list/list.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <limits>
 #include <vector>
 
 namespace redis_simple::list {
@@ -20,6 +22,73 @@ bool List::RPush(const std::string& value) { return Push(value, false); }
 std::optional<std::string> List::RPop() { return Pop(false); }
 
 std::optional<std::string> List::LPop() { return Pop(true); }
+
+std::optional<std::string> List::At(size_t index) const {
+  const auto values = Range(index, index);
+  return values.empty() ? std::nullopt
+                        : std::optional<std::string>(values.front());
+}
+
+bool List::Set(size_t index, const std::string& value) {
+  if (index >= Size()) {
+    return false;
+  }
+  auto values = Range(0, Size() - 1);
+  values[index] = value;
+  return ReplaceAll(values);
+}
+
+size_t List::Remove(const std::string& value, int64_t count) {
+  const size_t size = Size();
+  if (size == 0) {
+    return 0;
+  }
+
+  size_t limit = std::numeric_limits<size_t>::max();
+  if (count > 0) {
+    limit = static_cast<size_t>(count);
+  } else if (count < 0 && count != std::numeric_limits<int64_t>::min()) {
+    limit = static_cast<size_t>(-count);
+  }
+  size_t removed = 0;
+  std::vector<std::string> kept;
+  kept.reserve(size);
+  const auto values = Range(0, size - 1);
+  if (count >= 0) {
+    for (const auto& current : values) {
+      if (current == value && removed < limit) {
+        ++removed;
+        continue;
+      }
+      kept.push_back(current);
+    }
+  } else {
+    std::vector<std::string> reversed_kept;
+    reversed_kept.reserve(size);
+    for (auto it = values.rbegin(); it != values.rend(); ++it) {
+      if (*it == value && removed < limit) {
+        ++removed;
+        continue;
+      }
+      reversed_kept.push_back(*it);
+    }
+    kept.assign(reversed_kept.rbegin(), reversed_kept.rend());
+  }
+
+  if (removed > 0) {
+    ReplaceAll(kept);
+  }
+  return removed;
+}
+
+bool List::Trim(size_t start, size_t stop) {
+  const size_t size = Size();
+  if (size == 0 || start > stop || start >= size) {
+    return ReplaceAll({});
+  }
+  stop = std::min(stop, size - 1);
+  return ReplaceAll(Range(start, stop));
+}
 
 size_t List::Size() const {
   return listpack_ ? listpack_->Size() : quicklist_->Size();
@@ -85,6 +154,13 @@ std::optional<std::string> List::Pop(bool head) {
   auto value = head ? quicklist_->LPop() : quicklist_->RPop();
   TryConvertQuickListToListPack();
   return value;
+}
+
+bool List::ReplaceAll(const std::vector<std::string>& values) {
+  listpack_ = std::make_unique<in_memory::ListPack>();
+  quicklist_.reset();
+  return std::all_of(values.begin(), values.end(),
+                     [this](const auto& value) { return RPush(value); });
 }
 
 bool List::WouldExceedListpackLimit(const std::string& value) const {

@@ -29,6 +29,10 @@ class List {
   bool RPush(const std::string& value);
   std::optional<std::string> RPop();
   std::optional<std::string> LPop();
+  std::optional<std::string> At(size_t index) const;
+  bool Set(size_t index, const std::string& value);
+  size_t Remove(const std::string& value, int64_t count);
+  bool Trim(size_t start, size_t stop);
   size_t Size() const;
   size_t NodeCount() const;
   std::vector<std::string> Range(size_t start, size_t stop) const;
@@ -38,6 +42,7 @@ class List {
   explicit List(size_t list_max_listpack_bytes);
   bool Push(const std::string& value, bool head);
   std::optional<std::string> Pop(bool head);
+  bool ReplaceAll(const std::vector<std::string>& values);
   bool WouldExceedListpackLimit(const std::string& value) const;
   bool ConvertListPackToQuickList();
   void TryConvertQuickListToListPack();

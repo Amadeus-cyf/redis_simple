@@ -1,8 +1,10 @@
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 #include "data_types/zset/zset.h"
 #include "server/client.h"
@@ -25,6 +27,9 @@ constexpr std::string_view kFlagReverse = "REV";
 constexpr std::string_view kFlagWithScores = "WITHSCORES";
 constexpr std::string_view kMaxVal = "+inf";
 constexpr std::string_view kMinVal = "-inf";
+constexpr int kRangeSyntaxError = -1;
+constexpr int kRangeWrongType = -2;
+constexpr int kRangeDbUnavailable = -3;
 
 bool FlaggedByScore(const std::vector<std::string>& args);
 bool ValidateRangeOptions(const std::vector<std::string>& args);
@@ -44,6 +49,9 @@ bool IsReverse(const std::vector<std::string>& args);
 bool IsWithScores(const std::vector<std::string>& args);
 std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
                                              bool with_scores);
+std::optional<int64_t> ToReplyInteger(size_t value);
+void AddRangeReply(Client* client, const std::vector<std::string>& args,
+                   bool by_score);
 int RangeByRank(Client* client, const std::vector<std::string>& args,
                 ZSetEntryList* result);
 int RangeByScore(Client* client, const std::vector<std::string>& args,
@@ -293,37 +301,95 @@ std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
     return std::nullopt;
   }
 }
+
+std::optional<int64_t> ToReplyInteger(size_t value) {
+  if (value > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+    return std::nullopt;
+  }
+  return static_cast<int64_t>(value);
+}
 }  // namespace
 
 void HandleZRange(Client* const client) {
   const auto& args = client->Args();
-  ZSetEntryList range_entries;
-  int status = 0;
-  if (FlaggedByScore(args)) {
-    status = RangeByScore(client, args, &range_entries);
-  } else {
-    status = RangeByRank(client, args, &range_entries);
+  AddRangeReply(client, args, FlaggedByScore(args));
+}
+
+void HandleZRevRange(Client* const client) {
+  auto args = client->Args();
+  args.emplace_back(kFlagReverse);
+  AddRangeReply(client, args, false);
+}
+
+void HandleZRangeByScore(Client* const client) {
+  auto args = client->Args();
+  args.emplace_back(kFlagByScore);
+  AddRangeReply(client, args, true);
+}
+
+void HandleZCount(Client* const client) {
+  const auto& args = client->Args();
+  if (args.size() != 3) {
+    client->AddReply(reply::WrongNumberOfArguments());
+    return;
   }
+
+  RangeByScoreSpec spec;
+  if (ParseScoreRange(args[1], args[2], &spec) < 0) {
+    client->AddReply(reply::SyntaxError());
+    return;
+  }
+
+  if (auto* redis_db = client->Db()) {
+    const auto* obj = redis_db->LookupKey(args[0]);
+    if (obj == nullptr) {
+      client->AddReply(reply::FromInt64(0));
+      return;
+    }
+    if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
+      client->AddReply(reply::WrongTypeError());
+      return;
+    }
+    const auto count = ToReplyInteger(obj->ZSet()->Count(&spec));
+    client->AddReply(count.has_value()
+                         ? reply::FromInt64(*count)
+                         : reply::FromError("ERR zset count out of range"));
+    return;
+  }
+  client->AddReply(reply::FromError("ERR db unavailable"));
+}
+
+namespace {
+
+void AddRangeReply(Client* const client, const std::vector<std::string>& args,
+                   bool by_score) {
+  ZSetEntryList range_entries;
+  const int status = by_score ? RangeByScore(client, args, &range_entries)
+                              : RangeByRank(client, args, &range_entries);
   if (status < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    if (status == kRangeWrongType) {
+      client->AddReply(reply::WrongTypeError());
+    } else if (status == kRangeDbUnavailable) {
+      client->AddReply(reply::FromError("ERR db unavailable"));
+    } else {
+      client->AddReply(reply::SyntaxError());
+    }
     return;
   }
   const auto reply = EncodeZRangeReply(range_entries, IsWithScores(args));
   if (reply.has_value()) {
     client->AddReply(*reply);
   } else {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR zrange encode failed"));
   }
 }
-
-namespace {
 
 int RangeByRank(Client* const client, const std::vector<std::string>& args,
                 ZSetEntryList* result) {
   RangeByRankSpec spec;
   if (ParseRangeToRankSpec(args, &spec) < 0) {
     RS_LOG_DEBUG("invalid arguments for zrange rank\n");
-    return -1;
+    return kRangeSyntaxError;
   }
   if (auto* redis_db = client->Db()) {
     const auto& key = args[0];
@@ -333,18 +399,18 @@ int RangeByRank(Client* const client, const std::vector<std::string>& args,
     }
     if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
       RS_LOG_DEBUG("incorrect value type\n");
-      return -1;
+      return kRangeWrongType;
     }
     try {
       auto* const zset = obj->ZSet();
       *result = zset->RangeByRank(&spec);
     } catch (const std::exception& e) {
       RS_LOG_DEBUG("catch exception %s", e.what());
-      return -1;
+      return kRangeSyntaxError;
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    return -1;
+    return kRangeDbUnavailable;
   }
   return 0;
 }
@@ -354,7 +420,7 @@ int RangeByScore(Client* const client, const std::vector<std::string>& args,
   RangeByScoreSpec spec;
   if (ParseRangeToScoreSpec(args, &spec) < 0) {
     RS_LOG_DEBUG("invalid arguments for zrange score\n");
-    return -1;
+    return kRangeSyntaxError;
   }
   if (auto* redis_db = client->Db()) {
     const auto& key = args[0];
@@ -364,18 +430,18 @@ int RangeByScore(Client* const client, const std::vector<std::string>& args,
     }
     if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
       RS_LOG_DEBUG("incorrect value type\n");
-      return -1;
+      return kRangeWrongType;
     }
     try {
       const auto* zset = obj->ZSet();
       *result = zset->RangeByScore(&spec);
     } catch (const std::exception& e) {
       RS_LOG_DEBUG("catch exception %s", e.what());
-      return -1;
+      return kRangeSyntaxError;
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    return -1;
+    return kRangeDbUnavailable;
   }
   return 0;
 }

@@ -29,4 +29,9 @@ TEST(ReplyTest, FromArray) {
       FromArray({":123\r\n", "+hello world\r\n", "$13\r\nhello world"}),
       std::invalid_argument);
 }
+
+TEST(ReplyTest, FromError) {
+  ASSERT_EQ(FromError("ERR syntax error"), "-ERR syntax error\r\n");
+  ASSERT_EQ(WrongNumberOfArguments(), "-ERR wrong number of arguments\r\n");
+}
 }  // namespace redis_simple::reply

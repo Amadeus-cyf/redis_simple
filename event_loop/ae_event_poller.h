@@ -4,12 +4,12 @@
 #include <unordered_map>
 
 namespace redis_simple::ae {
-class EventApi {
+class EventPoller {
  public:
   virtual int AddEvent(int fd, int mask) const = 0;
   virtual int DeleteEvent(int fd, int mask) const = 0;
   virtual std::unordered_map<int, int> Poll(
       struct timespec* timeout_spec) const = 0;
-  virtual ~EventApi() = default;
+  virtual ~EventPoller() = default;
 };
 }  // namespace redis_simple::ae

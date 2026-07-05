@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace redis_simple::reply {
@@ -20,5 +21,9 @@ std::string FromInt64(int64_t i64);
 std::string FromInt64(ReplyStatus status);
 std::string FromArray(const std::vector<std::string>& array);
 std::string FromFloat(double fl);
+std::string FromError(std::string_view message);
+std::string WrongNumberOfArguments();
+std::string SyntaxError();
+std::string WrongTypeError();
 std::string Null();
 }  // namespace redis_simple::reply

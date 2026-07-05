@@ -58,6 +58,11 @@ int Run() {
   const std::vector<Case> setup_cases = {
       {"RPUSH integration_list one two three\r\n", "3\n"},
       {"LLEN integration_list\r\n", "3\n"},
+      {"LINDEX integration_list 1\r\n", "two\n"},
+      {"LINDEX integration_list -1\r\n", "three\n"},
+      {"LINDEX integration_list 10\r\n", "(nil)\n"},
+      {"LSET integration_list 1 changed\r\n", "OK\n"},
+      {"LINDEX integration_list 1\r\n", "changed\n"},
       {"LPUSH integration_list zero\r\n", "4\n"},
       {"LPOP integration_list\r\n", "zero\n"},
       {"RPOP integration_list\r\n", "three\n"},
@@ -69,27 +74,48 @@ int Run() {
     }
   }
 
-  if (!ExpectLines(&cli, "LRANGE integration_list 0 -1\r\n", {"one", "two"})) {
+  if (!ExpectLines(&cli, "LRANGE integration_list 0 -1\r\n",
+                   {"one", "changed"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectLines(&cli, "LRANGE integration_list -2 -1\r\n", {"one", "two"})) {
+  if (!ExpectLines(&cli, "LRANGE integration_list -2 -1\r\n",
+                   {"one", "changed"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectLines(&cli, "LRANGE integration_list 10 20\r\n", {})) {
     return EXIT_FAILURE;
   }
 
+  const std::vector<Case> mutation_cases = {
+      {"RPUSH integration_list two three two\r\n", "5\n"},
+      {"LREM integration_list 1 two\r\n", "1\n"},
+      {"LREM integration_list -1 two\r\n", "1\n"},
+      {"LTRIM integration_list 1 2\r\n", "OK\n"},
+  };
+  for (const Case& test_case : mutation_cases) {
+    if (!ExpectReply(&cli, test_case)) {
+      return EXIT_FAILURE;
+    }
+  }
+  if (!ExpectLines(&cli, "LRANGE integration_list 0 -1\r\n",
+                   {"changed", "three"})) {
+    return EXIT_FAILURE;
+  }
+
   const std::vector<Case> missing_and_type_cases = {
-      {"LPOP integration_list\r\n", "one\n"},
-      {"LPOP integration_list\r\n", "two\n"},
+      {"LPOP integration_list\r\n", "changed\n"},
+      {"LPOP integration_list\r\n", "three\n"},
       {"LPOP integration_list\r\n", "(nil)\n"},
       {"LLEN integration_list\r\n", "0\n"},
       {"RPUSH integration_list recreated\r\n", "1\n"},
       {"LPOP integration_list\r\n", "recreated\n"},
       {"SET list_string value 1000\r\n", "1\n"},
-      {"LLEN list_string\r\n", "-1\n"},
-      {"LPUSH list_string value\r\n", "-1\n"},
-      {"LRANGE list_string 0 -1\r\n", "-1\n"},
+      {"LLEN list_string\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
+      {"LPUSH list_string value\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
+      {"LRANGE list_string 0 -1\r\n",
+       "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
   };
   for (const Case& test_case : missing_and_type_cases) {
     if (!ExpectReply(&cli, test_case)) {

@@ -11,19 +11,18 @@
 #include "ae.h"
 
 namespace redis_simple::ae {
-KqueueEventApi::KqueueEventApi(int fd, int nevents)
+KqueuePoller::KqueuePoller(int fd, int nevents)
     : kqueue_fd_(fd), nevents_(nevents), events_(nevents) {}
 
-std::unique_ptr<KqueueEventApi> KqueueEventApi::Create(int nevents) {
+std::unique_ptr<KqueuePoller> KqueuePoller::Create(int nevents) {
   int kqueue_fd = kqueue();
   if (kqueue_fd < 0) {
     return nullptr;
   }
-  return std::unique_ptr<KqueueEventApi>(
-      new KqueueEventApi(kqueue_fd, nevents));
+  return std::unique_ptr<KqueuePoller>(new KqueuePoller(kqueue_fd, nevents));
 }
 
-int KqueueEventApi::AddEvent(int fd, int mask) const {
+int KqueuePoller::AddEvent(int fd, int mask) const {
   RS_LOG_DEBUG("add api event for fd = %d, mask = %d\n", fd, mask);
   struct kevent ke {};
   if ((mask & EventFlag::kReadable) != 0) {
@@ -46,7 +45,7 @@ int KqueueEventApi::AddEvent(int fd, int mask) const {
   return 0;
 }
 
-int KqueueEventApi::DeleteEvent(int fd, int mask) const {
+int KqueuePoller::DeleteEvent(int fd, int mask) const {
   struct kevent ke {};
   if ((mask & EventFlag::kReadable) != 0) {
     EV_SET(&ke, fd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -67,7 +66,7 @@ int KqueueEventApi::DeleteEvent(int fd, int mask) const {
   return 0;
 }
 
-std::unordered_map<int, int> KqueueEventApi::Poll(
+std::unordered_map<int, int> KqueuePoller::Poll(
     struct timespec* timeout_spec) const {
   std::unordered_map<int, int> fd_to_mask_map;
   int numevents =
@@ -95,5 +94,5 @@ std::unordered_map<int, int> KqueueEventApi::Poll(
   return fd_to_mask_map;
 }
 
-KqueueEventApi::~KqueueEventApi() { close(kqueue_fd_); }
+KqueuePoller::~KqueuePoller() { close(kqueue_fd_); }
 }  // namespace redis_simple::ae

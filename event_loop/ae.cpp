@@ -74,21 +74,21 @@ int WaitForEvent(int fd, int mask, long timeout) {
   return result_mask;
 }
 
-EventLoop::EventLoop(std::unique_ptr<EventApi> event_api)
+EventLoop::EventLoop(std::unique_ptr<EventPoller> event_poller)
     : file_events_(std::vector<std::unique_ptr<FileEvent>>(kEventSize)),
-      event_api_(std::move(event_api)),
+      event_poller_(std::move(event_poller)),
       max_fd_(-1) {}
 
 std::unique_ptr<EventLoop> EventLoop::Create() {
 #ifdef __APPLE__
-  auto event_api = KqueueEventApi::Create(kEventSize);
+  auto event_poller = KqueuePoller::Create(kEventSize);
 #elif defined(__linux__)
-  auto event_api = EpollEventApi::Create(kEventSize);
+  auto event_poller = EpollPoller::Create(kEventSize);
 #endif
-  if (!event_api) {
+  if (!event_poller) {
     return nullptr;
   }
-  return std::unique_ptr<EventLoop>(new EventLoop(std::move(event_api)));
+  return std::unique_ptr<EventLoop>(new EventLoop(std::move(event_poller)));
 }
 
 void EventLoop::Run() {
@@ -109,7 +109,7 @@ EventLoopStatus EventLoop::CreateFileEvent(
     RS_LOG_DEBUG("file descriptor out of range");
     return EventLoopStatus::kError;
   }
-  if (event_api_->AddEvent(fd, file_event->Mask()) < 0) {
+  if (event_poller_->AddEvent(fd, file_event->Mask()) < 0) {
     return EventLoopStatus::kError;
   }
   if (file_events_[fd] == nullptr) {
@@ -128,7 +128,7 @@ EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
   if (fd < 0 || fd >= kEventSize || file_events_[fd] == nullptr) {
     return EventLoopStatus::kError;
   }
-  if (event_api_->DeleteEvent(fd, mask) < 0) {
+  if (event_poller_->DeleteEvent(fd, mask) < 0) {
     RS_LOG_DEBUG(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
@@ -168,7 +168,7 @@ void EventLoop::ProcessFileEvents() {
   timeout_spec.tv_sec = 1;
   timeout_spec.tv_nsec = 0;
   const std::unordered_map<int, int>& fd_to_mask =
-      event_api_->Poll(&timeout_spec);
+      event_poller_->Poll(&timeout_spec);
   for (const auto& it : fd_to_mask) {
     int fd = it.first;
     int mask = it.second;

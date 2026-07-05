@@ -38,7 +38,7 @@ void HandleExists(Client* const client) {
   RS_LOG_DEBUG("exists command called\n");
   ExistsArgs args;
   if (ParseExistsArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
@@ -46,7 +46,7 @@ void HandleExists(Client* const client) {
     client->AddReply(reply::FromInt64(CountExistingKeys(redis_db, &args)));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 }  // namespace redis_simple::command::key

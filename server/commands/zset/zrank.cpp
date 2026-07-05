@@ -1,6 +1,8 @@
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -13,32 +15,45 @@ struct ZRankArgs {
   std::string key;
   std::string element;
 };
+enum class ZRankStatus : std::uint8_t {
+  kOk,
+  kMissing,
+  kWrongType,
+};
+struct ZRankResult {
+  std::optional<size_t> rank;
+  ZRankStatus status;
+};
 int ParseArgs(const std::vector<std::string>& args, ZRankArgs* zset_args);
-std::optional<size_t> ZRank(db::RedisDb* redis_db, const ZRankArgs* args);
+ZRankResult ZRank(db::RedisDb* redis_db, const ZRankArgs* args);
 }  // namespace
 
 void HandleZRank(Client* const client) {
   ZRankArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto opt_rank = ZRank(redis_db, &args);
-    if (opt_rank.has_value()) {
-      if (*opt_rank >
+    const auto result = ZRank(redis_db, &args);
+    if (result.status == ZRankStatus::kWrongType) {
+      client->AddReply(reply::WrongTypeError());
+      return;
+    }
+    if (result.rank.has_value()) {
+      if (*result.rank >
           static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
-        client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+        client->AddReply(reply::FromError("ERR rank out of range"));
         return;
       }
-      client->AddReply(reply::FromInt64(static_cast<int64_t>(*opt_rank)));
+      client->AddReply(reply::FromInt64(static_cast<int64_t>(*result.rank)));
     } else {
       client->AddReply(reply::Null());
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 
@@ -55,25 +70,25 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<size_t> ZRank(db::RedisDb* redis_db, const ZRankArgs* args) {
+ZRankResult ZRank(db::RedisDb* redis_db, const ZRankArgs* args) {
   if (redis_db == nullptr || args == nullptr) {
-    return std::nullopt;
+    return {std::nullopt, ZRankStatus::kMissing};
   }
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
     RS_LOG_DEBUG("key not found\n");
-    return std::nullopt;
+    return {std::nullopt, ZRankStatus::kMissing};
   }
   if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
-    return std::nullopt;
+    return {std::nullopt, ZRankStatus::kWrongType};
   }
   try {
     const auto* zset = obj->ZSet();
-    return zset->Rank(args->element);
+    return {zset->Rank(args->element), ZRankStatus::kOk};
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
-    return std::nullopt;
+    return {std::nullopt, ZRankStatus::kMissing};
   }
 }
 }  // namespace

@@ -1,5 +1,7 @@
+#include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -12,27 +14,38 @@ struct ZScoreArgs {
   std::string key;
   std::string element;
 };
+enum class ZScoreStatus : std::uint8_t {
+  kOk,
+  kMissing,
+  kWrongType,
+};
+struct ZScoreResult {
+  std::optional<double> score;
+  ZScoreStatus status;
+};
 int ParseArgs(const std::vector<std::string>& args, ZScoreArgs* zscore_args);
-std::optional<double> ZScore(db::RedisDb* redis_db, const ZScoreArgs* args);
+ZScoreResult ZScore(db::RedisDb* redis_db, const ZScoreArgs* args);
 }  // namespace
 
 void HandleZScore(Client* const client) {
   ZScoreArgs args;
   if (ParseArgs(client->Args(), &args) < 0) {
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto opt_score = ZScore(redis_db, &args);
-    if (opt_score.has_value()) {
-      client->AddReply(reply::FromFloat(*opt_score));
+    const auto result = ZScore(redis_db, &args);
+    if (result.status == ZScoreStatus::kWrongType) {
+      client->AddReply(reply::WrongTypeError());
+    } else if (result.score.has_value()) {
+      client->AddReply(reply::FromFloat(*result.score));
     } else {
       client->AddReply(reply::Null());
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kError));
+    client->AddReply(reply::FromError("ERR db unavailable"));
   }
 }
 
@@ -49,17 +62,20 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-std::optional<double> ZScore(db::RedisDb* redis_db, const ZScoreArgs* args) {
+ZScoreResult ZScore(db::RedisDb* redis_db, const ZScoreArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
-  if ((obj == nullptr) || obj->Type() != db::RedisObject::ObjectType::kZSet) {
-    return std::nullopt;
+  if (obj == nullptr) {
+    return {std::nullopt, ZScoreStatus::kMissing};
+  }
+  if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
+    return {std::nullopt, ZScoreStatus::kWrongType};
   }
   try {
     const auto* zset = obj->ZSet();
-    return zset->Score(args->element);
+    return {zset->Score(args->element), ZScoreStatus::kOk};
   } catch (const std::exception& e) {
     RS_LOG_DEBUG("catch exception %s", e.what());
-    return std::nullopt;
+    return {std::nullopt, ZScoreStatus::kMissing};
   }
 }
 }  // namespace
