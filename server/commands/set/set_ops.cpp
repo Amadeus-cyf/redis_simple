@@ -38,11 +38,9 @@ std::optional<std::vector<std::string>> SUnion(db::RedisDb* redis_db,
                                                const KeysArgs* args);
 std::optional<std::vector<std::string>> SDiff(db::RedisDb* redis_db,
                                               const KeysArgs* args);
-std::string EncodeStrings(const std::vector<std::string>& values);
-void AddSetOperationReply(
-    Client* client,
-    std::optional<std::vector<std::string>> (*operation)(db::RedisDb*,
-                                                         const KeysArgs*));
+void AddSetOperationReply(Client* client,
+                          std::optional<std::vector<std::string>> (*operation)(
+                              db::RedisDb*, const KeysArgs*));
 
 int ParseKeysArgs(const std::vector<std::string>& args,
                   KeysArgs* const keys_args) {
@@ -79,9 +77,10 @@ std::optional<std::vector<std::string>> SInter(db::RedisDb* const redis_db,
     sets.push_back(lookup.set);
   }
 
-  auto smallest = std::min_element(
-      sets.begin(), sets.end(),
-      [](const Set* left, const Set* right) { return left->Size() < right->Size(); });
+  auto smallest = std::min_element(sets.begin(), sets.end(),
+                                   [](const Set* left, const Set* right) {
+                                     return left->Size() < right->Size();
+                                   });
   std::vector<std::string> result;
   for (const auto& member : (*smallest)->ListAllMembers()) {
     bool present = true;
@@ -155,19 +154,9 @@ std::optional<std::vector<std::string>> SDiff(db::RedisDb* const redis_db,
   return result;
 }
 
-std::string EncodeStrings(const std::vector<std::string>& values) {
-  std::vector<std::string> encoded;
-  encoded.reserve(values.size());
-  for (const auto& value : values) {
-    encoded.push_back(reply::FromBulkString(value));
-  }
-  return reply::FromArray(encoded);
-}
-
-void AddSetOperationReply(
-    Client* const client,
-    std::optional<std::vector<std::string>> (*operation)(db::RedisDb*,
-                                                         const KeysArgs*)) {
+void AddSetOperationReply(Client* const client,
+                          std::optional<std::vector<std::string>> (*operation)(
+                              db::RedisDb*, const KeysArgs*)) {
   KeysArgs args;
   if (ParseKeysArgs(client->Args(), &args) < 0) {
     client->AddReply(reply::WrongNumberOfArguments());
@@ -176,7 +165,7 @@ void AddSetOperationReply(
 
   if (auto* redis_db = client->Db()) {
     const auto values = operation(redis_db, &args);
-    client->AddReply(values.has_value() ? EncodeStrings(*values)
+    client->AddReply(values.has_value() ? reply::FromBulkStringArray(*values)
                                         : reply::WrongTypeError());
     return;
   }
@@ -184,9 +173,13 @@ void AddSetOperationReply(
 }
 }  // namespace
 
-void HandleSInter(Client* const client) { AddSetOperationReply(client, SInter); }
+void HandleSInter(Client* const client) {
+  AddSetOperationReply(client, SInter);
+}
 
-void HandleSUnion(Client* const client) { AddSetOperationReply(client, SUnion); }
+void HandleSUnion(Client* const client) {
+  AddSetOperationReply(client, SUnion);
+}
 
 void HandleSDiff(Client* const client) { AddSetOperationReply(client, SDiff); }
 }  // namespace redis_simple::command::sets

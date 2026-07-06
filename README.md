@@ -191,6 +191,12 @@ functions are named `Create()` and return `std::unique_ptr`, while concise
 accessors such as `Type()`, `Encoding()`, and `TotalBytes()` are preferred over
 Java-style `Get...` names.
 
+Hot paths prefer `std::string_view` for read-only inputs and visitor-style
+traversal when callers can encode or rebuild results directly. Vector-returning
+helpers remain useful for convenience APIs and tests, but command handlers
+should avoid materializing extra copies when they can stream replies in one
+pass.
+
 ## CI
 
 GitHub Actions runs the same flow recommended locally on macOS and Ubuntu, so

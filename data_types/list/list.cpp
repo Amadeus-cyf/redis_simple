@@ -2,12 +2,61 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
-#include <vector>
 
 namespace redis_simple::list {
 namespace {
 constexpr size_t kEntryOverheadEstimate = 8;
+
+bool HasRemoveLimit(size_t limit) { return limit != 0; }
+
+size_t CountMatches(const List& list, size_t size, std::string_view value) {
+  size_t matches = 0;
+  list.ForEach(0, size - 1, [&matches, value](std::string_view current) {
+    if (current == value) {
+      ++matches;
+    }
+    return true;
+  });
+  return matches;
+}
+
+size_t LeadingMatchesToKeep(const List& list, size_t size,
+                            std::string_view value, size_t limit,
+                            List::RemoveDirection direction) {
+  if (direction == List::RemoveDirection::kFromHead || !HasRemoveLimit(limit)) {
+    return 0;
+  }
+  // Tail removals rebuild from left to right, so keep the leading matching
+  // elements and remove only the requested final matches.
+  const size_t matches = CountMatches(list, size, value);
+  return matches > limit ? matches - limit : 0;
+}
+
+struct RemoveState {
+  std::string_view target;
+  size_t limit;
+  List::RemoveDirection direction;
+  size_t leading_matches_to_keep;
+  size_t kept_leading_matches{0};
+  size_t removed{0};
+
+  bool ShouldRemove(std::string_view current) {
+    if (current != target) {
+      return false;
+    }
+    if (direction == List::RemoveDirection::kFromTail &&
+        HasRemoveLimit(limit) &&
+        kept_leading_matches < leading_matches_to_keep) {
+      ++kept_leading_matches;
+      return false;
+    }
+    if (!HasRemoveLimit(limit) || removed < limit) {
+      ++removed;
+      return true;
+    }
+    return false;
+  }
+};
 }  // namespace
 
 List::List(size_t list_max_listpack_bytes)
@@ -15,79 +64,86 @@ List::List(size_t list_max_listpack_bytes)
       quicklist_(nullptr),
       list_max_listpack_bytes_(list_max_listpack_bytes) {}
 
-bool List::LPush(const std::string& value) { return Push(value, true); }
+bool List::LPush(std::string_view value) { return Push(value, true); }
 
-bool List::RPush(const std::string& value) { return Push(value, false); }
+bool List::RPush(std::string_view value) { return Push(value, false); }
 
 std::optional<std::string> List::RPop() { return Pop(false); }
 
 std::optional<std::string> List::LPop() { return Pop(true); }
 
 std::optional<std::string> List::At(size_t index) const {
-  const auto values = Range(index, index);
-  return values.empty() ? std::nullopt
-                        : std::optional<std::string>(values.front());
+  std::optional<std::string> result;
+  ForEach(index, index, [&result](std::string_view value) {
+    result.emplace(value);
+    return true;
+  });
+  return result;
 }
 
-bool List::Set(size_t index, const std::string& value) {
-  if (index >= Size()) {
+bool List::Set(size_t index, std::string_view value) {
+  const size_t size = Size();
+  if (index >= size) {
     return false;
   }
-  auto values = Range(0, Size() - 1);
-  values[index] = value;
-  return ReplaceAll(values);
+
+  auto replacement = List::Create(list_max_listpack_bytes_);
+  size_t current_index = 0;
+  const bool replaced = ForEach(
+      0, size - 1,
+      [&replacement, &current_index, index, value](std::string_view current) {
+        const auto next = current_index == index ? value : current;
+        ++current_index;
+        return replacement->RPush(next);
+      });
+  return replaced ? AdoptReplacement(std::move(replacement)) : false;
 }
 
-size_t List::Remove(const std::string& value, int64_t count) {
+std::optional<size_t> List::Remove(std::string_view value, size_t limit,
+                                   RemoveDirection direction) {
   const size_t size = Size();
   if (size == 0) {
     return 0;
   }
 
-  size_t limit = std::numeric_limits<size_t>::max();
-  if (count > 0) {
-    limit = static_cast<size_t>(count);
-  } else if (count < 0 && count != std::numeric_limits<int64_t>::min()) {
-    limit = static_cast<size_t>(-count);
+  RemoveState state{value, limit, direction,
+                    LeadingMatchesToKeep(*this, size, value, limit, direction)};
+  auto replacement = List::Create(list_max_listpack_bytes_);
+  const bool rebuilt =
+      ForEach(0, size - 1, [&replacement, &state](std::string_view current) {
+        if (state.ShouldRemove(current)) {
+          return true;
+        }
+        return replacement->RPush(current);
+      });
+  if (!rebuilt) {
+    return std::nullopt;
   }
-  size_t removed = 0;
-  std::vector<std::string> kept;
-  kept.reserve(size);
-  const auto values = Range(0, size - 1);
-  if (count >= 0) {
-    for (const auto& current : values) {
-      if (current == value && removed < limit) {
-        ++removed;
-        continue;
-      }
-      kept.push_back(current);
-    }
-  } else {
-    std::vector<std::string> reversed_kept;
-    reversed_kept.reserve(size);
-    for (auto it = values.rbegin(); it != values.rend(); ++it) {
-      if (*it == value && removed < limit) {
-        ++removed;
-        continue;
-      }
-      reversed_kept.push_back(*it);
-    }
-    kept.assign(reversed_kept.rbegin(), reversed_kept.rend());
+  if (state.removed == 0) {
+    return 0;
   }
-
-  if (removed > 0) {
-    ReplaceAll(kept);
+  if (!AdoptReplacement(std::move(replacement))) {
+    return std::nullopt;
   }
-  return removed;
+  return state.removed;
 }
 
 bool List::Trim(size_t start, size_t stop) {
   const size_t size = Size();
   if (size == 0 || start > stop || start >= size) {
-    return ReplaceAll({});
+    return AdoptReplacement(List::Create(list_max_listpack_bytes_));
   }
   stop = std::min(stop, size - 1);
-  return ReplaceAll(Range(start, stop));
+  if (start == 0 && stop == size - 1) {
+    return true;
+  }
+
+  auto replacement = List::Create(list_max_listpack_bytes_);
+  const bool rebuilt =
+      ForEach(start, stop, [&replacement](std::string_view value) {
+        return replacement->RPush(value);
+      });
+  return rebuilt ? AdoptReplacement(std::move(replacement)) : false;
 }
 
 size_t List::Size() const {
@@ -106,29 +162,18 @@ std::vector<std::string> List::Range(size_t start, size_t stop) const {
   }
   stop = std::min(stop, size - 1);
   values.reserve(stop - start + 1);
-  if (listpack_) {
-    size_t index = 0;
-    ssize_t listpack_index = listpack_->First();
-    while (listpack_index != -1 && index <= stop) {
-      if (index >= start) {
-        auto value = listpack_->Get(static_cast<size_t>(listpack_index));
-        if (value.has_value()) {
-          values.push_back(*value);
-        }
-      }
-      ++index;
-      listpack_index = listpack_->Next(static_cast<size_t>(listpack_index));
-    }
-    return values;
-  }
-  return quicklist_->Range(start, stop);
+  ForEach(start, stop, [&values](std::string_view value) {
+    values.emplace_back(value);
+    return true;
+  });
+  return values;
 }
 
 enum List::Encoding List::Encoding() const {
   return listpack_ ? Encoding::kListPack : Encoding::kQuickList;
 }
 
-bool List::Push(const std::string& value, bool head) {
+bool List::Push(std::string_view value, bool head) {
   if (listpack_) {
     if (WouldExceedListpackLimit(value) && !ConvertListPackToQuickList()) {
       return false;
@@ -156,14 +201,13 @@ std::optional<std::string> List::Pop(bool head) {
   return value;
 }
 
-bool List::ReplaceAll(const std::vector<std::string>& values) {
-  listpack_ = std::make_unique<in_memory::ListPack>();
-  quicklist_.reset();
-  return std::all_of(values.begin(), values.end(),
-                     [this](const auto& value) { return RPush(value); });
+bool List::AdoptReplacement(std::unique_ptr<List> replacement) {
+  listpack_ = std::move(replacement->listpack_);
+  quicklist_ = std::move(replacement->quicklist_);
+  return true;
 }
 
-bool List::WouldExceedListpackLimit(const std::string& value) const {
+bool List::WouldExceedListpackLimit(std::string_view value) const {
   if (!listpack_) {
     return false;
   }
@@ -174,13 +218,14 @@ bool List::WouldExceedListpackLimit(const std::string& value) const {
 bool List::ConvertListPackToQuickList() {
   auto quicklist =
       std::make_unique<in_memory::QuickList>(list_max_listpack_bytes_);
-  ssize_t idx = listpack_->First();
-  while (idx != -1) {
-    const auto value = listpack_->Get(idx);
-    if (value.has_value() && !quicklist->RPush(*value)) {
-      return false;
-    }
-    idx = listpack_->Next(idx);
+  const size_t size = listpack_->Size();
+  const bool converted =
+      size == 0 ||
+      listpack_->ForEach(0, size - 1, [&quicklist](std::string_view value) {
+        return quicklist->RPush(value);
+      });
+  if (!converted) {
+    return false;
   }
   quicklist_ = std::move(quicklist);
   listpack_.reset();
@@ -192,32 +237,17 @@ void List::TryConvertQuickListToListPack() {
     return;
   }
 
-  std::vector<std::string> values;
-  while (auto value = quicklist_->LPop()) {
-    values.push_back(*value);
-  }
-
   auto listpack = std::make_unique<in_memory::ListPack>();
-  for (const auto& value : values) {
-    if (!listpack->Append(value)) {
-      auto quicklist =
-          std::make_unique<in_memory::QuickList>(list_max_listpack_bytes_);
-      for (const auto& rebuild_value : values) {
-        quicklist->RPush(rebuild_value);
-      }
-      quicklist_ = std::move(quicklist);
-      return;
-    }
+  const size_t size = quicklist_->Size();
+  const bool converted =
+      size == 0 ||
+      quicklist_->ForEach(0, size - 1, [&listpack](std::string_view value) {
+        return listpack->Append(value);
+      });
+  if (!converted) {
+    return;
   }
   if (listpack->TotalBytes() > list_max_listpack_bytes_ / 2) {
-    auto quicklist =
-        std::make_unique<in_memory::QuickList>(list_max_listpack_bytes_);
-    for (const auto& value : values) {
-      if (!quicklist->RPush(value)) {
-        return;
-      }
-    }
-    quicklist_ = std::move(quicklist);
     return;
   }
   listpack_ = std::move(listpack);

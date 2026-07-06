@@ -7,6 +7,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -93,12 +94,12 @@ std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
                                                         int64_t stop,
                                                         size_t size);
 std::optional<int64_t> ToReplyInteger(size_t value);
+std::pair<size_t, List::RemoveDirection> NormalizeRemoveCount(int64_t count);
 std::optional<int64_t> Push(db::RedisDb* redis_db, const PushArgs* args,
                             PushSide side);
 PopResult Pop(db::RedisDb* redis_db, const KeyArgs* args, PopSide side);
 std::optional<int64_t> LLen(db::RedisDb* redis_db, const KeyArgs* args);
-std::optional<std::vector<std::string>> LRange(db::RedisDb* redis_db,
-                                               const RangeArgs* args);
+std::optional<std::string> LRange(db::RedisDb* redis_db, const RangeArgs* args);
 PopResult LIndex(db::RedisDb* redis_db, const IndexArgs* args);
 ListStatus LSet(db::RedisDb* redis_db, const SetArgs* args);
 std::optional<int64_t> LRem(db::RedisDb* redis_db, const RemoveArgs* args);
@@ -232,6 +233,20 @@ std::optional<int64_t> ToReplyInteger(size_t value) {
   return static_cast<int64_t>(value);
 }
 
+std::pair<size_t, List::RemoveDirection> NormalizeRemoveCount(int64_t count) {
+  if (count == 0) {
+    return {0, List::RemoveDirection::kFromHead};
+  }
+  if (count > 0) {
+    return {static_cast<size_t>(count), List::RemoveDirection::kFromHead};
+  }
+  if (count == std::numeric_limits<int64_t>::min()) {
+    return {std::numeric_limits<size_t>::max(),
+            List::RemoveDirection::kFromTail};
+  }
+  return {static_cast<size_t>(-count), List::RemoveDirection::kFromTail};
+}
+
 std::optional<int64_t> Push(db::RedisDb* const redis_db,
                             const PushArgs* const args, PushSide side) {
   const ListResult result = FindOrCreateList(redis_db, args->key);
@@ -277,11 +292,11 @@ std::optional<int64_t> LLen(db::RedisDb* const redis_db,
   return ToReplyInteger(result.list->Size());
 }
 
-std::optional<std::vector<std::string>> LRange(db::RedisDb* const redis_db,
-                                               const RangeArgs* const args) {
+std::optional<std::string> LRange(db::RedisDb* const redis_db,
+                                  const RangeArgs* const args) {
   const ListResult result = FindList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
-    return std::vector<std::string>();
+    return reply::FromArrayHeader(0);
   }
   if (result.status != ListStatus::kOk) {
     return std::nullopt;
@@ -289,9 +304,16 @@ std::optional<std::vector<std::string>> LRange(db::RedisDb* const redis_db,
   const auto range =
       NormalizeRange(args->start, args->stop, result.list->Size());
   if (!range.has_value()) {
-    return std::vector<std::string>();
+    return reply::FromArrayHeader(0);
   }
-  return result.list->Range(range->first, range->second);
+  std::string encoded =
+      reply::FromArrayHeader(range->second - range->first + 1);
+  result.list->ForEach(range->first, range->second,
+                       [&encoded](std::string_view value) {
+                         reply::AppendBulkString(value, &encoded);
+                         return true;
+                       });
+  return encoded;
 }
 
 PopResult LIndex(db::RedisDb* const redis_db, const IndexArgs* const args) {
@@ -329,11 +351,15 @@ std::optional<int64_t> LRem(db::RedisDb* const redis_db,
   if (result.status != ListStatus::kOk) {
     return std::nullopt;
   }
-  const size_t removed = result.list->Remove(args->value, args->count);
+  const auto [limit, direction] = NormalizeRemoveCount(args->count);
+  const auto removed = result.list->Remove(args->value, limit, direction);
+  if (!removed.has_value()) {
+    return std::nullopt;
+  }
   if (result.list->Size() == 0) {
     redis_db->DeleteKey(args->key);
   }
-  return ToReplyInteger(removed);
+  return ToReplyInteger(*removed);
 }
 
 ListStatus LTrim(db::RedisDb* const redis_db, const RangeArgs* const args) {
@@ -430,17 +456,12 @@ void HandleLRange(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto values = LRange(redis_db, &args);
-    if (!values.has_value()) {
+    const auto encoded = LRange(redis_db, &args);
+    if (!encoded.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    std::vector<std::string> encoded_values;
-    encoded_values.reserve(values->size());
-    for (const auto& value : *values) {
-      encoded_values.push_back(reply::FromBulkString(value));
-    }
-    client->AddReply(reply::FromArray(encoded_values));
+    client->AddReply(*encoded);
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

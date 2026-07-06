@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "memory/listpack.h"
@@ -16,6 +17,10 @@ class List {
     kListPack,
     kQuickList,
   };
+  enum class RemoveDirection {
+    kFromHead,
+    kFromTail,
+  };
 
   static constexpr size_t kDefaultListMaxListpackBytes =
       in_memory::QuickList::kDefaultNodeMaxBytes;
@@ -25,25 +30,28 @@ class List {
     return std::unique_ptr<List>(new List(list_max_listpack_bytes));
   }
 
-  bool LPush(const std::string& value);
-  bool RPush(const std::string& value);
+  bool LPush(std::string_view value);
+  bool RPush(std::string_view value);
   std::optional<std::string> RPop();
   std::optional<std::string> LPop();
   std::optional<std::string> At(size_t index) const;
-  bool Set(size_t index, const std::string& value);
-  size_t Remove(const std::string& value, int64_t count);
+  bool Set(size_t index, std::string_view value);
+  std::optional<size_t> Remove(std::string_view value, size_t limit,
+                               RemoveDirection direction);
   bool Trim(size_t start, size_t stop);
   size_t Size() const;
   size_t NodeCount() const;
   std::vector<std::string> Range(size_t start, size_t stop) const;
+  template <typename Visitor>
+  bool ForEach(size_t start, size_t stop, Visitor&& visitor) const;
   Encoding Encoding() const;
 
  private:
   explicit List(size_t list_max_listpack_bytes);
-  bool Push(const std::string& value, bool head);
+  bool Push(std::string_view value, bool head);
   std::optional<std::string> Pop(bool head);
-  bool ReplaceAll(const std::vector<std::string>& values);
-  bool WouldExceedListpackLimit(const std::string& value) const;
+  bool AdoptReplacement(std::unique_ptr<List> replacement);
+  bool WouldExceedListpackLimit(std::string_view value) const;
   bool ConvertListPackToQuickList();
   void TryConvertQuickListToListPack();
 
@@ -51,4 +59,10 @@ class List {
   std::unique_ptr<in_memory::QuickList> quicklist_;
   size_t list_max_listpack_bytes_;
 };
+
+template <typename Visitor>
+bool List::ForEach(size_t start, size_t stop, Visitor&& visitor) const {
+  return listpack_ ? listpack_->ForEach(start, stop, visitor)
+                   : quicklist_->ForEach(start, stop, visitor);
+}
 }  // namespace redis_simple::list

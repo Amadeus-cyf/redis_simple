@@ -7,13 +7,16 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace redis_simple::in_memory {
 namespace {
-ListPack::ListPackEntry StrEntry(std::string* str) { return {str, 0}; }
+ListPack::ListPackEntry StrEntry(std::string_view str) {
+  return {str, 0, false};
+}
 
-ListPack::ListPackEntry IntEntry(int64_t val) { return {nullptr, val}; }
+ListPack::ListPackEntry IntEntry(int64_t val) { return {"", val, true}; }
 
 std::string StringAt(const ListPack& listpack, size_t idx) {
   size_t len = 0;
@@ -23,8 +26,8 @@ std::string StringAt(const ListPack& listpack, size_t idx) {
 
 void ExpectEntryAt(const ListPack& listpack, size_t idx,
                    const ListPack::ListPackEntry& entry) {
-  if (entry.str != nullptr) {
-    EXPECT_EQ(StringAt(listpack, idx), *entry.str);
+  if (!entry.is_integer) {
+    EXPECT_EQ(StringAt(listpack, idx), entry.str);
     return;
   }
 
@@ -60,9 +63,8 @@ size_t Advance(const ListPack& listpack, size_t idx, size_t steps) {
   return idx;
 }
 
-std::vector<ListPack::ListPackEntry> MakeBatchAppendEntries(std::string* s0,
-                                                            std::string* s1,
-                                                            std::string* s2) {
+std::vector<ListPack::ListPackEntry> MakeBatchAppendEntries(
+    std::string_view s0, std::string_view s1, std::string_view s2) {
   return {
       StrEntry(s0),        IntEntry(INT64_MIN), IntEntry(INT64_MAX),
       IntEntry(INT32_MIN), IntEntry(INT32_MAX), IntEntry(INT32_MAX >> 8),
@@ -70,9 +72,8 @@ std::vector<ListPack::ListPackEntry> MakeBatchAppendEntries(std::string* s0,
   };
 }
 
-std::vector<ListPack::ListPackEntry> MakeBatchPrependEntries(std::string* s0,
-                                                             std::string* s1,
-                                                             std::string* s2) {
+std::vector<ListPack::ListPackEntry> MakeBatchPrependEntries(
+    std::string_view s0, std::string_view s1, std::string_view s2) {
   return {
       StrEntry(s0),
       IntEntry(INT64_MIN + 7),
@@ -86,9 +87,8 @@ std::vector<ListPack::ListPackEntry> MakeBatchPrependEntries(std::string* s0,
   };
 }
 
-std::vector<ListPack::ListPackEntry> MakeBatchInsertEntries(std::string* s0,
-                                                            std::string* s1,
-                                                            std::string* s2) {
+std::vector<ListPack::ListPackEntry> MakeBatchInsertEntries(
+    std::string_view s0, std::string_view s1, std::string_view s2) {
   return {
       StrEntry(s0),
       IntEntry(INT64_MIN + 21),
@@ -169,7 +169,7 @@ std::unique_ptr<ListPack> MakeBatchAppendedListPack() {
   std::string s0("test string 1");
   std::string s1("hello world");
   std::string s2("-1234567");
-  const auto entries = MakeBatchAppendEntries(&s0, &s1, &s2);
+  const auto entries = MakeBatchAppendEntries(s0, s1, s2);
   listpack->BatchAppend(entries);
   return listpack;
 }
@@ -179,7 +179,7 @@ std::unique_ptr<ListPack> MakeBatchPrependedListPack() {
   std::string s0("test string 3");
   std::string s1(4094, 'h');
   std::string s2(4098, 'i');
-  const auto entries = MakeBatchPrependEntries(&s0, &s1, &s2);
+  const auto entries = MakeBatchPrependEntries(s0, s1, s2);
   listpack->BatchPrepend(entries);
   return listpack;
 }
@@ -189,7 +189,7 @@ std::unique_ptr<ListPack> MakeBatchInsertedListPack() {
   std::string s0("test string 4");
   std::string s1(4093, 'j');
   std::string s2(4099, 'k');
-  const auto entries = MakeBatchInsertEntries(&s0, &s1, &s2);
+  const auto entries = MakeBatchInsertEntries(s0, s1, s2);
   size_t idx = Advance(*listpack, listpack->First(), 3);
   listpack->BatchInsert(idx, entries);
   return listpack;
@@ -499,7 +499,7 @@ TEST(ListPackTest, BatchAppend) {
   std::string s0("test string 1");
   std::string s1("hello world");
   std::string s2("-1234567");
-  const auto entries = MakeBatchAppendEntries(&s0, &s1, &s2);
+  const auto entries = MakeBatchAppendEntries(s0, s1, s2);
   size_t idx = listpack->TotalBytes() - 1;
   listpack->BatchAppend(entries);
   ASSERT_EQ(listpack->Size(), 30);
@@ -515,7 +515,7 @@ TEST(ListPackTest, BatchPrepend) {
   std::string s0("test string 3");
   std::string s1(4094, 'h');
   std::string s2(4098, 'i');
-  const auto entries = MakeBatchPrependEntries(&s0, &s1, &s2);
+  const auto entries = MakeBatchPrependEntries(s0, s1, s2);
   ASSERT_TRUE(listpack->BatchPrepend(entries));
   ASSERT_EQ(listpack->Size(), 39);
   size_t idx = listpack->First();
@@ -531,7 +531,7 @@ TEST(ListPackTest, BatchInsert) {
   std::string s0("test string 4");
   std::string s1(4093, 'j');
   std::string s2(4099, 'k');
-  const auto entries = MakeBatchInsertEntries(&s0, &s1, &s2);
+  const auto entries = MakeBatchInsertEntries(s0, s1, s2);
   size_t idx = listpack->First();
   ASSERT_EQ(idx, ListPack::kListPackHeaderSize);
   idx = Advance(*listpack, idx, 3);

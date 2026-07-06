@@ -2,11 +2,13 @@
 
 #include <sys/types.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace redis_simple::in_memory {
@@ -15,9 +17,9 @@ namespace redis_simple::in_memory {
 class ListPack {
  public:
   struct ListPackEntry {
-    std::string* const str;
-    // str is null when the entry stores an integer.
+    std::string_view str;
     int64_t sval;
+    bool is_integer;
   };
   // Header: 32-bit total bytes followed by 16-bit element count.
   static constexpr int kListPackHeaderSize = 6;
@@ -28,19 +30,24 @@ class ListPack {
   unsigned char* Get(size_t idx, size_t* const len) const;
   std::optional<std::string> Get(size_t idx) const;
   std::optional<int64_t> IntegerAt(size_t idx) const;
-  ssize_t Find(const std::string& val) const;
-  ssize_t FindAndSkip(const std::string& val, size_t skip) const;
-  bool Append(const std::string& element_string);
+  ssize_t Find(std::string_view val) const;
+  ssize_t FindAndSkip(std::string_view val, size_t skip) const;
+  bool Append(std::string_view element_string);
   bool Append(int64_t element_integer);
-  bool Prepend(const std::string& element_string);
+  bool Prepend(std::string_view element_string);
   bool Prepend(int64_t element_integer);
-  bool Insert(size_t idx, const std::string& element_string);
+  bool Insert(size_t idx, std::string_view element_string);
   bool Insert(size_t idx, int64_t element_integer);
-  bool Replace(size_t idx, const std::string& element_string);
+  bool Replace(size_t idx, std::string_view element_string);
   bool Replace(size_t idx, int64_t element_integer);
   bool BatchAppend(const std::vector<ListPackEntry>& entries);
   bool BatchPrepend(const std::vector<ListPackEntry>& entries);
   bool BatchInsert(size_t idx, const std::vector<ListPackEntry>& entries);
+  // The value view is valid only during the callback invocation.
+  template <typename Visitor>
+  bool ForEach(size_t start, size_t stop, Visitor&& visitor) const;
+  template <typename Visitor>
+  bool ForEachReverse(size_t start, size_t stop, Visitor&& visitor) const;
   void Delete(size_t idx);
   ssize_t First() const;
   ssize_t Last() const;
@@ -101,7 +108,7 @@ class ListPack {
     kSize5BytesBacklenMax = (1ULL << 35) - 1,
   };
   struct Encoding {
-    std::string* str;
+    std::string_view str;
     int64_t sval;
     EncodingGeneralType encoding_type;
     size_t backlen_bytes;
@@ -111,7 +118,7 @@ class ListPack {
   unsigned char* IntegerAt(size_t idx, unsigned char* dst, size_t* const len,
                            int64_t* val, EncodingType encoding_type) const;
   bool Insert(size_t idx, ListPack::Position where,
-              const std::string* element_string,
+              const std::string_view* element_string,
               const int64_t* element_integer);
   bool BatchInsert(size_t idx, ListPack::Position where,
                    const std::vector<ListPackEntry>& entries);
@@ -122,7 +129,7 @@ class ListPack {
   EncodingType EncodingAt(size_t idx) const;
   size_t Backlen(size_t idx) const;
   static uint8_t BacklenBytes(size_t backlen);
-  static size_t EncodeString(unsigned char* const buf, const std::string* ele);
+  static size_t EncodeString(unsigned char* buf, std::string_view ele);
   static size_t EncodeInteger(unsigned char* const buf, int64_t v);
   static void EncodeBacklen(unsigned char* const buf, size_t backlen);
   size_t DecodeBacklen(size_t idx) const;
@@ -132,4 +139,65 @@ class ListPack {
   std::unique_ptr<unsigned char[]> lp_;
   mutable std::array<unsigned char, kListPackIntBufSize> int_buf_{};
 };
+
+template <typename Visitor>
+bool ListPack::ForEach(size_t start, size_t stop, Visitor&& visitor) const {
+  const size_t size = Size();
+  if (start > stop || start >= size) {
+    return true;
+  }
+  stop = std::min(stop, size - 1);
+
+  size_t index = 0;
+  auto listpack_index = First();
+  while (listpack_index != -1 && index <= stop) {
+    if (index >= start) {
+      size_t len = 0;
+      const auto* data = Get(static_cast<size_t>(listpack_index), &len);
+      if (data != nullptr) {
+        const std::string_view value(reinterpret_cast<const char*>(data), len);
+        if (!visitor(value)) {
+          return false;
+        }
+      }
+    }
+    ++index;
+    listpack_index = Next(static_cast<size_t>(listpack_index));
+  }
+  return true;
+}
+
+template <typename Visitor>
+bool ListPack::ForEachReverse(size_t start, size_t stop,
+                              Visitor&& visitor) const {
+  const size_t size = Size();
+  if (start > stop || start >= size) {
+    return true;
+  }
+  stop = std::min(stop, size - 1);
+
+  size_t index = 0;
+  auto listpack_index = First();
+  while (listpack_index != -1 && index < stop) {
+    listpack_index = Next(static_cast<size_t>(listpack_index));
+    ++index;
+  }
+
+  while (listpack_index != -1 && index >= start) {
+    size_t len = 0;
+    const auto* data = Get(static_cast<size_t>(listpack_index), &len);
+    if (data != nullptr) {
+      const std::string_view value(reinterpret_cast<const char*>(data), len);
+      if (!visitor(value)) {
+        return false;
+      }
+    }
+    if (index == 0) {
+      break;
+    }
+    listpack_index = Prev(static_cast<size_t>(listpack_index));
+    --index;
+  }
+  return true;
+}
 }  // namespace redis_simple::in_memory

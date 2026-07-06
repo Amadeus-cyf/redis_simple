@@ -16,20 +16,16 @@ constexpr char kDoublePrefix = ',';
 constexpr char kNullPrefix = '_';
 constexpr char kErrorPrefix = '-';
 
-std::string FromString(const std::string& s) {
+std::string FromString(std::string_view s) {
   std::string reply;
   reply.push_back(kStringPrefix);
-  reply.append(s).append(kCrlf.data(), kCrlf.size());
+  reply.append(s.data(), s.size()).append(kCrlf.data(), kCrlf.size());
   return reply;
 }
 
-std::string FromBulkString(const std::string& s) {
+std::string FromBulkString(std::string_view s) {
   std::string reply;
-  reply.push_back(kBulkStringPrefix);
-  reply.append(std::to_string(s.size()))
-      .append(kCrlf.data(), kCrlf.size())
-      .append(s)
-      .append(kCrlf.data(), kCrlf.size());
+  AppendBulkString(s, &reply);
   return reply;
 }
 
@@ -43,9 +39,7 @@ std::string FromInt64(int64_t i64) {
 std::string FromInt64(ReplyStatus status) { return FromInt64(ToInt(status)); }
 
 std::string FromArray(const std::vector<std::string>& array) {
-  std::string reply;
-  reply.push_back(kArrayPrefix);
-  reply.append(std::to_string(array.size())).append(kCrlf.data(), kCrlf.size());
+  std::string reply = FromArrayHeader(array.size());
   for (const std::string& str : array) {
     if (str.size() < kCrlf.size() ||
         str.compare(str.size() - kCrlf.size(), kCrlf.size(), kCrlf.data(),
@@ -55,6 +49,29 @@ std::string FromArray(const std::vector<std::string>& array) {
     reply.append(str);
   }
   return reply;
+}
+
+std::string FromBulkStringArray(const std::vector<std::string>& values) {
+  std::string reply = FromArrayHeader(values.size());
+  for (const auto& value : values) {
+    AppendBulkString(value, &reply);
+  }
+  return reply;
+}
+
+std::string FromArrayHeader(size_t size) {
+  std::string reply;
+  reply.push_back(kArrayPrefix);
+  reply.append(std::to_string(size)).append(kCrlf.data(), kCrlf.size());
+  return reply;
+}
+
+void AppendBulkString(std::string_view s, std::string* const reply) {
+  reply->push_back(kBulkStringPrefix);
+  reply->append(std::to_string(s.size()))
+      .append(kCrlf.data(), kCrlf.size())
+      .append(s.data(), s.size())
+      .append(kCrlf.data(), kCrlf.size());
 }
 
 std::string FromFloat(double fl) {

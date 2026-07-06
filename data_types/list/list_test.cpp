@@ -73,7 +73,7 @@ TEST(ListTest, IndexSetRemoveAndTrimWithListPackEncoding) {
   ASSERT_EQ(list->Range(0, 3),
             (std::vector<std::string>{"one", "changed", "two", "three"}));
 
-  ASSERT_EQ(list->Remove("two", 0), 1);
+  ASSERT_EQ(list->Remove("two", 0, List::RemoveDirection::kFromHead), 1);
   ASSERT_EQ(list->Range(0, 2),
             (std::vector<std::string>{"one", "changed", "three"}));
 
@@ -144,10 +144,48 @@ TEST(ListEncodingTest, MutatesQuickListEncoding) {
 
   ASSERT_EQ(list->At(2), value + "3");
   ASSERT_TRUE(list->Set(2, value + "4"));
-  ASSERT_EQ(list->Remove(value + "2", -1), 1);
+  ASSERT_EQ(list->Remove(value + "2", 1, List::RemoveDirection::kFromTail), 1);
   ASSERT_TRUE(list->Trim(1, 2));
 
   ASSERT_EQ(list->Range(0, 1),
             (std::vector<std::string>{value + "2", value + "4"}));
+}
+
+TEST(ListEncodingTest, TrimKeepsQuickListWhenRangeExceedsListPackLimit) {
+  auto list = List::Create(96);
+  const std::string value(32, 't');
+
+  ASSERT_TRUE(list->RPush(value + "1"));
+  ASSERT_TRUE(list->RPush(value + "2"));
+  ASSERT_TRUE(list->RPush(value + "3"));
+  ASSERT_TRUE(list->RPush(value + "4"));
+  ASSERT_TRUE(list->RPush(value + "5"));
+  ASSERT_EQ(list->Encoding(), List::Encoding::kQuickList);
+
+  ASSERT_TRUE(list->Trim(0, 3));
+
+  ASSERT_EQ(list->Encoding(), List::Encoding::kQuickList);
+  ASSERT_EQ(list->Range(0, 3),
+            (std::vector<std::string>{value + "1", value + "2", value + "3",
+                                      value + "4"}));
+}
+
+TEST(ListEncodingTest, RemoveFromTailKeepsOriginalOrderWithoutRangeCopy) {
+  auto list = List::Create(96);
+  const std::string value(32, 'r');
+
+  ASSERT_TRUE(list->RPush(value + "1"));
+  ASSERT_TRUE(list->RPush(value + "2"));
+  ASSERT_TRUE(list->RPush(value + "3"));
+  ASSERT_TRUE(list->RPush(value + "2"));
+  ASSERT_TRUE(list->RPush(value + "4"));
+  ASSERT_EQ(list->Encoding(), List::Encoding::kQuickList);
+
+  ASSERT_EQ(list->Remove(value + "2", 1, List::RemoveDirection::kFromTail), 1);
+
+  ASSERT_EQ(list->Encoding(), List::Encoding::kQuickList);
+  ASSERT_EQ(list->Range(0, 3),
+            (std::vector<std::string>{value + "1", value + "2", value + "3",
+                                      value + "4"}));
 }
 }  // namespace redis_simple::list

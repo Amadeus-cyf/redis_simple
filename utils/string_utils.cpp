@@ -45,7 +45,7 @@ void ToUppercase(std::string& s) {
   });
 }
 
-bool ToInt64(const std::string& s, int64_t* const v) {
+bool ToInt64(std::string_view s, int64_t* const v) {
   // Directly return false if the string is empty or the number is overflow.
   if (s.empty() || s.size() > 20) {
     return false;

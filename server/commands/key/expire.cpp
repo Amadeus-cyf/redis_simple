@@ -128,10 +128,8 @@ void HandlePersist(Client* const client) {
     return;
   }
   if (auto* redis_db = client->Db()) {
-    client->AddReply(
-        reply::FromInt64(redis_db->PersistKey(args.key) == db::DbStatus::kOk
-                             ? 1
-                             : 0));
+    client->AddReply(reply::FromInt64(
+        redis_db->PersistKey(args.key) == db::DbStatus::kOk ? 1 : 0));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

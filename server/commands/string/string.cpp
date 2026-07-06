@@ -77,8 +77,7 @@ int ParseMSetArgs(const std::vector<std::string>& args, MSetArgs* mset_args) {
   return 0;
 }
 
-StringResult LookupString(db::RedisDb* const redis_db,
-                          const std::string& key) {
+StringResult LookupString(db::RedisDb* const redis_db, const std::string& key) {
   const auto* object = redis_db->LookupKey(key);
   if (object == nullptr) {
     return {"", StringStatus::kMissing};
@@ -189,15 +188,16 @@ void HandleMGet(Client* const client) {
     client->AddReply(reply::FromError("ERR db unavailable"));
     return;
   }
-  std::vector<std::string> encoded;
-  encoded.reserve(keys.size());
+  std::string encoded = reply::FromArrayHeader(keys.size());
   for (const auto& key : keys) {
     const auto result = LookupString(redis_db, key);
-    encoded.push_back(result.status == StringStatus::kOk
-                          ? reply::FromBulkString(result.value)
-                          : reply::Null());
+    if (result.status == StringStatus::kOk) {
+      reply::AppendBulkString(result.value, &encoded);
+    } else {
+      encoded.append(reply::Null());
+    }
   }
-  client->AddReply(reply::FromArray(encoded));
+  client->AddReply(encoded);
 }
 
 void HandleMSet(Client* const client) {

@@ -15,6 +15,12 @@ TEST(ReplyTest, FromBulkString) {
   ASSERT_EQ(FromBulkString(""), "$0\r\n\r\n");
 }
 
+TEST(ReplyTest, FromBulkStringArray) {
+  ASSERT_EQ(FromBulkStringArray({"one", "two"}),
+            "*2\r\n$3\r\none\r\n$3\r\ntwo\r\n");
+  ASSERT_EQ(FromBulkStringArray({}), "*0\r\n");
+}
+
 TEST(ReplyTest, From64BitsInt) {
   ASSERT_EQ(FromInt64(1234567), ":1234567\r\n");
 }

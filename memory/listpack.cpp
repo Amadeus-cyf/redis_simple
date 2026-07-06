@@ -88,11 +88,11 @@ std::optional<int64_t> ListPack::IntegerAt(size_t idx) const {
   return val;
 }
 
-ssize_t ListPack::Find(const std::string& val) const {
+ssize_t ListPack::Find(std::string_view val) const {
   return FindAndSkip(val, 0);
 }
 
-ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
+ssize_t ListPack::FindAndSkip(std::string_view val, size_t skip) const {
   ssize_t idx = First();
   if (idx < 0) {
     return -1;
@@ -100,8 +100,10 @@ ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
   size_t skip_count = 0;
   while (lp_[idx] != kListPackEof) {
     if (skip_count == 0) {
-      const auto element = Get(idx);
-      if (element.has_value() && *element == val) {
+      size_t len = 0;
+      const auto* data = Get(static_cast<size_t>(idx), &len);
+      if (data != nullptr &&
+          std::string_view(reinterpret_cast<const char*>(data), len) == val) {
         return idx;
       }
       skip_count = skip;
@@ -118,7 +120,7 @@ ssize_t ListPack::FindAndSkip(const std::string& val, size_t skip) const {
   return -1;
 }
 
-bool ListPack::Append(const std::string& element_string) {
+bool ListPack::Append(std::string_view element_string) {
   uint32_t listpack_bytes = TotalBytes();
   return Insert(listpack_bytes - 1, Position::kInsertBefore, &element_string,
                 nullptr);
@@ -130,7 +132,7 @@ bool ListPack::Append(int64_t element_integer) {
                 &element_integer);
 }
 
-bool ListPack::Prepend(const std::string& element_string) {
+bool ListPack::Prepend(std::string_view element_string) {
   return Insert(kListPackHeaderSize, Position::kInsertBefore, &element_string,
                 nullptr);
 }
@@ -140,7 +142,7 @@ bool ListPack::Prepend(int64_t element_integer) {
                 &element_integer);
 }
 
-bool ListPack::Insert(size_t idx, const std::string& element_string) {
+bool ListPack::Insert(size_t idx, std::string_view element_string) {
   return Insert(idx, Position::kInsertBefore, &element_string, nullptr);
 }
 
@@ -148,7 +150,7 @@ bool ListPack::Insert(size_t idx, int64_t element_integer) {
   return Insert(idx, Position::kInsertBefore, nullptr, &element_integer);
 }
 
-bool ListPack::Replace(size_t idx, const std::string& element_string) {
+bool ListPack::Replace(size_t idx, std::string_view element_string) {
   return Insert(idx, Position::kReplace, &element_string, nullptr);
 }
 
@@ -325,7 +327,7 @@ unsigned char* ListPack::IntegerAt(size_t idx, unsigned char* dst,
 }
 
 bool ListPack::Insert(size_t idx, ListPack::Position where,
-                      const std::string* element_string,
+                      const std::string_view* element_string,
                       const int64_t* element_integer) {
   if ((element_string == nullptr) && (element_integer == nullptr)) {
     return false;
@@ -344,7 +346,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     backlen = EncodeInteger(nullptr, sval);
     encoding_type = EncodingGeneralType::kInteger;
   } else {
-    backlen = EncodeString(nullptr, element_string);
+    backlen = EncodeString(nullptr, *element_string);
     encoding_type = EncodingGeneralType::kString;
   }
   uint8_t backlen_bytes = BacklenBytes(backlen);
@@ -380,7 +382,7 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   if (encoding_type == EncodingGeneralType::kInteger) {
     EncodeInteger(lp_.get() + idx, sval);
   } else {
-    EncodeString(lp_.get() + idx, element_string);
+    EncodeString(lp_.get() + idx, *element_string);
   }
   return true;
 }
@@ -403,10 +405,9 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
   for (const ListPackEntry& entry : entries) {
     size_t backlen = 0;
     int64_t sval = entry.sval;
-    if ((entry.str == nullptr) || utils::ToInt64(*(entry.str), &sval)) {
+    if (entry.is_integer || utils::ToInt64(entry.str, &sval)) {
       backlen = EncodeInteger(nullptr, sval);
       Encoding encoding{};
-      encoding.str = nullptr;
       encoding.sval = sval;
       encoding.encoding_type = EncodingGeneralType::kInteger;
       encoding.backlen_bytes = BacklenBytes(backlen);
@@ -613,11 +614,10 @@ uint8_t ListPack::BacklenBytes(size_t backlen) {
  * number of bytes needed to encode the element (not include bytes used to
  * encode back length).
  */
-size_t ListPack::EncodeString(unsigned char* const buf,
-                              const std::string* ele) {
+size_t ListPack::EncodeString(unsigned char* const buf, std::string_view ele) {
   const auto* element_string =
-      reinterpret_cast<const unsigned char*>(ele->c_str());
-  size_t len = ele->size();
+      reinterpret_cast<const unsigned char*>(ele.data());
+  const size_t len = ele.size();
   size_t backlen = 0;
   if (len <= 63) {
     // 6 bit length string

@@ -99,10 +99,10 @@ std::optional<std::vector<std::string>> HKeys(db::RedisDb* redis_db,
 std::optional<std::vector<std::string>> HVals(db::RedisDb* redis_db,
                                               const KeyArgs* args);
 IncrementResult HIncrBy(db::RedisDb* redis_db, const IncrementArgs* args);
-std::vector<std::string> EncodeEntries(const std::vector<HashEntry>& entries);
-std::vector<std::string> EncodeOptionalStrings(
+std::string EncodeEntries(const std::vector<HashEntry>& entries);
+std::string EncodeOptionalStrings(
     const std::vector<std::optional<std::string>>& values);
-std::vector<std::string> EncodeStrings(const std::vector<std::string>& values);
+std::string EncodeStrings(const std::vector<std::string>& values);
 
 int ParseKeyArgs(const std::vector<std::string>& args,
                  KeyArgs* const key_args) {
@@ -362,34 +362,30 @@ IncrementResult HIncrBy(db::RedisDb* const redis_db,
   return {next, HashStatus::kOk};
 }
 
-std::vector<std::string> EncodeEntries(const std::vector<HashEntry>& entries) {
-  std::vector<std::string> encoded;
-  encoded.reserve(entries.size() * 2);
+std::string EncodeEntries(const std::vector<HashEntry>& entries) {
+  std::string encoded = reply::FromArrayHeader(entries.size() * 2);
   for (const auto& entry : entries) {
-    encoded.push_back(reply::FromBulkString(entry.field));
-    encoded.push_back(reply::FromBulkString(entry.value));
+    reply::AppendBulkString(entry.field, &encoded);
+    reply::AppendBulkString(entry.value, &encoded);
   }
   return encoded;
 }
 
-std::vector<std::string> EncodeOptionalStrings(
+std::string EncodeOptionalStrings(
     const std::vector<std::optional<std::string>>& values) {
-  std::vector<std::string> encoded;
-  encoded.reserve(values.size());
+  std::string encoded = reply::FromArrayHeader(values.size());
   for (const auto& value : values) {
-    encoded.push_back(value.has_value() ? reply::FromBulkString(*value)
-                                        : reply::Null());
+    if (value.has_value()) {
+      reply::AppendBulkString(*value, &encoded);
+    } else {
+      encoded.append(reply::Null());
+    }
   }
   return encoded;
 }
 
-std::vector<std::string> EncodeStrings(const std::vector<std::string>& values) {
-  std::vector<std::string> encoded;
-  encoded.reserve(values.size());
-  for (const auto& value : values) {
-    encoded.push_back(reply::FromBulkString(value));
-  }
-  return encoded;
+std::string EncodeStrings(const std::vector<std::string>& values) {
+  return reply::FromBulkStringArray(values);
 }
 }  // namespace
 
@@ -492,7 +488,7 @@ void HandleHGetAll(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(reply::FromArray(EncodeEntries(*result)));
+    client->AddReply(EncodeEntries(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -511,7 +507,7 @@ void HandleHMGet(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(reply::FromArray(EncodeOptionalStrings(*result)));
+    client->AddReply(EncodeOptionalStrings(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -530,7 +526,7 @@ void HandleHKeys(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(reply::FromArray(EncodeStrings(*result)));
+    client->AddReply(EncodeStrings(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -549,7 +545,7 @@ void HandleHVals(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(reply::FromArray(EncodeStrings(*result)));
+    client->AddReply(EncodeStrings(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

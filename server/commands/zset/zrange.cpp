@@ -10,7 +10,6 @@
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/reply/reply.h"
-#include "server/reply/reply_utils.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple::command::zsets {
@@ -284,22 +283,15 @@ bool IsWithScores(const std::vector<std::string>& args) {
 
 std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
                                              bool with_scores) {
-  if (!with_scores) {
-    auto to_string = [](const ZSetEntry* const& entry) { return entry->key; };
-    return reply_utils::EncodeList<const ZSetEntry*, to_string>(result);
-  }
-  std::vector<std::string> encoded_elements;
-  encoded_elements.reserve(result.size() * 2);
+  const size_t reply_size = with_scores ? result.size() * 2 : result.size();
+  std::string encoded = reply::FromArrayHeader(reply_size);
   for (const auto* entry : result) {
-    encoded_elements.push_back(reply::FromBulkString(entry->key));
-    encoded_elements.push_back(reply::FromFloat(entry->score));
+    reply::AppendBulkString(entry->key, &encoded);
+    if (with_scores) {
+      encoded.append(reply::FromFloat(entry->score));
+    }
   }
-  try {
-    return reply::FromArray(encoded_elements);
-  } catch (const std::exception& e) {
-    RS_LOG_DEBUG("catch exception while encoding zrange reply: %s", e.what());
-    return std::nullopt;
-  }
+  return encoded;
 }
 
 std::optional<int64_t> ToReplyInteger(size_t value) {

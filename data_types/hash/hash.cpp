@@ -144,11 +144,9 @@ bool Hash::SetListPack(const std::string& field, const std::string& value) {
     SetDict(field, value);
     return true;
   }
-  auto field_copy = field;
-  auto value_copy = value;
   const std::vector<in_memory::ListPack::ListPackEntry> entries = {
-      {&field_copy, 0},
-      {&value_copy, 0},
+      {field, 0, false},
+      {value, 0, false},
   };
   return listpack_->BatchAppend(entries);
 }

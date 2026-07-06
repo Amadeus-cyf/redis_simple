@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -15,11 +16,14 @@ constexpr int64_t ToInt(ReplyStatus status) {
   return static_cast<int64_t>(status);
 }
 
-std::string FromString(const std::string& s);
-std::string FromBulkString(const std::string& s);
+std::string FromString(std::string_view s);
+std::string FromBulkString(std::string_view s);
 std::string FromInt64(int64_t i64);
 std::string FromInt64(ReplyStatus status);
 std::string FromArray(const std::vector<std::string>& array);
+std::string FromBulkStringArray(const std::vector<std::string>& values);
+std::string FromArrayHeader(size_t size);
+void AppendBulkString(std::string_view s, std::string* reply);
 std::string FromFloat(double fl);
 std::string FromError(std::string_view message);
 std::string WrongNumberOfArguments();

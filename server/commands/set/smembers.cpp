@@ -5,7 +5,6 @@
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
-#include "server/reply/reply_utils.h"
 
 namespace redis_simple::command::sets {
 namespace {
@@ -31,14 +30,7 @@ void HandleSMembers(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    auto to_string = [](const std::string& member) { return member; };
-    const auto result =
-        reply_utils::EncodeList<std::string, to_string>(members);
-    if (!result.has_value()) {
-      client->AddReply(reply::FromError("ERR smembers encode failed"));
-      return;
-    }
-    client->AddReply(*result);
+    client->AddReply(reply::FromBulkStringArray(members));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromError("ERR db unavailable"));

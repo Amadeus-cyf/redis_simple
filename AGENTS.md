@@ -12,6 +12,9 @@ Guidance for AI coding agents working in this repository.
   instead of owning raw pointers.
 - Prefer concise accessor names such as `Type()`, `Encoding()`, and
   `TotalBytes()` over Java-style `Get...` names for new or renamed APIs.
+- Prefer `std::string_view` for read-only string inputs and visitor-style
+  traversal for hot paths; keep vector-returning helpers for convenience APIs
+  and tests, not command execution paths that can stream replies directly.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.

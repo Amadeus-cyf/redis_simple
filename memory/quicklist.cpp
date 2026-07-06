@@ -22,7 +22,7 @@ QuickList::QuickList(size_t node_max_bytes)
           std::max(node_max_bytes,
                    static_cast<size_t>(ListPack::kListPackHeaderSize + 1))) {}
 
-bool QuickList::LPush(const std::string& value) {
+bool QuickList::LPush(std::string_view value) {
   if (!head_ || !CanAppendToNode(head_.get(), value)) {
     PrependNode();
   }
@@ -33,7 +33,7 @@ bool QuickList::LPush(const std::string& value) {
   return true;
 }
 
-bool QuickList::RPush(const std::string& value) {
+bool QuickList::RPush(std::string_view value) {
   if ((tail_ == nullptr) || !CanAppendToNode(tail_, value)) {
     AppendNode();
   }
@@ -88,39 +88,23 @@ std::vector<std::string> QuickList::Range(size_t start, size_t stop) const {
   }
   stop = std::min(stop, size_ - 1);
   values.reserve(stop - start + 1);
-
-  size_t index = 0;
-  for (const Node* node = head_.get(); node != nullptr;
-       node = node->next.get()) {
-    ssize_t listpack_index = node->listpack->First();
-    while (listpack_index != -1 && index <= stop) {
-      if (index >= start) {
-        auto value = node->listpack->Get(static_cast<size_t>(listpack_index));
-        if (value.has_value()) {
-          values.push_back(*value);
-        }
-      }
-      ++index;
-      listpack_index =
-          node->listpack->Next(static_cast<size_t>(listpack_index));
-    }
-    if (index > stop) {
-      break;
-    }
-  }
+  ForEach(start, stop, [&values](std::string_view value) {
+    values.emplace_back(value);
+    return true;
+  });
   return values;
 }
 
-bool QuickList::PushToHeadNode(const std::string& value) {
+bool QuickList::PushToHeadNode(std::string_view value) {
   return head_ && head_->listpack->Prepend(value);
 }
 
-bool QuickList::PushToTailNode(const std::string& value) {
+bool QuickList::PushToTailNode(std::string_view value) {
   return (tail_ != nullptr) && tail_->listpack->Append(value);
 }
 
 bool QuickList::CanAppendToNode(const Node* node,
-                                const std::string& value) const {
+                                std::string_view value) const {
   if (node == nullptr) {
     return false;
   }
@@ -145,13 +129,12 @@ void QuickList::MergeNext(Node* left) {
   }
 
   Node* right = left->next.get();
-  ssize_t idx = right->listpack->First();
-  while (idx != -1) {
-    const auto value = right->listpack->Get(idx);
-    if (value.has_value()) {
-      left->listpack->Append(*value);
-    }
-    idx = right->listpack->Next(idx);
+  const size_t right_size = right->listpack->Size();
+  if (right_size > 0 && !right->listpack->ForEach(
+                            0, right_size - 1, [left](std::string_view value) {
+                              return left->listpack->Append(value);
+                            })) {
+    return;
   }
   DeleteNode(right);
 }
