@@ -10,6 +10,13 @@ const std::string& RedisObject::String() const {
   return std::get<std::string>(value_);
 }
 
+std::string* RedisObject::MutableString() {
+  if (type_ != ObjectType::kString) {
+    throw std::invalid_argument("value type is not string");
+  }
+  return &std::get<std::string>(value_);
+}
+
 set::Set* RedisObject::Set() const {
   if (type_ != ObjectType::kSet) {
     throw std::invalid_argument("value type is not set");

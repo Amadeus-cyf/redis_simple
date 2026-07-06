@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -82,18 +83,21 @@ std::optional<std::vector<std::string>> SInter(db::RedisDb* const redis_db,
                                      return left->Size() < right->Size();
                                    });
   std::vector<std::string> result;
-  for (const auto& member : (*smallest)->ListAllMembers()) {
-    bool present = true;
-    for (const auto* set : sets) {
-      if (set != *smallest && !set->HasMember(member)) {
-        present = false;
-        break;
-      }
-    }
-    if (present) {
-      result.push_back(member);
-    }
-  }
+  (*smallest)->ForEachMember(
+      [&sets, &result, smallest](std::string_view member) {
+        const std::string member_key(member);
+        bool present = true;
+        for (const auto* set : sets) {
+          if (set != *smallest && !set->HasMember(member_key)) {
+            present = false;
+            break;
+          }
+        }
+        if (present) {
+          result.emplace_back(member);
+        }
+        return true;
+      });
   return result;
 }
 
@@ -108,9 +112,10 @@ std::optional<std::vector<std::string>> SUnion(db::RedisDb* const redis_db,
     if (lookup.status != SetLookupStatus::kOk) {
       return std::nullopt;
     }
-    for (const auto& member : lookup.set->ListAllMembers()) {
-      members.insert(member);
-    }
+    lookup.set->ForEachMember([&members](std::string_view member) {
+      members.emplace(member.data(), member.size());
+      return true;
+    });
   }
   return std::vector<std::string>(members.begin(), members.end());
 }
@@ -139,18 +144,20 @@ std::optional<std::vector<std::string>> SDiff(db::RedisDb* const redis_db,
   }
 
   std::vector<std::string> result;
-  for (const auto& member : first.set->ListAllMembers()) {
+  first.set->ForEachMember([&subtract_sets, &result](std::string_view member) {
+    const std::string member_key(member);
     bool removed = false;
     for (const auto* set : subtract_sets) {
-      if (set->HasMember(member)) {
+      if (set->HasMember(member_key)) {
         removed = true;
         break;
       }
     }
     if (!removed) {
-      result.push_back(member);
+      result.emplace_back(member);
     }
-  }
+    return true;
+  });
   return result;
 }
 

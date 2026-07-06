@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "connection/connection.h"
 #include "memory/dynamic_buffer.h"
@@ -41,7 +42,7 @@ class Client {
   ClientStatus ParseLine();
   ClientStatus ProcessCommand();
   void SetCmd(const command::Command* command) { command_ = command; }
-  void SetArgs(const std::vector<std::string>& args) { args_ = args; }
+  void SetArgs(std::vector<std::string> args) { args_ = std::move(args); }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
   int flags_{};

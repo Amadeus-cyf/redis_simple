@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -90,19 +91,14 @@ GetResult HGet(db::RedisDb* redis_db, const FieldArgs* args);
 std::optional<int64_t> HDel(db::RedisDb* redis_db, const DeleteArgs* args);
 std::optional<int64_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<int64_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
-std::optional<std::vector<HashEntry>> HGetAll(db::RedisDb* redis_db,
-                                              const KeyArgs* args);
+std::optional<std::string> HGetAll(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<std::vector<std::optional<std::string>>> HMGet(
     db::RedisDb* redis_db, const FieldsArgs* args);
-std::optional<std::vector<std::string>> HKeys(db::RedisDb* redis_db,
-                                              const KeyArgs* args);
-std::optional<std::vector<std::string>> HVals(db::RedisDb* redis_db,
-                                              const KeyArgs* args);
+std::optional<std::string> HKeys(db::RedisDb* redis_db, const KeyArgs* args);
+std::optional<std::string> HVals(db::RedisDb* redis_db, const KeyArgs* args);
 IncrementResult HIncrBy(db::RedisDb* redis_db, const IncrementArgs* args);
-std::string EncodeEntries(const std::vector<HashEntry>& entries);
 std::string EncodeOptionalStrings(
     const std::vector<std::optional<std::string>>& values);
-std::string EncodeStrings(const std::vector<std::string>& values);
 
 int ParseKeyArgs(const std::vector<std::string>& args,
                  KeyArgs* const key_args) {
@@ -277,16 +273,23 @@ std::optional<int64_t> HExists(db::RedisDb* const redis_db,
   return result.hash->Exists(args->field) ? 1 : 0;
 }
 
-std::optional<std::vector<HashEntry>> HGetAll(db::RedisDb* const redis_db,
-                                              const KeyArgs* const args) {
+std::optional<std::string> HGetAll(db::RedisDb* const redis_db,
+                                   const KeyArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
-    return std::vector<HashEntry>();
+    return reply::FromArrayHeader(0);
   }
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  return result.hash->Entries();
+  std::string encoded = reply::FromArrayHeader(result.hash->Size() * 2);
+  result.hash->ForEachEntry(
+      [&encoded](std::string_view field, std::string_view value) {
+        reply::AppendBulkString(field, &encoded);
+        reply::AppendBulkString(value, &encoded);
+        return true;
+      });
+  return encoded;
 }
 
 std::optional<std::vector<std::optional<std::string>>> HMGet(
@@ -307,40 +310,38 @@ std::optional<std::vector<std::optional<std::string>>> HMGet(
   return values;
 }
 
-std::optional<std::vector<std::string>> HKeys(db::RedisDb* const redis_db,
-                                              const KeyArgs* const args) {
+std::optional<std::string> HKeys(db::RedisDb* const redis_db,
+                                 const KeyArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
-    return std::vector<std::string>();
+    return reply::FromArrayHeader(0);
   }
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  std::vector<std::string> keys;
-  const auto entries = result.hash->Entries();
-  keys.reserve(entries.size());
-  for (const auto& entry : entries) {
-    keys.push_back(entry.field);
-  }
-  return keys;
+  std::string encoded = reply::FromArrayHeader(result.hash->Size());
+  result.hash->ForEachField([&encoded](std::string_view field) {
+    reply::AppendBulkString(field, &encoded);
+    return true;
+  });
+  return encoded;
 }
 
-std::optional<std::vector<std::string>> HVals(db::RedisDb* const redis_db,
-                                              const KeyArgs* const args) {
+std::optional<std::string> HVals(db::RedisDb* const redis_db,
+                                 const KeyArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
-    return std::vector<std::string>();
+    return reply::FromArrayHeader(0);
   }
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  std::vector<std::string> values;
-  const auto entries = result.hash->Entries();
-  values.reserve(entries.size());
-  for (const auto& entry : entries) {
-    values.push_back(entry.value);
-  }
-  return values;
+  std::string encoded = reply::FromArrayHeader(result.hash->Size());
+  result.hash->ForEachValue([&encoded](std::string_view value) {
+    reply::AppendBulkString(value, &encoded);
+    return true;
+  });
+  return encoded;
 }
 
 IncrementResult HIncrBy(db::RedisDb* const redis_db,
@@ -362,15 +363,6 @@ IncrementResult HIncrBy(db::RedisDb* const redis_db,
   return {next, HashStatus::kOk};
 }
 
-std::string EncodeEntries(const std::vector<HashEntry>& entries) {
-  std::string encoded = reply::FromArrayHeader(entries.size() * 2);
-  for (const auto& entry : entries) {
-    reply::AppendBulkString(entry.field, &encoded);
-    reply::AppendBulkString(entry.value, &encoded);
-  }
-  return encoded;
-}
-
 std::string EncodeOptionalStrings(
     const std::vector<std::optional<std::string>>& values) {
   std::string encoded = reply::FromArrayHeader(values.size());
@@ -384,9 +376,6 @@ std::string EncodeOptionalStrings(
   return encoded;
 }
 
-std::string EncodeStrings(const std::vector<std::string>& values) {
-  return reply::FromBulkStringArray(values);
-}
 }  // namespace
 
 void HandleHSet(Client* const client) {
@@ -488,7 +477,7 @@ void HandleHGetAll(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(EncodeEntries(*result));
+    client->AddReply(*result);
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -526,7 +515,7 @@ void HandleHKeys(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(EncodeStrings(*result));
+    client->AddReply(*result);
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -545,7 +534,7 @@ void HandleHVals(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(EncodeStrings(*result));
+    client->AddReply(*result);
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

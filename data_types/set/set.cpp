@@ -43,25 +43,19 @@ bool Set::HasMember(const std::string& value) const {
     return listpack_->Find(value) != -1;
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->Get(value).has_value();
+    return dict_->FindValue(value) != nullptr;
   }
   throw std::invalid_argument("unknown encoding type");
 }
 
 std::vector<std::string> Set::ListAllMembers() const {
-  if (Size() == 0) {
-    return {};
-  }
-  if (encoding_ == Encoding::kIntSet) {
-    return ListIntSetMembers();
-  }
-  if (encoding_ == Encoding::kListPack) {
-    return ListListPackMembers();
-  }
-  if (encoding_ == Encoding::kDict) {
-    return ListDictMembers();
-  }
-  throw std::invalid_argument("unknown encoding type");
+  std::vector<std::string> members;
+  members.reserve(Size());
+  ForEachMember([&members](std::string_view member) {
+    members.emplace_back(member);
+    return true;
+  });
+  return members;
 }
 
 bool Set::Remove(const std::string& value) {
@@ -145,7 +139,7 @@ bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
     return listpack_->Append(value);
   }
   ConvertListPackToDict(listpack_->Size() + 1);
-  if (dict_->Get(value).has_value()) {
+  if (dict_->FindValue(value) != nullptr) {
     return false;
   }
   dict_->Set(value, nullptr);
@@ -156,7 +150,7 @@ bool Set::DictAdd(const std::string& value) {
   if (!dict_) {
     dict_ = in_memory::Dict<std::string, nullptr_t>::Create();
   }
-  if (dict_->Get(value).has_value()) {
+  if (dict_->FindValue(value) != nullptr) {
     return false;
   }
   dict_->Set(value, nullptr);
@@ -246,38 +240,4 @@ void Set::ConvertListPackToDict(size_t capacity) {
   listpack_.reset();
 }
 
-std::vector<std::string> Set::ListIntSetMembers() const {
-  std::vector<std::string> members;
-  auto it = in_memory::IntSet::Iterator(intset_.get());
-  it.SeekToFirst();
-  while (it.Valid()) {
-    members.push_back(std::to_string(it.Value()));
-    it.Next();
-  }
-  return members;
-}
-
-std::vector<std::string> Set::ListListPackMembers() const {
-  std::vector<std::string> members;
-  ssize_t idx = listpack_->First();
-  while (idx != -1) {
-    const auto string_result = listpack_->Get(idx);
-    if (string_result.has_value()) {
-      members.push_back(*string_result);
-    }
-    idx = listpack_->Next(idx);
-  }
-  return members;
-}
-
-std::vector<std::string> Set::ListDictMembers() const {
-  std::vector<std::string> members;
-  auto it = in_memory::Dict<std::string, nullptr_t>::Iterator(dict_.get());
-  it.SeekToFirst();
-  while (it.Valid()) {
-    members.push_back(it.Key());
-    it.Next();
-  }
-  return members;
-}
 }  // namespace redis_simple::set

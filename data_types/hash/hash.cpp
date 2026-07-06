@@ -24,10 +24,6 @@ std::optional<size_t> ToListPackIndex(ssize_t index) {
                    : std::optional<size_t>(static_cast<size_t>(index));
 }
 
-std::optional<size_t> FirstIndex(const in_memory::ListPack* const listpack) {
-  return ToListPackIndex(listpack->First());
-}
-
 std::optional<size_t> NextIndex(const in_memory::ListPack* const listpack,
                                 size_t index) {
   return ToListPackIndex(listpack->Next(index));
@@ -106,13 +102,13 @@ size_t Hash::Size() const {
 }
 
 std::vector<Hash::Entry> Hash::Entries() const {
-  if (encoding_ == Encoding::kListPack) {
-    return ListPackEntries();
-  }
-  if (encoding_ == Encoding::kDict) {
-    return DictEntries();
-  }
-  throw std::invalid_argument("unknown hash encoding type");
+  std::vector<Entry> entries;
+  entries.reserve(Size());
+  ForEachEntry([&entries](std::string_view field, std::string_view value) {
+    entries.push_back({std::string(field), std::string(value)});
+    return true;
+  });
+  return entries;
 }
 
 bool Hash::CanAppendToListPack(const std::string& field,
@@ -167,72 +163,20 @@ bool Hash::SetDict(const std::string& field, const std::string& value) {
 
 void Hash::ConvertListPackToDict(size_t capacity) {
   assert(encoding_ == Encoding::kListPack);
-  encoding_ = Encoding::kDict;
   dict_ = in_memory::Dict<std::string, std::string>::Create(capacity);
-  if (listpack_ == nullptr) {
-    return;
-  }
-  auto field_idx = FirstIndex(listpack_.get());
-  while (field_idx.has_value()) {
-    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
-    if (!value_idx.has_value()) {
-      break;
-    }
-    auto field = listpack_->Get(*field_idx);
-    auto value = listpack_->Get(*value_idx);
-    if (field.has_value() && value.has_value()) {
-      dict_->Set(*field, *value);
-    }
-    field_idx = NextIndex(listpack_.get(), *value_idx);
+  if (listpack_ != nullptr) {
+    listpack_->ForEachPair(
+        [this](std::string_view field, std::string_view value) {
+          dict_->Set(std::string(field), std::string(value));
+          return true;
+        });
   }
   listpack_.reset();
+  encoding_ = Encoding::kDict;
 }
 
 std::optional<size_t> Hash::FindListPackField(const std::string& field) const {
   assert(encoding_ == Encoding::kListPack);
-  auto idx = FirstIndex(listpack_.get());
-  bool is_field = true;
-  while (idx.has_value()) {
-    if (is_field) {
-      const auto value = listpack_->Get(*idx);
-      if (value.has_value() && *value == field) {
-        return idx;
-      }
-    }
-    idx = NextIndex(listpack_.get(), *idx);
-    is_field = !is_field;
-  }
-  return std::nullopt;
-}
-
-std::vector<Hash::Entry> Hash::ListPackEntries() const {
-  std::vector<Entry> entries;
-  entries.reserve(Size());
-  auto field_idx = FirstIndex(listpack_.get());
-  while (field_idx.has_value()) {
-    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
-    if (!value_idx.has_value()) {
-      break;
-    }
-    auto field = listpack_->Get(*field_idx);
-    auto value = listpack_->Get(*value_idx);
-    if (field.has_value() && value.has_value()) {
-      entries.push_back({std::move(*field), std::move(*value)});
-    }
-    field_idx = NextIndex(listpack_.get(), *value_idx);
-  }
-  return entries;
-}
-
-std::vector<Hash::Entry> Hash::DictEntries() const {
-  std::vector<Entry> entries;
-  entries.reserve(Size());
-  auto it = in_memory::Dict<std::string, std::string>::Iterator(dict_.get());
-  it.SeekToFirst();
-  while (it.Valid()) {
-    entries.push_back({it.Key(), it.Value()});
-    it.Next();
-  }
-  return entries;
+  return ToListPackIndex(listpack_->FindAndSkip(field, 1));
 }
 }  // namespace redis_simple::hash

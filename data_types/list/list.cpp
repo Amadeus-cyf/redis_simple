@@ -9,54 +9,17 @@ constexpr size_t kEntryOverheadEstimate = 8;
 
 bool HasRemoveLimit(size_t limit) { return limit != 0; }
 
-size_t CountMatches(const List& list, size_t size, std::string_view value) {
-  size_t matches = 0;
-  list.ForEach(0, size - 1, [&matches, value](std::string_view current) {
-    if (current == value) {
-      ++matches;
-    }
-    return true;
-  });
-  return matches;
-}
-
-size_t LeadingMatchesToKeep(const List& list, size_t size,
-                            std::string_view value, size_t limit,
-                            List::RemoveDirection direction) {
-  if (direction == List::RemoveDirection::kFromHead || !HasRemoveLimit(limit)) {
-    return 0;
-  }
-  // Tail removals rebuild from left to right, so keep the leading matching
-  // elements and remove only the requested final matches.
-  const size_t matches = CountMatches(list, size, value);
-  return matches > limit ? matches - limit : 0;
-}
-
-struct RemoveState {
-  std::string_view target;
-  size_t limit;
-  List::RemoveDirection direction;
-  size_t leading_matches_to_keep;
-  size_t kept_leading_matches{0};
-  size_t removed{0};
-
-  bool ShouldRemove(std::string_view current) {
-    if (current != target) {
-      return false;
-    }
-    if (direction == List::RemoveDirection::kFromTail &&
-        HasRemoveLimit(limit) &&
-        kept_leading_matches < leading_matches_to_keep) {
-      ++kept_leading_matches;
-      return false;
-    }
-    if (!HasRemoveLimit(limit) || removed < limit) {
-      ++removed;
-      return true;
-    }
+bool ShouldRemove(std::string_view current, std::string_view target,
+                  size_t limit, size_t* const removed) {
+  if (current != target) {
     return false;
   }
-};
+  if (HasRemoveLimit(limit) && *removed >= limit) {
+    return false;
+  }
+  ++(*removed);
+  return true;
+}
 }  // namespace
 
 List::List(size_t list_max_listpack_bytes)
@@ -106,26 +69,40 @@ std::optional<size_t> List::Remove(std::string_view value, size_t limit,
     return 0;
   }
 
-  RemoveState state{value, limit, direction,
-                    LeadingMatchesToKeep(*this, size, value, limit, direction)};
   auto replacement = List::Create(list_max_listpack_bytes_);
-  const bool rebuilt =
-      ForEach(0, size - 1, [&replacement, &state](std::string_view current) {
-        if (state.ShouldRemove(current)) {
-          return true;
-        }
-        return replacement->RPush(current);
-      });
+  size_t removed = 0;
+  const bool remove_from_tail =
+      direction == RemoveDirection::kFromTail && HasRemoveLimit(limit);
+  bool rebuilt = false;
+  if (remove_from_tail) {
+    rebuilt = ForEachReverse(
+        0, size - 1,
+        [&replacement, value, limit, &removed](std::string_view current) {
+          if (ShouldRemove(current, value, limit, &removed)) {
+            return true;
+          }
+          return replacement->LPush(current);
+        });
+  } else {
+    rebuilt = ForEach(
+        0, size - 1,
+        [&replacement, value, limit, &removed](std::string_view current) {
+          if (ShouldRemove(current, value, limit, &removed)) {
+            return true;
+          }
+          return replacement->RPush(current);
+        });
+  }
   if (!rebuilt) {
     return std::nullopt;
   }
-  if (state.removed == 0) {
+  if (removed == 0) {
     return 0;
   }
   if (!AdoptReplacement(std::move(replacement))) {
     return std::nullopt;
   }
-  return state.removed;
+  return removed;
 }
 
 bool List::Trim(size_t start, size_t stop) {

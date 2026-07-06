@@ -10,6 +10,9 @@ Guidance for AI coding agents working in this repository.
 - Keep naming consistent with nearby code.
 - Use `Create()` for owning factory functions and return `std::unique_ptr`
   instead of owning raw pointers.
+- Prefer visitor-style traversal in hot command paths when callers only need to
+  encode, filter, or stream values; keep vector-returning helpers for tests and
+  convenience APIs.
 - Prefer concise accessor names such as `Type()`, `Encoding()`, and
   `TotalBytes()` over Java-style `Get...` names for new or renamed APIs.
 - Prefer `std::string_view` for read-only string inputs and visitor-style

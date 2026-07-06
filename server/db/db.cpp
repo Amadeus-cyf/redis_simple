@@ -40,11 +40,15 @@ RedisDb::RedisDb() : expire_cursor_(0) {
 }
 
 const RedisObject* RedisDb::LookupKey(const std::string& key) {
+  return MutableLookupKey(key);
+}
+
+RedisObject* RedisDb::MutableLookupKey(const std::string& key) {
   auto* const result = dict_->FindValue(key);
   if (result == nullptr) {
     return nullptr;
   }
-  const RedisObject* object = result->get();
+  RedisObject* object = result->get();
   if (IsKeyExpired(key)) {
     RS_LOG_DEBUG("look up key: key %s expired\n", key.c_str());
     // If key is already expired, delete the key and return a null pointer.

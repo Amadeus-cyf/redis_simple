@@ -22,7 +22,7 @@ class ZSetListPack : public ZSetStorage {
 
  private:
   void DeleteKeyScorePair(size_t idx);
-  double ScoreAt(size_t idx);
+  std::optional<double> ScoreAt(size_t idx) const;
   ZSetEntryList RangeByRankUtil(const RangeByRankSpec* spec) const;
   ZSetEntryList RevRangeByRankUtil(const RangeByRankSpec* spec) const;
   ZSetEntryList RangeByScoreUtil(const RangeByScoreSpec* spec) const;
@@ -32,9 +32,8 @@ class ZSetListPack : public ZSetStorage {
   ssize_t FindKeyLessOrEqual(const RangeByScoreSpec* spec) const;
   static bool ValidateRangeRankSpec(const RangeByRankSpec* spec);
   static bool ValidateRangeScoreSpec(const RangeByScoreSpec* spec);
-  static bool IsInRange(const std::string& score, const RangeByScoreSpec* spec);
-  static bool LessOrEqual(const std::string& score,
-                          const RangeByScoreSpec* spec);
+  static bool IsInRange(double score, const RangeByScoreSpec* spec);
+  static bool LessOrEqual(double score, const RangeByScoreSpec* spec);
   // Listpack storing key score pairs
   std::unique_ptr<in_memory::ListPack> listpack_;
   mutable std::vector<std::unique_ptr<ZSetEntry>> range_cache_;

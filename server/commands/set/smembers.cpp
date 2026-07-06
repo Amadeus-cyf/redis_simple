@@ -1,4 +1,6 @@
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -13,8 +15,8 @@ struct SMembersArgs {
 };
 int ParseArgs(const std::vector<std::string>& args,
               SMembersArgs* smembers_args);
-int SMembers(db::RedisDb* redis_db, const SMembersArgs* args,
-             std::vector<std::string>& members);
+std::optional<std::string> SMembers(db::RedisDb* redis_db,
+                                    const SMembersArgs* args);
 }  // namespace
 
 void HandleSMembers(Client* const client) {
@@ -25,12 +27,12 @@ void HandleSMembers(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    std::vector<std::string> members;
-    if (SMembers(redis_db, &args, members) < 0) {
+    const auto encoded = SMembers(redis_db, &args);
+    if (!encoded.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(reply::FromBulkStringArray(members));
+    client->AddReply(*encoded);
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromError("ERR db unavailable"));
@@ -49,18 +51,22 @@ int ParseArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int SMembers(db::RedisDb* redis_db, const SMembersArgs* args,
-             std::vector<std::string>& members) {
+std::optional<std::string> SMembers(db::RedisDb* redis_db,
+                                    const SMembersArgs* args) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
-    return 0;
+    return reply::FromArrayHeader(0);
   }
   if (obj->Type() != db::RedisObject::ObjectType::kSet) {
-    return -1;
+    return std::nullopt;
   }
   const auto* set = obj->Set();
-  members = set->ListAllMembers();
-  return 0;
+  std::string encoded = reply::FromArrayHeader(set->Size());
+  set->ForEachMember([&encoded](std::string_view member) {
+    reply::AppendBulkString(member, &encoded);
+    return true;
+  });
+  return encoded;
 }
 }  // namespace
 }  // namespace redis_simple::command::sets

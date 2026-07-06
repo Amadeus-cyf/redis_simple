@@ -159,19 +159,26 @@ void HandleAppend(Client* const client) {
     client->AddReply(reply::FromError("ERR db unavailable"));
     return;
   }
-  auto current = LookupString(redis_db, args.key);
-  if (current.status == StringStatus::kWrongType) {
+  auto* object = redis_db->MutableLookupKey(args.key);
+  if (object != nullptr &&
+      object->Type() != db::RedisObject::ObjectType::kString) {
     client->AddReply(reply::WrongTypeError());
     return;
   }
-  if (current.status == StringStatus::kMissing) {
-    current.value.clear();
+  if (object == nullptr) {
+    const auto length = ToReplyInteger(args.value.size());
+    if (!length.has_value()) {
+      client->AddReply(reply::FromError("ERR string length out of range"));
+      return;
+    }
+    redis_db->SetKey(args.key, db::RedisObject::CreateWithString(args.value),
+                     0);
+    client->AddReply(reply::FromInt64(*length));
+    return;
   }
-  current.value.append(args.value);
-  auto object = db::RedisObject::CreateWithString(current.value);
-  redis_db->SetKey(args.key, std::move(object), 0,
-                   db::ToInt(db::SetKeyFlag::kKeepTtl));
-  const auto length = ToReplyInteger(current.value.size());
+  std::string* const value = object->MutableString();
+  value->append(args.value);
+  const auto length = ToReplyInteger(value->size());
   client->AddReply(length.has_value()
                        ? reply::FromInt64(*length)
                        : reply::FromError("ERR string length out of range"));

@@ -44,6 +44,8 @@ class List {
   std::vector<std::string> Range(size_t start, size_t stop) const;
   template <typename Visitor>
   bool ForEach(size_t start, size_t stop, Visitor&& visitor) const;
+  template <typename Visitor>
+  bool ForEachReverse(size_t start, size_t stop, Visitor&& visitor) const;
   Encoding Encoding() const;
 
  private:
@@ -64,5 +66,11 @@ template <typename Visitor>
 bool List::ForEach(size_t start, size_t stop, Visitor&& visitor) const {
   return listpack_ ? listpack_->ForEach(start, stop, visitor)
                    : quicklist_->ForEach(start, stop, visitor);
+}
+
+template <typename Visitor>
+bool List::ForEachReverse(size_t start, size_t stop, Visitor&& visitor) const {
+  return listpack_ ? listpack_->ForEachReverse(start, stop, visitor)
+                   : quicklist_->ForEachReverse(start, stop, visitor);
 }
 }  // namespace redis_simple::list

@@ -28,9 +28,8 @@ class RedisObject {
     kHash = 5,
   };
 
-  static std::unique_ptr<RedisObject> CreateWithString(
-      const std::string& value) {
-    return Create(ObjectType::kString, Value(value));
+  static std::unique_ptr<RedisObject> CreateWithString(std::string value) {
+    return Create(ObjectType::kString, Value(std::move(value)));
   }
   static std::unique_ptr<RedisObject> CreateWithSet(
       std::unique_ptr<set::Set> set) {
@@ -53,6 +52,7 @@ class RedisObject {
         new RedisObject(type, std::move(value)));
   }
   const std::string& String() const;
+  std::string* MutableString();
   set::Set* Set() const;
   list::List* List() const;
   zset::ZSet* ZSet() const;

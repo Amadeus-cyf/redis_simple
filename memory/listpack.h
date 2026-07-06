@@ -48,6 +48,9 @@ class ListPack {
   bool ForEach(size_t start, size_t stop, Visitor&& visitor) const;
   template <typename Visitor>
   bool ForEachReverse(size_t start, size_t stop, Visitor&& visitor) const;
+  // The pair views are valid only during the callback invocation.
+  template <typename Visitor>
+  bool ForEachPair(Visitor&& visitor) const;
   void Delete(size_t idx);
   ssize_t First() const;
   ssize_t Last() const;
@@ -197,6 +200,47 @@ bool ListPack::ForEachReverse(size_t start, size_t stop,
     }
     listpack_index = Prev(static_cast<size_t>(listpack_index));
     --index;
+  }
+  return true;
+}
+
+template <typename Visitor>
+bool ListPack::ForEachPair(Visitor&& visitor) const {
+  auto first_idx = First();
+  while (first_idx != -1) {
+    const auto second_idx = Next(static_cast<size_t>(first_idx));
+    if (second_idx == -1) {
+      break;
+    }
+
+    size_t first_len = 0;
+    size_t second_len = 0;
+    std::array<unsigned char, kListPackIntBufSize> first_int_buf{};
+    std::array<unsigned char, kListPackIntBufSize> second_int_buf{};
+    const EncodingType first_type = EncodingAt(static_cast<size_t>(first_idx));
+    const EncodingType second_type =
+        EncodingAt(static_cast<size_t>(second_idx));
+    const auto* first =
+        IsString(first_type)
+            ? StringAt(static_cast<size_t>(first_idx), &first_len, first_type)
+            : IntegerAt(static_cast<size_t>(first_idx), first_int_buf.data(),
+                        &first_len, nullptr, first_type);
+    const auto* second =
+        IsString(second_type)
+            ? StringAt(static_cast<size_t>(second_idx), &second_len,
+                       second_type)
+            : IntegerAt(static_cast<size_t>(second_idx), second_int_buf.data(),
+                        &second_len, nullptr, second_type);
+    if (first != nullptr && second != nullptr) {
+      const std::string_view first_value(reinterpret_cast<const char*>(first),
+                                         first_len);
+      const std::string_view second_value(reinterpret_cast<const char*>(second),
+                                          second_len);
+      if (!visitor(first_value, second_value)) {
+        return false;
+      }
+    }
+    first_idx = Next(static_cast<size_t>(second_idx));
   }
   return true;
 }

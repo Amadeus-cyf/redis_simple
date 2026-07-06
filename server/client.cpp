@@ -1,6 +1,7 @@
 #include "client.h"
 
 #include <array>
+#include <utility>
 #include <vector>
 
 #include "server.h"
@@ -84,7 +85,7 @@ ClientStatus Client::ParseLine() {
   if (args.empty()) {
     return ClientStatus::kError;
   }
-  const std::string& name = CommandName(args);
+  const std::string name = CommandName(args);
   args.erase(args.begin());
   const auto* command = command::Find(name);
   if (command == nullptr) {
@@ -92,7 +93,7 @@ ClientStatus Client::ParseLine() {
     return ClientStatus::kError;
   }
   SetCmd(command);
-  SetArgs(args);
+  SetArgs(std::move(args));
   return ClientStatus::kOk;
 }
 
