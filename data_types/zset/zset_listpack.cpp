@@ -154,6 +154,10 @@ void ZSetListPack::DeleteKeyScorePair(size_t idx) {
  * Get the score of the key at the given index.
  */
 std::optional<double> ZSetListPack::ScoreAt(size_t idx) const {
+  const auto integer_score = listpack_->IntegerAt(idx);
+  if (integer_score.has_value()) {
+    return static_cast<double>(*integer_score);
+  }
   const auto string_result = listpack_->Get(idx);
   if (!string_result.has_value()) {
     return std::nullopt;

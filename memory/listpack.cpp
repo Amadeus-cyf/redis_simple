@@ -172,6 +172,19 @@ bool ListPack::BatchInsert(size_t idx,
   return BatchInsert(idx, Position::kInsertBefore, entries);
 }
 
+std::optional<size_t> ListPack::IndexAt(size_t index) const {
+  ssize_t idx = First();
+  size_t current_index = 0;
+  while (idx != -1 && current_index < index) {
+    idx = Next(static_cast<size_t>(idx));
+    ++current_index;
+  }
+  if (idx == -1) {
+    return std::nullopt;
+  }
+  return static_cast<size_t>(idx);
+}
+
 void ListPack::Delete(size_t idx) {
   uint32_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {

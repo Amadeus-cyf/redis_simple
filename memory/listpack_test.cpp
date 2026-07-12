@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -584,6 +585,23 @@ TEST(ListPackTest, Iterate) {
   }
   ASSERT_EQ(prev, listpack->Last());
   ASSERT_EQ(len, listpack->Size());
+}
+
+TEST(ListPackTest, IndexAt) {
+  auto listpack = MakeBatchInsertedListPack();
+  std::vector<size_t> indices;
+
+  ssize_t idx = listpack->First();
+  while (idx != -1) {
+    indices.push_back(static_cast<size_t>(idx));
+    idx = listpack->Next(static_cast<size_t>(idx));
+  }
+
+  ASSERT_EQ(indices.size(), listpack->Size());
+  for (size_t i = 0; i < indices.size(); ++i) {
+    ASSERT_EQ(listpack->IndexAt(i), indices[i]);
+  }
+  ASSERT_EQ(listpack->IndexAt(indices.size()), std::nullopt);
 }
 
 TEST(ListPackTest, Delete) {

@@ -43,6 +43,7 @@ class ListPack {
   bool BatchAppend(const std::vector<ListPackEntry>& entries);
   bool BatchPrepend(const std::vector<ListPackEntry>& entries);
   bool BatchInsert(size_t idx, const std::vector<ListPackEntry>& entries);
+  std::optional<size_t> IndexAt(size_t index) const;
   // The value view is valid only during the callback invocation.
   template <typename Visitor>
   bool ForEach(size_t start, size_t stop, Visitor&& visitor) const;

@@ -52,6 +52,9 @@ class List {
   explicit List(size_t list_max_listpack_bytes);
   bool Push(std::string_view value, bool head);
   std::optional<std::string> Pop(bool head);
+  std::optional<size_t> RemoveFromListPack(std::string_view value, size_t limit,
+                                           RemoveDirection direction);
+  void TrimListPack(size_t start, size_t stop);
   bool AdoptReplacement(std::unique_ptr<List> replacement);
   bool WouldExceedListpackLimit(std::string_view value) const;
   bool ConvertListPackToQuickList();

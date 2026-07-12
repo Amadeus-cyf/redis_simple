@@ -25,6 +25,10 @@ class Set {
   }
   bool Add(const std::string& value);
   bool HasMember(const std::string& value) const;
+  bool HasMember(std::string_view value) const;
+  bool HasMember(const char* value) const {
+    return HasMember(std::string_view(value));
+  }
   std::vector<std::string> ListAllMembers() const;
   template <typename Visitor>
   bool ForEachMember(Visitor&& visitor) const;
@@ -45,6 +49,8 @@ class Set {
   bool MaybeConvertIntSetToListPack(const std::string& val);
   void ConvertIntSetToListPack(const std::string& val);
   void ConvertListPackToDict(size_t capacity);
+  bool HasMemberImpl(std::string_view value,
+                     const std::string* string_value) const;
   enum Encoding encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;
   std::unique_ptr<in_memory::ListPack> listpack_;

@@ -29,6 +29,15 @@ bool Set::Add(const std::string& value) {
 }
 
 bool Set::HasMember(const std::string& value) const {
+  return HasMemberImpl(value, &value);
+}
+
+bool Set::HasMember(std::string_view value) const {
+  return HasMemberImpl(value, nullptr);
+}
+
+bool Set::HasMemberImpl(std::string_view value,
+                        const std::string* const string_value) const {
   if (Size() == 0) {
     return false;
   }
@@ -43,7 +52,11 @@ bool Set::HasMember(const std::string& value) const {
     return listpack_->Find(value) != -1;
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->FindValue(value) != nullptr;
+    if (string_value != nullptr) {
+      return dict_->FindValue(*string_value) != nullptr;
+    }
+    const std::string owned_value(value);
+    return dict_->FindValue(owned_value) != nullptr;
   }
   throw std::invalid_argument("unknown encoding type");
 }

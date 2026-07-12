@@ -20,6 +20,21 @@ bool ShouldRemove(std::string_view current, std::string_view target,
   ++(*removed);
   return true;
 }
+
+bool ListPackEntryEquals(const in_memory::ListPack* const listpack,
+                         size_t index, std::string_view value) {
+  size_t len = 0;
+  const auto* data = listpack->Get(index, &len);
+  return data != nullptr &&
+         std::string_view(reinterpret_cast<const char*>(data), len) == value;
+}
+
+ssize_t NextAfterDelete(const in_memory::ListPack* const listpack,
+                        size_t deleted_index) {
+  return deleted_index < listpack->TotalBytes() - 1
+             ? static_cast<ssize_t>(deleted_index)
+             : -1;
+}
 }  // namespace
 
 List::List(size_t list_max_listpack_bytes)
@@ -50,6 +65,18 @@ bool List::Set(size_t index, std::string_view value) {
     return false;
   }
 
+  if (listpack_) {
+    const auto listpack_index = listpack_->IndexAt(index);
+    if (!listpack_index.has_value() ||
+        !listpack_->Replace(*listpack_index, value)) {
+      return false;
+    }
+    if (listpack_->TotalBytes() > list_max_listpack_bytes_) {
+      return ConvertListPackToQuickList();
+    }
+    return true;
+  }
+
   auto replacement = List::Create(list_max_listpack_bytes_);
   size_t current_index = 0;
   const bool replaced = ForEach(
@@ -67,6 +94,10 @@ std::optional<size_t> List::Remove(std::string_view value, size_t limit,
   const size_t size = Size();
   if (size == 0) {
     return 0;
+  }
+
+  if (listpack_) {
+    return RemoveFromListPack(value, limit, direction);
   }
 
   auto replacement = List::Create(list_max_listpack_bytes_);
@@ -115,12 +146,73 @@ bool List::Trim(size_t start, size_t stop) {
     return true;
   }
 
+  if (listpack_) {
+    TrimListPack(start, stop);
+    return true;
+  }
+
   auto replacement = List::Create(list_max_listpack_bytes_);
   const bool rebuilt =
       ForEach(start, stop, [&replacement](std::string_view value) {
         return replacement->RPush(value);
       });
   return rebuilt ? AdoptReplacement(std::move(replacement)) : false;
+}
+
+std::optional<size_t> List::RemoveFromListPack(std::string_view value,
+                                               size_t limit,
+                                               RemoveDirection direction) {
+  size_t removed = 0;
+  if (direction == RemoveDirection::kFromTail && HasRemoveLimit(limit)) {
+    ssize_t idx = listpack_->Last();
+    while (idx != -1) {
+      const auto current_index = static_cast<size_t>(idx);
+      idx = listpack_->Prev(current_index);
+      if (ListPackEntryEquals(listpack_.get(), current_index, value)) {
+        listpack_->Delete(current_index);
+        ++removed;
+        if (removed >= limit) {
+          break;
+        }
+      }
+    }
+    return removed;
+  }
+
+  ssize_t idx = listpack_->First();
+  while (idx != -1) {
+    const auto current_index = static_cast<size_t>(idx);
+    if (ListPackEntryEquals(listpack_.get(), current_index, value)) {
+      listpack_->Delete(current_index);
+      ++removed;
+      if (HasRemoveLimit(limit) && removed >= limit) {
+        break;
+      }
+      idx = NextAfterDelete(listpack_.get(), current_index);
+      continue;
+    }
+    idx = listpack_->Next(current_index);
+  }
+  return removed;
+}
+
+void List::TrimListPack(size_t start, size_t stop) {
+  const size_t size = listpack_->Size();
+  const size_t tail_count = size - stop - 1;
+  for (size_t i = 0; i < tail_count; ++i) {
+    const auto idx = listpack_->IndexAt(stop + 1);
+    if (!idx.has_value()) {
+      break;
+    }
+    listpack_->Delete(*idx);
+  }
+  for (size_t i = 0; i < start; ++i) {
+    const ssize_t idx = listpack_->First();
+    if (idx == -1) {
+      break;
+    }
+    listpack_->Delete(static_cast<size_t>(idx));
+  }
 }
 
 size_t List::Size() const {

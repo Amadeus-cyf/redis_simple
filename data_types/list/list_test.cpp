@@ -81,6 +81,37 @@ TEST(ListTest, IndexSetRemoveAndTrimWithListPackEncoding) {
   ASSERT_EQ(list->Range(0, 1), (std::vector<std::string>{"changed", "three"}));
 }
 
+TEST(ListTest, RemoveFromTailWithListPackEncoding) {
+  auto list = List::Create();
+  ASSERT_TRUE(list->RPush("a"));
+  ASSERT_TRUE(list->RPush("b"));
+  ASSERT_TRUE(list->RPush("c"));
+  ASSERT_TRUE(list->RPush("b"));
+  ASSERT_TRUE(list->RPush("b"));
+  ASSERT_TRUE(list->RPush("d"));
+
+  ASSERT_EQ(list->Remove("b", 2, List::RemoveDirection::kFromTail), 2);
+
+  ASSERT_EQ(list->Encoding(), List::Encoding::kListPack);
+  ASSERT_EQ(list->Range(0, 3), (std::vector<std::string>{"a", "b", "c", "d"}));
+
+  ASSERT_EQ(list->Remove("b", 0, List::RemoveDirection::kFromTail), 1);
+  ASSERT_EQ(list->Range(0, 2), (std::vector<std::string>{"a", "c", "d"}));
+}
+
+TEST(ListTest, SetConvertsListPackToQuickListWhenValueGrows) {
+  auto list = List::Create(48);
+  const std::string value(64, 'x');
+  ASSERT_TRUE(list->RPush("a"));
+  ASSERT_TRUE(list->RPush("b"));
+  ASSERT_EQ(list->Encoding(), List::Encoding::kListPack);
+
+  ASSERT_TRUE(list->Set(0, value));
+
+  ASSERT_EQ(list->Encoding(), List::Encoding::kQuickList);
+  ASSERT_EQ(list->Range(0, 1), (std::vector<std::string>{value, "b"}));
+}
+
 TEST(ListEncodingTest, ConvertsFromListPackToQuickListWhenListGrows) {
   auto list = List::Create(96);
   const std::string value(32, 'x');
