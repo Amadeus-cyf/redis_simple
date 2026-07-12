@@ -10,12 +10,33 @@
 #include "utils/int_utils.h"
 
 namespace redis_simple::utils {
+namespace {
+size_t SplitTokenCount(std::string_view s, std::string_view delimiter) {
+  if (delimiter.empty()) {
+    return 1;
+  }
+
+  size_t count = 0;
+  size_t start = 0;
+  size_t end = std::string_view::npos;
+  while ((end = s.find(delimiter, start)) != std::string_view::npos) {
+    ++count;
+    start = end + delimiter.size();
+  }
+  if (start < s.length()) {
+    ++count;
+  }
+  return count;
+}
+}  // namespace
+
 std::vector<std::string> Split(const std::string& s,
                                const std::string& delimiter) {
   if (delimiter.empty()) {
     return {s};
   }
   std::vector<std::string> res;
+  res.reserve(SplitTokenCount(s, delimiter));
   size_t start = 0;
   size_t end = std::string::npos;
   while ((end = s.find(delimiter, start)) != std::string::npos) {
@@ -34,6 +55,7 @@ std::vector<std::string_view> SplitView(std::string_view s,
     return {s};
   }
   std::vector<std::string_view> res;
+  res.reserve(SplitTokenCount(s, delimiter));
   size_t start = 0;
   size_t end = std::string_view::npos;
   while ((end = s.find(delimiter, start)) != std::string_view::npos) {

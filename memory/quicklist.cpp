@@ -290,22 +290,15 @@ QuickList::Node* QuickList::SplitNode(Node* node) {
 
   const size_t node_size = node->listpack->Size();
   const size_t split_index = node_size / 2;
-  std::vector<std::string> right_values;
-  right_values.reserve(node_size - split_index);
+
+  auto right = std::make_unique<Node>();
   if (!node->listpack->ForEach(split_index, node_size - 1,
-                               [&right_values](std::string_view value) {
-                                 right_values.emplace_back(value);
-                                 return true;
+                               [&right](std::string_view value) {
+                                 return right->listpack->Append(value);
                                })) {
     return nullptr;
   }
 
-  auto right = std::make_unique<Node>();
-  for (const auto& value : right_values) {
-    if (!right->listpack->Append(value)) {
-      return nullptr;
-    }
-  }
   for (size_t i = split_index; i < node_size; ++i) {
     const auto idx = node->listpack->IndexAt(split_index);
     if (!idx.has_value()) {

@@ -129,6 +129,25 @@ TEST(ReplyBufferTest, Consume) {
   ASSERT_EQ(mem_vec[2].second, 1000);
 }
 
+TEST(ReplyBufferTest, ConsumeListNodeInMultiplePartialWrites) {
+  auto buf = MakeBufferWithReplyList();
+  buf->Consume(4096);
+
+  buf->Consume(300);
+  ASSERT_EQ(buf->SentLength(), 300);
+  auto mem_vec = buf->Blocks();
+  ASSERT_EQ(mem_vec.size(), 4);
+  ASSERT_EQ(mem_vec[0].second, 1700);
+
+  buf->Consume(400);
+  ASSERT_EQ(buf->SentLength(), 700);
+  mem_vec = buf->Blocks();
+  ASSERT_EQ(mem_vec.size(), 4);
+  ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
+            std::string(1300, 'b'));
+  ASSERT_EQ(mem_vec[0].second, 1300);
+}
+
 TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
   auto buf = MakeConsumedBuffer();
   BufNode* tail = buf->ReplyTail();

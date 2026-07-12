@@ -1,6 +1,7 @@
 #include "reply_buffer.h"
 
 #include <algorithm>
+#include <cassert>
 
 namespace redis_simple::in_memory {
 ReplyBuffer::ReplyBuffer()
@@ -48,6 +49,7 @@ size_t ReplyBuffer::AppendToList(const char* c, size_t len) {
 
 std::vector<std::pair<char*, size_t>> ReplyBuffer::Blocks() {
   std::vector<std::pair<char*, size_t>> mem_vec;
+  mem_vec.reserve(node_count_ + (size_ > 0 ? 1 : 0));
   if (size_ > 0) {
     mem_vec.emplace_back(buf_.get() + sent_, size_ - sent_);
   }
@@ -100,12 +102,14 @@ void ReplyBuffer::ConsumeList(size_t nwritten) {
   RS_LOG_DEBUG("nwritten remained after processing main buffer %zu %zu\n",
                nwritten, reply_bytes_);
   while (nwritten > 0 && (reply_head_ != nullptr)) {
-    if (nwritten < reply_head_->used_) {
-      sent_ = nwritten;
+    assert(sent_ <= reply_head_->used_);
+    const size_t remaining = reply_head_->used_ - sent_;
+    if (nwritten < remaining) {
+      sent_ += nwritten;
       break;
     }
     sent_ = 0;
-    nwritten -= reply_head_->used_;
+    nwritten -= remaining;
     DeleteNode(reply_head_.get(), nullptr);
   }
 }
