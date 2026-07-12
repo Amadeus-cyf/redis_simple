@@ -1,4 +1,4 @@
-#include "event_loop/ae_epoll.h"
+#include "event_loop/epoll_poller.h"
 
 #include <sys/epoll.h>
 #include <unistd.h>
@@ -8,9 +8,9 @@
 #include <ctime>
 #include <limits>
 
-#include "event_loop/ae.h"
+#include "event_loop/loop.h"
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 namespace {
 uint32_t ToEpollEvents(int mask) {
   uint32_t events = 0;
@@ -121,4 +121,4 @@ std::unordered_map<int, int> EpollPoller::Poll(
 }
 
 EpollPoller::~EpollPoller() { close(epoll_fd_); }
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

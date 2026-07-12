@@ -79,11 +79,11 @@ redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
 )
 if(APPLE)
   redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
-    "/event_loop/ae_epoll\\.(cpp|h)$"
+    "/event_loop/epoll_poller\\.(cpp|h)$"
   )
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   redis_simple_exclude_sources(REDIS_SIMPLE_CORE_SOURCES
-    "/event_loop/ae_kqueue\\.(cpp|h)$"
+    "/event_loop/kqueue_poller\\.(cpp|h)$"
   )
 else()
   message(FATAL_ERROR "Unsupported platform: ${CMAKE_SYSTEM_NAME}")
@@ -107,6 +107,7 @@ enable_testing()
 
 redis_simple_collect_sources(REDIS_SIMPLE_UNIT_TEST_SOURCES
   cli
+  event_loop
   memory
   server/commands
   server/db
@@ -129,6 +130,7 @@ redis_simple_add_gtest_suite(StringUtilsTest)
 redis_simple_add_gtest_suite(DictStrTest)
 redis_simple_add_gtest_suite(DictIntTest)
 redis_simple_add_gtest_suite(DynamicBufferTest)
+redis_simple_add_gtest_suite(LoopTest)
 redis_simple_add_gtest_suite(IntSetTest)
 redis_simple_add_gtest_suite(ListPackTest)
 redis_simple_add_gtest_suite(QuickListTest)

@@ -1,4 +1,4 @@
-#include "ae_kqueue.h"
+#include "event_loop/kqueue_poller.h"
 
 #include <sys/event.h>
 #include <sys/types.h>
@@ -8,9 +8,9 @@
 #include <cstring>
 #include <limits>
 
-#include "ae.h"
+#include "event_loop/loop.h"
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 KqueuePoller::KqueuePoller(int fd, int nevents)
     : kqueue_fd_(fd), nevents_(nevents), events_(nevents) {}
 
@@ -95,4 +95,4 @@ std::unordered_map<int, int> KqueuePoller::Poll(
 }
 
 KqueuePoller::~KqueuePoller() { close(kqueue_fd_); }
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

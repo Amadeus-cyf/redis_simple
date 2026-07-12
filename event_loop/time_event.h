@@ -5,7 +5,7 @@
 #include <memory>
 #include <utility>
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 class TimeEvent {
  public:
   using TimeCallback = std::function<int(long long)>;
@@ -67,4 +67,4 @@ class TimeEvent {
   TimeCallback time_callback_;
   FinalizeCallback finalize_callback_;
 };
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

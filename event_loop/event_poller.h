@@ -3,7 +3,7 @@
 #include <ctime>
 #include <unordered_map>
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 class EventPoller {
  public:
   virtual int AddEvent(int fd, int mask) const = 0;
@@ -12,4 +12,4 @@ class EventPoller {
       struct timespec* timeout_spec) const = 0;
   virtual ~EventPoller() = default;
 };
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

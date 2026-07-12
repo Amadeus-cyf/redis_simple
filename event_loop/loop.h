@@ -4,11 +4,11 @@
 #include <memory>
 #include <vector>
 
-#include "ae_event_poller.h"
-#include "ae_file_event.h"
-#include "ae_time_event.h"
+#include "event_loop/event_poller.h"
+#include "event_loop/file_event.h"
+#include "event_loop/time_event.h"
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 enum class EventFlag {
   kReadable = 1,
   kWritable = 1 << 1,
@@ -38,12 +38,12 @@ constexpr bool operator!=(int value, EventFlag flag) {
 constexpr bool operator==(EventFlag flag, int value) { return value == flag; }
 constexpr bool operator!=(EventFlag flag, int value) { return value != flag; }
 
-enum class EventLoopStatus {
+enum class Status {
   kOk = 0,
   kError = -1,
 };
 
-enum class EventCallbackStatus {
+enum class CallbackStatus {
   kOk = 0,
   kError = -1,
 };
@@ -54,24 +54,23 @@ inline int WaitForEvent(int fd, EventFlag mask, long timeout) {
   return WaitForEvent(fd, ToInt(mask), timeout);
 }
 
-class EventLoop {
+class Loop {
  public:
-  static std::unique_ptr<EventLoop> Create();
+  static std::unique_ptr<Loop> Create();
   void Run();
   void Stop() { stop_requested_ = true; }
-  EventLoopStatus CreateFileEvent(int fd,
-                                  std::unique_ptr<FileEvent> file_event);
-  EventLoopStatus DeleteFileEvent(int fd, int mask);
-  EventLoopStatus DeleteFileEvent(int fd, EventFlag mask) {
+  Status CreateFileEvent(int fd, std::unique_ptr<FileEvent> file_event);
+  Status DeleteFileEvent(int fd, int mask);
+  Status DeleteFileEvent(int fd, EventFlag mask) {
     return DeleteFileEvent(fd, ToInt(mask));
   }
   void CreateTimeEvent(std::unique_ptr<TimeEvent> time_event);
   void ProcessEvents();
-  ~EventLoop() = default;
+  ~Loop() = default;
 
  private:
   static constexpr int kEventSize = 1024;
-  explicit EventLoop(std::unique_ptr<EventPoller> event_poller);
+  explicit Loop(std::unique_ptr<EventPoller> event_poller);
   void ProcessFileEvents();
   void ProcessTimeEvents();
   std::vector<std::unique_ptr<FileEvent>> file_events_;
@@ -80,4 +79,4 @@ class EventLoop {
   int max_fd_;
   bool stop_requested_{false};
 };
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

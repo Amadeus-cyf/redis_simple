@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "connection/connection_callback.h"
-#include "event_loop/ae.h"
+#include "event_loop/loop.h"
 
 namespace redis_simple::connection {
 enum class ConnectionStatus {
@@ -28,7 +28,7 @@ enum class ConnectionState {
 };
 
 struct Context {
-  ae::EventLoop* event_loop{nullptr};
+  event_loop::Loop* loop{nullptr};
   int fd{-1};
 };
 
@@ -81,21 +81,22 @@ class Connection {
   // Give pending writes priority over reads for this connection.
   static constexpr int kWriteBarrier = 1;
 
-  static ae::EventCallbackStatus SocketEventCallback(ae::EventLoop* el, int fd,
-                                                     Connection* conn,
-                                                     int mask);
+  static event_loop::CallbackStatus SocketEventCallback(event_loop::Loop* loop,
+                                                        int fd,
+                                                        Connection* conn,
+                                                        int mask);
   int WaitRead(long timeout) const {
-    return Wait(ae::EventFlag::kReadable, timeout);
+    return Wait(event_loop::EventFlag::kReadable, timeout);
   }
   int WaitWrite(long timeout) const {
-    return Wait(ae::EventFlag::kWritable, timeout);
+    return Wait(event_loop::EventFlag::kWritable, timeout);
   }
-  int Wait(ae::EventFlag flag, long timeout) const;
+  int Wait(event_loop::EventFlag flag, long timeout) const;
   int fd_;
   int flags_{};
   mutable ConnectionState state_;
   std::any private_data_;
-  ae::EventLoop* el_{nullptr};
+  event_loop::Loop* loop_{nullptr};
   ConnectionCallback read_callback_;
   ConnectionCallback write_callback_;
 };

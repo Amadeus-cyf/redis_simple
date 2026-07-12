@@ -1,4 +1,4 @@
-#include "ae.h"
+#include "event_loop/loop.h"
 
 #include <poll.h>
 #include <sys/time.h>
@@ -16,18 +16,23 @@
 #include "utils/time_utils.h"
 
 #ifdef __APPLE__
-#include "event_loop/ae_kqueue.h"
+#include "event_loop/kqueue_poller.h"
 #elif defined(__linux__)
-#include "event_loop/ae_epoll.h"
+#include "event_loop/epoll_poller.h"
 #else
 #error "Unsupported event loop platform"
 #endif
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 void FileEvent::Merge(const FileEvent* file_event) {
   if (file_event == nullptr) {
     return;
   }
+  const bool merges_separate_single_purpose_callbacks =
+      (HasReadCallback() && !HasWriteCallback() &&
+       file_event->HasWriteCallback() && !file_event->HasReadCallback()) ||
+      (HasWriteCallback() && !HasReadCallback() &&
+       file_event->HasReadCallback() && !file_event->HasWriteCallback());
   AddMask(file_event->Mask());
   if (!HasReadCallback() && file_event->HasReadCallback()) {
     read_callback_ = file_event->read_callback_;
@@ -37,7 +42,8 @@ void FileEvent::Merge(const FileEvent* file_event) {
   }
   has_separate_callbacks_ =
       HasReadCallback() && HasWriteCallback() &&
-      (has_separate_callbacks_ || file_event->has_separate_callbacks_);
+      (has_separate_callbacks_ || file_event->has_separate_callbacks_ ||
+       merges_separate_single_purpose_callbacks);
 }
 
 int WaitForEvent(int fd, int mask, long timeout) {
@@ -74,12 +80,12 @@ int WaitForEvent(int fd, int mask, long timeout) {
   return result_mask;
 }
 
-EventLoop::EventLoop(std::unique_ptr<EventPoller> event_poller)
+Loop::Loop(std::unique_ptr<EventPoller> event_poller)
     : file_events_(std::vector<std::unique_ptr<FileEvent>>(kEventSize)),
       event_poller_(std::move(event_poller)),
       max_fd_(-1) {}
 
-std::unique_ptr<EventLoop> EventLoop::Create() {
+std::unique_ptr<Loop> Loop::Create() {
 #ifdef __APPLE__
   auto event_poller = KqueuePoller::Create(kEventSize);
 #elif defined(__linux__)
@@ -88,29 +94,28 @@ std::unique_ptr<EventLoop> EventLoop::Create() {
   if (!event_poller) {
     return nullptr;
   }
-  return std::unique_ptr<EventLoop>(new EventLoop(std::move(event_poller)));
+  return std::unique_ptr<Loop>(new Loop(std::move(event_poller)));
 }
 
-void EventLoop::Run() {
+void Loop::Run() {
   stop_requested_ = false;
   while (!stop_requested_) {
     ProcessEvents();
   }
 }
 
-EventLoopStatus EventLoop::CreateFileEvent(
-    int fd, std::unique_ptr<FileEvent> file_event) {
+Status Loop::CreateFileEvent(int fd, std::unique_ptr<FileEvent> file_event) {
   if (file_event == nullptr) {
-    return EventLoopStatus::kError;
+    return Status::kError;
   }
   RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd,
                file_event->Mask());
   if (fd < 0 || fd >= kEventSize) {
     RS_LOG_DEBUG("file descriptor out of range");
-    return EventLoopStatus::kError;
+    return Status::kError;
   }
   if (event_poller_->AddEvent(fd, file_event->Mask()) < 0) {
-    return EventLoopStatus::kError;
+    return Status::kError;
   }
   if (file_events_[fd] == nullptr) {
     RS_LOG_DEBUG("add new event\n");
@@ -121,19 +126,19 @@ EventLoopStatus EventLoop::CreateFileEvent(
     file_event->Merge(file_events_[fd].get());
   }
   file_events_[fd] = std::move(file_event);
-  return EventLoopStatus::kOk;
+  return Status::kOk;
 }
 
-EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
+Status Loop::DeleteFileEvent(int fd, int mask) {
   if (fd < 0 || fd >= kEventSize || file_events_[fd] == nullptr) {
-    return EventLoopStatus::kError;
+    return Status::kError;
   }
   if (event_poller_->DeleteEvent(fd, mask) < 0) {
     RS_LOG_DEBUG(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
         fd, errno);
-    return EventLoopStatus::kError;
+    return Status::kError;
   }
   RS_LOG_DEBUG(
       "delete file event success for file descriptor = %d, mask = %d\n", fd,
@@ -146,21 +151,21 @@ EventLoopStatus EventLoop::DeleteFileEvent(int fd, int mask) {
     m &= ~mask;
     file_event->SetMask(m);
   }
-  return EventLoopStatus::kOk;
+  return Status::kOk;
 }
 
-void EventLoop::CreateTimeEvent(std::unique_ptr<TimeEvent> time_event) {
+void Loop::CreateTimeEvent(std::unique_ptr<TimeEvent> time_event) {
   if (time_event != nullptr) {
     time_events_.push_front(std::move(time_event));
   }
 }
 
-void EventLoop::ProcessEvents() {
+void Loop::ProcessEvents() {
   ProcessFileEvents();
   ProcessTimeEvents();
 }
 
-void EventLoop::ProcessFileEvents() {
+void Loop::ProcessFileEvents() {
   if (max_fd_ == -1) {
     return;
   }
@@ -201,7 +206,7 @@ void EventLoop::ProcessFileEvents() {
   }
 }
 
-void EventLoop::ProcessTimeEvents() {
+void Loop::ProcessTimeEvents() {
   for (auto it = time_events_.begin(); it != time_events_.end();) {
     TimeEvent* time_event = it->get();
     const auto id = static_cast<EventFlag>(time_event->Id());
@@ -225,4 +230,4 @@ void EventLoop::ProcessTimeEvents() {
     }
   }
 }
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

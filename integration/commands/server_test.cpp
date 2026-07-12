@@ -3,7 +3,7 @@
 #include <csignal>
 #include <cstdlib>
 
-#include "event_loop/ae.h"
+#include "event_loop/loop.h"
 
 namespace redis_simple {
 namespace {
@@ -18,15 +18,15 @@ int StopServerIfRequested(long long /*id*/) {
     return 1;
   }
   Server::Get()->Stop();
-  return ae::ToInt(ae::EventFlag::kNoMore);
+  return event_loop::ToInt(event_loop::EventFlag::kNoMore);
 }
 }  // namespace
 
 int Run() {
   std::signal(SIGINT, RequestStop);
   std::signal(SIGTERM, RequestStop);
-  Server::Get()->EventLoop()->CreateTimeEvent(
-      ae::TimeEvent::Create(StopServerIfRequested, nullptr));
+  Server::Get()->Loop()->CreateTimeEvent(
+      event_loop::TimeEvent::Create(StopServerIfRequested, nullptr));
   return Server::Get()->Run("localhost", 8080) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 }  // namespace redis_simple

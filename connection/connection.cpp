@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "event_loop/ae_file_event.h"
+#include "event_loop/file_event.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple::connection {
@@ -28,24 +28,25 @@ int BindAndConnectTcp(const AddressInfo& remote,
 
 Connection::Connection(const Context& ctx)
     : fd_(ctx.fd),
-      el_(ctx.event_loop),
+      loop_(ctx.loop),
       state_(ConnectionState::kConnect),
       read_callback_(nullptr),
       write_callback_(nullptr) {}
 
 ConnectionStatus Connection::BindAndConnect(
     const AddressInfo& remote, const std::optional<AddressInfo>& local) {
-  if (auto* event_loop = el_) {
+  if (auto* loop = loop_) {
     int fd = BindAndConnectTcp(remote, local);
     if (fd < 0) {
       return ConnectionStatus::kError;
     }
     fd_ = fd;
     state_ = ConnectionState::kConnecting;
-    auto event = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
-                                       ae::ToInt(ae::EventFlag::kWritable));
-    if (event_loop->CreateFileEvent(fd_, std::move(event)) ==
-        ae::EventLoopStatus::kError) {
+    auto event = event_loop::FileEvent::Create(
+        nullptr, SocketEventCallback, this,
+        event_loop::ToInt(event_loop::EventFlag::kWritable));
+    if (loop->CreateFileEvent(fd_, std::move(event)) ==
+        event_loop::Status::kError) {
       RS_LOG_DEBUG("adding connection socket event callback error");
       return ConnectionStatus::kError;
     }
@@ -112,16 +113,17 @@ bool Connection::SetReadCallback(ConnectionCallback read_callback) {
   if (!read_callback) {
     return UnsetReadCallback();
   }
-  if (auto* event_loop = el_) {
-    auto event = ae::FileEvent::Create(SocketEventCallback, nullptr, this,
-                                       ae::ToInt(ae::EventFlag::kReadable));
-    if (event_loop->CreateFileEvent(fd_, std::move(event)) ==
-        ae::EventLoopStatus::kError) {
+  if (auto* loop = loop_) {
+    auto event = event_loop::FileEvent::Create(
+        SocketEventCallback, nullptr, this,
+        event_loop::ToInt(event_loop::EventFlag::kReadable));
+    if (loop->CreateFileEvent(fd_, std::move(event)) ==
+        event_loop::Status::kError) {
       RS_LOG_DEBUG("failed to set read callback\n");
       return false;
     }
     read_callback_ = std::move(read_callback);
-    flags_ |= ae::EventFlag::kReadable;
+    flags_ |= event_loop::EventFlag::kReadable;
   } else {
     RS_LOG_DEBUG("no event loop\n");
     return false;
@@ -130,14 +132,14 @@ bool Connection::SetReadCallback(ConnectionCallback read_callback) {
 }
 
 bool Connection::UnsetReadCallback() {
-  if (auto* event_loop = el_) {
-    if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kReadable) ==
-        ae::EventLoopStatus::kError) {
+  if (auto* loop = loop_) {
+    if (loop->DeleteFileEvent(fd_, event_loop::EventFlag::kReadable) ==
+        event_loop::Status::kError) {
       RS_LOG_DEBUG("failed to unset read callback\n");
       return false;
     }
     read_callback_ = nullptr;
-    flags_ &= ~ae::EventFlag::kReadable;
+    flags_ &= ~event_loop::EventFlag::kReadable;
   } else {
     RS_LOG_DEBUG("no event loop\n");
     return false;
@@ -154,16 +156,17 @@ bool Connection::SetWriteCallback(ConnectionCallback callback, bool barrier) {
   if (!callback) {
     return UnsetWriteCallback();
   }
-  if (auto* event_loop = el_) {
-    auto event = ae::FileEvent::Create(nullptr, SocketEventCallback, this,
-                                       ae::ToInt(ae::EventFlag::kWritable));
-    if (event_loop->CreateFileEvent(fd_, std::move(event)) ==
-        ae::EventLoopStatus::kError) {
+  if (auto* loop = loop_) {
+    auto event = event_loop::FileEvent::Create(
+        nullptr, SocketEventCallback, this,
+        event_loop::ToInt(event_loop::EventFlag::kWritable));
+    if (loop->CreateFileEvent(fd_, std::move(event)) ==
+        event_loop::Status::kError) {
       RS_LOG_DEBUG("failed to set write callback\n");
       return false;
     }
     write_callback_ = std::move(callback);
-    flags_ |= ae::EventFlag::kWritable;
+    flags_ |= event_loop::EventFlag::kWritable;
   } else {
     RS_LOG_DEBUG("no event loop\n");
     return false;
@@ -172,14 +175,14 @@ bool Connection::SetWriteCallback(ConnectionCallback callback, bool barrier) {
 }
 
 bool Connection::UnsetWriteCallback() {
-  if (auto* event_loop = el_) {
-    if (event_loop->DeleteFileEvent(fd_, ae::EventFlag::kWritable) ==
-        ae::EventLoopStatus::kError) {
+  if (auto* loop = loop_) {
+    if (loop->DeleteFileEvent(fd_, event_loop::EventFlag::kWritable) ==
+        event_loop::Status::kError) {
       RS_LOG_DEBUG("failed to unset write callback\n");
       return false;
     }
     write_callback_ = nullptr;
-    flags_ &= ~ae::EventFlag::kWritable;
+    flags_ &= ~event_loop::EventFlag::kWritable;
   } else {
     RS_LOG_DEBUG("no event loop\n");
     return false;
@@ -332,25 +335,24 @@ ssize_t Connection::WriteVector(
   return n;
 }
 
-ae::EventCallbackStatus Connection::SocketEventCallback(ae::EventLoop* el,
-                                                        int fd,
-                                                        Connection* conn,
-                                                        int mask) {
+event_loop::CallbackStatus Connection::SocketEventCallback(
+    event_loop::Loop* loop, int fd, Connection* conn, int mask) {
   RS_LOG_DEBUG(
       "event callback called with fd = %d, mask_read = %d, mask_write = %d\n",
-      fd, mask & ae::EventFlag::kReadable, mask & ae::EventFlag::kWritable);
+      fd, mask & event_loop::EventFlag::kReadable,
+      mask & event_loop::EventFlag::kWritable);
   if (conn == nullptr) {
-    return ae::EventCallbackStatus::kError;
+    return event_loop::CallbackStatus::kError;
   }
   RS_LOG_DEBUG("state: %d\n", conn->State());
   if (conn->State() == ConnectionState::kConnecting &&
-      ((mask & ae::EventFlag::kWritable) != 0)) {
+      ((mask & event_loop::EventFlag::kWritable) != 0)) {
     // A nonblocking connect completes through the writable event; SO_ERROR
     // tells whether it succeeded.
     if (tcp::IsSocketError(fd)) {
       RS_LOG_DEBUG("socket error\n");
       conn->SetState(ConnectionState::kError);
-      return ae::EventCallbackStatus::kError;
+      return event_loop::CallbackStatus::kError;
     }
     RS_LOG_DEBUG("connection state set to connected\n");
     conn->SetState(ConnectionState::kConnected);
@@ -358,29 +360,31 @@ ae::EventCallbackStatus Connection::SocketEventCallback(ae::EventLoop* el,
   int invert = conn->flags_ & kWriteBarrier;
   // Normal order is read-before-write. A write barrier lets command replies
   // flush before another readable event queues more work on the same socket.
-  if ((invert == 0) && ((mask & ae::EventFlag::kReadable) != 0) &&
+  if ((invert == 0) && ((mask & event_loop::EventFlag::kReadable) != 0) &&
       conn->read_callback_) {
     conn->read_callback_(conn);
   }
-  if (((mask & ae::EventFlag::kWritable) != 0) && conn->write_callback_) {
+  if (((mask & event_loop::EventFlag::kWritable) != 0) &&
+      conn->write_callback_) {
     conn->write_callback_(conn);
   }
-  if ((invert != 0) && ((mask & ae::EventFlag::kReadable) != 0) &&
+  if ((invert != 0) && ((mask & event_loop::EventFlag::kReadable) != 0) &&
       conn->read_callback_) {
     conn->read_callback_(conn);
   }
-  return ae::EventCallbackStatus::kOk;
+  return event_loop::CallbackStatus::kOk;
 }
 
-int Connection::Wait(ae::EventFlag flag, long timeout) const {
-  int r = ae::WaitForEvent(fd_, flag, timeout);
+int Connection::Wait(event_loop::EventFlag flag, long timeout) const {
+  int r = event_loop::WaitForEvent(fd_, flag, timeout);
   if (r < 0) {
     RS_LOG_DEBUG("conn sync %s failed for connection %d\n",
-                 flag == ae::EventFlag::kReadable ? "read" : "write", fd_);
+                 flag == event_loop::EventFlag::kReadable ? "read" : "write",
+                 fd_);
     return -1;
   }
   if (r == 0) {
-    RS_LOG_DEBUG("aeWait timeout\n");
+    RS_LOG_DEBUG("event wait timeout\n");
     return -1;
   }
   return r;

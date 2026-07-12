@@ -26,25 +26,26 @@ bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return SendStringInline(conn, cmd->String());
 }
 
-ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
-                                                 Server* server, int mask) {
+event_loop::CallbackStatus AcceptConnectionCallback(event_loop::Loop* loop,
+                                                    int fd, Server* server,
+                                                    int mask) {
   if (server == nullptr) {
     RS_LOG_DEBUG("invalid server / event loop\n");
-    return ae::EventCallbackStatus::kError;
+    return event_loop::CallbackStatus::kError;
   }
   connection::Context ctx;
-  ctx.event_loop = server->EventLoop();
+  ctx.loop = server->Loop();
   ctx.fd = fd;
   auto conn = std::make_unique<connection::Connection>(ctx);
   conn->SetState(connection::ConnectionState::kAccepting);
   connection::AddressInfo addr_info;
   if (conn->Accept(&addr_info) == connection::ConnectionStatus::kError) {
     RS_LOG_DEBUG("connection accept failed\n");
-    return ae::EventCallbackStatus::kError;
+    return event_loop::CallbackStatus::kError;
   }
   if (conn->State() != connection::ConnectionState::kConnected) {
     RS_LOG_DEBUG("invalid connection state\n");
-    return ae::EventCallbackStatus::kError;
+    return event_loop::CallbackStatus::kError;
   }
   RS_LOG_DEBUG("accept connection from %s:%d with fd = %d\n",
                addr_info.ip.c_str(), addr_info.port, conn->Descriptor());
@@ -55,9 +56,9 @@ ae::EventCallbackStatus AcceptConnectionCallback(ae::EventLoop* el, int fd,
   if (!client_ptr->Connection()->SetReadCallback(
           CreateCallback(CallbackType::kReadQuery))) {
     RS_LOG_DEBUG("AcceptConnectionCallback: failed to set the read callback\n");
-    return ae::EventCallbackStatus::kError;
+    return event_loop::CallbackStatus::kError;
   }
   server->AddClient(std::move(client));
-  return ae::EventCallbackStatus::kOk;
+  return event_loop::CallbackStatus::kOk;
 }
 }  // namespace redis_simple::client_connection

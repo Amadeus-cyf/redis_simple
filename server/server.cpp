@@ -9,12 +9,13 @@
 
 #include "client_connection/client_connection.h"
 #include "db/db.h"
-#include "event_loop/ae_file_event.h"
-#include "event_loop/ae_time_event.h"
+#include "event_loop/file_event.h"
+#include "event_loop/time_event.h"
 #include "expire.h"
 
 namespace redis_simple {
-Server::Server() : db_(db::RedisDb::Create()), el_(ae::EventLoop::Create()) {}
+Server::Server()
+    : db_(db::RedisDb::Create()), loop_(event_loop::Loop::Create()) {}
 
 Server* Server::Get() {
   static Server server;
@@ -23,7 +24,7 @@ Server* Server::Get() {
 
 bool Server::Run(const std::string& ip, int port) {
   connection::Context ctx;
-  ctx.event_loop = el_.get();
+  ctx.loop = loop_.get();
   ctx.fd = -1;
   connection::Connection conn(ctx);
   const connection::AddressInfo addr_info(ip, port);
@@ -32,15 +33,15 @@ bool Server::Run(const std::string& ip, int port) {
   }
   fd_ = conn.Descriptor();
   InstallAcceptCallback();
-  el_->CreateTimeEvent(ae::TimeEvent::Create(
+  loop_->CreateTimeEvent(event_loop::TimeEvent::Create(
       [this](long long id) { return ServerCron(); }, nullptr));
-  el_->Run();
+  loop_->Run();
   return true;
 }
 
 void Server::Stop() {
-  if (el_ != nullptr) {
-    el_->Stop();
+  if (loop_ != nullptr) {
+    loop_->Stop();
   }
 }
 
@@ -55,11 +56,11 @@ bool Server::RemoveClient(Client* c) {
 }
 
 void Server::InstallAcceptCallback() {
-  auto file_event =
-      ae::FileEvent::Create(client_connection::AcceptConnectionCallback,
-                            nullptr, this, ae::ToInt(ae::EventFlag::kReadable));
-  if (el_->CreateFileEvent(fd_, std::move(file_event)) ==
-      ae::EventLoopStatus::kError) {
+  auto file_event = event_loop::FileEvent::Create(
+      client_connection::AcceptConnectionCallback, nullptr, this,
+      event_loop::ToInt(event_loop::EventFlag::kReadable));
+  if (loop_->CreateFileEvent(fd_, std::move(file_event)) ==
+      event_loop::Status::kError) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
   }
 }

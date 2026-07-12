@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "connection/connection.h"
-#include "event_loop/ae.h"
+#include "event_loop/loop.h"
 #include "server/client.h"
 
 namespace redis_simple {
@@ -14,7 +14,7 @@ class Server {
   static Server* Get();
   bool Run(const std::string& ip, int port);
   void Stop();
-  ae::EventLoop* EventLoop() { return el_.get(); }
+  event_loop::Loop* Loop() { return loop_.get(); }
   db::RedisDb* Db() { return db_.get(); }
   void AddClient(std::unique_ptr<Client> client) {
     clients_.push_back(std::move(client));
@@ -29,7 +29,7 @@ class Server {
   static int ServerCron();
   int fd_{};
   int flags_{};
-  std::unique_ptr<ae::EventLoop> el_;
+  std::unique_ptr<event_loop::Loop> loop_;
   std::vector<std::unique_ptr<Client>> clients_;
   std::unique_ptr<db::RedisDb> db_;
 };

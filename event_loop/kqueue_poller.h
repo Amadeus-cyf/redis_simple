@@ -6,9 +6,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "event_loop/ae_event_poller.h"
+#include "event_loop/event_poller.h"
 
-namespace redis_simple::ae {
+namespace redis_simple::event_loop {
 class KqueuePoller final : public EventPoller {
  public:
   static std::unique_ptr<KqueuePoller> Create(int nevents);
@@ -24,4 +24,4 @@ class KqueuePoller final : public EventPoller {
   int nevents_;
   mutable std::vector<struct kevent> events_;
 };
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop

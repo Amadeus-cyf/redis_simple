@@ -59,7 +59,7 @@ RedisCli::RedisCli(const std::string& ip, int port) : ip_(ip), port_(port) {}
 
 CliStatus RedisCli::Connect(const std::string& ip, int port) {
   connection::Context ctx;
-  ctx.event_loop = nullptr;
+  ctx.loop = nullptr;
   ctx.fd = -1;
   connection_ = std::make_unique<connection::Connection>(ctx);
   const connection::AddressInfo remote(ip, port);

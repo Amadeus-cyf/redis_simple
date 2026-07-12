@@ -5,13 +5,13 @@
 #include <memory>
 #include <utility>
 
-namespace redis_simple::ae {
-class EventLoop;
-enum class EventCallbackStatus;
+namespace redis_simple::event_loop {
+class Loop;
+enum class CallbackStatus;
 
 class FileEvent {
  public:
-  using Callback = std::function<EventCallbackStatus(EventLoop*, int, int)>;
+  using Callback = std::function<CallbackStatus(Loop*, int, int)>;
 
   static std::unique_ptr<FileEvent> Create(Callback read_callback,
                                            Callback write_callback, int mask) {
@@ -22,8 +22,8 @@ class FileEvent {
   }
 
   template <typename T>
-  using TypedCallback = EventCallbackStatus (*)(EventLoop* event_loop, int fd,
-                                                T* client_data, int mask);
+  using TypedCallback = CallbackStatus (*)(Loop* event_loop, int fd,
+                                           T* client_data, int mask);
 
   template <typename T>
   static std::unique_ptr<FileEvent> Create(TypedCallback<T> read_callback,
@@ -55,11 +55,11 @@ class FileEvent {
   int Mask() const { return mask_; }
   void SetMask(int mask) { mask_ = mask; }
   void AddMask(int mask) { mask_ |= mask; }
-  void CallReadCallback(EventLoop* el, int fd, int mask) const {
-    read_callback_(el, fd, mask);
+  void CallReadCallback(Loop* loop, int fd, int mask) const {
+    read_callback_(loop, fd, mask);
   }
-  void CallWriteCallback(EventLoop* el, int fd, int mask) const {
-    write_callback_(el, fd, mask);
+  void CallWriteCallback(Loop* loop, int fd, int mask) const {
+    write_callback_(loop, fd, mask);
   }
   bool HasReadCallback() const { return static_cast<bool>(read_callback_); }
   bool HasWriteCallback() const { return static_cast<bool>(write_callback_); }
@@ -87,7 +87,7 @@ class FileEvent {
     if (callback == nullptr) {
       return nullptr;
     }
-    return [callback, client_data](EventLoop* event_loop, int fd, int mask) {
+    return [callback, client_data](Loop* event_loop, int fd, int mask) {
       return callback(event_loop, fd, client_data, mask);
     };
   }
@@ -97,4 +97,4 @@ class FileEvent {
   Callback write_callback_;
   bool has_separate_callbacks_;
 };
-}  // namespace redis_simple::ae
+}  // namespace redis_simple::event_loop
