@@ -1,13 +1,16 @@
 #include "data_types/zset/zset_skiplist.h"
 
+#include <string>
+#include <string_view>
+
 namespace redis_simple::zset {
 ZSetSkiplist::ZSetSkiplist()
     : dict_(in_memory::Dict<std::string, double>::Create()),
       skiplist_(std::make_unique<SkiplistType>(in_memory::kInitSkiplistLevel,
                                                Comparator(), Destructor())) {}
 
-bool ZSetSkiplist::InsertOrUpdate(const std::string& key, double score) {
-  const auto* current_score = dict_->FindValue(std::string_view(key));
+bool ZSetSkiplist::InsertOrUpdate(std::string_view key, double score) {
+  const auto* current_score = dict_->FindValue(key);
   if (current_score != nullptr && *current_score == score) {
     // If the key exists and there is no change in score, do nothing.
     return false;
@@ -29,35 +32,36 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, double score) {
     inserted = true;
   }
   [[maybe_unused]] auto* skiplist_owned_entry = ze.release();
-  dict_->Set(key, score);
+  dict_->Set(std::string(key), score);
   // Update min and max key.
-  if (!min_key_.has_value() || key < *min_key_) {
-    min_key_.emplace(key);
+  if (!min_key_.has_value() || key < std::string_view(*min_key_)) {
+    min_key_.emplace(key.data(), key.size());
   }
-  if (!max_key_.has_value() || key > *max_key_) {
-    max_key_.emplace(key);
+  if (!max_key_.has_value() || key > std::string_view(*max_key_)) {
+    max_key_.emplace(key.data(), key.size());
   }
   return inserted;
 }
 
-bool ZSetSkiplist::Delete(const std::string& key) {
-  const auto* score = dict_->FindValue(std::string_view(key));
+bool ZSetSkiplist::Delete(std::string_view key) {
+  const auto* score = dict_->FindValue(key);
   if (score == nullptr) {
     return false;
   }
   const ZSetEntry ze(key, *score);
-  [[maybe_unused]] const bool dict_deleted = dict_->Delete(key);
+  [[maybe_unused]] const bool dict_deleted = dict_->Delete(std::string(key));
   assert(dict_deleted);
   bool deleted = skiplist_->Delete(&ze);
-  if (deleted && ((min_key_.has_value() && *min_key_ == key) ||
-                  (max_key_.has_value() && *max_key_ == key))) {
+  if (deleted &&
+      ((min_key_.has_value() && std::string_view(*min_key_) == key) ||
+       (max_key_.has_value() && std::string_view(*max_key_) == key))) {
     RecomputeMinMaxKeys();
   }
   return deleted;
 }
 
-std::optional<size_t> ZSetSkiplist::Rank(const std::string& key) const {
-  const auto* score = dict_->FindValue(std::string_view(key));
+std::optional<size_t> ZSetSkiplist::Rank(std::string_view key) const {
+  const auto* score = dict_->FindValue(key);
   if (score == nullptr) {
     return std::nullopt;
   }

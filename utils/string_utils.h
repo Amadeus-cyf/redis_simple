@@ -9,6 +9,8 @@
 namespace redis_simple::utils {
 std::vector<std::string> Split(const std::string& s,
                                const std::string& delimiter);
+std::vector<std::string_view> SplitView(std::string_view s,
+                                        std::string_view delimiter);
 // Shift a buffer by offset. If offset >= buffer len, clear the entire buffer.
 void ShiftCString(char* s, size_t len, size_t offset);
 // Turn a string to uppercase.

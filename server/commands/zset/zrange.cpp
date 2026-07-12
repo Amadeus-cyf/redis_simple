@@ -3,6 +3,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -30,37 +31,33 @@ constexpr int kRangeSyntaxError = -1;
 constexpr int kRangeWrongType = -2;
 constexpr int kRangeDbUnavailable = -3;
 
-bool FlaggedByScore(const std::vector<std::string>& args);
-bool ValidateRangeOptions(const std::vector<std::string>& args);
-int ParseRangeToRankSpec(const std::vector<std::string>& args,
-                         RangeByRankSpec* spec);
-int ParseRankRange(const std::string& start, const std::string& end,
+bool FlaggedByScore(const CommandArgs& args);
+bool ValidateRangeOptions(const CommandArgs& args);
+int ParseRangeToRankSpec(const CommandArgs& args, RangeByRankSpec* spec);
+int ParseRankRange(std::string_view start, std::string_view end,
                    RangeByRankSpec* spec);
-int ParseRangeTerm(const std::string& term, long* dst);
-int ParseRangeToScoreSpec(const std::vector<std::string>& args,
-                          RangeByScoreSpec* spec);
-int ParseScoreRange(const std::string& start, const std::string& end,
+int ParseRangeTerm(std::string_view term, long* dst);
+int ParseRangeToScoreSpec(const CommandArgs& args, RangeByScoreSpec* spec);
+int ParseScoreRange(std::string_view start, std::string_view end,
                     RangeByScoreSpec* spec);
-int ParseScoreTerm(const std::string& term, double* dst);
-int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
+int ParseScoreTerm(std::string_view term, double* dst);
+int ParseLimitOffsetAndCount(const CommandArgs& args,
                              const std::unique_ptr<LimitSpec>& spec);
-bool IsReverse(const std::vector<std::string>& args);
-bool IsWithScores(const std::vector<std::string>& args);
+bool IsReverse(const CommandArgs& args);
+bool IsWithScores(const CommandArgs& args);
 std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
                                              bool with_scores);
 std::optional<int64_t> ToReplyInteger(size_t value);
-void AddRangeReply(Client* client, const std::vector<std::string>& args,
-                   bool by_score);
-int RangeByRank(Client* client, const std::vector<std::string>& args,
-                ZSetEntryList* result);
-int RangeByScore(Client* client, const std::vector<std::string>& args,
+void AddRangeReply(Client* client, const CommandArgs& args, bool by_score);
+int RangeByRank(Client* client, const CommandArgs& args, ZSetEntryList* result);
+int RangeByScore(Client* client, const CommandArgs& args,
                  ZSetEntryList* result);
 
-bool FlaggedByScore(const std::vector<std::string>& args) {
+bool FlaggedByScore(const CommandArgs& args) {
   // The command parser stores args as key/start/end/options, so options begin
   // after the first three entries.
   for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper = args[i];
+    std::string upper(args[i]);
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagByScore) {
       return true;
@@ -69,13 +66,13 @@ bool FlaggedByScore(const std::vector<std::string>& args) {
   return false;
 }
 
-bool ValidateRangeOptions(const std::vector<std::string>& args) {
+bool ValidateRangeOptions(const CommandArgs& args) {
   bool has_by_score = false;
   bool has_limit = false;
   bool has_reverse = false;
   bool has_with_scores = false;
   for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper = args[i];
+    std::string upper(args[i]);
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagByScore) {
       if (has_by_score) {
@@ -105,13 +102,12 @@ bool ValidateRangeOptions(const std::vector<std::string>& args) {
   return true;
 }
 
-int ParseRangeToRankSpec(const std::vector<std::string>& args,
-                         RangeByRankSpec* const spec) {
+int ParseRangeToRankSpec(const CommandArgs& args, RangeByRankSpec* const spec) {
   if (args.size() < 3 || !ValidateRangeOptions(args)) {
     return -1;
   }
-  const std::string& start = args[1];
-  const std::string& end = args[2];
+  std::string_view start = args[1];
+  std::string_view end = args[2];
   if (ParseRankRange(start, end, spec) < 0) {
     return -1;
   }
@@ -123,7 +119,7 @@ int ParseRangeToRankSpec(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseRankRange(const std::string& start, const std::string& end,
+int ParseRankRange(std::string_view start, std::string_view end,
                    RangeByRankSpec* const spec) {
   if (ParseRangeTerm(start, &(spec->min)) < 0) {
     return -1;
@@ -137,7 +133,7 @@ int ParseRankRange(const std::string& start, const std::string& end,
   return 0;
 }
 
-int ParseRangeTerm(const std::string& term, long* const dst) {
+int ParseRangeTerm(std::string_view term, long* const dst) {
   if (term.empty() || (dst == nullptr)) {
     return -1;
   }
@@ -147,13 +143,13 @@ int ParseRangeTerm(const std::string& term, long* const dst) {
     *dst = std::numeric_limits<long>::max();
   } else if (term[0] == '(') {
     try {
-      *dst = std::stol(term.substr(1));
+      *dst = std::stol(std::string(term.substr(1)));
     } catch (const std::exception&) {
       return -1;
     }
   } else {
     try {
-      *dst = std::stol(term);
+      *dst = std::stol(std::string(term));
     } catch (const std::exception&) {
       return -1;
     }
@@ -161,13 +157,13 @@ int ParseRangeTerm(const std::string& term, long* const dst) {
   return 0;
 }
 
-int ParseRangeToScoreSpec(const std::vector<std::string>& args,
+int ParseRangeToScoreSpec(const CommandArgs& args,
                           RangeByScoreSpec* const spec) {
   if (args.size() < 3 || !ValidateRangeOptions(args)) {
     return -1;
   }
-  const std::string& start = args[1];
-  const std::string& end = args[2];
+  std::string_view start = args[1];
+  std::string_view end = args[2];
   if (ParseScoreRange(start, end, spec) < 0) {
     return -1;
   }
@@ -179,7 +175,7 @@ int ParseRangeToScoreSpec(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseScoreRange(const std::string& start, const std::string& end,
+int ParseScoreRange(std::string_view start, std::string_view end,
                     RangeByScoreSpec* const spec) {
   if (ParseScoreTerm(start, &(spec->min)) < 0) {
     return -1;
@@ -193,7 +189,7 @@ int ParseScoreRange(const std::string& start, const std::string& end,
   return 0;
 }
 
-int ParseScoreTerm(const std::string& term, double* const dst) {
+int ParseScoreTerm(std::string_view term, double* const dst) {
   if (term.empty() || (dst == nullptr)) {
     return -1;
   }
@@ -203,13 +199,13 @@ int ParseScoreTerm(const std::string& term, double* const dst) {
     *dst = std::numeric_limits<double>::infinity();
   } else if (term[0] == '(') {
     try {
-      *dst = std::stod(term.substr(1));
+      *dst = std::stod(std::string(term.substr(1)));
     } catch (const std::exception&) {
       return -1;
     }
   } else {
     try {
-      *dst = std::stod(term);
+      *dst = std::stod(std::string(term));
     } catch (const std::exception&) {
       return -1;
     }
@@ -217,13 +213,13 @@ int ParseScoreTerm(const std::string& term, double* const dst) {
   return 0;
 }
 
-int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
+int ParseLimitOffsetAndCount(const CommandArgs& args,
                              const std::unique_ptr<LimitSpec>& spec) {
   // LIMIT is optional; when absent, the zset implementation uses an unbounded
   // range.
   size_t i = 3;
   for (; i < args.size(); ++i) {
-    std::string upper = args[i];
+    std::string upper(args[i]);
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagLimit) {
       break;
@@ -240,12 +236,12 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
   long offset = 0;
   long count = 0;
   try {
-    offset = std::stol(args[i + 1]);
+    offset = std::stol(std::string(args[i + 1]));
   } catch (const std::exception&) {
     return -1;
   }
   try {
-    count = std::stol(args[i + 2]);
+    count = std::stol(std::string(args[i + 2]));
   } catch (const std::exception&) {
     return -1;
   }
@@ -258,10 +254,10 @@ int ParseLimitOffsetAndCount(const std::vector<std::string>& args,
   return 0;
 }
 
-bool IsReverse(const std::vector<std::string>& args) {
+bool IsReverse(const CommandArgs& args) {
   // REV is an option token, so it can appear after key/start/end.
   for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper = args[i];
+    std::string upper(args[i]);
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagReverse) {
       return true;
@@ -270,9 +266,9 @@ bool IsReverse(const std::vector<std::string>& args) {
   return false;
 }
 
-bool IsWithScores(const std::vector<std::string>& args) {
+bool IsWithScores(const CommandArgs& args) {
   for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper = args[i];
+    std::string upper(args[i]);
     utils::ToUppercase(upper);
     if (std::string_view(upper) == kFlagWithScores) {
       return true;
@@ -353,7 +349,7 @@ void HandleZCount(Client* const client) {
 
 namespace {
 
-void AddRangeReply(Client* const client, const std::vector<std::string>& args,
+void AddRangeReply(Client* const client, const CommandArgs& args,
                    bool by_score) {
   ZSetEntryList range_entries;
   const int status = by_score ? RangeByScore(client, args, &range_entries)
@@ -376,7 +372,7 @@ void AddRangeReply(Client* const client, const std::vector<std::string>& args,
   }
 }
 
-int RangeByRank(Client* const client, const std::vector<std::string>& args,
+int RangeByRank(Client* const client, const CommandArgs& args,
                 ZSetEntryList* result) {
   RangeByRankSpec spec;
   if (ParseRangeToRankSpec(args, &spec) < 0) {
@@ -407,7 +403,7 @@ int RangeByRank(Client* const client, const std::vector<std::string>& args,
   return 0;
 }
 
-int RangeByScore(Client* const client, const std::vector<std::string>& args,
+int RangeByScore(Client* const client, const CommandArgs& args,
                  ZSetEntryList* result) {
   RangeByScoreSpec spec;
   if (ParseRangeToScoreSpec(args, &spec) < 0) {

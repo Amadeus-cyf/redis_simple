@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,10 +18,10 @@ namespace {
 using Set = ::redis_simple::set::Set;
 
 struct SAddArgs {
-  std::string key;
-  std::vector<std::string> elements;
+  std::string_view key;
+  std::vector<std::string_view> elements;
 };
-int ParseArgs(const std::vector<std::string>& args, SAddArgs* sadd_args);
+int ParseArgs(const CommandArgs& args, SAddArgs* sadd_args);
 std::optional<int64_t> SAdd(db::RedisDb* redis_db, const SAddArgs* args);
 }  // namespace
 
@@ -43,7 +44,7 @@ void HandleSAdd(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args, SAddArgs* const sadd_args) {
+int ParseArgs(const CommandArgs& args, SAddArgs* const sadd_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;

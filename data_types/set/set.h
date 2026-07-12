@@ -23,7 +23,7 @@ class Set {
   static std::unique_ptr<Set> Create() {
     return std::unique_ptr<Set>(new Set());
   }
-  bool Add(const std::string& value);
+  bool Add(std::string_view value);
   bool HasMember(const std::string& value) const;
   bool HasMember(std::string_view value) const;
   bool HasMember(const char* value) const {
@@ -32,7 +32,7 @@ class Set {
   std::vector<std::string> ListAllMembers() const;
   template <typename Visitor>
   bool ForEachMember(Visitor&& visitor) const;
-  bool Remove(const std::string& value);
+  bool Remove(std::string_view value);
   size_t Size() const;
   Encoding Encoding() const;
 
@@ -41,13 +41,13 @@ class Set {
   static constexpr size_t kListPackMaxEntries = 128;
   static constexpr size_t kListPackElementMaxLength = 64;
   Set();
-  bool IntSetAddAndMaybeConvert(const std::string& value);
-  bool ListPackAddAndMaybeConvert(const std::string& value);
-  bool DictAdd(const std::string& value);
+  bool IntSetAddAndMaybeConvert(std::string_view value);
+  bool ListPackAddAndMaybeConvert(std::string_view value);
+  bool DictAdd(std::string_view value);
   void MaybeConvertIntsetToDict();
   void ConvertIntSetToDict(size_t capacity);
-  bool MaybeConvertIntSetToListPack(const std::string& val);
-  void ConvertIntSetToListPack(const std::string& val);
+  bool MaybeConvertIntSetToListPack(std::string_view val);
+  void ConvertIntSetToListPack(std::string_view val);
   void ConvertListPackToDict(size_t capacity);
   enum Encoding encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;

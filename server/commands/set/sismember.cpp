@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -10,11 +11,10 @@
 namespace redis_simple::command::sets {
 namespace {
 struct SIsMemberArgs {
-  std::string key;
-  std::string element;
+  std::string_view key;
+  std::string_view element;
 };
-int ParseArgs(const std::vector<std::string>& args,
-              SIsMemberArgs* sismember_args);
+int ParseArgs(const CommandArgs& args, SIsMemberArgs* sismember_args);
 std::optional<int64_t> SIsMember(db::RedisDb* redis_db,
                                  const SIsMemberArgs* args);
 }  // namespace
@@ -38,8 +38,7 @@ void HandleSIsMember(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args,
-              SIsMemberArgs* const sismember_args) {
+int ParseArgs(const CommandArgs& args, SIsMemberArgs* const sismember_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;

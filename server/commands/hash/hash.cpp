@@ -19,7 +19,11 @@
 namespace redis_simple::command::hashes {
 namespace {
 using Hash = ::redis_simple::hash::Hash;
-using HashEntry = ::redis_simple::hash::Hash::Entry;
+
+struct HashEntryView {
+  std::string_view field;
+  std::string_view value;
+};
 
 enum class HashStatus : std::uint8_t {
   kOk,
@@ -29,32 +33,32 @@ enum class HashStatus : std::uint8_t {
 };
 
 struct KeyArgs {
-  std::string key;
+  std::string_view key;
 };
 
 struct FieldArgs {
-  std::string key;
-  std::string field;
+  std::string_view key;
+  std::string_view field;
 };
 
 struct SetArgs {
-  std::string key;
-  std::vector<HashEntry> entries;
+  std::string_view key;
+  std::vector<HashEntryView> entries;
 };
 
 struct DeleteArgs {
-  std::string key;
-  std::vector<std::string> fields;
+  std::string_view key;
+  std::vector<std::string_view> fields;
 };
 
 struct FieldsArgs {
-  std::string key;
-  std::vector<std::string> fields;
+  std::string_view key;
+  std::vector<std::string_view> fields;
 };
 
 struct IncrementArgs {
-  std::string key;
-  std::string field;
+  std::string_view key;
+  std::string_view field;
   int64_t increment{0};
 };
 
@@ -63,45 +67,33 @@ struct HashResult {
   HashStatus status;
 };
 
-struct GetResult {
-  std::optional<std::string> value;
-  HashStatus status;
-};
-
 struct IncrementResult {
   std::optional<int64_t> value;
   HashStatus status;
 };
 
-int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args);
-int ParseFieldArgs(const std::vector<std::string>& args, FieldArgs* field_args);
-int ParseSetArgs(const std::vector<std::string>& args, SetArgs* set_args);
-int ParseDeleteArgs(const std::vector<std::string>& args,
-                    DeleteArgs* delete_args);
-int ParseFieldsArgs(const std::vector<std::string>& args,
-                    FieldsArgs* fields_args);
-int ParseIncrementArgs(const std::vector<std::string>& args,
-                       IncrementArgs* increment_args);
-HashResult FindHash(db::RedisDb* redis_db, const std::string& key);
-HashResult FindOrCreateHash(db::RedisDb* redis_db, const std::string& key);
+int ParseKeyArgs(const CommandArgs& args, KeyArgs* key_args);
+int ParseFieldArgs(const CommandArgs& args, FieldArgs* field_args);
+int ParseSetArgs(const CommandArgs& args, SetArgs* set_args);
+int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* delete_args);
+int ParseFieldsArgs(const CommandArgs& args, FieldsArgs* fields_args);
+int ParseIncrementArgs(const CommandArgs& args, IncrementArgs* increment_args);
+HashResult FindHash(db::RedisDb* redis_db, std::string_view key);
+HashResult FindOrCreateHash(db::RedisDb* redis_db, std::string_view key);
 std::optional<int64_t> ToReplyInteger(size_t value);
 bool AddWithOverflowCheck(int64_t value, int64_t increment, int64_t* result);
 std::optional<int64_t> HSet(db::RedisDb* redis_db, const SetArgs* args);
-GetResult HGet(db::RedisDb* redis_db, const FieldArgs* args);
+std::optional<std::string> HGet(db::RedisDb* redis_db, const FieldArgs* args);
 std::optional<int64_t> HDel(db::RedisDb* redis_db, const DeleteArgs* args);
 std::optional<int64_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<int64_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
 std::optional<std::string> HGetAll(db::RedisDb* redis_db, const KeyArgs* args);
-std::optional<std::vector<std::optional<std::string>>> HMGet(
-    db::RedisDb* redis_db, const FieldsArgs* args);
+std::optional<std::string> HMGet(db::RedisDb* redis_db, const FieldsArgs* args);
 std::optional<std::string> HKeys(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<std::string> HVals(db::RedisDb* redis_db, const KeyArgs* args);
 IncrementResult HIncrBy(db::RedisDb* redis_db, const IncrementArgs* args);
-std::string EncodeOptionalStrings(
-    const std::vector<std::optional<std::string>>& values);
 
-int ParseKeyArgs(const std::vector<std::string>& args,
-                 KeyArgs* const key_args) {
+int ParseKeyArgs(const CommandArgs& args, KeyArgs* const key_args) {
   if (args.size() != 1) {
     return -1;
   }
@@ -109,8 +101,7 @@ int ParseKeyArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseFieldArgs(const std::vector<std::string>& args,
-                   FieldArgs* const field_args) {
+int ParseFieldArgs(const CommandArgs& args, FieldArgs* const field_args) {
   if (args.size() != 2) {
     return -1;
   }
@@ -119,8 +110,7 @@ int ParseFieldArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseSetArgs(const std::vector<std::string>& args,
-                 SetArgs* const set_args) {
+int ParseSetArgs(const CommandArgs& args, SetArgs* const set_args) {
   if (args.size() < 3 || args.size() % 2 == 0) {
     return -1;
   }
@@ -132,8 +122,7 @@ int ParseSetArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseDeleteArgs(const std::vector<std::string>& args,
-                    DeleteArgs* const delete_args) {
+int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* const delete_args) {
   if (args.size() < 2) {
     return -1;
   }
@@ -142,8 +131,7 @@ int ParseDeleteArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseFieldsArgs(const std::vector<std::string>& args,
-                    FieldsArgs* const fields_args) {
+int ParseFieldsArgs(const CommandArgs& args, FieldsArgs* const fields_args) {
   if (args.size() < 2) {
     return -1;
   }
@@ -152,7 +140,7 @@ int ParseFieldsArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseIncrementArgs(const std::vector<std::string>& args,
+int ParseIncrementArgs(const CommandArgs& args,
                        IncrementArgs* const increment_args) {
   if (args.size() != 3 ||
       !utils::ToInt64(args[2], &increment_args->increment)) {
@@ -163,7 +151,7 @@ int ParseIncrementArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-HashResult FindHash(db::RedisDb* const redis_db, const std::string& key) {
+HashResult FindHash(db::RedisDb* const redis_db, std::string_view key) {
   const auto* obj = redis_db->LookupKey(key);
   if (obj != nullptr && obj->Type() != db::RedisObject::ObjectType::kHash) {
     return {nullptr, HashStatus::kWrongType};
@@ -174,8 +162,7 @@ HashResult FindHash(db::RedisDb* const redis_db, const std::string& key) {
   return {obj->Hash(), HashStatus::kOk};
 }
 
-HashResult FindOrCreateHash(db::RedisDb* const redis_db,
-                            const std::string& key) {
+HashResult FindOrCreateHash(db::RedisDb* const redis_db, std::string_view key) {
   HashResult result = FindHash(redis_db, key);
   if (result.status != HashStatus::kMissing) {
     return result;
@@ -219,15 +206,22 @@ std::optional<int64_t> HSet(db::RedisDb* const redis_db,
   return added;
 }
 
-GetResult HGet(db::RedisDb* const redis_db, const FieldArgs* const args) {
+std::optional<std::string> HGet(db::RedisDb* const redis_db,
+                                const FieldArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
-    return {std::nullopt, HashStatus::kMissing};
+    return reply::Null();
   }
   if (result.status != HashStatus::kOk) {
-    return {std::nullopt, result.status};
+    return std::nullopt;
   }
-  return {result.hash->Get(args->field), HashStatus::kOk};
+  std::string encoded;
+  if (!result.hash->VisitValue(args->field, [&encoded](std::string_view value) {
+        encoded = reply::FromBulkString(value);
+      })) {
+    return reply::Null();
+  }
+  return encoded;
 }
 
 std::optional<int64_t> HDel(db::RedisDb* const redis_db,
@@ -292,22 +286,27 @@ std::optional<std::string> HGetAll(db::RedisDb* const redis_db,
   return encoded;
 }
 
-std::optional<std::vector<std::optional<std::string>>> HMGet(
-    db::RedisDb* const redis_db, const FieldsArgs* const args) {
+std::optional<std::string> HMGet(db::RedisDb* const redis_db,
+                                 const FieldsArgs* const args) {
   const HashResult result = FindHash(redis_db, args->key);
-  std::vector<std::optional<std::string>> values;
-  values.reserve(args->fields.size());
+  std::string encoded = reply::FromArrayHeader(args->fields.size());
   if (result.status == HashStatus::kMissing) {
-    values.resize(args->fields.size());
-    return values;
+    for (size_t i = 0; i < args->fields.size(); ++i) {
+      encoded.append(reply::Null());
+    }
+    return encoded;
   }
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
   for (const auto& field : args->fields) {
-    values.push_back(result.hash->Get(field));
+    if (!result.hash->VisitValue(field, [&encoded](std::string_view value) {
+          reply::AppendBulkString(value, &encoded);
+        })) {
+      encoded.append(reply::Null());
+    }
   }
-  return values;
+  return encoded;
 }
 
 std::optional<std::string> HKeys(db::RedisDb* const redis_db,
@@ -351,8 +350,12 @@ IncrementResult HIncrBy(db::RedisDb* const redis_db,
     return {std::nullopt, result.status};
   }
   int64_t current = 0;
-  const auto value = result.hash->Get(args->field);
-  if (value.has_value() && !utils::ToInt64(*value, &current)) {
+  bool parsed = true;
+  result.hash->VisitValue(args->field,
+                          [&current, &parsed](std::string_view value) {
+                            parsed = utils::ToInt64(value, &current);
+                          });
+  if (!parsed) {
     return {std::nullopt, HashStatus::kError};
   }
   int64_t next = 0;
@@ -361,19 +364,6 @@ IncrementResult HIncrBy(db::RedisDb* const redis_db,
   }
   result.hash->Set(args->field, std::to_string(next));
   return {next, HashStatus::kOk};
-}
-
-std::string EncodeOptionalStrings(
-    const std::vector<std::optional<std::string>>& values) {
-  std::string encoded = reply::FromArrayHeader(values.size());
-  for (const auto& value : values) {
-    if (value.has_value()) {
-      reply::AppendBulkString(*value, &encoded);
-    } else {
-      encoded.append(reply::Null());
-    }
-  }
-  return encoded;
 }
 
 }  // namespace
@@ -402,15 +392,8 @@ void HandleHGet(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const GetResult result = HGet(redis_db, &args);
-    if (result.status != HashStatus::kOk &&
-        result.status != HashStatus::kMissing) {
-      client->AddReply(reply::WrongTypeError());
-    } else if (result.value.has_value()) {
-      client->AddReply(reply::FromBulkString(*result.value));
-    } else {
-      client->AddReply(reply::Null());
-    }
+    const auto result = HGet(redis_db, &args);
+    client->AddReply(result.has_value() ? *result : reply::WrongTypeError());
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -496,7 +479,7 @@ void HandleHMGet(Client* const client) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(EncodeOptionalStrings(*result));
+    client->AddReply(*result);
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

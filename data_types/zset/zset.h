@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "data_types/zset/zset_entry.h"
 #include "data_types/zset/zset_range_spec.h"
@@ -19,10 +20,10 @@ class ZSet {
   static std::unique_ptr<ZSet> Create() {
     return std::unique_ptr<ZSet>(new ZSet());
   }
-  bool InsertOrUpdate(const std::string& key, double score);
-  bool Delete(const std::string& key);
-  std::optional<double> Score(const std::string& key) const;
-  std::optional<size_t> Rank(const std::string& key) const;
+  bool InsertOrUpdate(std::string_view key, double score);
+  bool Delete(std::string_view key);
+  std::optional<double> Score(std::string_view key) const;
+  std::optional<size_t> Rank(std::string_view key) const;
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
@@ -33,7 +34,7 @@ class ZSet {
   static constexpr size_t kListPackMaxEntries = 128;
   static constexpr size_t kListPackMaxElementLength = 64;
   ZSet();
-  bool ShouldConvertToSkiplist(const std::string& key, bool inserted) const;
+  bool ShouldConvertToSkiplist(std::string_view key, bool inserted) const;
   void ConvertAndExpand();
   enum Encoding encoding_;
   std::unique_ptr<ZSetStorage> storage_;

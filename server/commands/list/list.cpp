@@ -39,35 +39,35 @@ enum class ListStatus : std::uint8_t {
 };
 
 struct PushArgs {
-  std::string key;
-  std::vector<std::string> values;
+  std::string_view key;
+  std::vector<std::string_view> values;
 };
 
 struct KeyArgs {
-  std::string key;
+  std::string_view key;
 };
 
 struct RangeArgs {
-  std::string key;
+  std::string_view key;
   int64_t start{0};
   int64_t stop{0};
 };
 
 struct IndexArgs {
-  std::string key;
+  std::string_view key;
   int64_t index{0};
 };
 
 struct SetArgs {
-  std::string key;
+  std::string_view key;
   int64_t index{0};
-  std::string value;
+  std::string_view value;
 };
 
 struct RemoveArgs {
-  std::string key;
+  std::string_view key;
   int64_t count{0};
-  std::string value;
+  std::string_view value;
 };
 
 struct ListResult {
@@ -80,15 +80,14 @@ struct PopResult {
   ListStatus status;
 };
 
-int ParsePushArgs(const std::vector<std::string>& args, PushArgs* push_args);
-int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args);
-int ParseRangeArgs(const std::vector<std::string>& args, RangeArgs* range_args);
-int ParseIndexArgs(const std::vector<std::string>& args, IndexArgs* index_args);
-int ParseSetArgs(const std::vector<std::string>& args, SetArgs* set_args);
-int ParseRemoveArgs(const std::vector<std::string>& args,
-                    RemoveArgs* remove_args);
-ListResult FindList(db::RedisDb* redis_db, const std::string& key);
-ListResult FindOrCreateList(db::RedisDb* redis_db, const std::string& key);
+int ParsePushArgs(const CommandArgs& args, PushArgs* push_args);
+int ParseKeyArgs(const CommandArgs& args, KeyArgs* key_args);
+int ParseRangeArgs(const CommandArgs& args, RangeArgs* range_args);
+int ParseIndexArgs(const CommandArgs& args, IndexArgs* index_args);
+int ParseSetArgs(const CommandArgs& args, SetArgs* set_args);
+int ParseRemoveArgs(const CommandArgs& args, RemoveArgs* remove_args);
+ListResult FindList(db::RedisDb* redis_db, std::string_view key);
+ListResult FindOrCreateList(db::RedisDb* redis_db, std::string_view key);
 std::optional<size_t> NormalizeIndex(int64_t index, size_t size);
 std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
                                                         int64_t stop,
@@ -105,8 +104,7 @@ ListStatus LSet(db::RedisDb* redis_db, const SetArgs* args);
 std::optional<int64_t> LRem(db::RedisDb* redis_db, const RemoveArgs* args);
 ListStatus LTrim(db::RedisDb* redis_db, const RangeArgs* args);
 
-int ParsePushArgs(const std::vector<std::string>& args,
-                  PushArgs* const push_args) {
+int ParsePushArgs(const CommandArgs& args, PushArgs* const push_args) {
   if (args.size() < 2) {
     return -1;
   }
@@ -115,8 +113,7 @@ int ParsePushArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseKeyArgs(const std::vector<std::string>& args,
-                 KeyArgs* const key_args) {
+int ParseKeyArgs(const CommandArgs& args, KeyArgs* const key_args) {
   if (args.size() != 1) {
     return -1;
   }
@@ -124,8 +121,7 @@ int ParseKeyArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseRangeArgs(const std::vector<std::string>& args,
-                   RangeArgs* const range_args) {
+int ParseRangeArgs(const CommandArgs& args, RangeArgs* const range_args) {
   if (args.size() != 3) {
     return -1;
   }
@@ -136,8 +132,7 @@ int ParseRangeArgs(const std::vector<std::string>& args,
              : -1;
 }
 
-int ParseIndexArgs(const std::vector<std::string>& args,
-                   IndexArgs* const index_args) {
+int ParseIndexArgs(const CommandArgs& args, IndexArgs* const index_args) {
   if (args.size() != 2) {
     return -1;
   }
@@ -145,8 +140,7 @@ int ParseIndexArgs(const std::vector<std::string>& args,
   return utils::ToInt64(args[1], &index_args->index) ? 0 : -1;
 }
 
-int ParseSetArgs(const std::vector<std::string>& args,
-                 SetArgs* const set_args) {
+int ParseSetArgs(const CommandArgs& args, SetArgs* const set_args) {
   if (args.size() != 3) {
     return -1;
   }
@@ -155,8 +149,7 @@ int ParseSetArgs(const std::vector<std::string>& args,
   return utils::ToInt64(args[1], &set_args->index) ? 0 : -1;
 }
 
-int ParseRemoveArgs(const std::vector<std::string>& args,
-                    RemoveArgs* const remove_args) {
+int ParseRemoveArgs(const CommandArgs& args, RemoveArgs* const remove_args) {
   if (args.size() != 3) {
     return -1;
   }
@@ -165,7 +158,7 @@ int ParseRemoveArgs(const std::vector<std::string>& args,
   return utils::ToInt64(args[1], &remove_args->count) ? 0 : -1;
 }
 
-ListResult FindList(db::RedisDb* const redis_db, const std::string& key) {
+ListResult FindList(db::RedisDb* const redis_db, std::string_view key) {
   const auto* obj = redis_db->LookupKey(key);
   if (obj != nullptr && obj->Type() != db::RedisObject::ObjectType::kList) {
     return {nullptr, ListStatus::kWrongType};
@@ -190,8 +183,7 @@ std::optional<size_t> NormalizeIndex(int64_t index, size_t size) {
   return static_cast<size_t>(index);
 }
 
-ListResult FindOrCreateList(db::RedisDb* const redis_db,
-                            const std::string& key) {
+ListResult FindOrCreateList(db::RedisDb* const redis_db, std::string_view key) {
   ListResult result = FindList(redis_db, key);
   if (result.status != ListStatus::kMissing) {
     return result;

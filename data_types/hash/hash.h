@@ -28,12 +28,15 @@ class Hash {
     return std::unique_ptr<Hash>(new Hash());
   }
 
-  bool Set(const std::string& field, const std::string& value);
-  std::optional<std::string> Get(const std::string& field) const;
-  bool Delete(const std::string& field);
-  bool Exists(const std::string& field) const;
+  bool Set(std::string_view field, std::string_view value);
+  std::optional<std::string> Get(std::string_view field) const;
+  bool Delete(std::string_view field);
+  bool Exists(std::string_view field) const;
   size_t Size() const;
   std::vector<Entry> Entries() const;
+  // The value view is valid only during the callback invocation.
+  template <typename Visitor>
+  bool VisitValue(std::string_view field, Visitor&& visitor) const;
   template <typename Visitor>
   bool ForEachEntry(Visitor&& visitor) const;
   template <typename Visitor>
@@ -44,17 +47,47 @@ class Hash {
 
  private:
   Hash();
-  bool CanAppendToListPack(const std::string& field,
-                           const std::string& value) const;
-  bool SetListPack(const std::string& field, const std::string& value);
-  bool SetDict(const std::string& field, const std::string& value);
+  bool CanAppendToListPack(std::string_view field,
+                           std::string_view value) const;
+  bool SetListPack(std::string_view field, std::string_view value);
+  bool SetDict(std::string_view field, std::string_view value);
   void ConvertListPackToDict(size_t capacity);
-  std::optional<size_t> FindListPackField(const std::string& field) const;
+  std::optional<size_t> FindListPackField(std::string_view field) const;
 
   enum Encoding encoding_;
   std::unique_ptr<in_memory::ListPack> listpack_;
   std::unique_ptr<in_memory::Dict<std::string, std::string>> dict_;
 };
+
+template <typename Visitor>
+bool Hash::VisitValue(std::string_view field, Visitor&& visitor) const {
+  if (encoding_ == Encoding::kListPack) {
+    const auto field_idx = FindListPackField(field);
+    if (!field_idx.has_value()) {
+      return false;
+    }
+    const auto value_idx = listpack_->Next(*field_idx);
+    if (value_idx < 0) {
+      return false;
+    }
+    size_t len = 0;
+    const auto* data = listpack_->Get(static_cast<size_t>(value_idx), &len);
+    if (data == nullptr) {
+      return false;
+    }
+    visitor(std::string_view(reinterpret_cast<const char*>(data), len));
+    return true;
+  }
+  if (encoding_ == Encoding::kDict) {
+    const auto* value = dict_->FindValue(field);
+    if (value == nullptr) {
+      return false;
+    }
+    visitor(std::string_view(value->data(), value->size()));
+    return true;
+  }
+  throw std::invalid_argument("unknown hash encoding type");
+}
 
 template <typename Visitor>
 bool Hash::ForEachEntry(Visitor&& visitor) const {

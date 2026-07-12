@@ -28,6 +28,24 @@ std::vector<std::string> Split(const std::string& s,
   return res;
 }
 
+std::vector<std::string_view> SplitView(std::string_view s,
+                                        std::string_view delimiter) {
+  if (delimiter.empty()) {
+    return {s};
+  }
+  std::vector<std::string_view> res;
+  size_t start = 0;
+  size_t end = std::string_view::npos;
+  while ((end = s.find(delimiter, start)) != std::string_view::npos) {
+    res.emplace_back(s.substr(start, end - start));
+    start = end + delimiter.size();
+  }
+  if (start < s.length()) {
+    res.emplace_back(s.substr(start));
+  }
+  return res;
+}
+
 void ShiftCString(char* s, size_t len, size_t offset) {
   if ((s == nullptr) || offset == 0) {
     return;

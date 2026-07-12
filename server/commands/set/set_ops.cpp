@@ -24,7 +24,7 @@ enum class SetLookupStatus : std::uint8_t {
 };
 
 struct KeysArgs {
-  std::vector<std::string> keys;
+  std::vector<std::string_view> keys;
 };
 
 struct SetLookup {
@@ -32,8 +32,8 @@ struct SetLookup {
   SetLookupStatus status;
 };
 
-int ParseKeysArgs(const std::vector<std::string>& args, KeysArgs* keys_args);
-SetLookup FindSet(db::RedisDb* redis_db, const std::string& key);
+int ParseKeysArgs(const CommandArgs& args, KeysArgs* keys_args);
+SetLookup FindSet(db::RedisDb* redis_db, std::string_view key);
 using SetOperation = std::optional<std::string> (*)(db::RedisDb*,
                                                     const KeysArgs*);
 
@@ -43,8 +43,7 @@ std::optional<std::string> SUnion(db::RedisDb* redis_db, const KeysArgs* args);
 std::optional<std::string> SDiff(db::RedisDb* redis_db, const KeysArgs* args);
 void AddSetOperationReply(Client* client, SetOperation operation);
 
-int ParseKeysArgs(const std::vector<std::string>& args,
-                  KeysArgs* const keys_args) {
+int ParseKeysArgs(const CommandArgs& args, KeysArgs* const keys_args) {
   if (args.empty()) {
     return -1;
   }
@@ -52,7 +51,7 @@ int ParseKeysArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-SetLookup FindSet(db::RedisDb* const redis_db, const std::string& key) {
+SetLookup FindSet(db::RedisDb* const redis_db, std::string_view key) {
   const auto* object = redis_db->LookupKey(key);
   if (object == nullptr) {
     return {nullptr, SetLookupStatus::kMissing};

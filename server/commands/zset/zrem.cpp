@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -12,10 +13,10 @@
 namespace redis_simple::command::zsets {
 namespace {
 struct ZRemArgs {
-  std::string key;
-  std::vector<std::string> elements;
+  std::string_view key;
+  std::vector<std::string_view> elements;
 };
-int ParseArgs(const std::vector<std::string>& args, ZRemArgs* zset_args);
+int ParseArgs(const CommandArgs& args, ZRemArgs* zset_args);
 std::optional<int64_t> ZRem(db::RedisDb* redis_db, const ZRemArgs* args);
 }  // namespace
 
@@ -38,7 +39,7 @@ void HandleZRem(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args, ZRemArgs* const zset_args) {
+int ParseArgs(const CommandArgs& args, ZRemArgs* const zset_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;

@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include "memory/dict.h"
 #include "server/db/redis_obj.h"
@@ -31,17 +32,16 @@ constexpr bool HasFlag(int flags, SetKeyFlag flag) {
 class RedisDb {
  public:
   static std::unique_ptr<RedisDb> Create();
-  const RedisObject* LookupKey(const std::string& key);
-  RedisObject* MutableLookupKey(const std::string& key);
-  DbStatus SetKey(const std::string& key, RedisObjectPtr object,
-                  int64_t expire);
-  DbStatus SetKey(const std::string& key, RedisObjectPtr object, int64_t expire,
+  const RedisObject* LookupKey(std::string_view key);
+  RedisObject* MutableLookupKey(std::string_view key);
+  DbStatus SetKey(std::string_view key, RedisObjectPtr object, int64_t expire);
+  DbStatus SetKey(std::string_view key, RedisObjectPtr object, int64_t expire,
                   int flags);
-  DbStatus DeleteKey(const std::string& key);
-  DbStatus ExpireKeyAt(const std::string& key, int64_t expire);
-  DbStatus PersistKey(const std::string& key);
-  DbStatus RenameKey(const std::string& old_key, const std::string& new_key);
-  int64_t TimeToLive(const std::string& key, TtlResolution resolution);
+  DbStatus DeleteKey(std::string_view key);
+  DbStatus ExpireKeyAt(std::string_view key, int64_t expire);
+  DbStatus PersistKey(std::string_view key);
+  DbStatus RenameKey(std::string_view old_key, std::string_view new_key);
+  int64_t TimeToLive(std::string_view key, TtlResolution resolution);
   size_t KeyCount() const { return dict_->Size(); }
   void Flush();
   bool ScanExpires(
@@ -52,7 +52,7 @@ class RedisDb {
 
  private:
   RedisDb();
-  bool IsKeyExpired(const std::string& key) const;
+  bool IsKeyExpired(std::string_view key) const;
   std::unique_ptr<in_memory::Dict<std::string, RedisObjectPtr>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
   ssize_t expire_cursor_;

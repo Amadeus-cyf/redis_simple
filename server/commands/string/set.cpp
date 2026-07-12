@@ -1,6 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <utility>
 
 #include "server/client.h"
@@ -13,8 +14,8 @@
 
 namespace redis_simple::command::strings {
 namespace {
-int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args);
-int ParseSetOption(const std::vector<std::string>& args, size_t* idx,
+int ParseArgs(const CommandArgs& args, StringArgs* string_args);
+int ParseSetOption(const CommandArgs& args, size_t* idx,
                    StringArgs* string_args);
 bool ExpireAtFromTtl(int64_t ttl, int64_t multiplier, int64_t now,
                      int64_t* expire);
@@ -43,7 +44,7 @@ void HandleSet(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
+int ParseArgs(const CommandArgs& args, StringArgs* string_args) {
   if (args.size() < 2) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
@@ -68,9 +69,9 @@ int ParseArgs(const std::vector<std::string>& args, StringArgs* string_args) {
   return 0;
 }
 
-int ParseSetOption(const std::vector<std::string>& args, size_t* const idx,
+int ParseSetOption(const CommandArgs& args, size_t* const idx,
                    StringArgs* const string_args) {
-  std::string option = args[*idx];
+  std::string option(args[*idx]);
   utils::ToUppercase(option);
   if (option == "KEEPTTL") {
     if (string_args->expire > 0) {
@@ -118,7 +119,7 @@ bool ExpireAtFromTtl(int64_t ttl, int64_t multiplier, int64_t now,
 }
 
 int Set(db::RedisDb* redis_db, const StringArgs* args) {
-  auto value = db::RedisObject::CreateWithString(args->value);
+  auto value = db::RedisObject::CreateWithString(std::string(args->value));
   const auto status =
       redis_db->SetKey(args->key, std::move(value), args->expire, args->flags);
   return status == db::DbStatus::kError ? -1 : 0;

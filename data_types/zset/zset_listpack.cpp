@@ -11,16 +11,15 @@ namespace redis_simple::zset {
 ZSetListPack::ZSetListPack()
     : listpack_(std::make_unique<in_memory::ListPack>()) {}
 
-bool ZSetListPack::InsertOrUpdate(const std::string& key, double score) {
+bool ZSetListPack::InsertOrUpdate(std::string_view key, double score) {
   ssize_t key_idx = listpack_->FindAndSkip(key, 1);
   bool inserted = key_idx < 0;
   if (key_idx >= 0) {
-    ssize_t score_idx = listpack_->Next(key_idx);
-    const auto current_score = ScoreAt(score_idx);
-    if (!current_score.has_value()) {
+    const auto entry = EntryAt(key_idx);
+    if (!entry.has_value()) {
       return false;
     }
-    if (*current_score == score) {
+    if (entry->score == score) {
       return false;
     }
     DeleteKeyScorePair(key_idx);
@@ -28,30 +27,24 @@ bool ZSetListPack::InsertOrUpdate(const std::string& key, double score) {
   const std::string score_str = utils::FloatToString(score);
   ssize_t idx = listpack_->First();
   while (idx != -1) {
-    const auto string_result = listpack_->Get(idx);
-    if (!string_result.has_value()) {
-      continue;
-    }
-    const std::string& ele = *string_result;
-    ssize_t score_idx = listpack_->Next(idx);
-    const auto ele_score = ScoreAt(score_idx);
-    if (!ele_score.has_value()) {
+    const auto entry = EntryAt(idx);
+    if (!entry.has_value()) {
       break;
     }
-    if (score < *ele_score || (score == *ele_score && key < ele)) {
+    if (score < entry->score || (score == entry->score && key < entry->key)) {
       assert(listpack_->Insert(idx, key));
       idx = listpack_->Next(idx);
       assert(listpack_->Insert(idx, score_str));
       return inserted;
     }
-    idx = listpack_->Next(score_idx);
+    idx = NextKeyAfterScore(entry->score_index);
   }
   assert(listpack_->Append(key));
   assert(listpack_->Append(score_str));
   return inserted;
 }
 
-bool ZSetListPack::Delete(const std::string& key) {
+bool ZSetListPack::Delete(std::string_view key) {
   ssize_t idx = listpack_->FindAndSkip(key, 1);
   if (idx < 0) {
     return false;
@@ -60,31 +53,31 @@ bool ZSetListPack::Delete(const std::string& key) {
   return true;
 }
 
-std::optional<double> ZSetListPack::Score(const std::string& key) const {
-  // Find the index of the key.
+std::optional<double> ZSetListPack::Score(std::string_view key) const {
   ssize_t idx = listpack_->FindAndSkip(key, 1);
   if (idx < 0) {
     return std::nullopt;
   }
-  // Score is the next element of the key.
-  idx = listpack_->Next(idx);
-  return ScoreAt(idx);
+  const auto entry = EntryAt(idx);
+  return entry.has_value() ? std::optional<double>(entry->score) : std::nullopt;
 }
 
-std::optional<size_t> ZSetListPack::Rank(const std::string& key) const {
+std::optional<size_t> ZSetListPack::Rank(std::string_view key) const {
   ssize_t key_idx = listpack_->FindAndSkip(key, 1);
   if (key_idx < 0) {
     return std::nullopt;
   }
   ssize_t idx = listpack_->First();
   size_t rank = 0;
-  while (idx != key_idx) {
-    idx = listpack_->Next(idx);
-    // Skip the element score entry.
-    idx = listpack_->Next(idx);
+  while (idx != -1 && idx != key_idx) {
+    const auto entry = EntryAt(idx);
+    if (!entry.has_value()) {
+      return std::nullopt;
+    }
+    idx = NextKeyAfterScore(entry->score_index);
     ++rank;
   }
-  return rank;
+  return idx == key_idx ? std::optional<size_t>(rank) : std::nullopt;
 }
 
 ZSetEntryList ZSetListPack::RangeByRank(const RangeByRankSpec* spec) const {
@@ -123,36 +116,54 @@ size_t ZSetListPack::Count(const RangeByScoreSpec* spec) const {
   ssize_t idx = listpack_->First();
   size_t count = 0;
   while (idx != -1) {
-    const auto score_idx = listpack_->Next(idx);
-    const auto score = ScoreAt(score_idx);
-    if (!score.has_value()) {
+    const auto entry = EntryAt(idx);
+    if (!entry.has_value()) {
       break;
     }
-    if (IsInRange(*score, spec)) {
+    if (IsInRange(entry->score, spec)) {
       ++count;
-    } else if (!LessOrEqual(*score, spec)) {
+    } else if (!LessOrEqual(entry->score, spec)) {
       break;
     }
-    // Proceed to the next key score pair.
-    idx = listpack_->Next(idx);
-    if (idx < 0) {
-      break;
-    }
-    idx = listpack_->Next(idx);
+    idx = NextKeyAfterScore(entry->score_index);
   }
   return count;
 }
 
 void ZSetListPack::DeleteKeyScorePair(size_t idx) {
-  // Delete the key.
   listpack_->Delete(idx);
-  // Delete the score.
   listpack_->Delete(idx);
 }
 
-/*
- * Get the score of the key at the given index.
- */
+std::optional<std::string_view> ZSetListPack::ValueAt(size_t idx) const {
+  size_t len = 0;
+  const auto* data = listpack_->Get(idx, &len);
+  if (data == nullptr) {
+    return std::nullopt;
+  }
+  return std::string_view(reinterpret_cast<const char*>(data), len);
+}
+
+std::optional<ZSetListPack::EntryView> ZSetListPack::EntryAt(
+    ssize_t key_idx) const {
+  if (key_idx < 0) {
+    return std::nullopt;
+  }
+  const auto key = ValueAt(static_cast<size_t>(key_idx));
+  if (!key.has_value()) {
+    return std::nullopt;
+  }
+  const ssize_t score_idx = listpack_->Next(static_cast<size_t>(key_idx));
+  if (score_idx < 0) {
+    return std::nullopt;
+  }
+  const auto score = ScoreAt(static_cast<size_t>(score_idx));
+  if (!score.has_value()) {
+    return std::nullopt;
+  }
+  return EntryView{*key, *score, key_idx, score_idx};
+}
+
 std::optional<double> ZSetListPack::ScoreAt(size_t idx) const {
   const auto integer_score = listpack_->IntegerAt(idx);
   if (integer_score.has_value()) {
@@ -178,22 +189,19 @@ ZSetEntryList ZSetListPack::RangeByRankUtil(const RangeByRankSpec* spec) const {
   size_t end = spec->maxex ? spec->max : spec->max + 1;
   size_t offset = spec->limit ? spec->limit->offset : 0;
   while (idx != -1 && rank < end) {
+    const auto entry = EntryAt(idx);
+    if (!entry.has_value()) {
+      break;
+    }
     if (rank >= start) {
-      const auto opt_key = listpack_->Get(idx);
-      ssize_t score_idx = listpack_->Next(idx);
-      const auto score = ScoreAt(score_idx);
-      if (opt_key.has_value() && score.has_value() && rank >= offset) {
-        keys.push_back(AddRangeResult(*opt_key, *score));
+      if (rank >= offset) {
+        keys.push_back(AddRangeResult(entry->key, entry->score));
         if (count.has_value() && keys.size() >= *count) {
           break;
         }
       }
-      idx = listpack_->Next(score_idx);
-    } else {
-      // Skip the key score pair.
-      idx = listpack_->Next(idx);
-      idx = listpack_->Next(idx);
     }
+    idx = NextKeyAfterScore(entry->score_index);
     ++rank;
   }
   return keys;
@@ -213,22 +221,20 @@ ZSetEntryList ZSetListPack::RevRangeByRankUtil(
   size_t end = spec->maxex ? spec->max : spec->max + 1;
   size_t offset = spec->limit ? spec->limit->offset : 0;
   while (idx != -1 && rank < end) {
+    const ssize_t key_idx = listpack_->Prev(static_cast<size_t>(idx));
+    const auto entry = EntryAt(key_idx);
+    if (!entry.has_value()) {
+      break;
+    }
     if (rank >= start) {
-      ssize_t key_idx = listpack_->Prev(idx);
-      const auto opt_key = listpack_->Get(key_idx);
-      const auto score = ScoreAt(idx);
-      if (opt_key.has_value() && score.has_value() && rank >= offset) {
-        keys.push_back(AddRangeResult(*opt_key, *score));
+      if (rank >= offset) {
+        keys.push_back(AddRangeResult(entry->key, entry->score));
         if (count.has_value() && keys.size() >= *count) {
           break;
         }
       }
-      idx = listpack_->Prev(key_idx);
-    } else {
-      // Skip the key score pair.
-      idx = listpack_->Prev(idx);
-      idx = listpack_->Prev(idx);
     }
+    idx = PrevScoreBeforeKey(entry->key_index);
     ++rank;
   }
   return keys;
@@ -245,26 +251,21 @@ ZSetEntryList ZSetListPack::RangeByScoreUtil(
   if (key_idx < 0) {
     return {};
   }
-  ssize_t score_idx = listpack_->Next(key_idx);
   ZSetEntryList keys;
   size_t i = 0;
   size_t offset = spec->limit ? spec->limit->offset : 0;
   while (key_idx != -1) {
-    const auto score = ScoreAt(score_idx);
-    if (score.has_value() && IsInRange(*score, spec) && i >= offset) {
-      const auto key_opt = listpack_->Get(key_idx);
-      if (key_opt.has_value()) {
-        keys.push_back(AddRangeResult(*key_opt, *score));
-        if (count.has_value() && keys.size() == *count) {
-          break;
-        }
-      }
-    }
-    key_idx = listpack_->Next(score_idx);
-    if (key_idx < 0) {
+    const auto entry = EntryAt(key_idx);
+    if (!entry.has_value() || !LessOrEqual(entry->score, spec)) {
       break;
     }
-    score_idx = listpack_->Next(key_idx);
+    if (IsInRange(entry->score, spec) && i >= offset) {
+      keys.push_back(AddRangeResult(entry->key, entry->score));
+      if (count.has_value() && keys.size() == *count) {
+        break;
+      }
+    }
+    key_idx = NextKeyAfterScore(entry->score_index);
     ++i;
   }
   return keys;
@@ -281,84 +282,79 @@ ZSetEntryList ZSetListPack::RevRangeByScoreUtil(
   if (key_idx < 0) {
     return {};
   }
-  ssize_t score_idx = listpack_->Next(key_idx);
   ZSetEntryList keys;
   size_t i = 0;
   size_t offset = spec->limit ? spec->limit->offset : 0;
   while (key_idx != -1) {
-    const auto score = ScoreAt(score_idx);
-    if (score.has_value() && IsInRange(*score, spec) && i >= offset) {
-      const auto key_opt = listpack_->Get(key_idx);
-      if (key_opt.has_value()) {
-        keys.push_back(AddRangeResult(*key_opt, *score));
-        if (count.has_value() && keys.size() == *count) {
-          break;
-        }
-      }
-    }
-    score_idx = listpack_->Prev(key_idx);
-    if (score_idx < 0) {
+    const auto entry = EntryAt(key_idx);
+    if (!entry.has_value() || !GreaterOrEqual(entry->score, spec)) {
       break;
     }
-    key_idx = listpack_->Prev(score_idx);
+    if (IsInRange(entry->score, spec) && i >= offset) {
+      keys.push_back(AddRangeResult(entry->key, entry->score));
+      if (count.has_value() && keys.size() == *count) {
+        break;
+      }
+    }
+    key_idx = PrevKeyBeforeKey(entry->key_index);
     ++i;
   }
   return keys;
 }
 
-const ZSetEntry* ZSetListPack::AddRangeResult(const std::string& key,
+const ZSetEntry* ZSetListPack::AddRangeResult(std::string_view key,
                                               double score) const {
   range_cache_.push_back(std::make_unique<ZSetEntry>(key, score));
   return range_cache_.back().get();
 }
 
+ssize_t ZSetListPack::NextKeyAfterScore(ssize_t score_idx) const {
+  return score_idx < 0 ? -1 : listpack_->Next(static_cast<size_t>(score_idx));
+}
+
+ssize_t ZSetListPack::PrevScoreBeforeKey(ssize_t key_idx) const {
+  return key_idx < 0 ? -1 : listpack_->Prev(static_cast<size_t>(key_idx));
+}
+
+ssize_t ZSetListPack::PrevKeyBeforeKey(ssize_t key_idx) const {
+  const ssize_t score_idx = PrevScoreBeforeKey(key_idx);
+  return score_idx < 0 ? -1 : listpack_->Prev(static_cast<size_t>(score_idx));
+}
+
 ssize_t ZSetListPack::FindKeyGreaterOrEqual(
     const RangeByScoreSpec* spec) const {
-  double min_score = spec->min;
   ssize_t key_idx = listpack_->First();
   if (key_idx < 0) {
     return -1;
   }
-  // Score is the next element of the key.
-  ssize_t score_idx = listpack_->Next(key_idx);
   while (key_idx != -1) {
-    const auto score = ScoreAt(score_idx);
-    if (score.has_value()) {
-      if ((spec->minex && *score > min_score) ||
-          (!spec->minex && *score >= min_score)) {
-        return key_idx;
-      }
-    }
-    key_idx = listpack_->Next(score_idx);
-    if (key_idx < 0) {
+    const auto entry = EntryAt(key_idx);
+    if (!entry.has_value()) {
       break;
     }
-    score_idx = listpack_->Next(key_idx);
+    if (GreaterOrEqual(entry->score, spec)) {
+      return key_idx;
+    }
+    key_idx = NextKeyAfterScore(entry->score_index);
   }
   return -1;
 }
 
 ssize_t ZSetListPack::FindKeyLessOrEqual(const RangeByScoreSpec* spec) const {
-  double max_score = spec->max;
   ssize_t score_idx = listpack_->Last();
   if (score_idx < 0) {
     return -1;
   }
-  // Key is the previous element of the score.
   ssize_t key_idx = listpack_->Prev(score_idx);
   while (key_idx != -1) {
-    const auto score = ScoreAt(score_idx);
-    if (score.has_value()) {
-      if ((spec->maxex && *score < max_score) ||
-          (!spec->maxex && *score <= max_score)) {
-        return key_idx;
-      }
-    }
-    score_idx = listpack_->Prev(key_idx);
-    if (score_idx < 0) {
+    const auto entry = EntryAt(key_idx);
+    if (!entry.has_value()) {
       break;
     }
-    key_idx = listpack_->Prev(score_idx);
+    if (LessOrEqual(entry->score, spec)) {
+      return key_idx;
+    }
+    key_idx = PrevKeyBeforeKey(entry->key_index);
   }
   return -1;
 }
@@ -378,6 +374,10 @@ bool ZSetListPack::ValidateRangeScoreSpec(const RangeByScoreSpec* spec) {
 bool ZSetListPack::IsInRange(double score, const RangeByScoreSpec* spec) {
   return (spec->minex ? score > spec->min : score >= spec->min) &&
          (spec->maxex ? score < spec->max : score <= spec->max);
+}
+
+bool ZSetListPack::GreaterOrEqual(double score, const RangeByScoreSpec* spec) {
+  return spec->minex ? score > spec->min : score >= spec->min;
 }
 
 bool ZSetListPack::LessOrEqual(double score, const RangeByScoreSpec* spec) {

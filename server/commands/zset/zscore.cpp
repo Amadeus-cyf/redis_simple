@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -11,8 +12,8 @@
 namespace redis_simple::command::zsets {
 namespace {
 struct ZScoreArgs {
-  std::string key;
-  std::string element;
+  std::string_view key;
+  std::string_view element;
 };
 enum class ZScoreStatus : std::uint8_t {
   kOk,
@@ -23,7 +24,7 @@ struct ZScoreResult {
   std::optional<double> score;
   ZScoreStatus status;
 };
-int ParseArgs(const std::vector<std::string>& args, ZScoreArgs* zscore_args);
+int ParseArgs(const CommandArgs& args, ZScoreArgs* zscore_args);
 ZScoreResult ZScore(db::RedisDb* redis_db, const ZScoreArgs* args);
 }  // namespace
 
@@ -51,8 +52,7 @@ void HandleZScore(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args,
-              ZScoreArgs* const zscore_args) {
+int ParseArgs(const CommandArgs& args, ZScoreArgs* const zscore_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;

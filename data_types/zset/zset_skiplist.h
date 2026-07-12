@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 #include "data_types/zset/zset_storage.h"
 #include "logging/logger.h"
@@ -11,13 +12,13 @@ namespace redis_simple::zset {
 class ZSetSkiplist : public ZSetStorage {
  public:
   ZSetSkiplist();
-  bool InsertOrUpdate(const std::string& key, double score) override;
-  bool Delete(const std::string& key) override;
-  std::optional<double> Score(const std::string& key) const override {
-    const auto* score = dict_->FindValue(std::string_view(key));
+  bool InsertOrUpdate(std::string_view key, double score) override;
+  bool Delete(std::string_view key) override;
+  std::optional<double> Score(std::string_view key) const override {
+    const auto* score = dict_->FindValue(key);
     return score == nullptr ? std::nullopt : std::optional<double>(*score);
   }
-  std::optional<size_t> Rank(const std::string& key) const override;
+  std::optional<size_t> Rank(std::string_view key) const override;
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const override;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const override;
   size_t Count(const RangeByScoreSpec* spec) const override;

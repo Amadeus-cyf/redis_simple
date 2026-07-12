@@ -2,6 +2,8 @@
 
 #include <cstring>
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "utils/string_utils.h"
 
@@ -32,20 +34,28 @@ void DynamicBuffer::Compact() {
   processed_ = 0;
 }
 
-std::string DynamicBuffer::ReadLine() {
-  char* c = strchr(buf_.get() + processed_, '\n');
-  if (c == nullptr) {
-    return "";
+std::optional<std::string_view> DynamicBuffer::ReadLineView() {
+  const size_t readable = size_ - processed_;
+  const auto* newline = static_cast<const char*>(
+      std::memchr(buf_.get() + processed_, '\n', readable));
+  if (newline == nullptr) {
+    return std::nullopt;
   }
+  const char* line_end = newline;
   int offset = 1;
-  if (*(c - 1) == '\r') {
-    --c;
+  if (line_end > buf_.get() + processed_ && *(line_end - 1) == '\r') {
+    --line_end;
     ++offset;
   }
-  const size_t line_length = c - buf_.get() - processed_;
-  std::string line(buf_.get() + processed_, line_length);
+  const size_t line_length = line_end - buf_.get() - processed_;
+  std::string_view line(buf_.get() + processed_, line_length);
   processed_ += line_length + offset;
   return line;
+}
+
+std::string DynamicBuffer::ReadLine() {
+  const auto line = ReadLineView();
+  return line.has_value() ? std::string(*line) : "";
 }
 
 void DynamicBuffer::Resize(size_t n) {

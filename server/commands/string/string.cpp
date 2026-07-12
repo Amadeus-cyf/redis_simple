@@ -14,19 +14,6 @@
 
 namespace redis_simple::command::strings {
 namespace {
-struct KeyArgs {
-  std::string key;
-};
-
-struct AppendArgs {
-  std::string key;
-  std::string value;
-};
-
-struct MSetArgs {
-  std::vector<AppendArgs> entries;
-};
-
 enum class StringStatus : std::uint8_t {
   kOk,
   kMissing,
@@ -35,57 +22,19 @@ enum class StringStatus : std::uint8_t {
 };
 
 struct StringResult {
-  std::string value;
+  const std::string* value;
   StringStatus status;
 };
 
-int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args) {
-  if (args.size() != 1) {
-    return -1;
-  }
-  key_args->key = args[0];
-  return 0;
-}
-
-int ParseAppendArgs(const std::vector<std::string>& args,
-                    AppendArgs* append_args) {
-  if (args.size() != 2) {
-    return -1;
-  }
-  append_args->key = args[0];
-  append_args->value = args[1];
-  return 0;
-}
-
-int ParseKeys(const std::vector<std::string>& args,
-              std::vector<std::string>* keys) {
-  if (args.empty()) {
-    return -1;
-  }
-  *keys = args;
-  return 0;
-}
-
-int ParseMSetArgs(const std::vector<std::string>& args, MSetArgs* mset_args) {
-  if (args.empty() || args.size() % 2 != 0) {
-    return -1;
-  }
-  mset_args->entries.reserve(args.size() / 2);
-  for (size_t i = 0; i < args.size(); i += 2) {
-    mset_args->entries.push_back({args[i], args[i + 1]});
-  }
-  return 0;
-}
-
-StringResult LookupString(db::RedisDb* const redis_db, const std::string& key) {
+StringResult LookupString(db::RedisDb* const redis_db, std::string_view key) {
   const auto* object = redis_db->LookupKey(key);
   if (object == nullptr) {
-    return {"", StringStatus::kMissing};
+    return {nullptr, StringStatus::kMissing};
   }
   if (object->Type() != db::RedisObject::ObjectType::kString) {
-    return {"", StringStatus::kWrongType};
+    return {nullptr, StringStatus::kWrongType};
   }
-  return {object->String(), StringStatus::kOk};
+  return {&object->String(), StringStatus::kOk};
 }
 
 std::optional<int64_t> ToReplyInteger(size_t value) {
@@ -108,8 +57,8 @@ int64_t IncrementValue(int64_t value, int64_t increment, bool* ok) {
 }
 
 void HandleIncrement(Client* const client, int64_t increment) {
-  KeyArgs args;
-  if (ParseKeyArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() != 1) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
@@ -119,14 +68,14 @@ void HandleIncrement(Client* const client, int64_t increment) {
     return;
   }
 
-  const auto current = LookupString(redis_db, args.key);
+  const auto current = LookupString(redis_db, args[0]);
   if (current.status == StringStatus::kWrongType) {
     client->AddReply(reply::WrongTypeError());
     return;
   }
   int64_t value = 0;
   if (current.status == StringStatus::kOk &&
-      !utils::ToInt64(current.value, &value)) {
+      !utils::ToInt64(*current.value, &value)) {
     client->AddReply(reply::FromError("ERR value is not an integer"));
     return;
   }
@@ -138,7 +87,7 @@ void HandleIncrement(Client* const client, int64_t increment) {
     return;
   }
   auto object = db::RedisObject::CreateWithString(std::to_string(next));
-  redis_db->SetKey(args.key, std::move(object), 0,
+  redis_db->SetKey(args[0], std::move(object), 0,
                    db::ToInt(db::SetKeyFlag::kKeepTtl));
   client->AddReply(reply::FromInt64(next));
 }
@@ -149,8 +98,8 @@ void HandleIncr(Client* const client) { HandleIncrement(client, 1); }
 void HandleDecr(Client* const client) { HandleIncrement(client, -1); }
 
 void HandleAppend(Client* const client) {
-  AppendArgs args;
-  if (ParseAppendArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() != 2) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
@@ -159,25 +108,28 @@ void HandleAppend(Client* const client) {
     client->AddReply(reply::FromError("ERR db unavailable"));
     return;
   }
-  auto* object = redis_db->MutableLookupKey(args.key);
+  std::string_view key = args[0];
+  std::string_view value_to_append = args[1];
+  auto* object = redis_db->MutableLookupKey(key);
   if (object != nullptr &&
       object->Type() != db::RedisObject::ObjectType::kString) {
     client->AddReply(reply::WrongTypeError());
     return;
   }
   if (object == nullptr) {
-    const auto length = ToReplyInteger(args.value.size());
+    const auto length = ToReplyInteger(value_to_append.size());
     if (!length.has_value()) {
       client->AddReply(reply::FromError("ERR string length out of range"));
       return;
     }
-    redis_db->SetKey(args.key, db::RedisObject::CreateWithString(args.value),
-                     0);
+    redis_db->SetKey(
+        key, db::RedisObject::CreateWithString(std::string(value_to_append)),
+        0);
     client->AddReply(reply::FromInt64(*length));
     return;
   }
   std::string* const value = object->MutableString();
-  value->append(args.value);
+  value->append(value_to_append);
   const auto length = ToReplyInteger(value->size());
   client->AddReply(length.has_value()
                        ? reply::FromInt64(*length)
@@ -185,8 +137,8 @@ void HandleAppend(Client* const client) {
 }
 
 void HandleMGet(Client* const client) {
-  std::vector<std::string> keys;
-  if (ParseKeys(client->Args(), &keys) < 0) {
+  const auto& keys = client->Args();
+  if (keys.empty()) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
@@ -199,7 +151,7 @@ void HandleMGet(Client* const client) {
   for (const auto& key : keys) {
     const auto result = LookupString(redis_db, key);
     if (result.status == StringStatus::kOk) {
-      reply::AppendBulkString(result.value, &encoded);
+      reply::AppendBulkString(*result.value, &encoded);
     } else {
       encoded.append(reply::Null());
     }
@@ -208,8 +160,8 @@ void HandleMGet(Client* const client) {
 }
 
 void HandleMSet(Client* const client) {
-  MSetArgs args;
-  if (ParseMSetArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.empty() || args.size() % 2 != 0) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
@@ -218,9 +170,10 @@ void HandleMSet(Client* const client) {
     client->AddReply(reply::FromError("ERR db unavailable"));
     return;
   }
-  for (const auto& entry : args.entries) {
-    redis_db->SetKey(entry.key, db::RedisObject::CreateWithString(entry.value),
-                     0);
+  for (size_t i = 0; i < args.size(); i += 2) {
+    redis_db->SetKey(
+        args[i], db::RedisObject::CreateWithString(std::string(args[i + 1])),
+        0);
   }
   client->AddReply(reply::FromString("OK"));
 }

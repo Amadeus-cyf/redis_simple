@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "data_types/zset/zset_entry.h"
@@ -15,13 +16,13 @@ class ZSetStorage {
  public:
   // Insert or update a key with the given score. Return true if the key is
   // newly inserted.
-  virtual bool InsertOrUpdate(const std::string& key, double score) = 0;
+  virtual bool InsertOrUpdate(std::string_view key, double score) = 0;
   // Return true if the key is deleted.
-  virtual bool Delete(const std::string& key) = 0;
+  virtual bool Delete(std::string_view key) = 0;
   // Return the score of the given key.
-  virtual std::optional<double> Score(const std::string& key) const = 0;
+  virtual std::optional<double> Score(std::string_view key) const = 0;
   // Return the index of the given key.
-  virtual std::optional<size_t> Rank(const std::string& key) const = 0;
+  virtual std::optional<size_t> Rank(std::string_view key) const = 0;
   // Return a list of keys within the given index range.
   virtual ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const = 0;
   // Get a list of keys within the given score range.

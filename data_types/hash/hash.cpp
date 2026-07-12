@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <optional>
 #include <stdexcept>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,7 +15,7 @@ namespace {
 constexpr size_t kListPackMaxEntries = 128;
 constexpr size_t kListPackMaxElementLength = 64;
 
-bool CanStoreInListPack(const std::string& field, const std::string& value) {
+bool CanStoreInListPack(std::string_view field, std::string_view value) {
   return field.size() <= kListPackMaxElementLength &&
          value.size() <= kListPackMaxElementLength;
 }
@@ -24,10 +25,6 @@ std::optional<size_t> ToListPackIndex(ssize_t index) {
                    : std::optional<size_t>(static_cast<size_t>(index));
 }
 
-std::optional<size_t> NextIndex(const in_memory::ListPack* const listpack,
-                                size_t index) {
-  return ToListPackIndex(listpack->Next(index));
-}
 }  // namespace
 
 Hash::Hash()
@@ -35,7 +32,7 @@ Hash::Hash()
       listpack_(std::make_unique<in_memory::ListPack>()),
       dict_(nullptr) {}
 
-bool Hash::Set(const std::string& field, const std::string& value) {
+bool Hash::Set(std::string_view field, std::string_view value) {
   if (encoding_ == Encoding::kListPack) {
     return SetListPack(field, value);
   }
@@ -45,26 +42,14 @@ bool Hash::Set(const std::string& field, const std::string& value) {
   throw std::invalid_argument("unknown hash encoding type");
 }
 
-std::optional<std::string> Hash::Get(const std::string& field) const {
-  if (encoding_ == Encoding::kListPack) {
-    const auto field_idx = FindListPackField(field);
-    if (!field_idx.has_value()) {
-      return std::nullopt;
-    }
-    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
-    if (!value_idx.has_value()) {
-      return std::nullopt;
-    }
-    return listpack_->Get(*value_idx);
-  }
-  if (encoding_ == Encoding::kDict) {
-    const auto* value = dict_->FindValue(std::string_view(field));
-    return value == nullptr ? std::nullopt : std::optional<std::string>(*value);
-  }
-  throw std::invalid_argument("unknown hash encoding type");
+std::optional<std::string> Hash::Get(std::string_view field) const {
+  std::optional<std::string> result;
+  VisitValue(field,
+             [&result](std::string_view value) { result.emplace(value); });
+  return result;
 }
 
-bool Hash::Delete(const std::string& field) {
+bool Hash::Delete(std::string_view field) {
   if (encoding_ == Encoding::kListPack) {
     const auto field_idx = FindListPackField(field);
     if (!field_idx.has_value()) {
@@ -76,12 +61,12 @@ bool Hash::Delete(const std::string& field) {
     return true;
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->Delete(field);
+    return dict_->Delete(std::string(field));
   }
   throw std::invalid_argument("unknown hash encoding type");
 }
 
-bool Hash::Exists(const std::string& field) const {
+bool Hash::Exists(std::string_view field) const {
   if (encoding_ == Encoding::kListPack) {
     return FindListPackField(field).has_value();
   }
@@ -111,14 +96,14 @@ std::vector<Hash::Entry> Hash::Entries() const {
   return entries;
 }
 
-bool Hash::CanAppendToListPack(const std::string& field,
-                               const std::string& value) const {
+bool Hash::CanAppendToListPack(std::string_view field,
+                               std::string_view value) const {
   return Size() < kListPackMaxEntries && CanStoreInListPack(field, value) &&
          in_memory::ListPack::SafeToAdd(listpack_.get(),
                                         field.size() + value.size());
 }
 
-bool Hash::SetListPack(const std::string& field, const std::string& value) {
+bool Hash::SetListPack(std::string_view field, std::string_view value) {
   assert(encoding_ == Encoding::kListPack);
   const auto field_idx = FindListPackField(field);
   if (field_idx.has_value()) {
@@ -127,11 +112,11 @@ bool Hash::SetListPack(const std::string& field, const std::string& value) {
       SetDict(field, value);
       return false;
     }
-    const auto value_idx = NextIndex(listpack_.get(), *field_idx);
-    if (!value_idx.has_value()) {
+    const auto value_idx = listpack_->Next(*field_idx);
+    if (value_idx < 0) {
       return false;
     }
-    listpack_->Replace(*value_idx, value);
+    listpack_->Replace(static_cast<size_t>(value_idx), value);
     return false;
   }
 
@@ -147,17 +132,17 @@ bool Hash::SetListPack(const std::string& field, const std::string& value) {
   return listpack_->BatchAppend(entries);
 }
 
-bool Hash::SetDict(const std::string& field, const std::string& value) {
+bool Hash::SetDict(std::string_view field, std::string_view value) {
   assert(encoding_ == Encoding::kDict);
   if (dict_ == nullptr) {
     dict_ = in_memory::Dict<std::string, std::string>::Create();
   }
   auto* existing = dict_->FindValue(field);
   if (existing != nullptr) {
-    *existing = value;
+    existing->assign(value);
     return false;
   }
-  dict_->Set(field, value);
+  dict_->Set(std::string(field), std::string(value));
   return true;
 }
 
@@ -175,7 +160,7 @@ void Hash::ConvertListPackToDict(size_t capacity) {
   encoding_ = Encoding::kDict;
 }
 
-std::optional<size_t> Hash::FindListPackField(const std::string& field) const {
+std::optional<size_t> Hash::FindListPackField(std::string_view field) const {
   assert(encoding_ == Encoding::kListPack);
   return ToListPackIndex(listpack_->FindAndSkip(field, 1));
 }

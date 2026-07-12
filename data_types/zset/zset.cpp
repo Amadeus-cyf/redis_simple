@@ -12,7 +12,7 @@ ZSet::ZSet()
  * Insert a new element with score or update the score of an existing
  * element. Return true if the element is newly inserted.
  */
-bool ZSet::InsertOrUpdate(const std::string& key, double score) {
+bool ZSet::InsertOrUpdate(std::string_view key, double score) {
   if (encoding_ == Encoding::kListPack &&
       key.size() > kListPackMaxElementLength) {
     ConvertAndExpand();
@@ -24,13 +24,13 @@ bool ZSet::InsertOrUpdate(const std::string& key, double score) {
   return inserted;
 }
 
-bool ZSet::Delete(const std::string& key) { return storage_->Delete(key); }
+bool ZSet::Delete(std::string_view key) { return storage_->Delete(key); }
 
-std::optional<double> ZSet::Score(const std::string& key) const {
+std::optional<double> ZSet::Score(std::string_view key) const {
   return storage_->Score(key);
 }
 
-std::optional<size_t> ZSet::Rank(const std::string& key) const {
+std::optional<size_t> ZSet::Rank(std::string_view key) const {
   return storage_->Rank(key);
 }
 
@@ -51,8 +51,7 @@ size_t ZSet::Count(const RangeByScoreSpec* spec) const {
 
 enum ZSet::Encoding ZSet::Encoding() const { return encoding_; }
 
-bool ZSet::ShouldConvertToSkiplist(const std::string& key,
-                                   bool inserted) const {
+bool ZSet::ShouldConvertToSkiplist(std::string_view key, bool inserted) const {
   return encoding_ == Encoding::kListPack &&
          ((inserted && storage_->Size() > kListPackMaxEntries) ||
           key.size() > kListPackMaxElementLength);

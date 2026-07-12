@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -14,20 +15,20 @@
 namespace redis_simple::command::key {
 namespace {
 struct KeyArgs {
-  std::string key;
+  std::string_view key;
 };
 
 struct ExpireArgs {
-  std::string key;
+  std::string_view key;
   int64_t ttl{0};
 };
 
 struct RenameArgs {
-  std::string old_key;
-  std::string new_key;
+  std::string_view old_key;
+  std::string_view new_key;
 };
 
-int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args) {
+int ParseKeyArgs(const CommandArgs& args, KeyArgs* key_args) {
   if (args.size() != 1) {
     return -1;
   }
@@ -35,8 +36,7 @@ int ParseKeyArgs(const std::vector<std::string>& args, KeyArgs* key_args) {
   return 0;
 }
 
-int ParseExpireArgs(const std::vector<std::string>& args,
-                    ExpireArgs* expire_args) {
+int ParseExpireArgs(const CommandArgs& args, ExpireArgs* expire_args) {
   if (args.size() != 2 || !utils::ToInt64(args[1], &expire_args->ttl)) {
     return -1;
   }
@@ -44,8 +44,7 @@ int ParseExpireArgs(const std::vector<std::string>& args,
   return 0;
 }
 
-int ParseRenameArgs(const std::vector<std::string>& args,
-                    RenameArgs* rename_args) {
+int ParseRenameArgs(const CommandArgs& args, RenameArgs* rename_args) {
   if (args.size() != 2) {
     return -1;
   }

@@ -1,6 +1,8 @@
 #include "client.h"
 
 #include <array>
+#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -9,8 +11,8 @@
 
 namespace redis_simple {
 namespace {
-std::string CommandName(const std::vector<std::string>& args) {
-  std::string name = args[0];
+std::string CommandName(std::string_view command_name) {
+  std::string name(command_name);
   utils::ToUppercase(name);
   return name;
 }
@@ -76,16 +78,16 @@ ClientStatus Client::ProcessInputBuffer() {
 }
 
 ClientStatus Client::ParseLine() {
-  const std::string& cmdstr = query_buf_.ReadLine();
-  if (cmdstr.empty()) {
+  const auto line = query_buf_.ReadLineView();
+  if (!line.has_value() || line->empty()) {
     return ClientStatus::kError;
   }
-  RS_LOG_DEBUG("cmd str %s\n", cmdstr.c_str());
-  auto args = utils::Split(cmdstr, " ");
+  RS_LOG_DEBUG("cmd str %.*s\n", static_cast<int>(line->size()), line->data());
+  auto args = utils::SplitView(*line, " ");
   if (args.empty()) {
     return ClientStatus::kError;
   }
-  const std::string name = CommandName(args);
+  const std::string name = CommandName(args[0]);
   args.erase(args.begin());
   const auto* command = command::Find(name);
   if (command == nullptr) {

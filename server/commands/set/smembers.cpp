@@ -11,10 +11,9 @@
 namespace redis_simple::command::sets {
 namespace {
 struct SMembersArgs {
-  std::string key;
+  std::string_view key;
 };
-int ParseArgs(const std::vector<std::string>& args,
-              SMembersArgs* smembers_args);
+int ParseArgs(const CommandArgs& args, SMembersArgs* smembers_args);
 std::optional<std::string> SMembers(db::RedisDb* redis_db,
                                     const SMembersArgs* args);
 }  // namespace
@@ -41,8 +40,7 @@ void HandleSMembers(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args,
-              SMembersArgs* const smembers_args) {
+int ParseArgs(const CommandArgs& args, SMembersArgs* const smembers_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;

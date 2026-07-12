@@ -3,6 +3,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -17,10 +18,10 @@ namespace {
 using ZSet = ::redis_simple::zset::ZSet;
 
 struct ZAddArgs {
-  std::string key;
-  std::vector<std::pair<std::string, double>> element_scores;
+  std::string_view key;
+  std::vector<std::pair<std::string_view, double>> element_scores;
 };
-int ParseArgs(const std::vector<std::string>& args, ZAddArgs* zset_args);
+int ParseArgs(const CommandArgs& args, ZAddArgs* zset_args);
 std::optional<int64_t> ZAdd(db::RedisDb* redis_db, const ZAddArgs* args);
 }  // namespace
 
@@ -43,17 +44,17 @@ void HandleZAdd(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args, ZAddArgs* const zset_args) {
+int ParseArgs(const CommandArgs& args, ZAddArgs* const zset_args) {
   if (args.size() < 3 || args.size() % 2 == 0) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
   }
   zset_args->key = args[0];
   for (size_t i = 1; i < args.size() - 1; i += 2) {
-    const std::string& element = args[i + 1];
+    std::string_view element = args[i + 1];
     double score = 0.0;
     try {
-      score = stod(args[i]);
+      score = stod(std::string(args[i]));
     } catch (const std::exception&) {
       RS_LOG_DEBUG("invalid args format\n");
       return -1;
@@ -84,7 +85,7 @@ std::optional<int64_t> ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
     auto* zset = obj->ZSet();
     int64_t added = 0;
     for (const auto& element_score : args->element_scores) {
-      const std::string& element = element_score.first;
+      std::string_view element = element_score.first;
       const double score = element_score.second;
       added += zset->InsertOrUpdate(element, score) ? 1 : 0;
     }

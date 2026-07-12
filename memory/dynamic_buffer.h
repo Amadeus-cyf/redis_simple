@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 namespace redis_simple::in_memory {
 class DynamicBuffer {
@@ -13,6 +15,7 @@ class DynamicBuffer {
   void Consume(size_t processed) { processed_ += processed; }
   void Append(const char* buffer, size_t n);
   void Compact();
+  std::optional<std::string_view> ReadLineView();
   std::string ReadLine();
   std::string ToString() const { return std::string(buf_.get(), size_); }
   bool Empty() const { return size_ == 0; }

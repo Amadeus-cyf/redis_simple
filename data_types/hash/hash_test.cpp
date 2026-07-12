@@ -63,6 +63,17 @@ TEST(HashTest, FieldLookupDoesNotMatchValues) {
   EXPECT_EQ(hash->Get("field"), "same");
 }
 
+TEST(HashTest, VisitValueReturnsListPackValueWithoutCopying) {
+  auto hash = Hash::Create();
+  std::string value;
+
+  EXPECT_TRUE(hash->Set("field", "42"));
+  EXPECT_TRUE(hash->VisitValue(
+      "field", [&value](std::string_view visited) { value.assign(visited); }));
+  EXPECT_FALSE(hash->VisitValue("missing", [](std::string_view) {}));
+  EXPECT_EQ(value, "42");
+}
+
 TEST(HashEncodingTest, ConvertsToDictWhenFieldOrValueIsLong) {
   auto hash = Hash::Create();
   const std::string long_value(65, 'v');
@@ -106,5 +117,21 @@ TEST(HashEncodingTest, ConvertsToDictWhenEntryCountExceedsLimit) {
   EXPECT_EQ(hash->Size(), 129);
   EXPECT_EQ(hash->Get("field0"), "value0");
   EXPECT_EQ(hash->Get("field128"), "value128");
+}
+
+TEST(HashEncodingTest, VisitValueReturnsDictValueWithoutCopying) {
+  auto hash = Hash::Create();
+  std::string value;
+
+  for (int i = 0; i < 129; ++i) {
+    EXPECT_TRUE(
+        hash->Set("field" + std::to_string(i), "value" + std::to_string(i)));
+  }
+
+  ASSERT_EQ(hash->Encoding(), Hash::Encoding::kDict);
+  EXPECT_TRUE(hash->VisitValue("field128", [&value](std::string_view visited) {
+    value.assign(visited);
+  }));
+  EXPECT_EQ(value, "value128");
 }
 }  // namespace redis_simple::hash

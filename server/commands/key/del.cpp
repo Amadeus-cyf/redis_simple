@@ -1,4 +1,4 @@
-#include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -9,15 +9,13 @@
 namespace redis_simple::command::key {
 namespace {
 struct DeleteArgs {
-  std::vector<std::string> keys;
+  std::vector<std::string_view> keys;
 };
 
-int ParseDeleteArgs(const std::vector<std::string>& args,
-                    DeleteArgs* delete_args);
+int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* delete_args);
 int DeleteKeys(db::RedisDb* redis_db, const DeleteArgs* args);
 
-int ParseDeleteArgs(const std::vector<std::string>& args,
-                    DeleteArgs* const delete_args) {
+int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* const delete_args) {
   if (args.empty()) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
@@ -28,7 +26,7 @@ int ParseDeleteArgs(const std::vector<std::string>& args,
 
 int DeleteKeys(db::RedisDb* const redis_db, const DeleteArgs* const args) {
   int deleted = 0;
-  for (const std::string& key : args->keys) {
+  for (std::string_view key : args->keys) {
     if (redis_db->DeleteKey(key) == db::DbStatus::kOk) {
       ++deleted;
     }

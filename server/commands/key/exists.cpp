@@ -1,4 +1,4 @@
-#include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -9,11 +9,10 @@
 namespace redis_simple::command::key {
 namespace {
 struct ExistsArgs {
-  std::vector<std::string> keys;
+  std::vector<std::string_view> keys;
 };
 
-int ParseExistsArgs(const std::vector<std::string>& args,
-                    ExistsArgs* exists_args) {
+int ParseExistsArgs(const CommandArgs& args, ExistsArgs* exists_args) {
   if (args.empty()) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;
@@ -25,7 +24,7 @@ int ParseExistsArgs(const std::vector<std::string>& args,
 int CountExistingKeys(db::RedisDb* const redis_db,
                       const ExistsArgs* const args) {
   int existing = 0;
-  for (const std::string& key : args->keys) {
+  for (std::string_view key : args->keys) {
     if (redis_db->LookupKey(key) != nullptr) {
       ++existing;
     }

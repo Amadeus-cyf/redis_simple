@@ -15,7 +15,7 @@ Set::Set()
       dict_(nullptr),
       listpack_(nullptr) {}
 
-bool Set::Add(const std::string& value) {
+bool Set::Add(std::string_view value) {
   if (encoding_ == Encoding::kIntSet) {
     return IntSetAddAndMaybeConvert(value);
   }
@@ -62,7 +62,7 @@ std::vector<std::string> Set::ListAllMembers() const {
   return members;
 }
 
-bool Set::Remove(const std::string& value) {
+bool Set::Remove(std::string_view value) {
   if (Size() == 0) {
     return false;
   }
@@ -82,7 +82,7 @@ bool Set::Remove(const std::string& value) {
     return true;
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->Delete(value);
+    return dict_->Delete(std::string(value));
   }
   throw std::invalid_argument("unknown encoding type");
 }
@@ -113,7 +113,7 @@ enum Set::Encoding Set::Encoding() const {
   }
 }
 
-bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
+bool Set::IntSetAddAndMaybeConvert(std::string_view value) {
   int64_t int_val = 0;
   if (utils::ToInt64(value, &int_val)) {
     if (!intset_) {
@@ -127,12 +127,12 @@ bool Set::IntSetAddAndMaybeConvert(const std::string& value) {
   }
   if (!MaybeConvertIntSetToListPack(value)) {
     ConvertIntSetToDict((intset_ ? intset_->Size() : 0) + 1);
-    dict_->Set(value, nullptr);
+    dict_->Set(std::string(value), nullptr);
   }
   return true;
 }
 
-bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
+bool Set::ListPackAddAndMaybeConvert(std::string_view value) {
   size_t len = value.size();
   if (listpack_->Find(value) != -1) {
     return false;
@@ -146,18 +146,18 @@ bool Set::ListPackAddAndMaybeConvert(const std::string& value) {
   if (dict_->FindValue(value) != nullptr) {
     return false;
   }
-  dict_->Set(value, nullptr);
+  dict_->Set(std::string(value), nullptr);
   return true;
 }
 
-bool Set::DictAdd(const std::string& value) {
+bool Set::DictAdd(std::string_view value) {
   if (!dict_) {
     dict_ = in_memory::Dict<std::string, nullptr_t>::Create();
   }
   if (dict_->FindValue(value) != nullptr) {
     return false;
   }
-  dict_->Set(value, nullptr);
+  dict_->Set(std::string(value), nullptr);
   return true;
 }
 
@@ -182,7 +182,7 @@ void Set::ConvertIntSetToDict(size_t capacity) {
   intset_.reset();
 }
 
-bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
+bool Set::MaybeConvertIntSetToListPack(std::string_view val) {
   if (encoding_ != Encoding::kIntSet) {
     return false;
   }
@@ -212,7 +212,7 @@ bool Set::MaybeConvertIntSetToListPack(const std::string& val) {
   return false;
 }
 
-void Set::ConvertIntSetToListPack(const std::string& val) {
+void Set::ConvertIntSetToListPack(std::string_view val) {
   assert(encoding_ == Encoding::kIntSet);
   encoding_ = Encoding::kListPack;
   listpack_ = std::make_unique<in_memory::ListPack>();

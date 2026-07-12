@@ -28,6 +28,24 @@ TEST(StringUtilsTest, Split) {
   ASSERT_EQ(str5, std::vector<std::string>({""}));
 }
 
+TEST(StringUtilsTest, SplitView) {
+  const std::string command = "set key value";
+  const auto args = SplitView(command, " ");
+
+  ASSERT_EQ(args.size(), 3);
+  EXPECT_EQ(args[0], "set");
+  EXPECT_EQ(args[1], "key");
+  EXPECT_EQ(args[2], "value");
+
+  const auto no_delimiter = SplitView(command, ",");
+  ASSERT_EQ(no_delimiter.size(), 1);
+  EXPECT_EQ(no_delimiter[0], command);
+
+  const auto empty_delimiter = SplitView(command, "");
+  ASSERT_EQ(empty_delimiter.size(), 1);
+  EXPECT_EQ(empty_delimiter[0], command);
+}
+
 TEST(StringUtilsTest, ShiftCString) {
   std::array<char, 14> s1 = {'t', 'e', 's', 't', '_', 'b', 'u',
                              'f', 'f', 'e', 'r', '_', '1'};

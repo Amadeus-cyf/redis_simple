@@ -2,6 +2,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -12,8 +13,8 @@
 namespace redis_simple::command::zsets {
 namespace {
 struct ZRankArgs {
-  std::string key;
-  std::string element;
+  std::string_view key;
+  std::string_view element;
 };
 enum class ZRankStatus : std::uint8_t {
   kOk,
@@ -24,7 +25,7 @@ struct ZRankResult {
   std::optional<size_t> rank;
   ZRankStatus status;
 };
-int ParseArgs(const std::vector<std::string>& args, ZRankArgs* zset_args);
+int ParseArgs(const CommandArgs& args, ZRankArgs* zset_args);
 ZRankResult ZRank(db::RedisDb* redis_db, const ZRankArgs* args);
 }  // namespace
 
@@ -59,8 +60,7 @@ void HandleZRank(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args,
-              ZRankArgs* const zset_args) {
+int ParseArgs(const CommandArgs& args, ZRankArgs* const zset_args) {
   if (args.size() != 2) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;

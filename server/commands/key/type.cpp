@@ -1,4 +1,5 @@
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "server/client.h"
@@ -10,10 +11,10 @@
 namespace redis_simple::command::key {
 namespace {
 struct TypeArgs {
-  std::string key;
+  std::string_view key;
 };
 
-int ParseTypeArgs(const std::vector<std::string>& args, TypeArgs* type_args) {
+int ParseTypeArgs(const CommandArgs& args, TypeArgs* type_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid args\n");
     return -1;

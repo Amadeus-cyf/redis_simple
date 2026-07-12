@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -35,20 +36,20 @@ class Client {
   bool HasPendingReplies() { return !(reply_buf_.Empty()); }
   ClientStatus ProcessInputBuffer();
   void Free() { connection_->Close(); }
-  const std::vector<std::string>& Args() { return args_; }
+  const command::CommandArgs& Args() const { return args_; }
 
  private:
   explicit Client(std::unique_ptr<connection::Connection> connection);
   ClientStatus ParseLine();
   ClientStatus ProcessCommand();
   void SetCmd(const command::Command* command) { command_ = command; }
-  void SetArgs(std::vector<std::string> args) { args_ = std::move(args); }
+  void SetArgs(command::CommandArgs args) { args_ = std::move(args); }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
   int flags_{};
   db::RedisDb* db_{nullptr};
   const command::Command* command_{nullptr};
-  std::vector<std::string> args_;
+  command::CommandArgs args_;
   std::unique_ptr<connection::Connection> connection_;
   in_memory::DynamicBuffer query_buf_;
   in_memory::ReplyBuffer reply_buf_;

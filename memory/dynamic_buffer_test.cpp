@@ -5,6 +5,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace redis_simple::in_memory {
 namespace {
@@ -71,6 +72,20 @@ TEST(DynamicBufferTest, ProcessInline) {
   const std::string& s2 = buffer->ReadLine();
   ASSERT_EQ(s2.length(), 1023);
   ASSERT_EQ(s2, std::string(1023, 'c'));
+}
+
+TEST(DynamicBufferTest, ReadLineViewAvoidsCopying) {
+  DynamicBuffer buffer;
+  buffer.Append("PING one\r\nPING two", 18);
+
+  const std::string_view first = buffer.ReadLineView().value_or("");
+  EXPECT_EQ(first, "PING one");
+  EXPECT_EQ(buffer.Consumed(), 10);
+
+  EXPECT_FALSE(buffer.ReadLineView().has_value());
+  buffer.Append("\n", 1);
+  const std::string_view second = buffer.ReadLineView().value_or("");
+  EXPECT_EQ(second, "PING two");
 }
 
 TEST(DynamicBufferTest, TrimProcessed) {

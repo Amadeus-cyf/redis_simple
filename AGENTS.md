@@ -15,6 +15,9 @@ Guidance for AI coding agents working in this repository.
 - Prefer `std::string_view` for read-only string inputs and visitor-style
   traversal for hot paths; keep vector-returning helpers for convenience APIs
   and tests, not command execution paths that can stream replies directly.
+- Command handlers should read arguments through `CommandArgs`
+  (`std::string_view`s into the client query buffer). Copy arguments only at an
+  ownership boundary, such as storing a key/value in the DB or data structure.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.

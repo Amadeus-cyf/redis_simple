@@ -3,6 +3,7 @@
 #include <limits>
 #include <optional>
 #include <string>
+#include <string_view>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -12,9 +13,9 @@
 namespace redis_simple::command::sets {
 namespace {
 struct SCardArgs {
-  std::string key;
+  std::string_view key;
 };
-int ParseArgs(const std::vector<std::string>& args, SCardArgs* scard_args);
+int ParseArgs(const CommandArgs& args, SCardArgs* scard_args);
 std::optional<int64_t> ToReplyInteger(size_t value);
 std::optional<int64_t> SCard(db::RedisDb* redis_db, const SCardArgs* args);
 }  // namespace
@@ -38,8 +39,7 @@ void HandleSCard(Client* const client) {
 
 namespace {
 
-int ParseArgs(const std::vector<std::string>& args,
-              SCardArgs* const scard_args) {
+int ParseArgs(const CommandArgs& args, SCardArgs* const scard_args) {
   if (args.size() != 1) {
     RS_LOG_DEBUG("invalid number of args\n");
     return -1;
