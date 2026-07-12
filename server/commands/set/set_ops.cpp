@@ -38,8 +38,6 @@ using SetOperation = std::optional<std::string> (*)(db::RedisDb*,
                                                     const KeysArgs*);
 
 std::string BulkBodyToArrayReply(size_t count, std::string body);
-bool ContainsMember(const Set* set, std::string_view member,
-                    std::optional<std::string>* member_key);
 std::optional<std::string> SInter(db::RedisDb* redis_db, const KeysArgs* args);
 std::optional<std::string> SUnion(db::RedisDb* redis_db, const KeysArgs* args);
 std::optional<std::string> SDiff(db::RedisDb* redis_db, const KeysArgs* args);
@@ -70,17 +68,6 @@ std::string BulkBodyToArrayReply(size_t count, std::string body) {
   return body;
 }
 
-bool ContainsMember(const Set* const set, std::string_view member,
-                    std::optional<std::string>* const member_key) {
-  if (set->Encoding() != Set::Encoding::kDict) {
-    return set->HasMember(member);
-  }
-  if (!member_key->has_value()) {
-    member_key->emplace(member);
-  }
-  return set->HasMember(**member_key);
-}
-
 std::optional<std::string> SInter(db::RedisDb* const redis_db,
                                   const KeysArgs* const args) {
   std::vector<const Set*> sets;
@@ -104,10 +91,9 @@ std::optional<std::string> SInter(db::RedisDb* const redis_db,
   size_t count = 0;
   (*smallest)->ForEachMember(
       [&sets, &body, &count, smallest](std::string_view member) {
-        std::optional<std::string> member_key;
         bool present = true;
         for (const auto* set : sets) {
-          if (set != *smallest && !ContainsMember(set, member, &member_key)) {
+          if (set != *smallest && !set->HasMember(member)) {
             present = false;
             break;
           }
@@ -172,10 +158,9 @@ std::optional<std::string> SDiff(db::RedisDb* const redis_db,
   size_t count = 0;
   first.set->ForEachMember(
       [&subtract_sets, &body, &count](std::string_view member) {
-        std::optional<std::string> member_key;
         bool removed = false;
         for (const auto* set : subtract_sets) {
-          if (ContainsMember(set, member, &member_key)) {
+          if (set->HasMember(member)) {
             removed = true;
             break;
           }

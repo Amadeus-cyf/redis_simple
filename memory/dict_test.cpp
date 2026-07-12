@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace redis_simple::in_memory {
 TEST(DictStrTest, Init) {
@@ -43,6 +44,18 @@ TEST(DictStrTest, InsertDuplicate) {
   const auto result = dict_str->Get("key");
   ASSERT_TRUE(result.has_value());
   ASSERT_EQ(result.value_or(""), "val");
+}
+
+TEST(DictStrTest, FindValueSupportsNonOwningLookup) {
+  auto dict_str = Dict<std::string, std::string>::Create();
+  ASSERT_TRUE(dict_str->Insert("prefix_key_suffix", "val"));
+
+  const std::string lookup = "xxprefix_key_suffixyy";
+  auto* value = dict_str->FindValue(std::string_view(lookup).substr(2, 17));
+
+  ASSERT_NE(value, nullptr);
+  ASSERT_EQ(*value, "val");
+  ASSERT_EQ(dict_str->FindValue(std::string_view("missing")), nullptr);
 }
 
 TEST(DictStrTest, Delete) {

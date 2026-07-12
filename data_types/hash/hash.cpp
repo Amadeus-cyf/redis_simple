@@ -58,7 +58,7 @@ std::optional<std::string> Hash::Get(const std::string& field) const {
     return listpack_->Get(*value_idx);
   }
   if (encoding_ == Encoding::kDict) {
-    const auto* value = dict_->FindValue(field);
+    const auto* value = dict_->FindValue(std::string_view(field));
     return value == nullptr ? std::nullopt : std::optional<std::string>(*value);
   }
   throw std::invalid_argument("unknown hash encoding type");
@@ -86,7 +86,7 @@ bool Hash::Exists(const std::string& field) const {
     return FindListPackField(field).has_value();
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->FindValue(field) != nullptr;
+    return dict_->FindValue(std::string_view(field)) != nullptr;
   }
   throw std::invalid_argument("unknown hash encoding type");
 }

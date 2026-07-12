@@ -14,6 +14,10 @@ namespace redis_simple::in_memory {
 class QuickList {
  public:
   static constexpr size_t kDefaultNodeMaxBytes = 8192;
+  enum class RemoveDirection {
+    kFromHead,
+    kFromTail,
+  };
 
   QuickList();
   explicit QuickList(size_t node_max_bytes);
@@ -24,6 +28,10 @@ class QuickList {
   bool RPush(std::string_view value);
   std::optional<std::string> LPop();
   std::optional<std::string> RPop();
+  bool Set(size_t index, std::string_view value);
+  std::optional<size_t> Remove(std::string_view value, size_t limit,
+                               RemoveDirection direction);
+  bool Trim(size_t start, size_t stop);
   std::vector<std::string> Range(size_t start, size_t stop) const;
   template <typename Visitor>
   bool ForEach(size_t start, size_t stop, Visitor&& visitor) const;
@@ -43,14 +51,25 @@ class QuickList {
     Node* prev;
   };
 
+  struct EntryLocation {
+    Node* node;
+    size_t local_index;
+  };
+
+  std::optional<EntryLocation> Locate(size_t index);
   bool PushToHeadNode(std::string_view value);
   bool PushToTailNode(std::string_view value);
   bool CanAppendToNode(const Node* node, std::string_view value) const;
   bool CanMergeNodes(const Node* left, const Node* right) const;
+  bool NormalizeNodeSizesFrom(Node* node);
+  Node* SplitNode(Node* node);
+  Node* InsertNodeAfter(Node* node, std::unique_ptr<Node> new_node);
   void MergeNext(Node* left);
+  void MergeAll();
   Node* AppendNode();
   Node* PrependNode();
   void DeleteNode(Node* node);
+  void Clear();
 
   std::unique_ptr<Node> head_;
   Node* tail_;

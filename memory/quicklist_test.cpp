@@ -132,4 +132,66 @@ TEST(QuickListTest, RangeInvalidBounds) {
   EXPECT_TRUE(quicklist.Range(2, 3).empty());
   EXPECT_TRUE(quicklist.Range(1, 0).empty());
 }
+
+TEST(QuickListTest, SetSplitsOversizedNode) {
+  QuickList quicklist(96);
+  const std::string value(32, 's');
+  const std::string large_value(128, 'l');
+
+  ASSERT_TRUE(quicklist.RPush(value + "1"));
+  ASSERT_TRUE(quicklist.RPush(value + "2"));
+  ASSERT_EQ(quicklist.NodeCount(), 1);
+
+  ASSERT_TRUE(quicklist.Set(0, large_value));
+
+  EXPECT_EQ(quicklist.NodeCount(), 2);
+  EXPECT_EQ(quicklist.Range(0, 1),
+            (std::vector<std::string>{large_value, value + "2"}));
+  EXPECT_FALSE(quicklist.Set(2, "missing"));
+}
+
+TEST(QuickListTest, RemoveAcrossNodes) {
+  QuickList quicklist(48);
+  const std::string value(32, 'd');
+
+  ASSERT_TRUE(quicklist.RPush(value + "1"));
+  ASSERT_TRUE(quicklist.RPush(value + "2"));
+  ASSERT_TRUE(quicklist.RPush(value + "3"));
+  ASSERT_TRUE(quicklist.RPush(value + "2"));
+  ASSERT_TRUE(quicklist.RPush(value + "4"));
+  ASSERT_EQ(quicklist.NodeCount(), 5);
+
+  ASSERT_EQ(
+      quicklist.Remove(value + "2", 1, QuickList::RemoveDirection::kFromTail),
+      1);
+  EXPECT_EQ(quicklist.Range(0, 3),
+            (std::vector<std::string>{value + "1", value + "2", value + "3",
+                                      value + "4"}));
+
+  ASSERT_EQ(
+      quicklist.Remove(value + "2", 0, QuickList::RemoveDirection::kFromHead),
+      1);
+  EXPECT_EQ(quicklist.Range(0, 2),
+            (std::vector<std::string>{value + "1", value + "3", value + "4"}));
+}
+
+TEST(QuickListTest, TrimAcrossNodes) {
+  QuickList quicklist(48);
+  const std::string value(32, 't');
+
+  ASSERT_TRUE(quicklist.RPush(value + "1"));
+  ASSERT_TRUE(quicklist.RPush(value + "2"));
+  ASSERT_TRUE(quicklist.RPush(value + "3"));
+  ASSERT_TRUE(quicklist.RPush(value + "4"));
+  ASSERT_TRUE(quicklist.RPush(value + "5"));
+  ASSERT_EQ(quicklist.NodeCount(), 5);
+
+  ASSERT_TRUE(quicklist.Trim(1, 3));
+  EXPECT_EQ(quicklist.Range(0, 2),
+            (std::vector<std::string>{value + "2", value + "3", value + "4"}));
+
+  ASSERT_TRUE(quicklist.Trim(1, 0));
+  EXPECT_TRUE(quicklist.Empty());
+  EXPECT_EQ(quicklist.NodeCount(), 0);
+}
 }  // namespace redis_simple::in_memory

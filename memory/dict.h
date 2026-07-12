@@ -6,6 +6,9 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -24,6 +27,8 @@ class Dict {
   std::optional<V> Get(const K& key);
   std::optional<V> Get(K&& key);
   V* FindValue(const K& key);
+  V* FindValue(std::string_view key);
+  V* FindValue(const char* key);
   void Set(const K& key, const V& val);
   void Set(const K& key, V&& val);
   void Set(K&& key, V&& val);
@@ -55,8 +60,10 @@ class Dict {
   size_t TableMask(int i) const;
   size_t HashIndex(size_t hash, int i) const;
   size_t KeyHash(const K& key) const;
+  size_t StringViewKeyHash(std::string_view key) const;
   int NextExp(size_t size) const;
   bool IsEqual(const K& key1, const K& key2) const;
+  bool IsEqual(std::string_view key1, const K& key2) const;
   void SetKey(DictEntry* entry, const K& key);
   void SetVal(DictEntry* entry, const V& val);
   void SetVal(DictEntry* entry, V&& val);
@@ -64,6 +71,7 @@ class Dict {
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
   DictEntry* FindEntry(const K& key);
+  DictEntry* FindEntry(std::string_view key);
   std::optional<size_t> KeyIndex(const K& key, size_t hash,
                                  DictEntry** existing);
   DictEntry* InsertRaw(const K& key, DictEntry** existing);
@@ -99,7 +107,11 @@ struct Dict<K, V>::DictEntry {
 template <typename K, typename V>
 struct Dict<K, V>::DictType {
   // Used to get the hash index of the key. Use std::hash by default.
-  std::function<const size_t(const K& key)> hash_function;
+  std::function<size_t(const K& key)> hash_function;
+  // Optional non-owning lookup hooks for std::string-keyed dicts.
+  std::function<size_t(std::string_view key)> string_view_hash_function;
+  std::function<int(std::string_view key1, const K& key2)>
+      string_view_key_compare;
   // If set, all keys will be copied while being inserted into the dict.
   std::function<K(const K& key)> key_dup;
   // If set, all values will be copied while being inserted into the dict.
@@ -246,9 +258,20 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Create() {
     return nullptr;
   }
   dict->type_.hash_function = [](const K& key) {
-    std::hash<K> h;
-    return h(key);
+    if constexpr (std::is_same<K, std::string>::value) {
+      std::hash<std::string_view> h;
+      return h(std::string_view(key));
+    } else {
+      std::hash<K> h;
+      return h(key);
+    }
   };
+  if constexpr (std::is_same<K, std::string>::value) {
+    dict->type_.string_view_hash_function = [](std::string_view key) {
+      std::hash<std::string_view> h;
+      return h(key);
+    };
+  }
   return dict;
 }
 
@@ -262,9 +285,20 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Create(size_t capacity) {
     return nullptr;
   }
   dict->type_.hash_function = [](const K& key) {
-    std::hash<K> h;
-    return h(key);
+    if constexpr (std::is_same<K, std::string>::value) {
+      std::hash<std::string_view> h;
+      return h(std::string_view(key));
+    } else {
+      std::hash<K> h;
+      return h(key);
+    }
   };
+  if constexpr (std::is_same<K, std::string>::value) {
+    dict->type_.string_view_hash_function = [](std::string_view key) {
+      std::hash<std::string_view> h;
+      return h(key);
+    };
+  }
   return dict;
 }
 
@@ -305,9 +339,48 @@ V* Dict<K, V>::FindValue(const K& key) {
 }
 
 template <typename K, typename V>
+V* Dict<K, V>::FindValue(std::string_view key) {
+  DictEntry* entry = FindEntry(key);
+  return entry == nullptr ? nullptr : &entry->val;
+}
+
+template <typename K, typename V>
+V* Dict<K, V>::FindValue(const char* key) {
+  return FindValue(std::string_view(key));
+}
+
+template <typename K, typename V>
 typename Dict<K, V>::DictEntry* Dict<K, V>::FindEntry(const K& key) {
   RehashStepIfNeeded();
   size_t hash = KeyHash(key);
+  for (size_t i = 0; i < tables_.size(); ++i) {
+    if (tables_[i].empty()) {
+      if (!IsRehashing()) {
+        break;
+      }
+      continue;
+    }
+    size_t idx = HashIndex(hash, i);
+    DictEntry* entry = tables_[i][idx];
+    while (entry) {
+      if (entry->hash == hash && IsEqual(key, entry->key)) {
+        return entry;
+      }
+      entry = entry->next;
+    }
+    if (!IsRehashing()) {
+      break;
+    }
+  }
+  return nullptr;
+}
+
+template <typename K, typename V>
+typename Dict<K, V>::DictEntry* Dict<K, V>::FindEntry(std::string_view key) {
+  static_assert(std::is_same<K, std::string>::value,
+                "std::string_view lookup only supports std::string keys");
+  RehashStepIfNeeded();
+  size_t hash = StringViewKeyHash(key);
   for (size_t i = 0; i < tables_.size(); ++i) {
     if (tables_[i].empty()) {
       if (!IsRehashing()) {
@@ -547,6 +620,17 @@ size_t Dict<K, V>::KeyHash(const K& key) const {
 }
 
 template <typename K, typename V>
+size_t Dict<K, V>::StringViewKeyHash(std::string_view key) const {
+  static_assert(std::is_same<K, std::string>::value,
+                "StringViewKeyHash only supports std::string keys");
+  if (type_.string_view_hash_function) {
+    return type_.string_view_hash_function(key);
+  }
+  assert(type_.hash_function);
+  return type_.hash_function(std::string(key));
+}
+
+template <typename K, typename V>
 int Dict<K, V>::NextExp(size_t size) const {
   int i = 1;
   while ((1 << i) < size) ++i;
@@ -557,6 +641,22 @@ template <typename K, typename V>
 bool Dict<K, V>::IsEqual(const K& key1, const K& key2) const {
   return key1 == key2 ||
          (type_.key_compare && !(type_.key_compare(key1, key2)));
+}
+
+template <typename K, typename V>
+bool Dict<K, V>::IsEqual(std::string_view key1, const K& key2) const {
+  static_assert(std::is_same<K, std::string>::value,
+                "string_view comparison only supports std::string keys");
+  if (key1 == std::string_view(key2)) {
+    return true;
+  }
+  if (type_.string_view_key_compare) {
+    return !type_.string_view_key_compare(key1, key2);
+  }
+  if (type_.key_compare) {
+    return !type_.key_compare(std::string(key1), key2);
+  }
+  return false;
 }
 
 template <typename K, typename V>

@@ -9,18 +9,6 @@ constexpr size_t kEntryOverheadEstimate = 8;
 
 bool HasRemoveLimit(size_t limit) { return limit != 0; }
 
-bool ShouldRemove(std::string_view current, std::string_view target,
-                  size_t limit, size_t* const removed) {
-  if (current != target) {
-    return false;
-  }
-  if (HasRemoveLimit(limit) && *removed >= limit) {
-    return false;
-  }
-  ++(*removed);
-  return true;
-}
-
 bool ListPackEntryEquals(const in_memory::ListPack* const listpack,
                          size_t index, std::string_view value) {
   size_t len = 0;
@@ -34,6 +22,13 @@ ssize_t NextAfterDelete(const in_memory::ListPack* const listpack,
   return deleted_index < listpack->TotalBytes() - 1
              ? static_cast<ssize_t>(deleted_index)
              : -1;
+}
+
+in_memory::QuickList::RemoveDirection ToQuickListRemoveDirection(
+    List::RemoveDirection direction) {
+  return direction == List::RemoveDirection::kFromTail
+             ? in_memory::QuickList::RemoveDirection::kFromTail
+             : in_memory::QuickList::RemoveDirection::kFromHead;
 }
 }  // namespace
 
@@ -77,16 +72,7 @@ bool List::Set(size_t index, std::string_view value) {
     return true;
   }
 
-  auto replacement = List::Create(list_max_listpack_bytes_);
-  size_t current_index = 0;
-  const bool replaced = ForEach(
-      0, size - 1,
-      [&replacement, &current_index, index, value](std::string_view current) {
-        const auto next = current_index == index ? value : current;
-        ++current_index;
-        return replacement->RPush(next);
-      });
-  return replaced ? AdoptReplacement(std::move(replacement)) : false;
+  return quicklist_->Set(index, value);
 }
 
 std::optional<size_t> List::Remove(std::string_view value, size_t limit,
@@ -100,40 +86,8 @@ std::optional<size_t> List::Remove(std::string_view value, size_t limit,
     return RemoveFromListPack(value, limit, direction);
   }
 
-  auto replacement = List::Create(list_max_listpack_bytes_);
-  size_t removed = 0;
-  const bool remove_from_tail =
-      direction == RemoveDirection::kFromTail && HasRemoveLimit(limit);
-  bool rebuilt = false;
-  if (remove_from_tail) {
-    rebuilt = ForEachReverse(
-        0, size - 1,
-        [&replacement, value, limit, &removed](std::string_view current) {
-          if (ShouldRemove(current, value, limit, &removed)) {
-            return true;
-          }
-          return replacement->LPush(current);
-        });
-  } else {
-    rebuilt = ForEach(
-        0, size - 1,
-        [&replacement, value, limit, &removed](std::string_view current) {
-          if (ShouldRemove(current, value, limit, &removed)) {
-            return true;
-          }
-          return replacement->RPush(current);
-        });
-  }
-  if (!rebuilt) {
-    return std::nullopt;
-  }
-  if (removed == 0) {
-    return 0;
-  }
-  if (!AdoptReplacement(std::move(replacement))) {
-    return std::nullopt;
-  }
-  return removed;
+  return quicklist_->Remove(value, limit,
+                            ToQuickListRemoveDirection(direction));
 }
 
 bool List::Trim(size_t start, size_t stop) {
@@ -151,12 +105,7 @@ bool List::Trim(size_t start, size_t stop) {
     return true;
   }
 
-  auto replacement = List::Create(list_max_listpack_bytes_);
-  const bool rebuilt =
-      ForEach(start, stop, [&replacement](std::string_view value) {
-        return replacement->RPush(value);
-      });
-  return rebuilt ? AdoptReplacement(std::move(replacement)) : false;
+  return quicklist_->Trim(start, stop);
 }
 
 std::optional<size_t> List::RemoveFromListPack(std::string_view value,

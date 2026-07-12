@@ -14,7 +14,7 @@ class ZSetSkiplist : public ZSetStorage {
   bool InsertOrUpdate(const std::string& key, double score) override;
   bool Delete(const std::string& key) override;
   std::optional<double> Score(const std::string& key) const override {
-    const auto* score = dict_->FindValue(key);
+    const auto* score = dict_->FindValue(std::string_view(key));
     return score == nullptr ? std::nullopt : std::optional<double>(*score);
   }
   std::optional<size_t> Rank(const std::string& key) const override;

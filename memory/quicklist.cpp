@@ -2,10 +2,28 @@
 
 #include <algorithm>
 #include <cassert>
+#include <string>
+#include <vector>
 
 namespace redis_simple::in_memory {
 namespace {
 constexpr size_t kEntryOverheadEstimate = 8;
+
+bool HasRemoveLimit(size_t limit) { return limit != 0; }
+
+bool ListPackEntryEquals(const ListPack* const listpack, size_t index,
+                         std::string_view value) {
+  size_t len = 0;
+  const auto* data = listpack->Get(index, &len);
+  return data != nullptr &&
+         std::string_view(reinterpret_cast<const char*>(data), len) == value;
+}
+
+ssize_t NextAfterDelete(const ListPack* const listpack, size_t deleted_index) {
+  return deleted_index < listpack->TotalBytes() - 1
+             ? static_cast<ssize_t>(deleted_index)
+             : -1;
+}
 }  // namespace
 
 QuickList::Node::Node()
@@ -95,6 +113,135 @@ std::vector<std::string> QuickList::Range(size_t start, size_t stop) const {
   return values;
 }
 
+bool QuickList::Set(size_t index, std::string_view value) {
+  const auto location = Locate(index);
+  if (!location.has_value()) {
+    return false;
+  }
+  const auto listpack_index =
+      location->node->listpack->IndexAt(location->local_index);
+  if (!listpack_index.has_value() ||
+      !location->node->listpack->Replace(*listpack_index, value)) {
+    return false;
+  }
+  if (!NormalizeNodeSizesFrom(location->node)) {
+    return false;
+  }
+  MergeAll();
+  return true;
+}
+
+std::optional<size_t> QuickList::Remove(std::string_view value, size_t limit,
+                                        RemoveDirection direction) {
+  if (size_ == 0) {
+    return 0;
+  }
+
+  size_t removed = 0;
+  if (direction == RemoveDirection::kFromTail && HasRemoveLimit(limit)) {
+    for (Node* node = tail_; node != nullptr && removed < limit;) {
+      Node* prev = node->prev;
+      ssize_t idx = node->listpack->Last();
+      while (idx != -1 && removed < limit) {
+        const auto current_index = static_cast<size_t>(idx);
+        idx = node->listpack->Prev(current_index);
+        if (ListPackEntryEquals(node->listpack.get(), current_index, value)) {
+          node->listpack->Delete(current_index);
+          --size_;
+          ++removed;
+        }
+      }
+      if (node->listpack->Size() == 0) {
+        DeleteNode(node);
+      }
+      node = prev;
+    }
+    MergeAll();
+    return removed;
+  }
+
+  for (Node* node = head_.get();
+       node != nullptr && (!HasRemoveLimit(limit) || removed < limit);) {
+    Node* next = node->next.get();
+    ssize_t idx = node->listpack->First();
+    while (idx != -1 && (!HasRemoveLimit(limit) || removed < limit)) {
+      const auto current_index = static_cast<size_t>(idx);
+      if (ListPackEntryEquals(node->listpack.get(), current_index, value)) {
+        node->listpack->Delete(current_index);
+        --size_;
+        ++removed;
+        idx = NextAfterDelete(node->listpack.get(), current_index);
+        continue;
+      }
+      idx = node->listpack->Next(current_index);
+    }
+    if (node->listpack->Size() == 0) {
+      DeleteNode(node);
+    }
+    node = next;
+  }
+  MergeAll();
+  return removed;
+}
+
+bool QuickList::Trim(size_t start, size_t stop) {
+  if (size_ == 0 || start > stop || start >= size_) {
+    Clear();
+    return true;
+  }
+
+  stop = std::min(stop, size_ - 1);
+  const size_t suffix_count = size_ - stop - 1;
+  for (size_t i = 0; i < suffix_count; ++i) {
+    Node* node = tail_;
+    if (node == nullptr) {
+      return false;
+    }
+    const ssize_t idx = node->listpack->Last();
+    if (idx == -1) {
+      return false;
+    }
+    node->listpack->Delete(static_cast<size_t>(idx));
+    --size_;
+    if (node->listpack->Size() == 0) {
+      DeleteNode(node);
+    }
+  }
+  for (size_t i = 0; i < start; ++i) {
+    Node* node = head_.get();
+    if (node == nullptr) {
+      return false;
+    }
+    const ssize_t idx = node->listpack->First();
+    if (idx == -1) {
+      return false;
+    }
+    node->listpack->Delete(static_cast<size_t>(idx));
+    --size_;
+    if (node->listpack->Size() == 0) {
+      DeleteNode(node);
+    }
+  }
+  MergeAll();
+  return true;
+}
+
+std::optional<QuickList::EntryLocation> QuickList::Locate(size_t index) {
+  if (index >= size_) {
+    return std::nullopt;
+  }
+
+  size_t first_index = 0;
+  for (Node* node = head_.get(); node != nullptr; node = node->next.get()) {
+    const size_t node_size = node->listpack->Size();
+    if (index < first_index + node_size) {
+      return EntryLocation{node, index - first_index};
+    }
+    first_index += node_size;
+  }
+  return std::nullopt;
+}
+
 bool QuickList::PushToHeadNode(std::string_view value) {
   return head_ && head_->listpack->Prepend(value);
 }
@@ -123,6 +270,71 @@ bool QuickList::CanMergeNodes(const Node* left, const Node* right) const {
   return merged_bytes <= node_max_bytes_;
 }
 
+bool QuickList::NormalizeNodeSizesFrom(Node* node) {
+  for (Node* current = node; current != nullptr;
+       current = current->next.get()) {
+    while (current->listpack->TotalBytes() > node_max_bytes_ &&
+           current->listpack->Size() > 1) {
+      if (SplitNode(current) == nullptr) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+QuickList::Node* QuickList::SplitNode(Node* node) {
+  if (node == nullptr || node->listpack->Size() <= 1) {
+    return nullptr;
+  }
+
+  const size_t node_size = node->listpack->Size();
+  const size_t split_index = node_size / 2;
+  std::vector<std::string> right_values;
+  right_values.reserve(node_size - split_index);
+  if (!node->listpack->ForEach(split_index, node_size - 1,
+                               [&right_values](std::string_view value) {
+                                 right_values.emplace_back(value);
+                                 return true;
+                               })) {
+    return nullptr;
+  }
+
+  auto right = std::make_unique<Node>();
+  for (const auto& value : right_values) {
+    if (!right->listpack->Append(value)) {
+      return nullptr;
+    }
+  }
+  for (size_t i = split_index; i < node_size; ++i) {
+    const auto idx = node->listpack->IndexAt(split_index);
+    if (!idx.has_value()) {
+      return nullptr;
+    }
+    node->listpack->Delete(*idx);
+  }
+  return InsertNodeAfter(node, std::move(right));
+}
+
+QuickList::Node* QuickList::InsertNodeAfter(Node* node,
+                                            std::unique_ptr<Node> new_node) {
+  if (node == nullptr || new_node == nullptr) {
+    return nullptr;
+  }
+
+  Node* new_node_ptr = new_node.get();
+  new_node->prev = node;
+  new_node->next = std::move(node->next);
+  if (new_node->next) {
+    new_node->next->prev = new_node_ptr;
+  } else {
+    tail_ = new_node_ptr;
+  }
+  node->next = std::move(new_node);
+  ++node_count_;
+  return new_node_ptr;
+}
+
 void QuickList::MergeNext(Node* left) {
   if (!CanMergeNodes(left, left == nullptr ? nullptr : left->next.get())) {
     return;
@@ -137,6 +349,14 @@ void QuickList::MergeNext(Node* left) {
     return;
   }
   DeleteNode(right);
+}
+
+void QuickList::MergeAll() {
+  for (Node* node = head_.get(); node != nullptr; node = node->next.get()) {
+    while (CanMergeNodes(node, node->next.get())) {
+      MergeNext(node);
+    }
+  }
 }
 
 QuickList::Node* QuickList::AppendNode() {
@@ -199,5 +419,12 @@ void QuickList::DeleteNode(Node* node) {
     }
   }
   --node_count_;
+}
+
+void QuickList::Clear() {
+  head_.reset();
+  tail_ = nullptr;
+  size_ = 0;
+  node_count_ = 0;
 }
 }  // namespace redis_simple::in_memory

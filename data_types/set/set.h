@@ -49,8 +49,6 @@ class Set {
   bool MaybeConvertIntSetToListPack(const std::string& val);
   void ConvertIntSetToListPack(const std::string& val);
   void ConvertListPackToDict(size_t capacity);
-  bool HasMemberImpl(std::string_view value,
-                     const std::string* string_value) const;
   enum Encoding encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;
   std::unique_ptr<in_memory::ListPack> listpack_;

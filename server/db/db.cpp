@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <string_view>
 #include <utility>
 
 #include "server/server.h"
@@ -14,7 +15,11 @@ std::unique_ptr<RedisDb> RedisDb::Create() {
 
 RedisDb::RedisDb() : expire_cursor_(0) {
   auto hash = [](const std::string& key) {
-    std::hash<std::string> hash_func;
+    std::hash<std::string_view> hash_func;
+    return hash_func(std::string_view(key));
+  };
+  auto view_hash = [](std::string_view key) {
+    std::hash<std::string_view> hash_func;
     return hash_func(key);
   };
   auto key_compare = [](const std::string& key1, const std::string& key2) {
@@ -22,6 +27,7 @@ RedisDb::RedisDb() : expire_cursor_(0) {
   };
   in_memory::Dict<std::string, RedisObjectPtr>::DictType db_type;
   db_type.hash_function = hash;
+  db_type.string_view_hash_function = view_hash;
   db_type.key_dup = nullptr;
   db_type.val_dup = nullptr;
   db_type.key_destructor = nullptr;
@@ -31,6 +37,7 @@ RedisDb::RedisDb() : expire_cursor_(0) {
 
   in_memory::Dict<std::string, int64_t>::DictType expires_type;
   expires_type.hash_function = hash;
+  expires_type.string_view_hash_function = view_hash;
   expires_type.key_dup = nullptr;
   expires_type.val_dup = nullptr;
   expires_type.key_destructor = nullptr;

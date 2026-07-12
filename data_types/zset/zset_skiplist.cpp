@@ -7,7 +7,7 @@ ZSetSkiplist::ZSetSkiplist()
                                                Comparator(), Destructor())) {}
 
 bool ZSetSkiplist::InsertOrUpdate(const std::string& key, double score) {
-  const auto* current_score = dict_->FindValue(key);
+  const auto* current_score = dict_->FindValue(std::string_view(key));
   if (current_score != nullptr && *current_score == score) {
     // If the key exists and there is no change in score, do nothing.
     return false;
@@ -41,7 +41,7 @@ bool ZSetSkiplist::InsertOrUpdate(const std::string& key, double score) {
 }
 
 bool ZSetSkiplist::Delete(const std::string& key) {
-  const auto* score = dict_->FindValue(key);
+  const auto* score = dict_->FindValue(std::string_view(key));
   if (score == nullptr) {
     return false;
   }
@@ -57,7 +57,7 @@ bool ZSetSkiplist::Delete(const std::string& key) {
 }
 
 std::optional<size_t> ZSetSkiplist::Rank(const std::string& key) const {
-  const auto* score = dict_->FindValue(key);
+  const auto* score = dict_->FindValue(std::string_view(key));
   if (score == nullptr) {
     return std::nullopt;
   }

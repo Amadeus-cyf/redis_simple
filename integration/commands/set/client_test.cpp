@@ -104,12 +104,28 @@ int Run() {
     return EXIT_FAILURE;
   }
   if (!ExpectMembers(
+          &cli,
+          "SINTER integration_set integration_set_b integration_set_c\r\n",
+          {"ele3"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(
           &cli, "SUNION integration_set integration_set_c\r\n",
           {"ele1", "ele2", "ele3", "ele4", "ele5", "ele6", "ele7"})) {
     return EXIT_FAILURE;
   }
+  if (!ExpectMembers(
+          &cli, "SUNION integration_set integration_set_b missing_set\r\n",
+          {"ele1", "ele2", "ele3", "ele4", "ele5", "ele6", "ele7", "other"})) {
+    return EXIT_FAILURE;
+  }
   if (!ExpectMembers(&cli, "SDIFF integration_set integration_set_b\r\n",
                      {"ele1", "ele4", "ele5", "ele6", "ele7"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(
+          &cli, "SDIFF integration_set integration_set_b integration_set_c\r\n",
+          {"ele1", "ele5", "ele6", "ele7"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectMembers(&cli, "SINTER integration_set missing_set\r\n", {})) {
