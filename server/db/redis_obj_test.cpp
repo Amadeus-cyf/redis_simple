@@ -37,4 +37,11 @@ TEST(RedisObjectTest, CollectionObjectsExposeTypedStorage) {
   ASSERT_NE(hash_object->Hash(), nullptr);
   EXPECT_THROW(hash_object->ZSet(), std::invalid_argument);
 }
+
+TEST(RedisObjectTest, RejectsNullCollectionStorage) {
+  EXPECT_EQ(RedisObject::CreateWithSet(nullptr), nullptr);
+  EXPECT_EQ(RedisObject::CreateWithList(nullptr), nullptr);
+  EXPECT_EQ(RedisObject::CreateWithZSet(nullptr), nullptr);
+  EXPECT_EQ(RedisObject::CreateWithHash(nullptr), nullptr);
+}
 }  // namespace redis_simple::db

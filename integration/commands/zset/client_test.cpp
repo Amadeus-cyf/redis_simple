@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "cli/cli.h"
+#include "logging/logger.h"
 
 namespace redis_simple {
 namespace {
@@ -76,6 +77,10 @@ int Run() {
       {"ZRANGE integration_zset 0 1 WTHSCORES\r\n", "ERR syntax error\n"},
       {"ZRANGE integration_zset 0 1 LIMIT 0\r\n", "ERR syntax error\n"},
       {"ZRANGE integration_zset 0 1 LIMIT -1 1\r\n", "ERR syntax error\n"},
+      {"ZADD integration_zset 1junk invalid\r\n", "ERR syntax error\n"},
+      {"ZADD integration_zset nan invalid\r\n", "ERR syntax error\n"},
+      {"ZRANGE integration_zset 1junk 2 BYSCORE\r\n", "ERR syntax error\n"},
+      {"ZCARD integration_zset\r\n", "2\n"},
   };
   for (const Case& test_case : cases) {
     if (!ExpectReply(&cli, test_case)) {

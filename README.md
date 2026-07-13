@@ -75,6 +75,19 @@ ctest --preset debug -L unit --output-on-failure
 ctest --preset debug -L integration --output-on-failure
 ```
 
+Release and sanitizer presets are available for checking behavior with
+assertions disabled and for detecting memory or undefined-behavior defects:
+
+```sh
+cmake --preset release
+cmake --build --preset release
+ctest --preset release --output-on-failure
+
+cmake --preset sanitizer
+cmake --build --preset sanitizer
+ctest --preset sanitizer --output-on-failure
+```
+
 This runs:
 
 - `redis_simple_unit_<SuiteName>`: unit tests compiled into
@@ -117,19 +130,19 @@ above is the project benchmark executable.
 ## Project Layout
 
 ```text
-cli/          Simple client and RESP parsing
-connection/          Connection abstraction
-event_loop/          Event loop with kqueue and epoll pollers
+cli/                  Simple client and RESP parsing
+connection/           Connection abstraction
+event_loop/           Event loop with kqueue and epoll pollers
 integration/commands/ Server/client command integration tests
-integration/tcp/     TCP client/server integration tests
-logging/             Project logging wrapper
-memory/              Core in-memory data structures
-scripts/             Project automation and CTest runner scripts
-server/              Server, client connection glue, commands, replies, DB
-data_types/          Redis hash, list, set, and sorted-set implementations
-tcp/                 TCP helpers
-utils/               Small shared utilities
-benchmarks/          Memory/data-structure benchmarks
+integration/tcp/      TCP client/server integration tests
+logging/              Project logging wrapper
+memory/               Core in-memory data structures
+scripts/              Project automation and CTest runner scripts
+server/               Server, client connection glue, commands, replies, DB
+data_types/           Redis hash, list, set, and sorted-set implementations
+tcp/                  TCP helpers
+utils/                Small shared utilities
+benchmarks/           Memory/data-structure benchmarks
 ```
 
 Command handler declarations are grouped in `server/commands/handlers.h`; the
@@ -156,6 +169,12 @@ cmake --build --preset debug --target format
 
 For one-off formatting, `scripts/format.sh` discovers Homebrew's LLVM toolchain
 on macOS and honors `CLANG_FORMAT_BIN` when set.
+
+Check formatting without modifying files with:
+
+```sh
+scripts/format.sh --check
+```
 
 Run clang-tidy with the project wrapper:
 
@@ -200,7 +219,8 @@ pass.
 ## CI
 
 GitHub Actions runs the same flow recommended locally on macOS and Ubuntu, so
-both event-loop pollers are built and tested:
+both event-loop pollers are built and tested. Separate Ubuntu jobs also enforce
+clang-format and clang-tidy, run the full release suite, and run ASan/UBSan:
 
 ```sh
 cmake --preset debug

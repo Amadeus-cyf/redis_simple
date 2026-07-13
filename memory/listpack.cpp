@@ -9,30 +9,10 @@
 #include "utils/string_utils.h"
 
 namespace redis_simple::in_memory {
-namespace {
-ssize_t ToSSize(size_t value) {
-  if (value > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
-    return -1;
-  }
-  return static_cast<ssize_t>(value);
-}
-}  // namespace
-
 ListPack::ListPack()
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): packed byte storage
     : lp_(std::make_unique<unsigned char[]>(kListPackHeaderSize + 1)) {
   SetTotalBytes(kListPackHeaderSize + 1);
-  SetNumOfElements(0);
-  lp_[kListPackHeaderSize] = kListPackEof;
-}
-
-ListPack::ListPack(size_t capacity)
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): packed byte storage
-    : lp_(std::make_unique<unsigned char[]>(capacity > kListPackHeaderSize + 1
-                                                ? capacity
-                                                : kListPackHeaderSize + 1)) {
-  capacity = std::max<size_t>(capacity, kListPackHeaderSize + 1);
-  SetTotalBytes(capacity);
   SetNumOfElements(0);
   lp_[kListPackHeaderSize] = kListPackEof;
 }
@@ -88,20 +68,18 @@ std::optional<int64_t> ListPack::IntegerAt(size_t idx) const {
   return val;
 }
 
-ssize_t ListPack::Find(std::string_view val) const {
+std::optional<size_t> ListPack::Find(std::string_view val) const {
   return FindAndSkip(val, 0);
 }
 
-ssize_t ListPack::FindAndSkip(std::string_view val, size_t skip) const {
-  ssize_t idx = First();
-  if (idx < 0) {
-    return -1;
-  }
+std::optional<size_t> ListPack::FindAndSkip(std::string_view val,
+                                            size_t skip) const {
+  auto idx = First();
   size_t skip_count = 0;
-  while (lp_[idx] != kListPackEof) {
+  while (idx.has_value()) {
     if (skip_count == 0) {
       size_t len = 0;
-      const auto* data = Get(static_cast<size_t>(idx), &len);
+      const auto* data = Get(*idx, &len);
       if (data != nullptr &&
           std::string_view(reinterpret_cast<const char*>(data), len) == val) {
         return idx;
@@ -110,14 +88,9 @@ ssize_t ListPack::FindAndSkip(std::string_view val, size_t skip) const {
     } else {
       --skip_count;
     }
-    const size_t next_idx = Skip(static_cast<size_t>(idx));
-    const ssize_t next = ToSSize(next_idx);
-    if (next < 0) {
-      return -1;
-    }
-    idx = next;
+    idx = Next(*idx);
   }
-  return -1;
+  return std::nullopt;
 }
 
 bool ListPack::Append(std::string_view element_string) {
@@ -173,80 +146,135 @@ bool ListPack::BatchInsert(size_t idx,
 }
 
 std::optional<size_t> ListPack::IndexAt(size_t index) const {
-  ssize_t idx = First();
+  auto idx = First();
   size_t current_index = 0;
-  while (idx != -1 && current_index < index) {
-    idx = Next(static_cast<size_t>(idx));
+  while (idx.has_value() && current_index < index) {
+    idx = Next(*idx);
     ++current_index;
   }
-  if (idx == -1) {
-    return std::nullopt;
-  }
-  return static_cast<size_t>(idx);
+  return idx;
 }
 
-void ListPack::Delete(size_t idx) {
+void ListPack::Delete(size_t idx) { DeleteRange(idx, 1); }
+
+size_t ListPack::DeleteRange(size_t idx, size_t count) {
   uint32_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
-  if (idx == listpack_bytes - 1) {
-    return;
+  if (idx == listpack_bytes - 1 || count == 0) {
+    return 0;
   }
-  size_t backlen = Backlen(idx);
-  uint8_t backlen_bytes = BacklenBytes(backlen);
-  size_t new_listpack_bytes = listpack_bytes - backlen - backlen_bytes;
-  uint16_t num_of_elements = ElementCount();
-  std::memmove(lp_.get() + idx, lp_.get() + idx + backlen + backlen_bytes,
-               listpack_bytes - idx - backlen - backlen_bytes);
+  size_t end = idx;
+  size_t deleted = 0;
+  while (deleted < count && end < listpack_bytes - 1) {
+    end = Skip(end);
+    ++deleted;
+  }
+  const size_t deleted_bytes = end - idx;
+  const size_t new_listpack_bytes = listpack_bytes - deleted_bytes;
+  const uint16_t num_of_elements = ElementCount();
+  std::memmove(lp_.get() + idx, lp_.get() + end, listpack_bytes - end);
   // Shrink after memmove so the source range remains valid.
   Realloc(new_listpack_bytes);
   SetTotalBytes(new_listpack_bytes);
   if (num_of_elements != kListPackNumEleUnknown) {
-    SetNumOfElements(num_of_elements - 1);
+    SetNumOfElements(num_of_elements - deleted);
   }
+  return deleted;
 }
 
-ssize_t ListPack::First() const {
+size_t ListPack::DeleteMatching(std::string_view value, size_t limit,
+                                bool from_tail) {
+  const bool limited = limit != 0;
+  if (from_tail && limited) {
+    std::vector<size_t> matches;
+    matches.reserve(limit);
+    for (auto index = Last(); index.has_value() && matches.size() < limit;
+         index = Prev(*index)) {
+      size_t length = 0;
+      const auto* data = Get(*index, &length);
+      if (data != nullptr &&
+          std::string_view(reinterpret_cast<const char*>(data), length) ==
+              value) {
+        matches.push_back(*index);
+      }
+    }
+    std::reverse(matches.begin(), matches.end());
+    for (auto match = matches.rbegin(); match != matches.rend(); ++match) {
+      DeleteRange(*match, 1);
+    }
+    return matches.size();
+  }
+
+  std::vector<std::pair<size_t, size_t>> ranges;
+  size_t match_count = 0;
+  std::optional<size_t> previous_match;
+  for (auto index = First(); index.has_value(); index = Next(*index)) {
+    size_t length = 0;
+    const auto* data = Get(*index, &length);
+    if (data == nullptr || std::string_view(reinterpret_cast<const char*>(data),
+                                            length) != value) {
+      continue;
+    }
+    if (previous_match.has_value() && Next(*previous_match) == index) {
+      ++ranges.back().second;
+    } else {
+      ranges.emplace_back(*index, 1);
+    }
+    previous_match = index;
+    ++match_count;
+    if (limited && match_count == limit) {
+      break;
+    }
+  }
+  for (auto range = ranges.rbegin(); range != ranges.rend(); ++range) {
+    DeleteRange(range->first, range->second);
+  }
+  return match_count;
+}
+
+std::optional<size_t> ListPack::First() const {
   size_t listpack_bytes = TotalBytes();
   if (listpack_bytes <= ListPack::kListPackHeaderSize + 1) {
-    return -1;
+    return std::nullopt;
   }
   return ListPack::kListPackHeaderSize;
 }
 
-ssize_t ListPack::Last() const {
+std::optional<size_t> ListPack::Last() const {
   size_t listpack_bytes = TotalBytes();
   if (listpack_bytes <= ListPack::kListPackHeaderSize + 1) {
-    return -1;
+    return std::nullopt;
   }
   return Prev(listpack_bytes - 1);
 }
 
-ssize_t ListPack::Next(size_t idx) const {
+std::optional<size_t> ListPack::Next(size_t idx) const {
   if (idx < kListPackHeaderSize || idx >= TotalBytes()) {
     throw std::out_of_range("index out of bound");
   }
   if (lp_[idx] == kListPackEof) {
-    return -1;
+    return std::nullopt;
   }
   size_t next_idx = Skip(idx);
-  return lp_[next_idx] != kListPackEof ? ToSSize(next_idx) : -1;
+  return lp_[next_idx] != kListPackEof ? std::optional<size_t>(next_idx)
+                                       : std::nullopt;
 }
 
-ssize_t ListPack::Prev(size_t idx) const {
+std::optional<size_t> ListPack::Prev(size_t idx) const {
   size_t listpack_bytes = TotalBytes();
   if (idx < kListPackHeaderSize || idx >= listpack_bytes) {
     throw std::out_of_range("index out of bound");
   }
   if (listpack_bytes <= kListPackHeaderSize + 1 || idx == kListPackHeaderSize) {
-    return -1;
+    return std::nullopt;
   }
   // Decode the backlen starting from the last byte of the previous element's
   // backlen.
   size_t backlen = DecodeBacklen(--idx);
   size_t backlen_bytes = BacklenBytes(backlen);
-  return ToSSize(idx - backlen - backlen_bytes + 1);
+  return idx - backlen - backlen_bytes + 1;
 }
 
 unsigned char* ListPack::StringAt(size_t idx, size_t* const len,
@@ -352,6 +380,12 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
   if (where == Position::kInsertAfter) {
     idx = Skip(idx);
   }
+  constexpr size_t kMaxStringEncodingOverhead = 10;
+  if (element_string != nullptr &&
+      element_string->size() >
+          std::numeric_limits<uint32_t>::max() - kMaxStringEncodingOverhead) {
+    return false;
+  }
   size_t backlen = 0;
   EncodingGeneralType encoding_type = EncodingGeneralType::kInteger;
   int64_t sval = (element_integer != nullptr) ? *element_integer : 0;
@@ -369,11 +403,12 @@ bool ListPack::Insert(size_t idx, ListPack::Position where,
     size_t cur_backlen_bytes = BacklenBytes(cur_backlen);
     replaced_bytes = cur_backlen + cur_backlen_bytes;
   }
-  size_t new_listpack_bytes =
-      listpack_bytes + backlen + backlen_bytes - replaced_bytes;
-  if (new_listpack_bytes > std::numeric_limits<uint32_t>::max()) {
+  const size_t retained_bytes = listpack_bytes - replaced_bytes;
+  const size_t encoded_bytes = backlen + backlen_bytes;
+  if (encoded_bytes > std::numeric_limits<uint32_t>::max() - retained_bytes) {
     return false;
   }
+  const size_t new_listpack_bytes = retained_bytes + encoded_bytes;
   // Grow before memmove so the destination range is valid.
   if (new_listpack_bytes > listpack_bytes) {
     Realloc(new_listpack_bytes);
@@ -413,9 +448,16 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
     idx = Skip(idx);
   }
   std::vector<Encoding> encodings;
+  encodings.reserve(entries.size());
   size_t inserted_bytes = 0;
   // Precompute encodings before resizing so insertion can be one memmove.
   for (const ListPackEntry& entry : entries) {
+    constexpr size_t kMaxStringEncodingOverhead = 10;
+    if (!entry.is_integer &&
+        entry.str.size() >
+            std::numeric_limits<uint32_t>::max() - kMaxStringEncodingOverhead) {
+      return false;
+    }
     size_t backlen = 0;
     int64_t sval = entry.sval;
     if (entry.is_integer || utils::ToInt64(entry.str, &sval)) {
@@ -434,9 +476,16 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
       encoding.backlen_bytes = BacklenBytes(backlen);
       encodings.push_back(encoding);
     }
-    inserted_bytes += (backlen + BacklenBytes(backlen));
+    const size_t entry_bytes = backlen + BacklenBytes(backlen);
+    if (entry_bytes > std::numeric_limits<size_t>::max() - inserted_bytes) {
+      return false;
+    }
+    inserted_bytes += entry_bytes;
   }
-  size_t new_listpack_bytes = listpack_bytes + inserted_bytes;
+  if (inserted_bytes > std::numeric_limits<uint32_t>::max() - listpack_bytes) {
+    return false;
+  }
+  const size_t new_listpack_bytes = listpack_bytes + inserted_bytes;
   // Total bytes is a 4 byte unsigned integer, so the maximum bytes for the
   // listpack is UINT32_MAX.
   if (new_listpack_bytes > std::numeric_limits<uint32_t>::max()) {
@@ -451,7 +500,8 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
                listpack_bytes - idx);
   // Update number of elements and total bytes.
   if (num_of_elements != kListPackNumEleUnknown) {
-    if (encodings.size() > kListPackNumEleUnknown - num_of_elements) {
+    if (static_cast<int64_t>(encodings.size()) >
+        kListPackNumEleUnknown - num_of_elements) {
       SetNumOfElements(kListPackNumEleUnknown);
     } else {
       SetNumOfElements(num_of_elements + entries.size());
@@ -471,7 +521,9 @@ bool ListPack::BatchInsert(size_t idx, ListPack::Position where,
 }
 
 uint32_t ListPack::TotalBytes() const {
-  return (lp_[0] << 24) | (lp_[1] << 16) | (lp_[2] << 8) | lp_[3];
+  return (static_cast<uint32_t>(lp_[0]) << 24) |
+         (static_cast<uint32_t>(lp_[1]) << 16) |
+         (static_cast<uint32_t>(lp_[2]) << 8) | static_cast<uint32_t>(lp_[3]);
 }
 
 void ListPack::SetTotalBytes(uint32_t listpack_bytes) {
@@ -489,9 +541,9 @@ size_t ListPack::Size() const {
   // Too many elements in the listpack, need to scan the entire listpack to get
   // the total number.
   size_t count = 0;
-  ssize_t idx = First();
-  while (idx != -1) {
-    idx = Next(idx);
+  auto idx = First();
+  while (idx.has_value()) {
+    idx = Next(*idx);
     ++count;
   }
   if (count < kListPackNumEleUnknown) {
@@ -525,16 +577,37 @@ size_t ListPack::Skip(size_t idx) const {
  * Estimate the bytes needed to store the same integer multiple times.
  */
 size_t ListPack::EstimateBytes(int64_t lval, size_t repeat) {
-  return ListPack::kListPackHeaderSize +
-         (EncodeInteger(nullptr, lval) * repeat) + 1;
+  const size_t encoded = EncodeInteger(nullptr, lval);
+  const size_t entry_bytes = encoded + BacklenBytes(encoded);
+  if (repeat > (std::numeric_limits<size_t>::max() - kListPackHeaderSize - 1) /
+                   entry_bytes) {
+    return std::numeric_limits<size_t>::max();
+  }
+  return kListPackHeaderSize + (entry_bytes * repeat) + 1;
+}
+
+size_t ListPack::EstimateEntryBytes(std::string_view value) {
+  int64_t integer = 0;
+  constexpr size_t kMaxStringEncodingOverhead = 10;
+  const bool is_integer = utils::ToInt64(value, &integer);
+  if (!is_integer && value.size() > std::numeric_limits<uint32_t>::max() -
+                                        kMaxStringEncodingOverhead) {
+    return std::numeric_limits<size_t>::max();
+  }
+  const size_t encoded = is_integer ? EncodeInteger(nullptr, integer)
+                                    : EncodeString(nullptr, value);
+  if (encoded > std::numeric_limits<size_t>::max() - BacklenBytes(encoded)) {
+    return std::numeric_limits<size_t>::max();
+  }
+  return encoded + BacklenBytes(encoded);
 }
 
 /*
  * Return whether adding bytes keeps the listpack within the safe size limit.
  */
 bool ListPack::SafeToAdd(const ListPack* const lp, size_t bytes) {
-  size_t len = (lp != nullptr) ? lp->TotalBytes() : 0;
-  return len + bytes <= ListPack::kListPackMaxSafetySize;
+  const size_t len = (lp != nullptr) ? lp->TotalBytes() : 0;
+  return len <= kListPackMaxSafetySize && bytes <= kListPackMaxSafetySize - len;
 }
 
 /*
@@ -604,7 +677,7 @@ size_t ListPack::Backlen(size_t idx) const {
  * Get number of bytes required to encode the back length.
  */
 uint8_t ListPack::BacklenBytes(size_t backlen) {
-  if (backlen >= 0 && backlen <= BacklenThreshold::kSize1ByteBacklenMax) {
+  if (backlen <= BacklenThreshold::kSize1ByteBacklenMax) {
     return 1;
   }
   if (backlen > BacklenThreshold::kSize1ByteBacklenMax &&

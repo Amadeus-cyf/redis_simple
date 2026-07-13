@@ -8,10 +8,12 @@
 #include <vector>
 
 #include "data_types/zset/zset.h"
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/reply/reply.h"
+#include "utils/float_utils.h"
 
 namespace redis_simple::command::zsets {
 namespace {
@@ -53,9 +55,7 @@ int ParseArgs(const CommandArgs& args, ZAddArgs* const zset_args) {
   for (size_t i = 1; i < args.size() - 1; i += 2) {
     std::string_view element = args[i + 1];
     double score = 0.0;
-    try {
-      score = stod(std::string(args[i]));
-    } catch (const std::exception&) {
+    if (!utils::ToDouble(args[i], &score)) {
       RS_LOG_DEBUG("invalid args format\n");
       return -1;
     }
@@ -68,7 +68,7 @@ std::optional<int64_t> ZAdd(db::RedisDb* redis_db, const ZAddArgs* args) {
   if (redis_db == nullptr || args == nullptr) {
     return std::nullopt;
   }
-  const auto* obj = redis_db->LookupKey(args->key);
+  auto* obj = redis_db->MutableLookupKey(args->key);
   if ((obj != nullptr) && obj->Type() != db::RedisObject::ObjectType::kZSet) {
     RS_LOG_DEBUG("incorrect value type\n");
     return std::nullopt;

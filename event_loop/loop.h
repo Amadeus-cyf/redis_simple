@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+#include <functional>
 #include <list>
 #include <memory>
 #include <vector>
@@ -49,9 +51,9 @@ enum class CallbackStatus {
 };
 
 // Return the readiness mask for fd, or 0 on timeout.
-int WaitForEvent(int fd, int mask, long timeout);
-inline int WaitForEvent(int fd, EventFlag mask, long timeout) {
-  return WaitForEvent(fd, ToInt(mask), timeout);
+int WaitForEvent(int fd, int mask, int64_t timeout_ms);
+inline int WaitForEvent(int fd, EventFlag mask, int64_t timeout_ms) {
+  return WaitForEvent(fd, ToInt(mask), timeout_ms);
 }
 
 class Loop {
@@ -65,18 +67,23 @@ class Loop {
     return DeleteFileEvent(fd, ToInt(mask));
   }
   void CreateTimeEvent(std::unique_ptr<TimeEvent> time_event);
+  void Defer(std::function<void()> callback);
   void ProcessEvents();
   ~Loop() = default;
 
  private:
-  static constexpr int kEventSize = 1024;
+  static constexpr int kMaxReadyEvents = 1024;
   explicit Loop(std::unique_ptr<EventPoller> event_poller);
   void ProcessFileEvents();
   void ProcessTimeEvents();
+  void ProcessDeferredCallbacks();
   std::vector<std::unique_ptr<FileEvent>> file_events_;
+  std::vector<std::unique_ptr<FileEvent>> retired_file_events_;
   std::list<std::unique_ptr<TimeEvent>> time_events_;
+  std::vector<std::function<void()>> deferred_callbacks_;
   std::unique_ptr<EventPoller> event_poller_;
-  int max_fd_;
+  size_t file_event_count_{};
+  bool processing_file_events_{false};
   bool stop_requested_{false};
 };
 }  // namespace redis_simple::event_loop

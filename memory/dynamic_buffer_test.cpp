@@ -103,8 +103,23 @@ TEST(DynamicBufferTest, Resize) {
   }
   ASSERT_EQ(buffer->Size(), 1024);
   buffer->Append(buf.data(), buf.size());
-  ASSERT_EQ(buffer->Capacity(), 18432);
+  ASSERT_EQ(buffer->Capacity(), 9216);
   ASSERT_EQ(buffer->Size(), 9216);
   ASSERT_EQ(buffer->Consumed(), 0);
+}
+
+TEST(DynamicBufferTest, ReusesConsumedCapacityBeforeGrowing) {
+  DynamicBuffer buffer;
+  const std::string first(3000, 'a');
+  buffer.Append(first.data(), first.size());
+  buffer.Consume(2500);
+
+  const std::string second(2000, 'b');
+  buffer.Append(second.data(), second.size());
+
+  EXPECT_EQ(buffer.Capacity(), 4096);
+  EXPECT_EQ(buffer.Consumed(), 0);
+  EXPECT_EQ(buffer.Size(), 2500);
+  EXPECT_EQ(buffer.View(), std::string(500, 'a') + second);
 }
 }  // namespace redis_simple::in_memory

@@ -13,6 +13,10 @@ constexpr size_t kTailInitialUsed = 1000 / 3;
 constexpr size_t kTailFillBytes = 1024 - kTailInitialUsed;
 constexpr size_t kRemainingBytes = 5000 - kTailFillBytes;
 
+std::string BlockString(const iovec& block) {
+  return {static_cast<const char*>(block.iov_base), block.iov_len};
+}
+
 std::unique_ptr<ReplyBuffer> MakeBufferWithMainBytes() {
   auto buf = std::make_unique<ReplyBuffer>();
   std::string s(2000, 'a');
@@ -86,21 +90,18 @@ TEST(ReplyBufferTest, AddToReplyList) {
 
   const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 5);
-  ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
+  ASSERT_EQ(BlockString(mem_vec[0]),
             std::string(2000, 'a').append(4096 - 2000, 'b'));
-  ASSERT_EQ(mem_vec[0].second, 4096);
-  ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
-            std::string(4096 - (4096 - 2000), 'b'));
-  ASSERT_EQ(mem_vec[1].second, 4096 - (4096 - 2000));
-  ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[2].second),
-            std::string(1024, 'c'));
-  ASSERT_EQ(mem_vec[2].second, 1024);
-  ASSERT_EQ(std::string(mem_vec[3].first, mem_vec[3].second),
+  ASSERT_EQ(mem_vec[0].iov_len, 4096);
+  ASSERT_EQ(BlockString(mem_vec[1]), std::string(4096 - (4096 - 2000), 'b'));
+  ASSERT_EQ(mem_vec[1].iov_len, 4096 - (4096 - 2000));
+  ASSERT_EQ(BlockString(mem_vec[2]), std::string(1024, 'c'));
+  ASSERT_EQ(mem_vec[2].iov_len, 1024);
+  ASSERT_EQ(BlockString(mem_vec[3]),
             std::string(1000, 'c') + std::string(24, 'd'));
-  ASSERT_EQ(mem_vec[3].second, 1024);
-  ASSERT_EQ(std::string(mem_vec[4].first, mem_vec[4].second),
-            std::string(1000, 'd'));
-  ASSERT_EQ(mem_vec[4].second, 1000);
+  ASSERT_EQ(mem_vec[3].iov_len, 1024);
+  ASSERT_EQ(BlockString(mem_vec[4]), std::string(1000, 'd'));
+  ASSERT_EQ(mem_vec[4].iov_len, 1000);
 }
 
 TEST(ReplyBufferTest, Consume) {
@@ -118,15 +119,14 @@ TEST(ReplyBufferTest, Consume) {
 
   const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 3);
-  ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
+  ASSERT_EQ(BlockString(mem_vec[0]),
             std::string(1024 - kExpectedSentAfterConsume, 'c'));
-  ASSERT_EQ(mem_vec[0].second, 1024 - kExpectedSentAfterConsume);
-  ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
+  ASSERT_EQ(mem_vec[0].iov_len, 1024 - kExpectedSentAfterConsume);
+  ASSERT_EQ(BlockString(mem_vec[1]),
             std::string(1000, 'c') + std::string(24, 'd'));
-  ASSERT_EQ(mem_vec[1].second, 1024);
-  ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[2].second),
-            std::string(1000, 'd'));
-  ASSERT_EQ(mem_vec[2].second, 1000);
+  ASSERT_EQ(mem_vec[1].iov_len, 1024);
+  ASSERT_EQ(BlockString(mem_vec[2]), std::string(1000, 'd'));
+  ASSERT_EQ(mem_vec[2].iov_len, 1000);
 }
 
 TEST(ReplyBufferTest, ConsumeListNodeInMultiplePartialWrites) {
@@ -137,15 +137,14 @@ TEST(ReplyBufferTest, ConsumeListNodeInMultiplePartialWrites) {
   ASSERT_EQ(buf->SentLength(), 300);
   auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 4);
-  ASSERT_EQ(mem_vec[0].second, 1700);
+  ASSERT_EQ(mem_vec[0].iov_len, 1700);
 
   buf->Consume(400);
   ASSERT_EQ(buf->SentLength(), 700);
   mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 4);
-  ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
-            std::string(1300, 'b'));
-  ASSERT_EQ(mem_vec[0].second, 1300);
+  ASSERT_EQ(BlockString(mem_vec[0]), std::string(1300, 'b'));
+  ASSERT_EQ(mem_vec[0].iov_len, 1300);
 }
 
 TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
@@ -163,17 +162,16 @@ TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
 
   const auto mem_vec = buf->Blocks();
   ASSERT_EQ(mem_vec.size(), 4);
-  ASSERT_EQ(std::string(mem_vec[0].first, mem_vec[0].second),
+  ASSERT_EQ(BlockString(mem_vec[0]),
             std::string(1024 - kExpectedSentAfterConsume, 'c'));
-  ASSERT_EQ(mem_vec[0].second, 1024 - kExpectedSentAfterConsume);
-  ASSERT_EQ(std::string(mem_vec[1].first, mem_vec[1].second),
+  ASSERT_EQ(mem_vec[0].iov_len, 1024 - kExpectedSentAfterConsume);
+  ASSERT_EQ(BlockString(mem_vec[1]),
             std::string(1000, 'c') + std::string(24, 'd'));
-  ASSERT_EQ(mem_vec[1].second, 1024);
-  ASSERT_EQ(std::string(mem_vec[2].first, mem_vec[2].second),
+  ASSERT_EQ(mem_vec[1].iov_len, 1024);
+  ASSERT_EQ(BlockString(mem_vec[2]),
             std::string(kTailInitialUsed, 'd').append(kTailFillBytes, 'e'));
-  ASSERT_EQ(mem_vec[2].second, 1024);
-  ASSERT_EQ(std::string(mem_vec[3].first, mem_vec[3].second),
-            std::string(kRemainingBytes, 'e'));
-  ASSERT_EQ(mem_vec[3].second, kRemainingBytes);
+  ASSERT_EQ(mem_vec[2].iov_len, 1024);
+  ASSERT_EQ(BlockString(mem_vec[3]), std::string(kRemainingBytes, 'e'));
+  ASSERT_EQ(mem_vec[3].iov_len, kRemainingBytes);
 }
 }  // namespace redis_simple::in_memory

@@ -13,6 +13,11 @@ TEST(DictStrTest, Init) {
   ASSERT_EQ(dict_str->Size(), 0);
 }
 
+TEST(DictStrTest, CustomDictionaryRequiresHashFunction) {
+  const Dict<std::string, std::string>::DictType type;
+  EXPECT_EQ((Dict<std::string, std::string>::Create(type)), nullptr);
+}
+
 TEST(DictStrTest, Insert) {
   auto dict_str = Dict<std::string, std::string>::Create();
   auto status = dict_str->Insert("key", "val");

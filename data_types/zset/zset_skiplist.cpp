@@ -1,5 +1,6 @@
 #include "data_types/zset/zset_skiplist.h"
 
+#include <cmath>
 #include <string>
 #include <string_view>
 
@@ -10,6 +11,9 @@ ZSetSkiplist::ZSetSkiplist()
                                                Comparator(), Destructor())) {}
 
 bool ZSetSkiplist::InsertOrUpdate(std::string_view key, double score) {
+  if (std::isnan(score)) {
+    return false;
+  }
   const auto* current_score = dict_->FindValue(key);
   if (current_score != nullptr && *current_score == score) {
     // If the key exists and there is no change in score, do nothing.
@@ -49,15 +53,17 @@ bool ZSetSkiplist::Delete(std::string_view key) {
     return false;
   }
   const ZSetEntry ze(key, *score);
-  [[maybe_unused]] const bool dict_deleted = dict_->Delete(std::string(key));
-  assert(dict_deleted);
-  bool deleted = skiplist_->Delete(&ze);
-  if (deleted &&
-      ((min_key_.has_value() && std::string_view(*min_key_) == key) ||
+  if (!skiplist_->Delete(&ze)) {
+    return false;
+  }
+  if (!dict_->Delete(key)) {
+    return false;
+  }
+  if (((min_key_.has_value() && std::string_view(*min_key_) == key) ||
        (max_key_.has_value() && std::string_view(*max_key_) == key))) {
     RecomputeMinMaxKeys();
   }
-  return deleted;
+  return true;
 }
 
 std::optional<size_t> ZSetSkiplist::Rank(std::string_view key) const {
@@ -74,12 +80,16 @@ ZSetEntryList ZSetSkiplist::RangeByRank(const RangeByRankSpec* spec) const {
     return {};
   }
   const auto skiplist_spec = ToSkiplistRangeByRankSpec(spec);
+  if (skiplist_spec == nullptr) {
+    return {};
+  }
   return spec->reverse ? skiplist_->RevRangeByRank(skiplist_spec.get())
                        : skiplist_->RangeByRank(skiplist_spec.get());
 }
 
 ZSetEntryList ZSetSkiplist::RangeByScore(const RangeByScoreSpec* spec) const {
-  if ((spec == nullptr) || Size() == 0) {
+  if (spec == nullptr || Size() == 0 || spec->min > spec->max ||
+      (spec->min == spec->max && (spec->minex || spec->maxex))) {
     return {};
   }
   const auto skiplist_spec = ToSkiplistRangeByKeySpec(spec);
@@ -88,7 +98,8 @@ ZSetEntryList ZSetSkiplist::RangeByScore(const RangeByScoreSpec* spec) const {
 }
 
 size_t ZSetSkiplist::Count(const RangeByScoreSpec* spec) const {
-  if ((spec == nullptr) || Size() == 0) {
+  if (spec == nullptr || Size() == 0 || spec->min > spec->max ||
+      (spec->min == spec->max && (spec->minex || spec->maxex))) {
     return 0;
   }
   const auto skiplist_spec = ToSkiplistRangeByKeySpec(spec);
@@ -97,18 +108,28 @@ size_t ZSetSkiplist::Count(const RangeByScoreSpec* spec) const {
 
 ZSetSkiplist::RankSpecPtr ZSetSkiplist::ToSkiplistRangeByRankSpec(
     const RangeByRankSpec* spec) const {
-  if (spec == nullptr) {
+  if (spec == nullptr ||
+      Size() > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+    return {nullptr};
+  }
+  const auto size = static_cast<int64_t>(Size());
+  const auto normalize_rank = [size](int64_t rank) -> std::optional<size_t> {
+    if (rank < -size) {
+      return std::nullopt;
+    }
+    if (rank < 0) {
+      rank += size;
+    }
+    return static_cast<size_t>(rank);
+  };
+  const auto min = normalize_rank(spec->min);
+  const auto max = normalize_rank(spec->max);
+  if (!min.has_value() || !max.has_value()) {
     return {nullptr};
   }
   auto skiplist_spec = RankSpecPtr(new SkiplistRangeByRankSpec());
-  // Use overflow to check if the index is still negative after rebase.
-  if ((spec->min < 0 && spec->min + Size() > Size()) ||
-      (spec->max < 0 && spec->max + Size() > Size())) {
-    // The index is still negative after rebase.
-    return {nullptr};
-  }
-  skiplist_spec->min = spec->min < 0 ? (spec->min + Size()) : spec->min;
-  skiplist_spec->max = spec->max < 0 ? (spec->max + Size()) : spec->max;
+  skiplist_spec->min = *min;
+  skiplist_spec->max = *max;
   skiplist_spec->minex = spec->minex;
   skiplist_spec->maxex = spec->maxex;
   if (spec->limit) {

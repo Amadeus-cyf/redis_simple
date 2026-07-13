@@ -24,6 +24,11 @@ enum class TtlResolution {
   kMilliseconds,
 };
 
+struct ExpireSampleResult {
+  size_t sampled{};
+  size_t expired{};
+};
+
 constexpr int ToInt(SetKeyFlag flag) { return static_cast<int>(flag); }
 constexpr bool HasFlag(int flags, SetKeyFlag flag) {
   return (flags & ToInt(flag)) != 0;
@@ -44,17 +49,13 @@ class RedisDb {
   int64_t TimeToLive(std::string_view key, TtlResolution resolution);
   size_t KeyCount() const { return dict_->Size(); }
   void Flush();
-  bool ScanExpires(
-      in_memory::Dict<std::string, int64_t>::DictScanFunc callback);
-  double ExpiredPercentage() const {
-    return dict_->Size() > 0 ? (double)expires_->Size() / dict_->Size() : 0.0;
-  };
+  ExpireSampleResult ExpireSome(size_t max_samples, int64_t now);
 
  private:
   RedisDb();
   bool IsKeyExpired(std::string_view key) const;
   std::unique_ptr<in_memory::Dict<std::string, RedisObjectPtr>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
-  ssize_t expire_cursor_;
+  size_t expire_cursor_{};
 };
 }  // namespace redis_simple::db

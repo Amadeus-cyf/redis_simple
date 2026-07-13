@@ -4,44 +4,82 @@
 
 namespace redis_simple::db {
 const std::string& RedisObject::String() const {
-  if (type_ != ObjectType::kString) {
+  const auto* value = std::get_if<std::string>(&value_);
+  if (value == nullptr) {
     throw std::invalid_argument("value type is not string");
   }
-  return std::get<std::string>(value_);
+  return *value;
 }
 
 std::string* RedisObject::MutableString() {
-  if (type_ != ObjectType::kString) {
+  auto* value = std::get_if<std::string>(&value_);
+  if (value == nullptr) {
     throw std::invalid_argument("value type is not string");
   }
-  return &std::get<std::string>(value_);
+  return value;
 }
 
-set::Set* RedisObject::Set() const {
-  if (type_ != ObjectType::kSet) {
+set::Set* RedisObject::Set() {
+  auto* value = std::get_if<SetPtr>(&value_);
+  if (value == nullptr) {
     throw std::invalid_argument("value type is not set");
   }
-  return std::get<SetPtr>(value_).get();
+  return value->get();
 }
 
-list::List* RedisObject::List() const {
-  if (type_ != ObjectType::kList) {
+const set::Set* RedisObject::Set() const {
+  const auto* value = std::get_if<SetPtr>(&value_);
+  if (value == nullptr) {
+    throw std::invalid_argument("value type is not set");
+  }
+  return value->get();
+}
+
+list::List* RedisObject::List() {
+  auto* value = std::get_if<ListPtr>(&value_);
+  if (value == nullptr) {
     throw std::invalid_argument("value type is not list");
   }
-  return std::get<ListPtr>(value_).get();
+  return value->get();
 }
 
-zset::ZSet* RedisObject::ZSet() const {
-  if (type_ != ObjectType::kZSet) {
+const list::List* RedisObject::List() const {
+  const auto* value = std::get_if<ListPtr>(&value_);
+  if (value == nullptr) {
+    throw std::invalid_argument("value type is not list");
+  }
+  return value->get();
+}
+
+zset::ZSet* RedisObject::ZSet() {
+  auto* value = std::get_if<ZSetPtr>(&value_);
+  if (value == nullptr) {
     throw std::invalid_argument("value type is not zset");
   }
-  return std::get<ZSetPtr>(value_).get();
+  return value->get();
 }
 
-hash::Hash* RedisObject::Hash() const {
-  if (type_ != ObjectType::kHash) {
+const zset::ZSet* RedisObject::ZSet() const {
+  const auto* value = std::get_if<ZSetPtr>(&value_);
+  if (value == nullptr) {
+    throw std::invalid_argument("value type is not zset");
+  }
+  return value->get();
+}
+
+hash::Hash* RedisObject::Hash() {
+  auto* value = std::get_if<HashPtr>(&value_);
+  if (value == nullptr) {
     throw std::invalid_argument("value type is not hash");
   }
-  return std::get<HashPtr>(value_).get();
+  return value->get();
+}
+
+const hash::Hash* RedisObject::Hash() const {
+  const auto* value = std::get_if<HashPtr>(&value_);
+  if (value == nullptr) {
+    throw std::invalid_argument("value type is not hash");
+  }
+  return value->get();
 }
 }  // namespace redis_simple::db

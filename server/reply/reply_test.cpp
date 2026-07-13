@@ -39,5 +39,7 @@ TEST(ReplyTest, FromArray) {
 TEST(ReplyTest, FromError) {
   ASSERT_EQ(FromError("ERR syntax error"), "-ERR syntax error\r\n");
   ASSERT_EQ(WrongNumberOfArguments(), "-ERR wrong number of arguments\r\n");
+  ASSERT_EQ(UnknownCommand("NOTACOMMAND"),
+            "-ERR unknown command 'NOTACOMMAND'\r\n");
 }
 }  // namespace redis_simple::reply

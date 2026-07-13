@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 
@@ -12,8 +13,8 @@ namespace redis_simple::set {
 Set::Set()
     : encoding_(Encoding::kIntSet),
       intset_(nullptr),
-      dict_(nullptr),
-      listpack_(nullptr) {}
+      listpack_(nullptr),
+      dict_(nullptr) {}
 
 bool Set::Add(std::string_view value) {
   if (encoding_ == Encoding::kIntSet) {
@@ -44,7 +45,7 @@ bool Set::HasMember(std::string_view value) const {
     return intset_->Find(int_val);
   }
   if (encoding_ == Encoding::kListPack) {
-    return listpack_->Find(value) != -1;
+    return listpack_->Find(value).has_value();
   }
   if (encoding_ == Encoding::kDict) {
     return dict_->FindValue(value) != nullptr;
@@ -74,15 +75,15 @@ bool Set::Remove(std::string_view value) {
     return false;
   }
   if (encoding_ == Encoding::kListPack) {
-    ssize_t idx = listpack_->Find(value);
-    if (idx < 0) {
+    const auto idx = listpack_->Find(value);
+    if (!idx.has_value()) {
       return false;
     }
-    listpack_->Delete(idx);
+    listpack_->Delete(*idx);
     return true;
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->Delete(std::string(value));
+    return dict_->Delete(value);
   }
   throw std::invalid_argument("unknown encoding type");
 }
@@ -133,13 +134,14 @@ bool Set::IntSetAddAndMaybeConvert(std::string_view value) {
 }
 
 bool Set::ListPackAddAndMaybeConvert(std::string_view value) {
-  size_t len = value.size();
-  if (listpack_->Find(value) != -1) {
+  const size_t len = value.size();
+  if (listpack_->Find(value).has_value()) {
     return false;
   }
   if (listpack_->Size() < kListPackMaxEntries &&
       len <= kListPackElementMaxLength &&
-      in_memory::ListPack::SafeToAdd(listpack_.get(), len)) {
+      in_memory::ListPack::SafeToAdd(
+          listpack_.get(), in_memory::ListPack::EstimateEntryBytes(value))) {
     return listpack_->Append(value);
   }
   ConvertListPackToDict(listpack_->Size() + 1);
@@ -152,7 +154,7 @@ bool Set::ListPackAddAndMaybeConvert(std::string_view value) {
 
 bool Set::DictAdd(std::string_view value) {
   if (!dict_) {
-    dict_ = in_memory::Dict<std::string, nullptr_t>::Create();
+    dict_ = in_memory::Dict<std::string, std::nullptr_t>::Create();
   }
   if (dict_->FindValue(value) != nullptr) {
     return false;
@@ -171,7 +173,7 @@ void Set::MaybeConvertIntsetToDict() {
 void Set::ConvertIntSetToDict(size_t capacity) {
   assert(encoding_ == Encoding::kIntSet);
   encoding_ = Encoding::kDict;
-  dict_ = in_memory::Dict<std::string, nullptr_t>::Create(capacity);
+  dict_ = in_memory::Dict<std::string, std::nullptr_t>::Create(capacity);
   if (!intset_) {
     return;
   }
@@ -189,6 +191,7 @@ bool Set::MaybeConvertIntSetToListPack(std::string_view val) {
   size_t len = val.size();
   size_t max_integer_length = 0;
   size_t estimated_bytes = 0;
+  const size_t entry_bytes = in_memory::ListPack::EstimateEntryBytes(val);
   int64_t estimated_integer = 0;
   if (intset_) {
     int64_t max_integer = intset_->Max();
@@ -205,7 +208,9 @@ bool Set::MaybeConvertIntSetToListPack(std::string_view val) {
       (intset_->Size() < kListPackMaxEntries &&
        len <= kListPackElementMaxLength &&
        max_integer_length <= kListPackElementMaxLength &&
-       in_memory::ListPack::SafeToAdd(nullptr, estimated_bytes + len))) {
+       estimated_bytes <= std::numeric_limits<size_t>::max() - entry_bytes &&
+       in_memory::ListPack::SafeToAdd(nullptr,
+                                      estimated_bytes + entry_bytes))) {
     ConvertIntSetToListPack(val);
     return true;
   }
@@ -229,17 +234,17 @@ void Set::ConvertIntSetToListPack(std::string_view val) {
 void Set::ConvertListPackToDict(size_t capacity) {
   assert(encoding_ == Encoding::kListPack);
   encoding_ = Encoding::kDict;
-  dict_ = in_memory::Dict<std::string, nullptr_t>::Create(capacity);
+  dict_ = in_memory::Dict<std::string, std::nullptr_t>::Create(capacity);
   if (!listpack_) {
     return;
   }
-  ssize_t idx = listpack_->First();
-  while (idx != -1) {
-    const auto string_result = listpack_->Get(idx);
+  auto idx = listpack_->First();
+  while (idx.has_value()) {
+    auto string_result = listpack_->Get(*idx);
     if (string_result.has_value()) {
-      dict_->Set(*string_result, nullptr);
+      dict_->Set(std::move(*string_result), nullptr);
     }
-    idx = listpack_->Next(idx);
+    idx = listpack_->Next(*idx);
   }
   listpack_.reset();
 }

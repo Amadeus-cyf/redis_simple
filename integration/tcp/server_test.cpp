@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 
+#include "logging/logger.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple {

@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cli/cli.h"
+#include "logging/logger.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple {
@@ -51,6 +52,7 @@ int Run() {
   }
 
   const std::vector<Case> cases = {
+      {"NOTACOMMAND\r\n", "ERR unknown command 'NOTACOMMAND'\n"},
       {"TYPE missing_key\r\n", "none\n"},
       {"EXISTS missing_key\r\n", "0\n"},
       {"SET key_string value\r\n", "1\n"},

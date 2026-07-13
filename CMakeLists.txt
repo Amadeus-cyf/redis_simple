@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 project(redis_simple LANGUAGES C CXX)
 
+option(REDIS_SIMPLE_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -14,6 +16,14 @@ add_custom_target(
   COMMAND "${CMAKE_SOURCE_DIR}/scripts/format.sh"
   WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
   COMMENT "Format project C++ sources with clang-format"
+  VERBATIM
+)
+
+add_custom_target(
+  check-format
+  COMMAND "${CMAKE_SOURCE_DIR}/scripts/format.sh" --check
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  COMMENT "Check project C++ source formatting"
   VERBATIM
 )
 
@@ -39,12 +49,17 @@ endfunction()
 function(redis_simple_configure_target target)
   target_compile_features(${target} PRIVATE cxx_std_17)
   target_include_directories(${target} PRIVATE ${CMAKE_SOURCE_DIR})
-  target_compile_options(
-    ${target}
-    PRIVATE
-      $<$<COMPILE_LANGUAGE:CXX>:-include>
-      $<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SOURCE_DIR}/logging/logger.h>
-  )
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /W4)
+    if(REDIS_SIMPLE_WARNINGS_AS_ERRORS)
+      target_compile_options(${target} PRIVATE /WX)
+    endif()
+  else()
+    target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    if(REDIS_SIMPLE_WARNINGS_AS_ERRORS)
+      target_compile_options(${target} PRIVATE -Werror)
+    endif()
+  endif()
   if(TARGET spdlog::spdlog)
     target_compile_definitions(${target} PRIVATE REDIS_SIMPLE_USE_SPDLOG)
     target_link_libraries(${target} PRIVATE spdlog::spdlog)
@@ -107,12 +122,14 @@ enable_testing()
 
 redis_simple_collect_sources(REDIS_SIMPLE_UNIT_TEST_SOURCES
   cli
+  connection
   event_loop
   memory
   server/commands
   server/db
   server/reply
   data_types
+  tcp
   utils
 )
 list(FILTER REDIS_SIMPLE_UNIT_TEST_SOURCES INCLUDE REGEX "_test\\.cpp$")
@@ -156,6 +173,8 @@ redis_simple_add_gtest_suite(ZSetEncodingTest)
 redis_simple_add_gtest_suite(RespParserTest)
 redis_simple_add_gtest_suite(ReplyParserTest)
 redis_simple_add_gtest_suite(ReplyParseTest)
+redis_simple_add_gtest_suite(ConnectionTest)
+redis_simple_add_gtest_suite(TcpTest)
 
 redis_simple_add_executable(mock_tcp_server "integration/tcp/server_test.cpp")
 target_link_libraries(mock_tcp_server PRIVATE redis_simple_core)

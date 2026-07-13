@@ -1,6 +1,4 @@
-#include <cstdint>
-#include <string>
-#include <vector>
+#include "utils/int_utils.h"
 
 namespace redis_simple::utils {
 uint32_t Digits10(uint64_t v) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 
@@ -25,7 +26,7 @@ struct RangeByRankSpec {
         maxex(false),
         limit(nullptr),
         reverse(false) {}
-  RangeByRankSpec(long min, long max, bool minex, bool maxex,
+  RangeByRankSpec(int64_t min, int64_t max, bool minex, bool maxex,
                   std::unique_ptr<LimitSpec> limit = nullptr,
                   bool reverse = false)
       : min(min),
@@ -35,7 +36,7 @@ struct RangeByRankSpec {
         limit(std::move(limit)),
         reverse(reverse) {}
   // 0-based index
-  long min, max;
+  int64_t min, max;
   // Are min or max exclusive?
   bool minex, maxex;
   // Starting offset and count

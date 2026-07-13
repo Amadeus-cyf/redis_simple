@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cli/cli.h"
+#include "logging/logger.h"
 
 namespace redis_simple {
 namespace {
@@ -149,6 +150,15 @@ int Run() {
   }
   if (!ExpectPairs(&cli, "HGETALL integration_hash_long\r\n",
                    {{"field", long_value}})) {
+    return EXIT_FAILURE;
+  }
+
+  const std::string fragmented_value(8192, 'f');
+  if (!ExpectReply(&cli, {"HSET integration_hash_fragmented field " +
+                              fragmented_value + "\r\n",
+                          "1\n"}) ||
+      !ExpectReply(&cli, {"HGET integration_hash_fragmented field\r\n",
+                          fragmented_value + "\n"})) {
     return EXIT_FAILURE;
   }
 

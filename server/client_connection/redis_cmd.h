@@ -7,8 +7,7 @@ namespace redis_simple::client_connection {
 // Lightweight command formatter used by integration helpers.
 class RedisCommand {
  public:
-  explicit RedisCommand(std::string name, const std::vector<std::string>& args =
-                                              std::vector<std::string>{});
+  explicit RedisCommand(std::string name, std::vector<std::string> args = {});
   const std::string& Name() const { return name_; }
   const std::vector<std::string>& Args() const { return args_; }
   std::string String() const;

@@ -1,285 +1,268 @@
-#include "resp_parser.h"
+#include "cli/resp_parser.h"
 
+#include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <limits>
+#include <string>
 #include <string_view>
+
+#include "utils/string_utils.h"
 
 namespace redis_simple::cli::resp_parser {
 namespace {
-struct Prefix {
-  static constexpr char kStringPrefix = '+';
-  static constexpr char kBulkStringPrefix = '$';
-  static constexpr char kInt64Prefix = ':';
-  static constexpr char kArrayPrefix = '*';
-  static constexpr char kDoublePrefix = ',';
-  static constexpr char kNullPrefix = '_';
-  static constexpr char kErrorPrefix = '-';
-};
+constexpr std::string_view kNilReply = "(nil)";
 
-constexpr std::string_view kNilResp = "(nil)";
-
-ssize_t Parse(const std::string& resp, size_t start,
-              std::vector<std::string>* reply);
-ssize_t FindCRLF(const std::string& resp, size_t start);
-ssize_t ParseString(const std::string& resp, size_t start,
+ParseResult ParseAt(std::string_view resp, size_t start,
                     std::vector<std::string>* reply);
-ssize_t ParseBulkString(const std::string& resp, size_t start,
-                        std::vector<std::string>* reply);
-ssize_t ParseInt64(const std::string& resp, size_t start,
-                   std::vector<std::string>* reply);
-ssize_t ParseArray(const std::string& resp, size_t start,
-                   std::vector<std::string>* reply);
-ssize_t ParseNull(const std::string& resp, size_t start,
-                  std::vector<std::string>* reply);
-ssize_t ParseFloat(const std::string& resp, size_t start,
-                   std::vector<std::string>* reply);
 
-bool IsSign(char c) { return c == '+' || c == '-'; }
-
-ssize_t ToSSize(size_t value) {
-  if (value > static_cast<size_t>(std::numeric_limits<ssize_t>::max())) {
-    return -1;
+ParseResult FindLineEnd(std::string_view resp, size_t start) {
+  const size_t end = resp.find('\r', start);
+  if (end == std::string_view::npos || end + 1 >= resp.size()) {
+    return {ParseStatus::kIncomplete, 0};
   }
-  return static_cast<ssize_t>(value);
+  if (resp[end + 1] != '\n') {
+    return {ParseStatus::kInvalid, 0};
+  }
+  return {ParseStatus::kComplete, end};
 }
 
-ssize_t Parse(const std::string& resp, size_t start,
-              std::vector<std::string>* const reply) {
-  if (resp.size() < 2 || start > resp.size() - 2 ||
-      resp[resp.size() - 2] != '\r' || resp[resp.size() - 1] != '\n') {
-    return -1;
+bool ParseSize(std::string_view value, size_t* const result) {
+  if (value.empty()) {
+    return false;
+  }
+  size_t parsed = 0;
+  for (const char character : value) {
+    if (std::isdigit(static_cast<unsigned char>(character)) == 0) {
+      return false;
+    }
+    const auto digit = static_cast<size_t>(character - '0');
+    if (parsed > (std::numeric_limits<size_t>::max() - digit) / 10) {
+      return false;
+    }
+    parsed = (parsed * 10) + digit;
+  }
+  *result = parsed;
+  return true;
+}
+
+ParseResult ParseLine(std::string_view resp, size_t start,
+                      std::vector<std::string>* const reply) {
+  const auto line = FindLineEnd(resp, start + 1);
+  if (line.status != ParseStatus::kComplete) {
+    return line;
+  }
+  reply->emplace_back(resp.substr(start + 1, line.consumed - start - 1));
+  return {ParseStatus::kComplete, line.consumed - start + 2};
+}
+
+ParseResult ParseBulkString(std::string_view resp, size_t start,
+                            std::vector<std::string>* const reply) {
+  const auto header = FindLineEnd(resp, start + 1);
+  if (header.status != ParseStatus::kComplete) {
+    return header;
+  }
+  size_t length = 0;
+  if (!ParseSize(resp.substr(start + 1, header.consumed - start - 1),
+                 &length)) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  const size_t content_start = header.consumed + 2;
+  if (length > std::numeric_limits<size_t>::max() - content_start - 2) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  const size_t response_end = content_start + length + 2;
+  if (response_end > resp.size()) {
+    return {ParseStatus::kIncomplete, 0};
+  }
+  if (resp[response_end - 2] != '\r' || resp[response_end - 1] != '\n') {
+    return {ParseStatus::kInvalid, 0};
+  }
+  reply->emplace_back(resp.substr(content_start, length));
+  return {ParseStatus::kComplete, response_end - start};
+}
+
+ParseResult ParseInteger(std::string_view resp, size_t start,
+                         std::vector<std::string>* const reply) {
+  const auto line = FindLineEnd(resp, start + 1);
+  if (line.status != ParseStatus::kComplete) {
+    return line;
+  }
+  int64_t value = 0;
+  if (!utils::ToInt64(resp.substr(start + 1, line.consumed - start - 1),
+                      &value)) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  reply->push_back(std::to_string(value));
+  return {ParseStatus::kComplete, line.consumed - start + 2};
+}
+
+ParseResult ParseArray(std::string_view resp, size_t start,
+                       std::vector<std::string>* const reply) {
+  const auto header = FindLineEnd(resp, start + 1);
+  if (header.status != ParseStatus::kComplete) {
+    return header;
+  }
+  size_t length = 0;
+  if (!ParseSize(resp.substr(start + 1, header.consumed - start - 1),
+                 &length)) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  size_t consumed = header.consumed - start + 2;
+  for (size_t index = 0; index < length; ++index) {
+    const auto element = ParseAt(resp, start + consumed, reply);
+    if (element.status != ParseStatus::kComplete) {
+      return element;
+    }
+    if (element.consumed > std::numeric_limits<size_t>::max() - consumed) {
+      return {ParseStatus::kInvalid, 0};
+    }
+    consumed += element.consumed;
+  }
+  reply->emplace_back("\n");
+  return {ParseStatus::kComplete, consumed};
+}
+
+ParseResult ParseNull(std::string_view resp, size_t start,
+                      std::vector<std::string>* const reply) {
+  const auto line = FindLineEnd(resp, start + 1);
+  if (line.status != ParseStatus::kComplete) {
+    return line;
+  }
+  if (line.consumed != start + 1) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  reply->emplace_back(kNilReply);
+  return {ParseStatus::kComplete, 3};
+}
+
+bool ParseFloatText(std::string_view value, std::string* const rendered) {
+  bool negative = false;
+  if (!value.empty() && (value.front() == '+' || value.front() == '-')) {
+    negative = value.front() == '-';
+    value.remove_prefix(1);
+  }
+  if (value.empty()) {
+    return false;
+  }
+
+  const size_t exponent_pos = value.find_first_of("eE");
+  if (exponent_pos != std::string_view::npos &&
+      value.find_first_of("eE", exponent_pos + 1) != std::string_view::npos) {
+    return false;
+  }
+  std::string_view mantissa = value.substr(0, exponent_pos);
+  std::string_view exponent = exponent_pos == std::string_view::npos
+                                  ? std::string_view()
+                                  : value.substr(exponent_pos + 1);
+  const size_t decimal_pos = mantissa.find('.');
+  if (decimal_pos != std::string_view::npos &&
+      mantissa.find('.', decimal_pos + 1) != std::string_view::npos) {
+    return false;
+  }
+  std::string_view integral = mantissa.substr(0, decimal_pos);
+  std::string_view fractional = decimal_pos == std::string_view::npos
+                                    ? std::string_view()
+                                    : mantissa.substr(decimal_pos + 1);
+  if (integral.empty() && fractional.empty()) {
+    return false;
+  }
+  const auto all_digits = [](std::string_view text) {
+    return std::all_of(text.begin(), text.end(), [](unsigned char character) {
+      return std::isdigit(character) != 0;
+    });
+  };
+  if ((!integral.empty() && !all_digits(integral)) ||
+      (!fractional.empty() && !all_digits(fractional))) {
+    return false;
+  }
+
+  bool negative_exponent = false;
+  if (exponent_pos != std::string_view::npos) {
+    if (!exponent.empty() &&
+        (exponent.front() == '+' || exponent.front() == '-')) {
+      negative_exponent = exponent.front() == '-';
+      exponent.remove_prefix(1);
+    }
+    if (exponent.empty() || !all_digits(exponent)) {
+      return false;
+    }
+  }
+
+  while (integral.size() > 1 && integral.front() == '0') {
+    integral.remove_prefix(1);
+  }
+  while (!fractional.empty() && fractional.back() == '0') {
+    fractional.remove_suffix(1);
+  }
+  while (exponent.size() > 1 && exponent.front() == '0') {
+    exponent.remove_prefix(1);
+  }
+
+  if (negative) {
+    rendered->push_back('-');
+  }
+  rendered->append(integral.empty() ? "0" : integral);
+  if (!fractional.empty()) {
+    rendered->push_back('.');
+    rendered->append(fractional);
+  }
+  if (!exponent.empty() && exponent != "0") {
+    rendered->push_back('e');
+    if (negative_exponent) {
+      rendered->push_back('-');
+    }
+    rendered->append(exponent);
+  }
+  return true;
+}
+
+ParseResult ParseFloat(std::string_view resp, size_t start,
+                       std::vector<std::string>* const reply) {
+  const auto line = FindLineEnd(resp, start + 1);
+  if (line.status != ParseStatus::kComplete) {
+    return line;
+  }
+  std::string rendered;
+  if (!ParseFloatText(resp.substr(start + 1, line.consumed - start - 1),
+                      &rendered)) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  reply->push_back(std::move(rendered));
+  return {ParseStatus::kComplete, line.consumed - start + 2};
+}
+
+ParseResult ParseAt(std::string_view resp, size_t start,
+                    std::vector<std::string>* const reply) {
+  if (start >= resp.size()) {
+    return {ParseStatus::kIncomplete, 0};
   }
   switch (resp[start]) {
-    case Prefix::kStringPrefix:
-    case Prefix::kErrorPrefix:
-      return ParseString(resp, start, reply);
-    case Prefix::kBulkStringPrefix:
+    case '+':
+    case '-':
+      return ParseLine(resp, start, reply);
+    case '$':
       return ParseBulkString(resp, start, reply);
-    case Prefix::kInt64Prefix:
-      return ParseInt64(resp, start, reply);
-    case Prefix::kArrayPrefix:
+    case ':':
+      return ParseInteger(resp, start, reply);
+    case '*':
       return ParseArray(resp, start, reply);
-    case Prefix::kNullPrefix:
+    case '_':
       return ParseNull(resp, start, reply);
-    case Prefix::kDoublePrefix:
+    case ',':
       return ParseFloat(resp, start, reply);
     default:
-      return -1;
+      return {ParseStatus::kInvalid, 0};
   }
-}
-
-ssize_t FindCRLF(const std::string& resp, size_t start) {
-  start = resp.find_first_of('\r', start);
-  if (start == std::string::npos) {
-    return -1;
-  }
-  if (start < resp.size() - 1 && resp[start + 1] == '\n') {
-    return ToSSize(start);
-  }
-  return -1;
-}
-
-ssize_t ParseString(const std::string& resp, size_t start,
-                    std::vector<std::string>* const reply) {
-  ssize_t i = FindCRLF(resp, start);
-  if (i < 0) {
-    return -1;
-  }
-  const auto end = static_cast<size_t>(i);
-  reply->push_back(resp.substr(start + 1, end - start - 1));
-  return ToSSize(end - start + 2);
-}
-
-ssize_t ParseBulkString(const std::string& resp, size_t start,
-                        std::vector<std::string>* const reply) {
-  ssize_t i = FindCRLF(resp, start);
-  if (i < 0) {
-    return -1;
-  }
-  const auto end = static_cast<size_t>(i);
-  size_t len = 0;
-  bool has_digit = false;
-  for (size_t j = start + 1; j < end; ++j) {
-    if (std::isdigit(static_cast<unsigned char>(resp[j])) == 0) {
-      return -1;
-    }
-    has_digit = true;
-    len = (len * 10) + (resp[j] - '0');
-  }
-  if (!has_digit) {
-    return -1;
-  }
-  if (len > resp.size() || end + 2 > resp.size() - len) {
-    return -1;
-  }
-  const size_t expected_end = end + len + 2;
-  size_t next_end = end;
-  while (next_end < expected_end) {
-    const ssize_t found = FindCRLF(resp, next_end + 2);
-    if (found < 0) {
-      return -1;
-    }
-    next_end = static_cast<size_t>(found);
-  }
-  if (next_end != expected_end) {
-    return -1;
-  }
-  reply->push_back(resp.substr(end + 2, len));
-  return ToSSize(next_end - start + 2);
-}
-
-ssize_t ParseInt64(const std::string& resp, size_t start,
-                   std::vector<std::string>* const reply) {
-  ssize_t i = FindCRLF(resp, start);
-  if (i < 0) {
-    return -1;
-  }
-  const auto end = static_cast<size_t>(i);
-  int sign = 1;
-  long num = 0;
-  bool has_digit = false;
-  for (size_t j = start + 1; j < end; ++j) {
-    if (j == start + 1 && IsSign(resp[j])) {
-      sign = resp[j] == '+' ? 1 : -1;
-      continue;
-    }
-
-    if (std::isdigit(static_cast<unsigned char>(resp[j])) == 0) {
-      return -1;
-    }
-    has_digit = true;
-    num = (num * 10) + (resp[j] - '0');
-  }
-  if (!has_digit) {
-    return -1;
-  }
-  reply->push_back(std::to_string(sign * num));
-  return ToSSize(end - start + 2);
-}
-
-ssize_t ParseArray(const std::string& resp, size_t start,
-                   std::vector<std::string>* const reply) {
-  ssize_t i = FindCRLF(resp, start);
-  if (i < 0) {
-    return -1;
-  }
-  const auto end = static_cast<size_t>(i);
-  size_t len = 0;
-  size_t parsed = end - start + 2;
-  bool has_digit = false;
-  for (size_t j = start + 1; j < end; ++j) {
-    if (std::isdigit(static_cast<unsigned char>(resp[j])) == 0) {
-      return -1;
-    }
-    has_digit = true;
-    len = (len * 10) + (resp[j] - '0');
-  }
-  if (!has_digit) {
-    return -1;
-  }
-  for (size_t j = 0; j < len; ++j) {
-    ssize_t n = Parse(resp, start + parsed, reply);
-    if (n < 0) {
-      return -1;
-    }
-    parsed += static_cast<size_t>(n);
-  }
-  // The CLI renderer uses this sentinel to add a line break after arrays.
-  reply->emplace_back("\n");
-  return ToSSize(parsed);
-}
-
-ssize_t ParseNull(const std::string& resp, size_t start,
-                  std::vector<std::string>* const reply) {
-  ssize_t i = FindCRLF(resp, start);
-  if (i < 0 || static_cast<size_t>(i) - start != 1) {
-    return -1;
-  }
-  reply->emplace_back(kNilResp);
-  return 3;
-}
-
-ssize_t ParseFloat(const std::string& resp, size_t start,
-                   std::vector<std::string>* const reply) {
-  ssize_t i = FindCRLF(resp, start);
-  if (i < 0) {
-    return -1;
-  }
-  const auto end = static_cast<size_t>(i);
-  int sign = 1;
-  int exponential_sign = 1;
-  long integral = 0;
-  long exponent = 0;
-  std::string fractional;
-  bool floating_point = false;
-  bool exponential = false;
-  bool has_digit = false;
-  bool has_exponent_digit = false;
-  for (size_t j = start + 1; j < end; ++j) {
-    if (j == start + 1 && IsSign(resp[j])) {
-      sign = resp[j] == '+' ? 1 : -1;
-      continue;
-    }
-
-    if (!floating_point && !exponential && resp[j] == '.') {
-      floating_point = true;
-      continue;
-    }
-
-    if (!exponential &&
-        std::tolower(static_cast<unsigned char>(resp[j])) == 'e') {
-      if (!has_digit || j == end - 1) {
-        return -1;
-      }
-      if (IsSign(resp[j + 1])) {
-        if (j + 1 == end - 1) {
-          return -1;
-        }
-        exponential_sign = resp[j + 1] == '+' ? 1 : -1;
-        ++j;
-      } else if (std::isdigit(static_cast<unsigned char>(resp[j + 1])) == 0) {
-        return -1;
-      }
-      exponential = true;
-      continue;
-    }
-
-    if (std::isdigit(static_cast<unsigned char>(resp[j])) == 0) {
-      return -1;
-    }
-    has_digit = true;
-    if (floating_point && !exponential) {
-      fractional.push_back(resp[j]);
-    } else if (!floating_point && !exponential) {
-      integral = (integral * 10) + (resp[j] - '0');
-    } else {
-      exponent = (exponent * 10) + (resp[j] - '0');
-      has_exponent_digit = true;
-    }
-  }
-  if (!has_digit || (exponential && !has_exponent_digit)) {
-    return -1;
-  }
-  std::string floating_num_str = std::to_string(sign * integral);
-  if (floating_point) {
-    while (!fractional.empty() && fractional.back() == '0') {
-      fractional.pop_back();
-    }
-    if (!fractional.empty()) {
-      floating_num_str.push_back('.');
-      floating_num_str.append(fractional);
-    }
-  }
-  if (exponential && exponent > 0) {
-    floating_num_str.push_back('e');
-    floating_num_str.append(std::to_string(exponential_sign * exponent));
-  }
-  reply->push_back(std::move(floating_num_str));
-  return ToSSize(end - start + 2);
 }
 }  // namespace
 
-ssize_t Parse(const std::string& resp, std::vector<std::string>& reply) {
-  return Parse(resp, 0, &reply);
+ParseResult Parse(std::string_view resp, std::vector<std::string>& reply) {
+  const size_t original_size = reply.size();
+  const auto result = ParseAt(resp, 0, &reply);
+  if (result.status != ParseStatus::kComplete) {
+    reply.resize(original_size);
+  }
+  return result;
 }
 }  // namespace redis_simple::cli::resp_parser

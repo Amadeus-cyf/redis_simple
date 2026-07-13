@@ -1,6 +1,9 @@
 #pragma once
 
+#include <array>
+#include <charconv>
 #include <cstddef>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -52,7 +55,7 @@ class Set {
   enum Encoding encoding_;
   std::unique_ptr<in_memory::IntSet> intset_;
   std::unique_ptr<in_memory::ListPack> listpack_;
-  std::unique_ptr<in_memory::Dict<std::string, nullptr_t>> dict_;
+  std::unique_ptr<in_memory::Dict<std::string, std::nullptr_t>> dict_;
 };
 
 template <typename Visitor>
@@ -65,8 +68,13 @@ bool Set::ForEachMember(Visitor&& visitor) const {
     auto it = in_memory::IntSet::Iterator(intset_.get());
     it.SeekToFirst();
     while (it.Valid()) {
-      const std::string member = std::to_string(it.Value());
-      if (!visitor(member)) {
+      std::array<char, std::numeric_limits<int64_t>::digits10 + 3> buffer{};
+      const auto result = std::to_chars(
+          buffer.data(), buffer.data() + buffer.size(), it.Value());
+      if (result.ec != std::errc() ||
+          !visitor(std::string_view(
+              buffer.data(),
+              static_cast<size_t>(result.ptr - buffer.data())))) {
         return false;
       }
       it.Next();
@@ -77,7 +85,8 @@ bool Set::ForEachMember(Visitor&& visitor) const {
     return listpack_->ForEach(0, size - 1, visitor);
   }
   if (encoding_ == Encoding::kDict) {
-    auto it = in_memory::Dict<std::string, nullptr_t>::Iterator(dict_.get());
+    auto it =
+        in_memory::Dict<std::string, std::nullptr_t>::Iterator(dict_.get());
     it.SeekToFirst();
     while (it.Valid()) {
       if (!visitor(it.Key())) {

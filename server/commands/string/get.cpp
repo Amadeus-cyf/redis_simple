@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/commands/string/args.h"

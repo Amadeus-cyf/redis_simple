@@ -194,4 +194,36 @@ TEST(QuickListTest, TrimAcrossNodes) {
   EXPECT_TRUE(quicklist.Empty());
   EXPECT_EQ(quicklist.NodeCount(), 0);
 }
+
+TEST(QuickListTest, RemoveFromTailWithinOneNode) {
+  QuickList quicklist(256);
+  for (std::string_view value : {"x", "keep", "x", "x", "keep", "x"}) {
+    ASSERT_TRUE(quicklist.RPush(value));
+  }
+  ASSERT_EQ(quicklist.NodeCount(), 1);
+
+  EXPECT_EQ(quicklist.Remove("x", 2, QuickList::RemoveDirection::kFromTail), 2);
+  EXPECT_EQ(quicklist.Range(0, quicklist.Size() - 1),
+            (std::vector<std::string>{"x", "keep", "x", "keep"}));
+}
+
+TEST(QuickListTest, ReleasesSingleListPackWithoutRebuilding) {
+  QuickList quicklist(256);
+  ASSERT_TRUE(quicklist.RPush("one"));
+  ASSERT_TRUE(quicklist.RPush("two"));
+  ASSERT_EQ(quicklist.NodeCount(), 1);
+
+  auto listpack = quicklist.ReleaseListPack();
+
+  ASSERT_NE(listpack, nullptr);
+  EXPECT_TRUE(quicklist.Empty());
+  EXPECT_EQ(quicklist.NodeCount(), 0);
+  ASSERT_EQ(listpack->Size(), 2);
+  const auto first = listpack->First();
+  const auto last = listpack->Last();
+  ASSERT_TRUE(first.has_value());
+  ASSERT_TRUE(last.has_value());
+  EXPECT_EQ(listpack->Get(first.value_or(0)), "one");
+  EXPECT_EQ(listpack->Get(last.value_or(0)), "two");
+}
 }  // namespace redis_simple::in_memory

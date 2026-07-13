@@ -1,9 +1,21 @@
 #pragma once
 
-#include <string>
+#include <cstddef>
+#include <string_view>
 #include <vector>
 
 namespace redis_simple::cli::resp_parser {
-// Parse the first valid response and append the result into reply.
-ssize_t Parse(const std::string& resp, std::vector<std::string>& reply);
+enum class ParseStatus {
+  kComplete,
+  kIncomplete,
+  kInvalid,
+};
+
+struct ParseResult {
+  ParseStatus status{ParseStatus::kIncomplete};
+  size_t consumed{};
+};
+
+// Parse one response and append its rendered values to reply.
+ParseResult Parse(std::string_view resp, std::vector<std::string>& reply);
 }  // namespace redis_simple::cli::resp_parser

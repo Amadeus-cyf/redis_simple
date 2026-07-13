@@ -8,9 +8,11 @@
 #include <vector>
 
 #include "data_types/zset/zset.h"
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/reply/reply.h"
+#include "utils/float_utils.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple::command::zsets {
@@ -36,7 +38,7 @@ bool ValidateRangeOptions(const CommandArgs& args);
 int ParseRangeToRankSpec(const CommandArgs& args, RangeByRankSpec* spec);
 int ParseRankRange(std::string_view start, std::string_view end,
                    RangeByRankSpec* spec);
-int ParseRangeTerm(std::string_view term, long* dst);
+int ParseRangeTerm(std::string_view term, int64_t* dst);
 int ParseRangeToScoreSpec(const CommandArgs& args, RangeByScoreSpec* spec);
 int ParseScoreRange(std::string_view start, std::string_view end,
                     RangeByScoreSpec* spec);
@@ -133,24 +135,17 @@ int ParseRankRange(std::string_view start, std::string_view end,
   return 0;
 }
 
-int ParseRangeTerm(std::string_view term, long* const dst) {
+int ParseRangeTerm(std::string_view term, int64_t* const dst) {
   if (term.empty() || (dst == nullptr)) {
     return -1;
   }
   if (std::string_view(term) == kMinVal) {
     *dst = 0;
   } else if (std::string_view(term) == kMaxVal) {
-    *dst = std::numeric_limits<long>::max();
-  } else if (term[0] == '(') {
-    try {
-      *dst = std::stol(std::string(term.substr(1)));
-    } catch (const std::exception&) {
-      return -1;
-    }
+    *dst = std::numeric_limits<int64_t>::max();
   } else {
-    try {
-      *dst = std::stol(std::string(term));
-    } catch (const std::exception&) {
+    const auto value = term[0] == '(' ? term.substr(1) : term;
+    if (!utils::ToInt64(value, dst)) {
       return -1;
     }
   }
@@ -197,16 +192,9 @@ int ParseScoreTerm(std::string_view term, double* const dst) {
     *dst = -std::numeric_limits<double>::infinity();
   } else if (std::string_view(term) == kMaxVal) {
     *dst = std::numeric_limits<double>::infinity();
-  } else if (term[0] == '(') {
-    try {
-      *dst = std::stod(std::string(term.substr(1)));
-    } catch (const std::exception&) {
-      return -1;
-    }
   } else {
-    try {
-      *dst = std::stod(std::string(term));
-    } catch (const std::exception&) {
+    const auto value = term[0] == '(' ? term.substr(1) : term;
+    if (!utils::ToDouble(value, dst)) {
       return -1;
     }
   }
@@ -233,16 +221,10 @@ int ParseLimitOffsetAndCount(const CommandArgs& args,
   if (i + 2 >= args.size()) {
     return -1;
   }
-  long offset = 0;
-  long count = 0;
-  try {
-    offset = std::stol(std::string(args[i + 1]));
-  } catch (const std::exception&) {
-    return -1;
-  }
-  try {
-    count = std::stol(std::string(args[i + 2]));
-  } catch (const std::exception&) {
+  int64_t offset = 0;
+  int64_t count = 0;
+  if (!utils::ToInt64(args[i + 1], &offset) ||
+      !utils::ToInt64(args[i + 2], &count)) {
     return -1;
   }
   if (offset < 0) {
@@ -390,7 +372,7 @@ int RangeByRank(Client* const client, const CommandArgs& args,
       return kRangeWrongType;
     }
     try {
-      auto* const zset = obj->ZSet();
+      const auto* const zset = obj->ZSet();
       *result = zset->RangeByRank(&spec);
     } catch (const std::exception& e) {
       RS_LOG_DEBUG("catch exception %s", e.what());

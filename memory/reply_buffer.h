@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/uio.h>
+
 #include <memory>
 #include <vector>
 
@@ -19,7 +21,7 @@ class ReplyBuffer {
   BufNode* ReplyTail() const { return reply_tail_; }
   size_t Append(const char* s, size_t len);
   void Consume(size_t nwritten);
-  std::vector<std::pair<char*, size_t>> Blocks();
+  std::vector<iovec> Blocks() const;
   bool Empty() const { return size_ == 0 && node_count_ == 0; }
   ~ReplyBuffer() = default;
 

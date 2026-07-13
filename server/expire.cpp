@@ -1,46 +1,28 @@
 #include "expire.h"
 
-#include <cassert>
-
-#include "memory/dict.h"
+#include "logging/logger.h"
 #include "server.h"
 #include "utils/time_utils.h"
 
 namespace redis_simple {
 void ActiveExpireCycle() {
-  auto expire_callback = [](const std::string& key,
-                            const int64_t& expire_time) {
-    int64_t now = utils::NowInMilliseconds();
-    if (expire_time < now) {
-      RS_LOG_DEBUG("activeExpireCycle: expired key \"%s\" deleted\n",
-                   key.c_str());
-      if (auto* db = Server::Get()->Db()) {
-        assert(db->DeleteKey(key) == db::DbStatus::kOk);
-      } else {
-        RS_LOG_DEBUG("db unavailable\n");
-      }
-    }
-  };
-  if (auto* db = Server::Get()->Db()) {
-    int64_t start = utils::NowInMilliseconds();
-    int64_t timelimit = 1000;
-    int iteration = 0;
-    bool timeout = false;
-    while (!timeout && db->ExpiredPercentage() > 0.5) {
-      if (!db->ScanExpires(expire_callback)) {
-        RS_LOG_DEBUG("expire cycle break\n");
-        break;
-      }
-      ++iteration;
-      if ((iteration & 0xf) == 0) {
-        int64_t now = utils::NowInMilliseconds();
-        if (now - start >= timelimit) {
-          timeout = true;
-        }
-      }
-    }
-  } else {
+  auto* db = Server::Get()->Db();
+  if (db == nullptr) {
     RS_LOG_DEBUG("db unavailable\n");
+    return;
+  }
+
+  constexpr size_t kSampleCount = 20;
+  constexpr int64_t kTimeBudgetMilliseconds = 25;
+  constexpr size_t kContinueExpirePercent = 25;
+  const int64_t start = utils::NowInMilliseconds();
+  while (utils::NowInMilliseconds() - start < kTimeBudgetMilliseconds) {
+    const auto sample =
+        db->ExpireSome(kSampleCount, utils::NowInMilliseconds());
+    if (sample.sampled == 0 ||
+        sample.expired * 100 <= sample.sampled * kContinueExpirePercent) {
+      break;
+    }
   }
 }
 }  // namespace redis_simple

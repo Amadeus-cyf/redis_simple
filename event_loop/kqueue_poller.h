@@ -12,16 +12,17 @@ namespace redis_simple::event_loop {
 class KqueuePoller final : public EventPoller {
  public:
   static std::unique_ptr<KqueuePoller> Create(int nevents);
-  int AddEvent(int fd, int mask) const override;
-  int DeleteEvent(int fd, int mask) const override;
-  std::unordered_map<int, int> Poll(
-      struct timespec* timeout_spec) const override;
+  int AddEvent(int fd, int mask) override;
+  int DeleteEvent(int fd, int mask) override;
+  const std::vector<ReadyEvent>& Poll(struct timespec* timeout_spec) override;
   ~KqueuePoller() override;
 
  private:
   explicit KqueuePoller(int fd, int nevents);
   int kqueue_fd_;
   int nevents_;
-  mutable std::vector<struct kevent> events_;
+  std::vector<struct kevent> events_;
+  std::vector<ReadyEvent> ready_events_;
+  std::unordered_map<int, int> masks_;
 };
 }  // namespace redis_simple::event_loop

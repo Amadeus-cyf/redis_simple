@@ -63,6 +63,11 @@ struct IncrementArgs {
 };
 
 struct HashResult {
+  const Hash* hash;
+  HashStatus status;
+};
+
+struct MutableHashResult {
   Hash* hash;
   HashStatus status;
 };
@@ -79,7 +84,8 @@ int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* delete_args);
 int ParseFieldsArgs(const CommandArgs& args, FieldsArgs* fields_args);
 int ParseIncrementArgs(const CommandArgs& args, IncrementArgs* increment_args);
 HashResult FindHash(db::RedisDb* redis_db, std::string_view key);
-HashResult FindOrCreateHash(db::RedisDb* redis_db, std::string_view key);
+MutableHashResult FindMutableHash(db::RedisDb* redis_db, std::string_view key);
+MutableHashResult FindOrCreateHash(db::RedisDb* redis_db, std::string_view key);
 std::optional<int64_t> ToReplyInteger(size_t value);
 bool AddWithOverflowCheck(int64_t value, int64_t increment, int64_t* result);
 std::optional<int64_t> HSet(db::RedisDb* redis_db, const SetArgs* args);
@@ -162,13 +168,26 @@ HashResult FindHash(db::RedisDb* const redis_db, std::string_view key) {
   return {obj->Hash(), HashStatus::kOk};
 }
 
-HashResult FindOrCreateHash(db::RedisDb* const redis_db, std::string_view key) {
-  HashResult result = FindHash(redis_db, key);
+MutableHashResult FindMutableHash(db::RedisDb* const redis_db,
+                                  std::string_view key) {
+  auto* obj = redis_db->MutableLookupKey(key);
+  if (obj != nullptr && obj->Type() != db::RedisObject::ObjectType::kHash) {
+    return {nullptr, HashStatus::kWrongType};
+  }
+  if (obj == nullptr) {
+    return {nullptr, HashStatus::kMissing};
+  }
+  return {obj->Hash(), HashStatus::kOk};
+}
+
+MutableHashResult FindOrCreateHash(db::RedisDb* const redis_db,
+                                   std::string_view key) {
+  MutableHashResult result = FindMutableHash(redis_db, key);
   if (result.status != HashStatus::kMissing) {
     return result;
   }
   auto new_obj = db::RedisObject::CreateWithHash(Hash::Create());
-  const auto* obj = new_obj.get();
+  auto* obj = new_obj.get();
   if (redis_db->SetKey(key, std::move(new_obj), 0) == db::DbStatus::kError) {
     return {nullptr, HashStatus::kError};
   }
@@ -195,7 +214,7 @@ bool AddWithOverflowCheck(int64_t value, int64_t increment, int64_t* result) {
 
 std::optional<int64_t> HSet(db::RedisDb* const redis_db,
                             const SetArgs* const args) {
-  const HashResult result = FindOrCreateHash(redis_db, args->key);
+  const MutableHashResult result = FindOrCreateHash(redis_db, args->key);
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
@@ -226,7 +245,7 @@ std::optional<std::string> HGet(db::RedisDb* const redis_db,
 
 std::optional<int64_t> HDel(db::RedisDb* const redis_db,
                             const DeleteArgs* const args) {
-  const HashResult result = FindHash(redis_db, args->key);
+  const MutableHashResult result = FindMutableHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
     return 0;
   }
@@ -345,7 +364,7 @@ std::optional<std::string> HVals(db::RedisDb* const redis_db,
 
 IncrementResult HIncrBy(db::RedisDb* const redis_db,
                         const IncrementArgs* const args) {
-  const HashResult result = FindOrCreateHash(redis_db, args->key);
+  const MutableHashResult result = FindOrCreateHash(redis_db, args->key);
   if (result.status != HashStatus::kOk) {
     return {std::nullopt, result.status};
   }

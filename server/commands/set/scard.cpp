@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"

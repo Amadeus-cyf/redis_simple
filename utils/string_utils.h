@@ -18,10 +18,10 @@ void ToUppercase(std::string& s);
 // Return true if the string strictly represents a signed int64: no leading or
 // trailing spaces, no extra characters, and no leading zeroes except "0".
 bool ToInt64(std::string_view s, int64_t* v);
-// Convert long long to string and store it in the buffer dst
-int Int64ToString(char* dst, size_t dstlen, long long svalue);
-// Convert unsigned long long to string and store it in the buffer dst. Ref to
+// Convert an int64 to string and store it in dst.
+int Int64ToString(char* dst, size_t dstlen, int64_t svalue);
+// Convert a uint64 to string and store it in dst. Ref to
 // the following article.
 // https://engineering.fb.com/2013/03/15/developer-tools/three-optimization-tips-for-c/
-int Uint64ToString(char* dst, size_t dstlen, unsigned long long value);
+int Uint64ToString(char* dst, size_t dstlen, uint64_t value);
 }  // namespace redis_simple::utils

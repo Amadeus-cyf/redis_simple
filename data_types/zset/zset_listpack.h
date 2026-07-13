@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sys/types.h>
-
 #include <optional>
 #include <string_view>
 
@@ -29,24 +27,25 @@ class ZSetListPack : public ZSetStorage {
   struct EntryView {
     std::string_view key;
     double score;
-    ssize_t key_index;
-    ssize_t score_index;
+    size_t key_index;
+    size_t score_index;
   };
 
   void DeleteKeyScorePair(size_t idx);
   std::optional<std::string_view> ValueAt(size_t idx) const;
-  std::optional<EntryView> EntryAt(ssize_t key_idx) const;
+  std::optional<EntryView> EntryAt(size_t key_idx) const;
   std::optional<double> ScoreAt(size_t idx) const;
   ZSetEntryList RangeByRankUtil(const RangeByRankSpec* spec) const;
   ZSetEntryList RevRangeByRankUtil(const RangeByRankSpec* spec) const;
   ZSetEntryList RangeByScoreUtil(const RangeByScoreSpec* spec) const;
   ZSetEntryList RevRangeByScoreUtil(const RangeByScoreSpec* spec) const;
   const ZSetEntry* AddRangeResult(std::string_view key, double score) const;
-  ssize_t NextKeyAfterScore(ssize_t score_idx) const;
-  ssize_t PrevScoreBeforeKey(ssize_t key_idx) const;
-  ssize_t PrevKeyBeforeKey(ssize_t key_idx) const;
-  ssize_t FindKeyGreaterOrEqual(const RangeByScoreSpec* spec) const;
-  ssize_t FindKeyLessOrEqual(const RangeByScoreSpec* spec) const;
+  std::optional<size_t> NextKeyAfterScore(size_t score_idx) const;
+  std::optional<size_t> PrevScoreBeforeKey(size_t key_idx) const;
+  std::optional<size_t> PrevKeyBeforeKey(size_t key_idx) const;
+  std::optional<size_t> FindKeyGreaterOrEqual(
+      const RangeByScoreSpec* spec) const;
+  std::optional<size_t> FindKeyLessOrEqual(const RangeByScoreSpec* spec) const;
   static bool ValidateRangeRankSpec(const RangeByRankSpec* spec);
   static bool ValidateRangeScoreSpec(const RangeByScoreSpec* spec);
   static bool IsInRange(double score, const RangeByScoreSpec* spec);
@@ -54,6 +53,6 @@ class ZSetListPack : public ZSetStorage {
   static bool LessOrEqual(double score, const RangeByScoreSpec* spec);
   // Listpack storing key score pairs
   std::unique_ptr<in_memory::ListPack> listpack_;
-  mutable std::vector<std::unique_ptr<ZSetEntry>> range_cache_;
+  mutable std::vector<ZSetEntry> range_cache_;
 };
 }  // namespace redis_simple::zset

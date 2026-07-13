@@ -48,7 +48,7 @@ class IntSet::Iterator {
   }
   bool operator!=(const Iterator& it) { return !((*this) == it); }
   // Return true if the iterator is positioned at a valid element.
-  bool Valid() const { return idx_ >= 0 && idx_ < intset_->Size(); }
+  bool Valid() const { return idx_ < intset_->Size(); }
   // Position at the first element.
   void SeekToFirst() { idx_ = 0; }
   // Position at the last element.

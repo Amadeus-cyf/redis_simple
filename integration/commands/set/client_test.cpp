@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "cli/cli.h"
+#include "logging/logger.h"
 
 namespace redis_simple {
 namespace {

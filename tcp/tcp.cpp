@@ -6,14 +6,19 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <array>
 #include <cerrno>
 #include <cstring>
 #include <string>
+
+#include "logging/logger.h"
 
 namespace redis_simple::tcp {
 namespace {
 // Keep the listen queue small for this single-threaded test server.
 constexpr int kBacklog = 3;
+
+int SetCloseOnExec(int fd);
 
 int TcpSetReuseAddr(int socket_fd) {
   int yes = 1;
@@ -31,7 +36,8 @@ int TcpGenericCreateSocket(int domain, int type, int protocol, bool non_block) {
   if (socket_fd < 0) {
     return ToInt(TcpStatusCode::kError);
   }
-  if (TcpSetReuseAddr(socket_fd) < 0) {
+  if (SetCloseOnExec(socket_fd) == TcpStatusCode::kError ||
+      TcpSetReuseAddr(socket_fd) < 0) {
     close(socket_fd);
     return ToInt(TcpStatusCode::kError);
   }
@@ -64,18 +70,16 @@ int SetBlock(int fd, bool block) {
                                        : ToInt(TcpStatusCode::kOk);
 }
 
-bool IsNonBlock(int fd) {
-  int flags = fcntl(fd, F_GETFL);
-  return (flags & O_NONBLOCK) != 0;
-}
-
 int SetCloseOnExec(int fd) {
-  int flags = fcntl(fd, F_GETFL);
-  if ((flags & O_CLOEXEC) != 0) {
+  int flags = fcntl(fd, F_GETFD);
+  if (flags < 0) {
+    return ToInt(TcpStatusCode::kError);
+  }
+  if ((flags & FD_CLOEXEC) != 0) {
     return ToInt(TcpStatusCode::kOk);
   }
-  flags |= O_CLOEXEC;
-  return fcntl(fd, F_SETFL, flags) < 0 ? ToInt(TcpStatusCode::kError)
+  flags |= FD_CLOEXEC;
+  return fcntl(fd, F_SETFD, flags) < 0 ? ToInt(TcpStatusCode::kError)
                                        : ToInt(TcpStatusCode::kOk);
 }
 }  // namespace
@@ -91,7 +95,7 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   if (getaddrinfo(remote.ip.c_str(), std::to_string(remote.port).c_str(),
-                  &hints, &info) < 0) {
+                  &hints, &info) != 0) {
     return ToInt(TcpStatusCode::kError);
   }
   int socket_fd = -1;
@@ -112,7 +116,7 @@ int TcpBindAndConnect(const TcpAddrInfo& remote,
     if (connect(socket_fd, p->ai_addr, p->ai_addrlen) < 0) {
       // For nonblocking sockets, EINPROGRESS means the connection attempt is
       // still valid and completion will be reported by the writable event.
-      if (!IsNonBlock(socket_fd) || errno != EINPROGRESS) {
+      if (!non_block || errno != EINPROGRESS) {
         RS_LOG_DEBUG("connect error: %s\n", std::strerror(errno));
         close(socket_fd);
         socket_fd = -1;
@@ -138,15 +142,24 @@ int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info) {
       break;
     }
   }
+  if (remote_fd < 0) {
+    return ToInt(TcpStatusCode::kError);
+  }
   if (NonBlock(remote_fd) == TcpStatusCode::kError ||
       SetCloseOnExec(remote_fd) == TcpStatusCode::kError) {
     close(remote_fd);
     return ToInt(TcpStatusCode::kError);
   }
-  auto* s = reinterpret_cast<sockaddr_in*>(&sa);
   if (addr_info != nullptr) {
-    addr_info->ip = inet_ntoa(s->sin_addr);
-    addr_info->port = ntohs(s->sin_port);
+    const auto* address = reinterpret_cast<const sockaddr_in*>(&sa);
+    std::array<char, INET_ADDRSTRLEN> ip{};
+    if (inet_ntop(AF_INET, &address->sin_addr, ip.data(), ip.size()) ==
+        nullptr) {
+      close(remote_fd);
+      return ToInt(TcpStatusCode::kError);
+    }
+    addr_info->ip = ip.data();
+    addr_info->port = ntohs(address->sin_port);
   }
   return remote_fd;
 }
@@ -154,10 +167,14 @@ int TcpAccept(int socket_fd, TcpAddrInfo* const addr_info) {
 int TcpBind(int socket_fd, const TcpAddrInfo& addr_info) {
   addrinfo hints{};
   addrinfo* info = nullptr;
-  hints.ai_family = AF_UNSPEC;
+  hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
-  if (getaddrinfo(addr_info.ip.c_str(), std::to_string(addr_info.port).c_str(),
-                  &hints, &info) < 0) {
+  hints.ai_flags = AI_NUMERICSERV;
+  const int address_status =
+      getaddrinfo(addr_info.ip.c_str(), std::to_string(addr_info.port).c_str(),
+                  &hints, &info);
+  if (address_status != 0) {
+    RS_LOG_DEBUG("getaddrinfo failed: %s\n", gai_strerror(address_status));
     return ToInt(TcpStatusCode::kError);
   }
   int r = ToInt(TcpStatusCode::kError);
@@ -175,7 +192,6 @@ int TcpBind(int socket_fd, const TcpAddrInfo& addr_info) {
 
 int TcpListen(int socket_fd) {
   if (listen(socket_fd, kBacklog) < 0) {
-    close(socket_fd);
     return ToInt(TcpStatusCode::kError);
   }
   return ToInt(TcpStatusCode::kOk);
@@ -188,7 +204,9 @@ int Block(int socket_fd) { return SetBlock(socket_fd, true); }
 bool IsSocketError(int fd) {
   int socket_error = 0;
   socklen_t error_length = sizeof(socket_error);
-  getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_length);
+  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_error, &error_length) < 0) {
+    return true;
+  }
   RS_LOG_DEBUG("sock err %d\n", socket_error);
   return socket_error != 0;
 }

@@ -4,6 +4,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 
 namespace redis_simple::tcp {
 enum class TcpStatusCode {
@@ -27,9 +28,9 @@ constexpr bool operator!=(TcpStatusCode status, int value) {
 
 struct TcpAddrInfo {
   std::string ip;
-  int port;
-  TcpAddrInfo() : ip(""), port(-1) {}
-  TcpAddrInfo(const std::string& ip, int port) : ip(ip), port(port) {}
+  int port{-1};
+  TcpAddrInfo() = default;
+  TcpAddrInfo(std::string_view ip, int port) : ip(ip), port(port) {}
 };
 
 int TcpCreateSocket(int domain, bool non_block);

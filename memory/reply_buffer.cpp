@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cassert>
 
+#include "logging/logger.h"
+
 namespace redis_simple::in_memory {
 ReplyBuffer::ReplyBuffer()
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays): contiguous byte buffer
@@ -47,32 +49,23 @@ size_t ReplyBuffer::AppendToList(const char* c, size_t len) {
   return len;
 }
 
-std::vector<std::pair<char*, size_t>> ReplyBuffer::Blocks() {
-  std::vector<std::pair<char*, size_t>> mem_vec;
+std::vector<iovec> ReplyBuffer::Blocks() const {
+  std::vector<iovec> mem_vec;
   mem_vec.reserve(node_count_ + (size_ > 0 ? 1 : 0));
   if (size_ > 0) {
-    mem_vec.emplace_back(buf_.get() + sent_, size_ - sent_);
+    mem_vec.push_back({buf_.get() + sent_, size_ - sent_});
   }
   size_t offset = size_ > 0 ? 0 : sent_;
-  BufNode* n = reply_head_.get();
-  BufNode* prev = nullptr;
-  while (n != nullptr) {
-    if (n->used_ == 0) {
-      BufNode* next = n->next_.get();
-      DeleteNode(n, prev);
-      n = next;
-      offset = 0;
-      continue;
-    }
-    mem_vec.emplace_back(n->buf_.get() + offset, n->used_ - offset);
-    prev = n, n = n->next_.get();
+  const BufNode* node = reply_head_.get();
+  while (node != nullptr) {
+    mem_vec.push_back({node->buf_.get() + offset, node->used_ - offset});
+    node = node->next_.get();
     offset = 0;
   }
   return mem_vec;
 }
 
 void ReplyBuffer::ClearBuffer() {
-  std::memset(buf_.get(), '\0', size_);
   size_ = 0;
   sent_ = 0;
 }

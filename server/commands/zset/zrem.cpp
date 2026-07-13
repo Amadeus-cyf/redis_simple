@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
@@ -55,7 +56,7 @@ std::optional<int64_t> ZRem(db::RedisDb* redis_db, const ZRemArgs* args) {
   if (redis_db == nullptr || args == nullptr) {
     return std::nullopt;
   }
-  const auto* obj = redis_db->LookupKey(args->key);
+  auto* obj = redis_db->MutableLookupKey(args->key);
   if (obj == nullptr) {
     RS_LOG_DEBUG("key not found\n");
     return 0;

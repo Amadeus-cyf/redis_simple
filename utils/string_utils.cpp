@@ -86,51 +86,53 @@ void ToUppercase(std::string& s) {
 }
 
 bool ToInt64(std::string_view s, int64_t* const v) {
-  // Directly return false if the string is empty or the number is overflow.
   if (s.empty() || s.size() > 20) {
     return false;
   }
-  int sign = 1;
-  int64_t val = 0;
   const bool has_sign = s[0] == '+' || s[0] == '-';
-  for (size_t i = 0; i < s.size(); ++i) {
+  if (has_sign && s.size() == 1) {
+    return false;
+  }
+  const bool negative = s[0] == '-';
+  const uint64_t max_magnitude =
+      negative ? static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1
+               : static_cast<uint64_t>(std::numeric_limits<int64_t>::max());
+  uint64_t magnitude = 0;
+  for (size_t i = has_sign ? 1 : 0; i < s.size(); ++i) {
     const bool has_redundant_leading_zero =
         (s[i] == '0') &&
         ((i == 0 && s.size() > 1) || (i == 1 && has_sign && s.size() > 2));
-    if (i == 0 && has_sign) {
-      sign = s[i] == '-' ? -1 : 1;
-      continue;
-    }
-
     if (has_redundant_leading_zero) {
       return false;
     }
     if (s[i] < '0' || s[i] > '9') {
       return false;
     }
-    int64_t tmp = (val * 10) + (static_cast<int64_t>(sign * (s[i] - '0')));
-    // Check integer overflow.
-    if ((tmp < 0 && val > 0) || (tmp > 0 && val < 0)) {
+    const auto digit = static_cast<uint64_t>(s[i] - '0');
+    if (magnitude > (max_magnitude - digit) / 10) {
       return false;
     }
-    val = tmp;
+    magnitude = (magnitude * 10) + digit;
   }
   if (v != nullptr) {
-    *v = val;
+    if (negative && magnitude == max_magnitude) {
+      *v = std::numeric_limits<int64_t>::min();
+    } else {
+      const auto value = static_cast<int64_t>(magnitude);
+      *v = negative ? -value : value;
+    }
   }
   return true;
 }
 
-int Int64ToString(char* dst, size_t dstlen, long long svalue) {
-  unsigned long long value = 0;
+int Int64ToString(char* dst, size_t dstlen, int64_t svalue) {
+  uint64_t value = 0;
   int negative = 0;
   if (svalue < 0) {
-    if (svalue != std::numeric_limits<long long>::min()) {
+    if (svalue != std::numeric_limits<int64_t>::min()) {
       value = -svalue;
     } else {
-      value = static_cast<unsigned long long>(
-                  std::numeric_limits<long long>::max()) +
-              1;
+      value = static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1;
     }
     if (dstlen < 2) {
       if (dstlen > 0) {
@@ -152,7 +154,7 @@ int Int64ToString(char* dst, size_t dstlen, long long svalue) {
   return length + negative;
 }
 
-int Uint64ToString(char* dst, size_t dstlen, unsigned long long value) {
+int Uint64ToString(char* dst, size_t dstlen, uint64_t value) {
   static constexpr std::string_view kDigits =
       "0001020304050607080910111213141516171819"
       "2021222324252627282930313233343536373839"

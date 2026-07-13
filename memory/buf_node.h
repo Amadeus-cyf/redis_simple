@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <cstring>
 #include <memory>
 
 namespace redis_simple::in_memory {
@@ -20,13 +19,11 @@ class BufNode {
 
  private:
   static constexpr size_t kProtoNodeSize = 1024;
-  explicit BufNode() : capacity_(kProtoNodeSize), used_(0) {
+  explicit BufNode() : used_(0), capacity_(kProtoNodeSize) {
     buf_ = std::make_unique<char[]>(kProtoNodeSize);
-    std::memset(buf_.get(), '\0', kProtoNodeSize);
   }
-  explicit BufNode(size_t len) : capacity_(len), used_(0) {
+  explicit BufNode(size_t len) : used_(0), capacity_(len) {
     buf_ = std::make_unique<char[]>(len);
-    std::memset(buf_.get(), '\0', len);
   }
 };
 }  // namespace redis_simple::in_memory

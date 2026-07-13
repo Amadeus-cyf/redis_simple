@@ -3,6 +3,12 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+mode="${1:-format}"
+
+if [[ "${mode}" != "format" && "${mode}" != "--check" ]]; then
+  printf 'usage: %s [--check]\n' "$0" >&2
+  exit 2
+fi
 
 llvm_bin_dirs=(
   "/opt/homebrew/opt/llvm/bin"
@@ -55,4 +61,8 @@ if (( ${#files[@]} == 0 )); then
   exit 0
 fi
 
-"${clang_format_bin}" -i "${files[@]}"
+if [[ "${mode}" == "--check" ]]; then
+  "${clang_format_bin}" --dry-run --Werror "${files[@]}"
+else
+  "${clang_format_bin}" -i "${files[@]}"
+fi

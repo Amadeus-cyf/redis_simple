@@ -41,6 +41,8 @@ class QuickList {
   bool Empty() const { return size_ == 0; }
   size_t Size() const { return size_; }
   size_t NodeCount() const { return node_count_; }
+  std::optional<size_t> ListPackBytes() const;
+  std::unique_ptr<ListPack> ReleaseListPack();
 
  private:
   struct Node {
@@ -65,6 +67,7 @@ class QuickList {
   Node* SplitNode(Node* node);
   Node* InsertNodeAfter(Node* node, std::unique_ptr<Node> new_node);
   void MergeNext(Node* left);
+  void MergeAround(Node* node);
   void MergeAll();
   Node* AppendNode();
   Node* PrependNode();

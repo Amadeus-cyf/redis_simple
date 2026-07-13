@@ -12,10 +12,11 @@
 #include "event_loop/file_event.h"
 #include "event_loop/time_event.h"
 #include "expire.h"
+#include "logging/logger.h"
 
 namespace redis_simple {
 Server::Server()
-    : db_(db::RedisDb::Create()), loop_(event_loop::Loop::Create()) {}
+    : loop_(event_loop::Loop::Create()), db_(db::RedisDb::Create()) {}
 
 Server* Server::Get() {
   static Server server;
@@ -23,6 +24,9 @@ Server* Server::Get() {
 }
 
 bool Server::Run(const std::string& ip, int port) {
+  if (loop_ == nullptr || db_ == nullptr) {
+    return false;
+  }
   connection::Context ctx;
   ctx.loop = loop_.get();
   ctx.fd = -1;
@@ -32,10 +36,15 @@ bool Server::Run(const std::string& ip, int port) {
     return false;
   }
   fd_ = conn.Descriptor();
-  InstallAcceptCallback();
+  if (!InstallAcceptCallback()) {
+    fd_ = -1;
+    return false;
+  }
   loop_->CreateTimeEvent(event_loop::TimeEvent::Create(
-      [this](long long id) { return ServerCron(); }, nullptr));
+      [](int64_t) { return ServerCron(); }, nullptr));
   loop_->Run();
+  loop_->DeleteFileEvent(fd_, event_loop::EventFlag::kReadable);
+  fd_ = -1;
   return true;
 }
 
@@ -46,23 +55,31 @@ void Server::Stop() {
 }
 
 bool Server::RemoveClient(Client* c) {
-  auto it = std::find_if(clients_.begin(), clients_.end(),
-                         [c](const auto& client) { return client.get() == c; });
-  if (it != clients_.end()) {
-    clients_.erase(it);
-    return true;
+  if (c == nullptr) {
+    return false;
   }
-  return false;
+  c->Free();
+  loop_->Defer([this, c] {
+    const auto it =
+        std::find_if(clients_.begin(), clients_.end(),
+                     [c](const auto& client) { return client.get() == c; });
+    if (it != clients_.end()) {
+      clients_.erase(it);
+    }
+  });
+  return true;
 }
 
-void Server::InstallAcceptCallback() {
+bool Server::InstallAcceptCallback() {
   auto file_event = event_loop::FileEvent::Create(
       client_connection::AcceptConnectionCallback, nullptr, this,
       event_loop::ToInt(event_loop::EventFlag::kReadable));
   if (loop_->CreateFileEvent(fd_, std::move(file_event)) ==
       event_loop::Status::kError) {
     RS_LOG_DEBUG("error in adding client creation file event\n");
+    return false;
   }
+  return true;
 }
 
 int Server::ServerCron() {

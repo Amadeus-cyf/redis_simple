@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "event_loop/loop.h"
+#include "logging/logger.h"
 
 namespace redis_simple::event_loop {
 namespace {
@@ -43,9 +44,14 @@ int ToTimeoutMilliseconds(const struct timespec* const timeout_spec) {
 }  // namespace
 
 EpollPoller::EpollPoller(int fd, int nevents)
-    : epoll_fd_(fd), nevents_(nevents), events_(nevents) {}
+    : epoll_fd_(fd), nevents_(nevents), events_(nevents) {
+  ready_events_.reserve(static_cast<size_t>(nevents));
+}
 
 std::unique_ptr<EpollPoller> EpollPoller::Create(int nevents) {
+  if (nevents <= 0) {
+    return nullptr;
+  }
   const int epoll_fd = epoll_create1(EPOLL_CLOEXEC);
   if (epoll_fd < 0) {
     RS_LOG_DEBUG("epoll_create1 failed: %s\n", std::strerror(errno));
@@ -54,7 +60,7 @@ std::unique_ptr<EpollPoller> EpollPoller::Create(int nevents) {
   return std::unique_ptr<EpollPoller>(new EpollPoller(epoll_fd, nevents));
 }
 
-int EpollPoller::AddEvent(int fd, int mask) const {
+int EpollPoller::AddEvent(int fd, int mask) {
   const auto existing_mask = masks_.find(fd);
   const int new_mask =
       existing_mask == masks_.end() ? mask : (existing_mask->second | mask);
@@ -72,7 +78,7 @@ int EpollPoller::AddEvent(int fd, int mask) const {
   return 0;
 }
 
-int EpollPoller::DeleteEvent(int fd, int mask) const {
+int EpollPoller::DeleteEvent(int fd, int mask) {
   const auto existing_mask = masks_.find(fd);
   if (existing_mask == masks_.end()) {
     return -1;
@@ -98,26 +104,32 @@ int EpollPoller::DeleteEvent(int fd, int mask) const {
   return 0;
 }
 
-std::unordered_map<int, int> EpollPoller::Poll(
-    struct timespec* timeout_spec) const {
-  std::unordered_map<int, int> fd_to_mask_map;
+const std::vector<ReadyEvent>& EpollPoller::Poll(
+    struct timespec* timeout_spec) {
+  ready_events_.clear();
   const int numevents = epoll_wait(epoll_fd_, events_.data(), nevents_,
                                    ToTimeoutMilliseconds(timeout_spec));
   if (numevents < 0) {
-    RS_LOG_DEBUG("epoll_wait failed: %s\n", std::strerror(errno));
-    return fd_to_mask_map;
+    if (errno != EINTR) {
+      RS_LOG_DEBUG("epoll_wait failed: %s\n", std::strerror(errno));
+    }
+    return ready_events_;
   }
   for (int i = 0; i < numevents; ++i) {
     const int fd = events_[i].data.fd;
     const uint32_t events = events_[i].events;
     if ((events & (EPOLLIN | EPOLLERR | EPOLLHUP)) != 0) {
-      fd_to_mask_map[fd] |= EventFlag::kReadable;
+      ready_events_.push_back({fd, ToInt(EventFlag::kReadable)});
     }
     if ((events & (EPOLLOUT | EPOLLERR | EPOLLHUP)) != 0) {
-      fd_to_mask_map[fd] |= EventFlag::kWritable;
+      if (!ready_events_.empty() && ready_events_.back().fd == fd) {
+        ready_events_.back().mask |= EventFlag::kWritable;
+      } else {
+        ready_events_.push_back({fd, ToInt(EventFlag::kWritable)});
+      }
     }
   }
-  return fd_to_mask_map;
+  return ready_events_;
 }
 
 EpollPoller::~EpollPoller() { close(epoll_fd_); }

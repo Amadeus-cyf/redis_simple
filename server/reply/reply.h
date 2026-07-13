@@ -27,6 +27,7 @@ void AppendBulkString(std::string_view s, std::string* reply);
 std::string FromFloat(double fl);
 std::string FromError(std::string_view message);
 std::string WrongNumberOfArguments();
+std::string UnknownCommand(std::string_view command);
 std::string SyntaxError();
 std::string WrongTypeError();
 std::string Null();

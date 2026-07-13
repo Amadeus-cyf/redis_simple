@@ -5,6 +5,7 @@
 #include <string_view>
 #include <vector>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
@@ -52,7 +53,7 @@ int ParseArgs(const CommandArgs& args, SRemArgs* const srem_args) {
 }
 
 std::optional<int64_t> SRem(db::RedisDb* redis_db, const SRemArgs* args) {
-  const auto* obj = redis_db->LookupKey(args->key);
+  auto* obj = redis_db->MutableLookupKey(args->key);
   if (obj == nullptr) {
     return 0;
   }

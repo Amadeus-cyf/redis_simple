@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <string_view>
 #include <vector>
 
@@ -17,5 +16,5 @@ struct Command {
   CommandCallback callback;
 };
 
-const Command* Find(const std::string& name);
+const Command* Find(std::string_view name);
 }  // namespace redis_simple::command

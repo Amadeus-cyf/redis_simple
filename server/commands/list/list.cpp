@@ -75,6 +75,11 @@ struct ListResult {
   ListStatus status;
 };
 
+struct ConstListResult {
+  const List* list;
+  ListStatus status;
+};
+
 struct PopResult {
   std::optional<std::string> value;
   ListStatus status;
@@ -86,7 +91,8 @@ int ParseRangeArgs(const CommandArgs& args, RangeArgs* range_args);
 int ParseIndexArgs(const CommandArgs& args, IndexArgs* index_args);
 int ParseSetArgs(const CommandArgs& args, SetArgs* set_args);
 int ParseRemoveArgs(const CommandArgs& args, RemoveArgs* remove_args);
-ListResult FindList(db::RedisDb* redis_db, std::string_view key);
+ConstListResult FindList(db::RedisDb* redis_db, std::string_view key);
+ListResult FindMutableList(db::RedisDb* redis_db, std::string_view key);
 ListResult FindOrCreateList(db::RedisDb* redis_db, std::string_view key);
 std::optional<size_t> NormalizeIndex(int64_t index, size_t size);
 std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
@@ -158,8 +164,19 @@ int ParseRemoveArgs(const CommandArgs& args, RemoveArgs* const remove_args) {
   return utils::ToInt64(args[1], &remove_args->count) ? 0 : -1;
 }
 
-ListResult FindList(db::RedisDb* const redis_db, std::string_view key) {
+ConstListResult FindList(db::RedisDb* const redis_db, std::string_view key) {
   const auto* obj = redis_db->LookupKey(key);
+  if (obj != nullptr && obj->Type() != db::RedisObject::ObjectType::kList) {
+    return {nullptr, ListStatus::kWrongType};
+  }
+  if (obj == nullptr) {
+    return {nullptr, ListStatus::kMissing};
+  }
+  return {obj->List(), ListStatus::kOk};
+}
+
+ListResult FindMutableList(db::RedisDb* const redis_db, std::string_view key) {
+  auto* obj = redis_db->MutableLookupKey(key);
   if (obj != nullptr && obj->Type() != db::RedisObject::ObjectType::kList) {
     return {nullptr, ListStatus::kWrongType};
   }
@@ -184,12 +201,12 @@ std::optional<size_t> NormalizeIndex(int64_t index, size_t size) {
 }
 
 ListResult FindOrCreateList(db::RedisDb* const redis_db, std::string_view key) {
-  ListResult result = FindList(redis_db, key);
+  ListResult result = FindMutableList(redis_db, key);
   if (result.status != ListStatus::kMissing) {
     return result;
   }
   auto new_obj = db::RedisObject::CreateWithList(List::Create());
-  const auto* obj = new_obj.get();
+  auto* obj = new_obj.get();
   if (redis_db->SetKey(key, std::move(new_obj), 0) == db::DbStatus::kError) {
     return {nullptr, ListStatus::kError};
   }
@@ -257,7 +274,7 @@ std::optional<int64_t> Push(db::RedisDb* const redis_db,
 
 PopResult Pop(db::RedisDb* const redis_db, const KeyArgs* const args,
               PopSide side) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ListResult result = FindMutableList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
     return {std::nullopt, ListStatus::kMissing};
   }
@@ -274,7 +291,7 @@ PopResult Pop(db::RedisDb* const redis_db, const KeyArgs* const args,
 
 std::optional<int64_t> LLen(db::RedisDb* const redis_db,
                             const KeyArgs* const args) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ConstListResult result = FindList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
     return 0;
   }
@@ -286,7 +303,7 @@ std::optional<int64_t> LLen(db::RedisDb* const redis_db,
 
 std::optional<std::string> LRange(db::RedisDb* const redis_db,
                                   const RangeArgs* const args) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ConstListResult result = FindList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
     return reply::FromArrayHeader(0);
   }
@@ -309,7 +326,7 @@ std::optional<std::string> LRange(db::RedisDb* const redis_db,
 }
 
 PopResult LIndex(db::RedisDb* const redis_db, const IndexArgs* const args) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ConstListResult result = FindList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
     return {std::nullopt, ListStatus::kMissing};
   }
@@ -322,7 +339,7 @@ PopResult LIndex(db::RedisDb* const redis_db, const IndexArgs* const args) {
 }
 
 ListStatus LSet(db::RedisDb* const redis_db, const SetArgs* const args) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ListResult result = FindMutableList(redis_db, args->key);
   if (result.status != ListStatus::kOk) {
     return result.status;
   }
@@ -336,7 +353,7 @@ ListStatus LSet(db::RedisDb* const redis_db, const SetArgs* const args) {
 
 std::optional<int64_t> LRem(db::RedisDb* const redis_db,
                             const RemoveArgs* const args) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ListResult result = FindMutableList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
     return 0;
   }
@@ -355,7 +372,7 @@ std::optional<int64_t> LRem(db::RedisDb* const redis_db,
 }
 
 ListStatus LTrim(db::RedisDb* const redis_db, const RangeArgs* const args) {
-  const ListResult result = FindList(redis_db, args->key);
+  const ListResult result = FindMutableList(redis_db, args->key);
   if (result.status == ListStatus::kMissing) {
     return ListStatus::kOk;
   }

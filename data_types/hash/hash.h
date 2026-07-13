@@ -67,11 +67,11 @@ bool Hash::VisitValue(std::string_view field, Visitor&& visitor) const {
       return false;
     }
     const auto value_idx = listpack_->Next(*field_idx);
-    if (value_idx < 0) {
+    if (!value_idx.has_value()) {
       return false;
     }
     size_t len = 0;
-    const auto* data = listpack_->Get(static_cast<size_t>(value_idx), &len);
+    const auto* data = listpack_->Get(*value_idx, &len);
     if (data == nullptr) {
       return false;
     }

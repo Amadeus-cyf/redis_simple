@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "cli/cli.h"
+#include "logging/logger.h"
 
 namespace redis_simple {
 namespace {
@@ -34,6 +35,7 @@ int Run() {
   const std::vector<Case> cases = {
       {"SET string_key val 1000\r\n", "1\n"},
       {"GET string_key\r\n", "val\n"},
+      {"GET    string_key   \r\n", "val\n"},
       {"GET missing_string_key\r\n", "(nil)\n"},
       {"SET string_key val1 3000\r\n", "1\n"},
       {"GET string_key\r\n", "val1\n"},

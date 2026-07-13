@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <cstdarg>
 #include <cstdio>
@@ -34,17 +35,31 @@ inline const char* LevelName(Level level) {
 }
 
 inline Level ParseLevel(const char* value) {
-  if (!value) return Level::kDebug;
+  if (value == nullptr) {
+    return Level::kInfo;
+  }
   std::string level(value);
   for (char& ch : level) {
-    if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch - 'A' + 'a');
+    if (ch >= 'A' && ch <= 'Z') {
+      ch = static_cast<char>(ch - 'A' + 'a');
+    }
   }
-  if (level == "debug") return Level::kDebug;
-  if (level == "info") return Level::kInfo;
-  if (level == "warn" || level == "warning") return Level::kWarn;
-  if (level == "error") return Level::kError;
-  if (level == "off") return Level::kOff;
-  return Level::kDebug;
+  if (level == "debug") {
+    return Level::kDebug;
+  }
+  if (level == "info") {
+    return Level::kInfo;
+  }
+  if (level == "warn" || level == "warning") {
+    return Level::kWarn;
+  }
+  if (level == "error") {
+    return Level::kError;
+  }
+  if (level == "off") {
+    return Level::kOff;
+  }
+  return Level::kInfo;
 }
 
 inline Level& MinLevel() {
@@ -84,19 +99,21 @@ inline spdlog::level::level_enum ToSpdlogLevel(Level level) {
 
 inline void VLogf(Level level, const char* file, int line, const char* fmt,
                   va_list args) {
-  if (!Enabled(level)) return;
+  if (!Enabled(level)) {
+    return;
+  }
 
-  char message[1024];
+  std::array<char, 1024> message{};
   va_list args_copy;
   va_copy(args_copy, args);
-  int n = std::vsnprintf(message, sizeof(message), fmt, args_copy);
+  const int n = std::vsnprintf(message.data(), message.size(), fmt, args_copy);
   va_end(args_copy);
 
   std::string rendered;
   if (n < 0) {
     rendered = fmt ? fmt : "";
-  } else if (static_cast<size_t>(n) < sizeof(message)) {
-    rendered.assign(message, static_cast<size_t>(n));
+  } else if (static_cast<size_t>(n) < message.size()) {
+    rendered.assign(message.data(), static_cast<size_t>(n));
   } else {
     std::vector<char> large(static_cast<size_t>(n) + 1);
     std::vsnprintf(large.data(), large.size(), fmt, args);
@@ -117,20 +134,23 @@ inline void VLogf(Level level, const char* file, int line, const char* fmt,
   localtime_r(&now_time, &tm);
 #endif
 
-  char timestamp[32];
-  std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &tm);
+  std::array<char, 32> timestamp{};
+  std::strftime(timestamp.data(), timestamp.size(), "%Y-%m-%d %H:%M:%S", &tm);
 
   std::lock_guard<std::mutex> lock(LogMutex());
-  std::fprintf(stderr, "[%s] [%s] [%s:%d] %s", timestamp, LevelName(level),
-               file, line, rendered.c_str());
+  std::fprintf(stderr, "[%s] [%s] [%s:%d] %s", timestamp.data(),
+               LevelName(level), file, line, rendered.c_str());
   if (rendered.empty() || rendered.back() != '\n') {
     std::fprintf(stderr, "\n");
   }
 #endif
 }
 
-inline void Logf(Level level, const char* file, int line, const char* fmt,
-                 ...) {
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((format(printf, 4, 5)))
+#endif
+inline void
+Logf(Level level, const char* file, int line, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
   VLogf(level, file, line, fmt, args);

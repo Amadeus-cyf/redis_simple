@@ -20,15 +20,16 @@ class Server {
     clients_.push_back(std::move(client));
   }
   bool RemoveClient(Client* c);
-  const std::vector<std::unique_ptr<Client>>& Clients() { return clients_; }
+  const std::vector<std::unique_ptr<Client>>& Clients() const {
+    return clients_;
+  }
   ~Server() = default;
 
  private:
   Server();
-  void InstallAcceptCallback();
+  bool InstallAcceptCallback();
   static int ServerCron();
   int fd_{};
-  int flags_{};
   std::unique_ptr<event_loop::Loop> loop_;
   std::vector<std::unique_ptr<Client>> clients_;
   std::unique_ptr<db::RedisDb> db_;

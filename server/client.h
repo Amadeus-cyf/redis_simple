@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "connection/connection.h"
@@ -25,32 +24,37 @@ class Client {
       std::unique_ptr<connection::Connection> connection) {
     return std::unique_ptr<Client>(new Client(std::move(connection)));
   }
-  int Flags() { return flags_; }
+  int Flags() const { return flags_; }
   connection::Connection* Connection() { return connection_.get(); }
+  const connection::Connection* Connection() const { return connection_.get(); }
   db::RedisDb* Db() { return db_; }
   ssize_t ReadQuery();
   ssize_t SendReply();
-  size_t AddReply(const std::string& s) {
-    return reply_buf_.Append(s.c_str(), s.length());
+  size_t AddReply(std::string_view reply) {
+    return reply_buf_.Append(reply.data(), reply.size());
   }
-  bool HasPendingReplies() { return !(reply_buf_.Empty()); }
+  bool HasPendingReplies() const { return !reply_buf_.Empty(); }
   ClientStatus ProcessInputBuffer();
   void Free() { connection_->Close(); }
   const command::CommandArgs& Args() const { return args_; }
 
  private:
+  enum class LineStatus {
+    kReady,
+    kIncomplete,
+    kRejected,
+  };
+
   explicit Client(std::unique_ptr<connection::Connection> connection);
-  ClientStatus ParseLine();
+  LineStatus ParseLine();
   ClientStatus ProcessCommand();
-  void SetCmd(const command::Command* command) { command_ = command; }
-  void SetArgs(command::CommandArgs args) { args_ = std::move(args); }
   ssize_t SendBufferReply();
   ssize_t SendListReply();
   int flags_{};
+  std::unique_ptr<connection::Connection> connection_;
   db::RedisDb* db_{nullptr};
   const command::Command* command_{nullptr};
   command::CommandArgs args_;
-  std::unique_ptr<connection::Connection> connection_;
   in_memory::DynamicBuffer query_buf_;
   in_memory::ReplyBuffer reply_buf_;
 };

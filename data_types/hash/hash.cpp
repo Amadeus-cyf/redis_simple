@@ -1,7 +1,5 @@
 #include "data_types/hash/hash.h"
 
-#include <sys/types.h>
-
 #include <cassert>
 #include <cstddef>
 #include <optional>
@@ -18,11 +16,6 @@ constexpr size_t kListPackMaxElementLength = 64;
 bool CanStoreInListPack(std::string_view field, std::string_view value) {
   return field.size() <= kListPackMaxElementLength &&
          value.size() <= kListPackMaxElementLength;
-}
-
-std::optional<size_t> ToListPackIndex(ssize_t index) {
-  return index < 0 ? std::nullopt
-                   : std::optional<size_t>(static_cast<size_t>(index));
 }
 
 }  // namespace
@@ -56,12 +49,11 @@ bool Hash::Delete(std::string_view field) {
       return false;
     }
     const auto idx = static_cast<size_t>(*field_idx);
-    listpack_->Delete(idx);
-    listpack_->Delete(idx);
+    listpack_->DeleteRange(idx, 2);
     return true;
   }
   if (encoding_ == Encoding::kDict) {
-    return dict_->Delete(std::string(field));
+    return dict_->Delete(field);
   }
   throw std::invalid_argument("unknown hash encoding type");
 }
@@ -99,8 +91,10 @@ std::vector<Hash::Entry> Hash::Entries() const {
 bool Hash::CanAppendToListPack(std::string_view field,
                                std::string_view value) const {
   return Size() < kListPackMaxEntries && CanStoreInListPack(field, value) &&
-         in_memory::ListPack::SafeToAdd(listpack_.get(),
-                                        field.size() + value.size());
+         in_memory::ListPack::SafeToAdd(
+             listpack_.get(),
+             in_memory::ListPack::EstimateEntryBytes(field) +
+                 in_memory::ListPack::EstimateEntryBytes(value));
 }
 
 bool Hash::SetListPack(std::string_view field, std::string_view value) {
@@ -113,10 +107,10 @@ bool Hash::SetListPack(std::string_view field, std::string_view value) {
       return false;
     }
     const auto value_idx = listpack_->Next(*field_idx);
-    if (value_idx < 0) {
+    if (!value_idx.has_value()) {
       return false;
     }
-    listpack_->Replace(static_cast<size_t>(value_idx), value);
+    listpack_->Replace(*value_idx, value);
     return false;
   }
 
@@ -162,6 +156,6 @@ void Hash::ConvertListPackToDict(size_t capacity) {
 
 std::optional<size_t> Hash::FindListPackField(std::string_view field) const {
   assert(encoding_ == Encoding::kListPack);
-  return ToListPackIndex(listpack_->FindAndSkip(field, 1));
+  return listpack_->FindAndSkip(field, 1);
 }
 }  // namespace redis_simple::hash

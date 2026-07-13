@@ -2,6 +2,7 @@
 
 #include <any>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/client_connection/callback.h"
 #include "server/client_connection/client_connection.h"
@@ -11,16 +12,16 @@ namespace redis_simple::client_connection {
 namespace {
 void ReadQuery(connection::Connection* conn) {
   RS_LOG_DEBUG("read query from client\n");
-  auto* client = std::any_cast<Client*>(conn->PrivateData());
-  if (client == nullptr) {
+  const auto* client_data = std::any_cast<Client*>(&conn->PrivateData());
+  if (client_data == nullptr || *client_data == nullptr) {
     RS_LOG_DEBUG("invalid client\n");
     return;
   }
+  Client* client = *client_data;
   ssize_t nread = client->ReadQuery();
   if (nread <= 0) {
     if (conn->State() != connection::ConnectionState::kConnected) {
       RS_LOG_DEBUG("client free\n");
-      client->Free();
       Server::Get()->RemoveClient(client);
     }
     return;

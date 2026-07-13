@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
@@ -29,40 +30,56 @@ class RedisObject {
   };
 
   static std::unique_ptr<RedisObject> CreateWithString(std::string value) {
-    return Create(ObjectType::kString, Value(std::move(value)));
+    return Create(Value(std::move(value)));
   }
   static std::unique_ptr<RedisObject> CreateWithSet(
       std::unique_ptr<set::Set> set) {
-    return Create(ObjectType::kSet, Value(std::move(set)));
+    return set == nullptr ? nullptr : Create(Value(std::move(set)));
   }
   static std::unique_ptr<RedisObject> CreateWithList(
       std::unique_ptr<list::List> list) {
-    return Create(ObjectType::kList, Value(std::move(list)));
+    return list == nullptr ? nullptr : Create(Value(std::move(list)));
   }
   static std::unique_ptr<RedisObject> CreateWithZSet(
       std::unique_ptr<zset::ZSet> zset) {
-    return Create(ObjectType::kZSet, Value(std::move(zset)));
+    return zset == nullptr ? nullptr : Create(Value(std::move(zset)));
   }
   static std::unique_ptr<RedisObject> CreateWithHash(
       std::unique_ptr<hash::Hash> hash) {
-    return Create(ObjectType::kHash, Value(std::move(hash)));
-  }
-  static std::unique_ptr<RedisObject> Create(ObjectType type, Value value) {
-    return std::unique_ptr<RedisObject>(
-        new RedisObject(type, std::move(value)));
+    return hash == nullptr ? nullptr : Create(Value(std::move(hash)));
   }
   const std::string& String() const;
   std::string* MutableString();
-  set::Set* Set() const;
-  list::List* List() const;
-  zset::ZSet* ZSet() const;
-  hash::Hash* Hash() const;
-  ObjectType Type() const { return type_; }
+  set::Set* Set();
+  const set::Set* Set() const;
+  list::List* List();
+  const list::List* List() const;
+  zset::ZSet* ZSet();
+  const zset::ZSet* ZSet() const;
+  hash::Hash* Hash();
+  const hash::Hash* Hash() const;
+  ObjectType Type() const {
+    switch (value_.index()) {
+      case 0:
+        return ObjectType::kString;
+      case 1:
+        return ObjectType::kSet;
+      case 2:
+        return ObjectType::kList;
+      case 3:
+        return ObjectType::kZSet;
+      case 4:
+        return ObjectType::kHash;
+      default:
+        throw std::logic_error("Redis object has no value");
+    }
+  }
 
  private:
-  explicit RedisObject(ObjectType type, Value value)
-      : type_(type), value_(std::move(value)) {}
-  ObjectType type_;
+  static std::unique_ptr<RedisObject> Create(Value value) {
+    return std::unique_ptr<RedisObject>(new RedisObject(std::move(value)));
+  }
+  explicit RedisObject(Value value) : value_(std::move(value)) {}
   Value value_;
 };
 }  // namespace redis_simple::db

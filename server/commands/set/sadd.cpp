@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "data_types/set/set.h"
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
@@ -60,7 +61,7 @@ std::optional<int64_t> SAdd(db::RedisDb* redis_db, const SAddArgs* args) {
   if (redis_db == nullptr || args == nullptr) {
     return std::nullopt;
   }
-  const auto* obj = redis_db->LookupKey(args->key);
+  auto* obj = redis_db->MutableLookupKey(args->key);
   if ((obj != nullptr) && obj->Type() != db::RedisObject::ObjectType::kSet) {
     return std::nullopt;
   }

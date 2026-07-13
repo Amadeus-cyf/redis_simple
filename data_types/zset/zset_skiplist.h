@@ -27,17 +27,23 @@ class ZSetSkiplist : public ZSetStorage {
  private:
   struct Comparator {
     int operator()(const ZSetEntry* s1, const ZSetEntry* s2) const {
-      if (s1->score < s2->score) return -1;
-      if (s1->score > s2->score) return 1;
+      if (s1->score < s2->score) {
+        return -1;
+      }
+      if (s1->score > s2->score) {
+        return 1;
+      }
       return s1->key.compare(s2->key);
     }
   };
 
   struct Destructor {
-    void operator()(const ZSetEntry* se) const {
-      RS_LOG_DEBUG("delete %s %f\n", se->key.c_str(), se->score);
-      delete se;
-      se = nullptr;
+    void operator()(const ZSetEntry* entry) const {
+      if (entry == nullptr) {
+        return;
+      }
+      RS_LOG_DEBUG("delete %s %f\n", entry->key.c_str(), entry->score);
+      delete entry;
     }
   };
 

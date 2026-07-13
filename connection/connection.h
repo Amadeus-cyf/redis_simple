@@ -1,11 +1,15 @@
 #pragma once
 
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include <any>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "connection/connection_callback.h"
@@ -34,21 +38,25 @@ struct Context {
 
 struct AddressInfo {
   std::string ip;
-  int port;
-  AddressInfo() : ip(""), port(0) {}
-  AddressInfo(const std::string& ip, int port) : ip(ip), port(port) {}
+  int port{};
+  AddressInfo() = default;
+  AddressInfo(std::string_view ip, int port) : ip(ip), port(port) {}
 };
 
 class Connection {
  public:
   explicit Connection(const Context& ctx);
+  Connection(const Connection&) = delete;
+  Connection& operator=(const Connection&) = delete;
+  Connection(Connection&&) = delete;
+  Connection& operator=(Connection&&) = delete;
   ConnectionStatus BindAndConnect(const AddressInfo& remote,
                                   const std::optional<AddressInfo>& local);
   ConnectionStatus BindAndBlockingConnect(
       const AddressInfo& remote, const std::optional<AddressInfo>& local,
-      long timeout);
+      int64_t timeout_ms);
   ConnectionStatus BindAndListen(const AddressInfo& addr_info);
-  ConnectionStatus Accept(AddressInfo* const addr_info);
+  ConnectionStatus Accept(int listener_fd, AddressInfo* addr_info);
   bool SetReadCallback(ConnectionCallback callback);
   bool UnsetReadCallback();
   bool HasReadCallback() const { return static_cast<bool>(read_callback_); }
@@ -58,40 +66,33 @@ class Connection {
   int Descriptor() const { return fd_; }
   ConnectionState State() const { return state_; }
   void SetState(ConnectionState state) { state_ = state; }
-  void SetPrivateData(std::any private_data) { private_data_ = private_data; }
-  std::any PrivateData() const { return private_data_; }
+  void SetPrivateData(std::any private_data) {
+    private_data_ = std::move(private_data);
+  }
+  const std::any& PrivateData() const { return private_data_; }
   ssize_t Read(char* const buf, size_t readlen) const;
   ssize_t BatchRead(std::string& s) const;
-  ssize_t SyncRead(char* buffer, size_t readlen, long timeout) const;
-  ssize_t SyncBatchRead(std::string& s, long timeout) const;
-  ssize_t SyncReadline(std::string& s, long timeout) const;
+  ssize_t SyncRead(char* buffer, size_t readlen, int64_t timeout_ms) const;
+  ssize_t SyncBatchRead(std::string& s, int64_t timeout_ms) const;
+  ssize_t SyncReadline(std::string& s, int64_t timeout_ms) const;
   ssize_t Write(const char* buffer, size_t len) const;
-  ssize_t WriteVector(
-      const std::vector<std::pair<char*, size_t>>& mem_blocks) const;
-  ssize_t SyncWrite(const char* buffer, size_t len, long timeout) const;
-  void Close() {
-    if (fd_ >= 0) {
-      close(fd_);
-      fd_ = -1;
-    }
-  }
-  ~Connection() { Close(); }
+  ssize_t WriteVector(const std::vector<iovec>& blocks) const;
+  ssize_t SyncWrite(const char* buffer, size_t len, int64_t timeout_ms) const;
+  void Close();
+  ~Connection();
 
  private:
-  // Give pending writes priority over reads for this connection.
-  static constexpr int kWriteBarrier = 1;
-
-  static event_loop::CallbackStatus SocketEventCallback(event_loop::Loop* loop,
-                                                        int fd,
-                                                        Connection* conn,
-                                                        int mask);
-  int WaitRead(long timeout) const {
-    return Wait(event_loop::EventFlag::kReadable, timeout);
+  static event_loop::CallbackStatus ReadableEventCallback(
+      event_loop::Loop* loop, int fd, Connection* conn, int mask);
+  static event_loop::CallbackStatus WritableEventCallback(
+      event_loop::Loop* loop, int fd, Connection* conn, int mask);
+  int WaitRead(int64_t timeout_ms) const {
+    return Wait(event_loop::EventFlag::kReadable, timeout_ms);
   }
-  int WaitWrite(long timeout) const {
-    return Wait(event_loop::EventFlag::kWritable, timeout);
+  int WaitWrite(int64_t timeout_ms) const {
+    return Wait(event_loop::EventFlag::kWritable, timeout_ms);
   }
-  int Wait(event_loop::EventFlag flag, long timeout) const;
+  int Wait(event_loop::EventFlag flag, int64_t timeout_ms) const;
   int fd_;
   int flags_{};
   mutable ConnectionState state_;

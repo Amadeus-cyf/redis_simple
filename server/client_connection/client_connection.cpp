@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <memory>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/client_connection/callback.h"
 #include "server/client_connection/redis_cmd.h"
@@ -11,9 +12,8 @@
 namespace redis_simple::client_connection {
 namespace {
 bool SendString(const connection::Connection* conn, const std::string& cmd) {
-  ssize_t ret =
-      conn->SyncWrite(cmd.c_str(), cmd.length(), static_cast<long>(1 * 1000));
-  return ret == cmd.size();
+  const ssize_t ret = conn->SyncWrite(cmd.c_str(), cmd.length(), 1000);
+  return ret >= 0 && static_cast<size_t>(ret) == cmd.size();
 }
 
 bool SendStringInline(const connection::Connection* conn, std::string s) {
@@ -26,20 +26,20 @@ bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
   return SendStringInline(conn, cmd->String());
 }
 
-event_loop::CallbackStatus AcceptConnectionCallback(event_loop::Loop* loop,
+event_loop::CallbackStatus AcceptConnectionCallback(event_loop::Loop* /*loop*/,
                                                     int fd, Server* server,
-                                                    int mask) {
+                                                    int /*mask*/) {
   if (server == nullptr) {
     RS_LOG_DEBUG("invalid server / event loop\n");
     return event_loop::CallbackStatus::kError;
   }
   connection::Context ctx;
   ctx.loop = server->Loop();
-  ctx.fd = fd;
+  ctx.fd = -1;
   auto conn = std::make_unique<connection::Connection>(ctx);
   conn->SetState(connection::ConnectionState::kAccepting);
   connection::AddressInfo addr_info;
-  if (conn->Accept(&addr_info) == connection::ConnectionStatus::kError) {
+  if (conn->Accept(fd, &addr_info) == connection::ConnectionStatus::kError) {
     RS_LOG_DEBUG("connection accept failed\n");
     return event_loop::CallbackStatus::kError;
   }

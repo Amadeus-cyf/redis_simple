@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "logging/logger.h"
+
 namespace redis_simple::in_memory {
 struct RangeByRankSpecTestCase {
   RangeByRankSpecTestCase(Skiplist<std::string>::SkiplistRangeByRankSpec spec,
@@ -58,7 +60,32 @@ std::unique_ptr<Skiplist<std::string>> MakeRankedSkiplist() {
   skiplist->Insert("key5");
   return skiplist;
 }
+
+struct CountingDestructor {
+  size_t* count;
+
+  void operator()(const std::string& /*key*/) const { ++*count; }
+};
 }  // namespace
+
+TEST(SkiplistTest, RejectsInvalidLevel) {
+  EXPECT_THROW((Skiplist<std::string>(0)), std::invalid_argument);
+  EXPECT_THROW((Skiplist<std::string>(33)), std::invalid_argument);
+}
+
+TEST(SkiplistTest, DestroysOnlyStoredKeys) {
+  size_t destroy_count = 0;
+  using CountingSkiplist =
+      Skiplist<std::string, decltype(kDefaultCompare<std::string>),
+               CountingDestructor>;
+  {
+    CountingSkiplist skiplist(1, kDefaultCompare<std::string>,
+                              CountingDestructor{&destroy_count});
+    skiplist.Insert("one");
+    skiplist.Insert("two");
+  }
+  EXPECT_EQ(destroy_count, 2);
+}
 
 TEST(SkiplistTest, Insertion) {
   auto skiplist = std::make_unique<Skiplist<std::string>>(4);
@@ -140,17 +167,13 @@ TEST(SkiplistTest, FindKeyByRank) {
 
 TEST(SkiplistTest, FindRankOfKey) {
   auto skiplist = MakeRankedSkiplist();
-  ssize_t r0 = skiplist->FindRankOfKey("key0");
-  ASSERT_EQ(r0, 0);
+  EXPECT_EQ(skiplist->FindRankOfKey("key0"), 0);
 
-  ssize_t r1 = skiplist->FindRankOfKey("key2");
-  ASSERT_EQ(r1, 1);
+  EXPECT_EQ(skiplist->FindRankOfKey("key2"), 1);
 
-  ssize_t r2 = skiplist->FindRankOfKey("key5");
-  ASSERT_EQ(r2, 3);
+  EXPECT_EQ(skiplist->FindRankOfKey("key5"), 3);
 
-  ssize_t r3 = skiplist->FindRankOfKey("key_not_exist");
-  ASSERT_EQ(r3, -1);
+  EXPECT_EQ(skiplist->FindRankOfKey("key_not_exist"), std::nullopt);
 }
 
 TEST(SkiplistTest, ArrayAccess) {

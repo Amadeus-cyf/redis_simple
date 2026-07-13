@@ -134,7 +134,7 @@ TEST(LoopTest, TimeEventRunsAndFinalizes) {
   int run_count = 0;
   int finalize_count = 0;
   loop->CreateTimeEvent(TimeEvent::Create(
-      [&run_count](long long) {
+      [&run_count](int64_t) {
         ++run_count;
         return ToInt(EventFlag::kNoMore);
       },
@@ -150,5 +150,70 @@ TEST(LoopTest, TimeEventRunsAndFinalizes) {
   loop->ProcessEvents();
   EXPECT_EQ(run_count, 1);
   EXPECT_EQ(finalize_count, 1);
+}
+
+TEST(LoopTest, TimeEventRequiresCallback) {
+  EXPECT_EQ(TimeEvent::Create(nullptr, nullptr), nullptr);
+}
+
+TEST(LoopTest, CallbackCanDeleteItsOwnFileEvent) {
+  auto loop = Loop::Create();
+  ASSERT_NE(loop, nullptr);
+  auto sockets = CreateSocketPair();
+  ASSERT_GE(sockets[0].Get(), 0);
+
+  int read_count = 0;
+  int write_count = 0;
+  const int event_mask =
+      ToInt(EventFlag::kReadable) | ToInt(EventFlag::kWritable);
+  auto read_callback = [&read_count](Loop* callback_loop, int fd, int) {
+    char byte = '\0';
+    EXPECT_EQ(read(fd, &byte, 1), 1);
+    ++read_count;
+    EXPECT_EQ(callback_loop->DeleteFileEvent(fd, event_mask), Status::kOk);
+    return CallbackStatus::kOk;
+  };
+  auto write_callback = [&write_count](Loop*, int, int) {
+    ++write_count;
+    return CallbackStatus::kOk;
+  };
+  ASSERT_EQ(
+      loop->CreateFileEvent(
+          sockets[0].Get(),
+          FileEvent::Create(FileEvent::Callback(read_callback),
+                            FileEvent::Callback(write_callback), event_mask)),
+      Status::kOk);
+  ASSERT_EQ(write(sockets[1].Get(), "x", 1), 1);
+
+  loop->ProcessEvents();
+
+  EXPECT_EQ(read_count, 1);
+  EXPECT_EQ(write_count, 0);
+  EXPECT_EQ(loop->DeleteFileEvent(sockets[0].Get(), event_mask),
+            Status::kError);
+}
+
+TEST(LoopTest, DeferredCallbacksRunAfterFileCallbacks) {
+  auto loop = Loop::Create();
+  ASSERT_NE(loop, nullptr);
+  auto sockets = CreateSocketPair();
+  std::vector<int> order;
+  auto read_callback = [&order](Loop* callback_loop, int fd, int) {
+    char byte = '\0';
+    EXPECT_EQ(read(fd, &byte, 1), 1);
+    order.push_back(1);
+    callback_loop->Defer([&order] { order.push_back(2); });
+    return CallbackStatus::kOk;
+  };
+  ASSERT_EQ(loop->CreateFileEvent(
+                sockets[0].Get(),
+                FileEvent::Create(FileEvent::Callback(read_callback), nullptr,
+                                  ToInt(EventFlag::kReadable))),
+            Status::kOk);
+  ASSERT_EQ(write(sockets[1].Get(), "x", 1), 1);
+
+  loop->ProcessEvents();
+
+  EXPECT_EQ(order, (std::vector<int>{1, 2}));
 }
 }  // namespace redis_simple::event_loop

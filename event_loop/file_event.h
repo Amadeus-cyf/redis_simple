@@ -55,11 +55,11 @@ class FileEvent {
   int Mask() const { return mask_; }
   void SetMask(int mask) { mask_ = mask; }
   void AddMask(int mask) { mask_ |= mask; }
-  void CallReadCallback(Loop* loop, int fd, int mask) const {
-    read_callback_(loop, fd, mask);
+  CallbackStatus CallReadCallback(Loop* loop, int fd, int mask) const {
+    return read_callback_(loop, fd, mask);
   }
-  void CallWriteCallback(Loop* loop, int fd, int mask) const {
-    write_callback_(loop, fd, mask);
+  CallbackStatus CallWriteCallback(Loop* loop, int fd, int mask) const {
+    return write_callback_(loop, fd, mask);
   }
   bool HasReadCallback() const { return static_cast<bool>(read_callback_); }
   bool HasWriteCallback() const { return static_cast<bool>(write_callback_); }

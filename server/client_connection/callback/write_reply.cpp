@@ -2,6 +2,7 @@
 
 #include <any>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/server.h"
 
@@ -20,7 +21,6 @@ ssize_t WriteToClient(Client* client) {
   if (bytes_written == -1) {
     if (client->Connection()->State() !=
         connection::ConnectionState::kConnected) {
-      client->Free();
       Server::Get()->RemoveClient(client);
       return -1;
     }
@@ -34,7 +34,11 @@ ssize_t WriteToClient(Client* client) {
 }
 
 void SendReplyToClient(connection::Connection* conn) {
-  auto* client = std::any_cast<Client*>(conn->PrivateData());
+  const auto* client_data = std::any_cast<Client*>(&conn->PrivateData());
+  if (client_data == nullptr || *client_data == nullptr) {
+    return;
+  }
+  Client* client = *client_data;
   RS_LOG_DEBUG("write reply called %d\n", client->HasPendingReplies());
   WriteToClient(client);
 }

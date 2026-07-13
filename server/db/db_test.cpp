@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <string>
+
 #include "utils/time_utils.h"
 
 namespace redis_simple::db {
@@ -37,18 +39,36 @@ TEST(RedisDbTest, ReplacingKeyCanClearOrKeepTtl) {
   ASSERT_EQ(
       redis_db->SetKey("key", RedisObject::CreateWithString("old"), future),
       DbStatus::kOk);
-  EXPECT_EQ(redis_db->ExpiredPercentage(), 1.0);
+  EXPECT_GT(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), 0);
 
   ASSERT_EQ(redis_db->SetKey("key", RedisObject::CreateWithString("new"), 0,
                              ToInt(SetKeyFlag::kKeepTtl)),
             DbStatus::kOk);
-  EXPECT_EQ(redis_db->ExpiredPercentage(), 1.0);
+  EXPECT_GT(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), 0);
   ASSERT_NE(redis_db->LookupKey("key"), nullptr);
   EXPECT_EQ(redis_db->LookupKey("key")->String(), "new");
 
   ASSERT_EQ(redis_db->SetKey("key", RedisObject::CreateWithString("fresh"), 0),
             DbStatus::kOk);
-  EXPECT_EQ(redis_db->ExpiredPercentage(), 0.0);
+  EXPECT_EQ(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), -1);
+}
+
+TEST(RedisDbTest, ExpireSamplingWorksWhenFewKeysHaveTtl) {
+  auto redis_db = RedisDb::Create();
+  for (int index = 0; index < 20; ++index) {
+    ASSERT_EQ(redis_db->SetKey("persistent-" + std::to_string(index),
+                               RedisObject::CreateWithString("value"), 0),
+              DbStatus::kOk);
+  }
+  ASSERT_EQ(
+      redis_db->SetKey("expired", RedisObject::CreateWithString("gone"), 1),
+      DbStatus::kOk);
+
+  const auto sample = redis_db->ExpireSome(20, 2);
+
+  EXPECT_EQ(sample.sampled, 1);
+  EXPECT_EQ(sample.expired, 1);
+  EXPECT_EQ(redis_db->KeyCount(), 20);
 }
 
 TEST(RedisDbTest, ExpirePersistAndTtl) {

@@ -1,6 +1,8 @@
 #include "reply.h"
 
-#include <sstream>
+#include <array>
+#include <charconv>
+#include <limits>
 #include <stdexcept>
 #include <string_view>
 
@@ -16,8 +18,21 @@ constexpr char kDoublePrefix = ',';
 constexpr char kNullPrefix = '_';
 constexpr char kErrorPrefix = '-';
 
+template <typename Integer>
+void AppendInteger(Integer value, std::string* output) {
+  std::array<char, std::numeric_limits<Integer>::digits10 + 3> buffer{};
+  const auto result =
+      std::to_chars(buffer.data(), buffer.data() + buffer.size(), value);
+  if (result.ec != std::errc()) {
+    throw std::runtime_error("failed to encode integer reply");
+  }
+  output->append(buffer.data(),
+                 static_cast<size_t>(result.ptr - buffer.data()));
+}
+
 std::string FromString(std::string_view s) {
   std::string reply;
+  reply.reserve(1 + s.size() + kCrlf.size());
   reply.push_back(kStringPrefix);
   reply.append(s.data(), s.size()).append(kCrlf.data(), kCrlf.size());
   return reply;
@@ -32,7 +47,8 @@ std::string FromBulkString(std::string_view s) {
 std::string FromInt64(int64_t i64) {
   std::string reply;
   reply.push_back(kInt64Prefix);
-  reply.append(std::to_string(i64)).append(kCrlf.data(), kCrlf.size());
+  AppendInteger(i64, &reply);
+  reply.append(kCrlf.data(), kCrlf.size());
   return reply;
 }
 
@@ -62,14 +78,15 @@ std::string FromBulkStringArray(const std::vector<std::string>& values) {
 std::string FromArrayHeader(size_t size) {
   std::string reply;
   reply.push_back(kArrayPrefix);
-  reply.append(std::to_string(size)).append(kCrlf.data(), kCrlf.size());
+  AppendInteger(size, &reply);
+  reply.append(kCrlf.data(), kCrlf.size());
   return reply;
 }
 
 void AppendBulkString(std::string_view s, std::string* const reply) {
   reply->push_back(kBulkStringPrefix);
-  reply->append(std::to_string(s.size()))
-      .append(kCrlf.data(), kCrlf.size())
+  AppendInteger(s.size(), reply);
+  reply->append(kCrlf.data(), kCrlf.size())
       .append(s.data(), s.size())
       .append(kCrlf.data(), kCrlf.size());
 }
@@ -93,6 +110,12 @@ std::string WrongNumberOfArguments() {
   return FromError("ERR wrong number of arguments");
 }
 
+std::string UnknownCommand(std::string_view command) {
+  std::string message = "ERR unknown command '";
+  message.append(command.data(), command.size()).push_back('\'');
+  return FromError(message);
+}
+
 std::string SyntaxError() { return FromError("ERR syntax error"); }
 
 std::string WrongTypeError() {
@@ -101,5 +124,9 @@ std::string WrongTypeError() {
       "value");
 }
 
-std::string Null() { return "_\r\n"; }
+std::string Null() {
+  std::string reply(1, kNullPrefix);
+  reply.append(kCrlf);
+  return reply;
+}
 }  // namespace redis_simple::reply

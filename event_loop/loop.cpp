@@ -10,9 +10,9 @@
 #include <cstring>
 #include <ctime>
 #include <limits>
-#include <unordered_map>
 #include <utility>
 
+#include "logging/logger.h"
 #include "utils/time_utils.h"
 
 #ifdef __APPLE__
@@ -24,6 +24,11 @@
 #endif
 
 namespace redis_simple::event_loop {
+namespace {
+constexpr int kIoEventMask =
+    ToInt(EventFlag::kReadable) | ToInt(EventFlag::kWritable);
+}  // namespace
+
 void FileEvent::Merge(const FileEvent* file_event) {
   if (file_event == nullptr) {
     return;
@@ -46,11 +51,10 @@ void FileEvent::Merge(const FileEvent* file_event) {
        merges_separate_single_purpose_callbacks);
 }
 
-int WaitForEvent(int fd, int mask, long timeout) {
-  int fd_count = 1;
-  if (timeout > std::numeric_limits<int>::max()) {
-    timeout = std::numeric_limits<int>::max();
-  }
+int WaitForEvent(int fd, int mask, int64_t timeout_ms) {
+  constexpr nfds_t kFdCount = 1;
+  timeout_ms = std::max<int64_t>(timeout_ms, -1);
+  timeout_ms = std::min<int64_t>(timeout_ms, std::numeric_limits<int>::max());
   std::array<pollfd, 1> poll_fds{};
   poll_fds[0].fd = fd;
   if ((mask & EventFlag::kReadable) != 0) {
@@ -59,7 +63,13 @@ int WaitForEvent(int fd, int mask, long timeout) {
   if ((mask & EventFlag::kWritable) != 0) {
     poll_fds[0].events |= POLLOUT;
   }
-  int r = poll(poll_fds.data(), fd_count, static_cast<int>(timeout));
+  int r = -1;
+  while (r < 0) {
+    r = poll(poll_fds.data(), kFdCount, static_cast<int>(timeout_ms));
+    if (r < 0 && errno != EINTR) {
+      break;
+    }
+  }
   if (r < 0) {
     RS_LOG_DEBUG("poll error: %s\n", std::strerror(errno));
     return r;
@@ -67,6 +77,9 @@ int WaitForEvent(int fd, int mask, long timeout) {
   if (r == 0) {
     // The file descriptor is not ready for the requested operation.
     return r;
+  }
+  if ((poll_fds[0].revents & POLLNVAL) != 0) {
+    return -1;
   }
   int result_mask = 0;
   if ((poll_fds[0].revents & POLLIN) != 0) {
@@ -81,15 +94,13 @@ int WaitForEvent(int fd, int mask, long timeout) {
 }
 
 Loop::Loop(std::unique_ptr<EventPoller> event_poller)
-    : file_events_(std::vector<std::unique_ptr<FileEvent>>(kEventSize)),
-      event_poller_(std::move(event_poller)),
-      max_fd_(-1) {}
+    : event_poller_(std::move(event_poller)) {}
 
 std::unique_ptr<Loop> Loop::Create() {
 #ifdef __APPLE__
-  auto event_poller = KqueuePoller::Create(kEventSize);
+  auto event_poller = KqueuePoller::Create(kMaxReadyEvents);
 #elif defined(__linux__)
-  auto event_poller = EpollPoller::Create(kEventSize);
+  auto event_poller = EpollPoller::Create(kMaxReadyEvents);
 #endif
   if (!event_poller) {
     return nullptr;
@@ -110,30 +121,45 @@ Status Loop::CreateFileEvent(int fd, std::unique_ptr<FileEvent> file_event) {
   }
   RS_LOG_DEBUG("create events for fd = %d, mask = %d\n", fd,
                file_event->Mask());
-  if (fd < 0 || fd >= kEventSize) {
-    RS_LOG_DEBUG("file descriptor out of range");
+  if (fd < 0) {
     return Status::kError;
   }
-  if (event_poller_->AddEvent(fd, file_event->Mask()) < 0) {
+  const int io_mask = file_event->Mask() & kIoEventMask;
+  if (io_mask == 0) {
     return Status::kError;
   }
-  if (file_events_[fd] == nullptr) {
+  const auto index = static_cast<size_t>(fd);
+  if (index >= file_events_.size()) {
+    file_events_.resize(index + 1);
+  }
+  if (event_poller_->AddEvent(fd, io_mask) < 0) {
+    return Status::kError;
+  }
+  if (file_events_[index] == nullptr) {
     RS_LOG_DEBUG("add new event\n");
-    max_fd_ = std::max(max_fd_, fd);
+    ++file_event_count_;
   } else {
     // A descriptor stores one FileEvent, so merge separately registered
     // read/write callbacks before replacing the old event.
-    file_event->Merge(file_events_[fd].get());
+    file_event->Merge(file_events_[index].get());
+    if (processing_file_events_) {
+      retired_file_events_.push_back(std::move(file_events_[index]));
+    }
   }
-  file_events_[fd] = std::move(file_event);
+  file_events_[index] = std::move(file_event);
   return Status::kOk;
 }
 
 Status Loop::DeleteFileEvent(int fd, int mask) {
-  if (fd < 0 || fd >= kEventSize || file_events_[fd] == nullptr) {
+  if (fd < 0 || static_cast<size_t>(fd) >= file_events_.size() ||
+      file_events_[fd] == nullptr) {
     return Status::kError;
   }
-  if (event_poller_->DeleteEvent(fd, mask) < 0) {
+  FileEvent* file_event = file_events_[fd].get();
+  const int registered_io_mask = file_event->Mask() & kIoEventMask;
+  const int removed_io_mask = registered_io_mask & mask;
+  if (removed_io_mask == 0 ||
+      event_poller_->DeleteEvent(fd, removed_io_mask) < 0) {
     RS_LOG_DEBUG(
         "fail to delete the file event of file descriptor %d with errno: "
         "%d\n",
@@ -143,12 +169,19 @@ Status Loop::DeleteFileEvent(int fd, int mask) {
   RS_LOG_DEBUG(
       "delete file event success for file descriptor = %d, mask = %d\n", fd,
       mask);
-  FileEvent* file_event = file_events_[fd].get();
-  if (file_event->Mask() == mask) {
-    file_events_[fd].reset();
+  if (registered_io_mask == removed_io_mask) {
+    if (processing_file_events_) {
+      retired_file_events_.push_back(std::move(file_events_[fd]));
+    } else {
+      file_events_[fd].reset();
+    }
+    --file_event_count_;
   } else {
     int m = file_event->Mask();
-    m &= ~mask;
+    m &= ~removed_io_mask;
+    if ((m & EventFlag::kWritable) == 0) {
+      m &= ~EventFlag::kBarrier;
+    }
     file_event->SetMask(m);
   }
   return Status::kOk;
@@ -160,23 +193,33 @@ void Loop::CreateTimeEvent(std::unique_ptr<TimeEvent> time_event) {
   }
 }
 
+void Loop::Defer(std::function<void()> callback) {
+  if (callback) {
+    deferred_callbacks_.push_back(std::move(callback));
+  }
+}
+
 void Loop::ProcessEvents() {
   ProcessFileEvents();
+  ProcessDeferredCallbacks();
   ProcessTimeEvents();
 }
 
 void Loop::ProcessFileEvents() {
-  if (max_fd_ == -1) {
+  if (file_event_count_ == 0) {
     return;
   }
   struct timespec timeout_spec;
   timeout_spec.tv_sec = 1;
   timeout_spec.tv_nsec = 0;
-  const std::unordered_map<int, int>& fd_to_mask =
-      event_poller_->Poll(&timeout_spec);
-  for (const auto& it : fd_to_mask) {
-    int fd = it.first;
-    int mask = it.second;
+  const auto& ready_events = event_poller_->Poll(&timeout_spec);
+  processing_file_events_ = true;
+  for (const auto& ready_event : ready_events) {
+    const int fd = ready_event.fd;
+    const int mask = ready_event.mask;
+    if (fd < 0 || static_cast<size_t>(fd) >= file_events_.size()) {
+      continue;
+    }
     const FileEvent* file_event = file_events_[fd].get();
     if (file_event == nullptr) {
       continue;
@@ -188,14 +231,26 @@ void Loop::ProcessFileEvents() {
     if ((inverted == 0) &&
         ((mask & file_event->Mask() & EventFlag::kReadable) != 0) &&
         file_event->HasReadCallback()) {
-      file_event->CallReadCallback(this, fd, mask);
+      if (file_event->CallReadCallback(this, fd, mask) ==
+          CallbackStatus::kError) {
+        continue;
+      }
       fired = true;
+      if (file_events_[fd].get() != file_event) {
+        continue;
+      }
     }
     if (((mask & file_event->Mask() & EventFlag::kWritable) != 0) &&
         file_event->HasWriteCallback() &&
         (!fired || file_event->HasSeparateCallbacks())) {
-      file_event->CallWriteCallback(this, fd, mask);
+      if (file_event->CallWriteCallback(this, fd, mask) ==
+          CallbackStatus::kError) {
+        continue;
+      }
       fired = true;
+      if (file_events_[fd].get() != file_event) {
+        continue;
+      }
     }
     if ((inverted != 0) &&
         ((mask & file_event->Mask() & EventFlag::kReadable) != 0) &&
@@ -203,6 +258,16 @@ void Loop::ProcessFileEvents() {
         (!fired || file_event->HasSeparateCallbacks())) {
       file_event->CallReadCallback(this, fd, mask);
     }
+  }
+  processing_file_events_ = false;
+  retired_file_events_.clear();
+}
+
+void Loop::ProcessDeferredCallbacks() {
+  std::vector<std::function<void()>> callbacks;
+  callbacks.swap(deferred_callbacks_);
+  for (auto& callback : callbacks) {
+    callback();
   }
 }
 
@@ -219,11 +284,13 @@ void Loop::ProcessTimeEvents() {
       int64_t now = utils::NowInMilliseconds();
       if (time_event->When() <= now) {
         int ret = time_event->CallTimeCallback();
-        if (ret == EventFlag::kNoMore) {
+        if (ret < 0) {
           // Defer deletion so unlinking and finalization happen in one path.
           time_event->SetId(ToInt(EventFlag::kDeleteEventId));
         } else {
-          time_event->SetWhen(now + (static_cast<int64_t>(ret * 1000)));
+          constexpr int64_t kMillisecondsPerSecond = 1000;
+          time_event->SetWhen(
+              now + (static_cast<int64_t>(ret) * kMillisecondsPerSecond));
         }
       }
       ++it;

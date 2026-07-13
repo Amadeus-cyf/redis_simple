@@ -6,8 +6,25 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: Quality / Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Install LLVM tools
+        run: sudo apt-get update && sudo apt-get install -y clang-format clang-tidy
+      - name: Check clang-format
+        run: scripts/format.sh --check
+      - name: Configure compile commands
+        run: cmake --preset debug
+      - name: Run clang-tidy
+        run: scripts/run_clang_tidy.sh
+
   build-and-test:
-    name: CI / ${{ matrix.os }}
+    name: Build & Test / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -19,10 +36,40 @@ jobs:
         with:
           submodules: true
       - name: Configure debug build
-        run: cmake --preset debug
+        run: cmake --preset debug -DREDIS_SIMPLE_WARNINGS_AS_ERRORS=ON
       - name: Build debug target
         run: cmake --build --preset debug
       - name: Run unit test suites
         run: ctest --preset debug -L unit --output-on-failure
       - name: Run integration test suites
         run: ctest --preset debug -L integration --output-on-failure
+
+  release:
+    name: Release / Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Configure release build
+        run: cmake --preset release -DREDIS_SIMPLE_WARNINGS_AS_ERRORS=ON
+      - name: Build release targets
+        run: cmake --build --preset release
+      - name: Run release tests
+        run: ctest --preset release --output-on-failure
+
+  sanitizers:
+    name: Sanitizers / Ubuntu
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Configure sanitizer build
+        run: cmake --preset sanitizer
+      - name: Build sanitizer targets
+        run: cmake --build --preset sanitizer
+      - name: Run sanitizer tests
+        run: ctest --preset sanitizer --output-on-failure

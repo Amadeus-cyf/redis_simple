@@ -1,9 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -18,14 +20,12 @@ class Dict {
  public:
   class Iterator;
   struct DictType;
-  using DictScanFunc = void (*)(const K& key, const V& value);
   static std::unique_ptr<Dict<K, V>> Create();
   static std::unique_ptr<Dict<K, V>> Create(size_t capacity);
   static std::unique_ptr<Dict<K, V>> Create(const DictType& type);
   Dict(const Dict&) = delete;
   Dict& operator=(const Dict&) = delete;
   std::optional<V> Get(const K& key);
-  std::optional<V> Get(K&& key);
   V* FindValue(const K& key);
   V* FindValue(std::string_view key);
   V* FindValue(const char* key);
@@ -35,8 +35,10 @@ class Dict {
   bool Insert(const K& key, const V& val);
   bool Insert(K&& key, V&& val);
   bool Delete(const K& key);
-  bool Delete(K&& key);
-  ssize_t Scan(size_t cursor, DictScanFunc callback);
+  bool Delete(std::string_view key);
+  bool Delete(const char* key) { return Delete(std::string_view(key)); }
+  template <typename Visitor>
+  std::optional<size_t> Scan(size_t cursor, Visitor&& visitor);
   size_t Size() const { return table_used_[0] + table_used_[1]; }
   void Clear();
   ~Dict();
@@ -49,13 +51,20 @@ class Dict {
   void InitializeTableWithSize(int i, int exp, size_t size);
   void InsertEntry(DictEntry* entry, int i);
   DictEntry* Unlink(const K& key);
+  DictEntry* Unlink(std::string_view key);
   void UnlinkEntry(DictEntry* entry, DictEntry* prev, int i);
   void DeleteEntry(DictEntry* entry, DictEntry* prev, int i);
-  size_t TableSize(int exp) const { return exp < 0 ? 0 : 1 << exp; }
-  bool IsRehashing() const { return rehash_idx_ >= 0; }
+  size_t TableSize(int exp) const {
+    return exp < 0 || exp >= std::numeric_limits<size_t>::digits
+               ? 0
+               : size_t{1} << exp;
+  }
+  bool IsRehashing() const { return rehash_idx_.has_value(); }
   void PauseRehashing() { ++pause_rehash_; }
   void ResumeRehashing() {
-    if (pause_rehash_ > 0) --pause_rehash_;
+    if (pause_rehash_ > 0) {
+      --pause_rehash_;
+    }
   }
   size_t TableMask(int i) const;
   size_t HashIndex(size_t hash, int i) const;
@@ -65,6 +74,7 @@ class Dict {
   bool IsEqual(const K& key1, const K& key2) const;
   bool IsEqual(std::string_view key1, const K& key2) const;
   void SetKey(DictEntry* entry, const K& key);
+  void SetKey(DictEntry* entry, K&& key);
   void SetVal(DictEntry* entry, const V& val);
   void SetVal(DictEntry* entry, V&& val);
   void FreeKey(DictEntry* entry);
@@ -75,6 +85,7 @@ class Dict {
   std::optional<size_t> KeyIndex(const K& key, size_t hash,
                                  DictEntry** existing);
   DictEntry* InsertRaw(const K& key, DictEntry** existing);
+  DictEntry* InsertRaw(K&& key, DictEntry** existing);
   void ExpandIfNeeded();
   bool Expand(size_t size);
   void RehashStepIfNeeded();
@@ -88,20 +99,19 @@ class Dict {
   static constexpr double kDictForceResizeRatio = 2.0;
   DictType type_;
   // Table 1 is populated incrementally while table 0 is being rehashed.
-  std::vector<std::vector<DictEntry*>> tables_;
-  size_t table_used_[2];
-  int table_size_exp_[2];
-  ssize_t rehash_idx_;
+  std::array<std::vector<DictEntry*>, 2> tables_;
+  std::array<size_t, 2> table_used_{};
+  std::array<int, 2> table_size_exp_{};
+  std::optional<size_t> rehash_idx_;
   size_t pause_rehash_;
 };
 
 template <typename K, typename V>
 struct Dict<K, V>::DictEntry {
-  DictEntry() : hash(0), next(nullptr) {}
   K key;
   V val;
-  size_t hash;
-  DictEntry* next;
+  size_t hash{};
+  DictEntry* next{nullptr};
 };
 
 template <typename K, typename V>
@@ -129,15 +139,14 @@ template <typename K, typename V>
 class Dict<K, V>::Iterator {
  public:
   explicit Iterator(const Dict* dict);
-  explicit Iterator(const Dict* dict, const DictEntry* entry);
-  Iterator& operator=(const Iterator& it);
+  Iterator& operator=(const Iterator& it) = default;
   bool operator==(const Iterator& it) const;
   bool operator!=(const Iterator& it) const;
   bool Valid() const;
   void SeekToFirst();
   void SeekToLast();
   void Next();
-  void operator++();
+  Iterator& operator++();
   const K& Key() const { return entry_->key; }
   const V& Value() const { return entry_->val; }
 
@@ -145,27 +154,13 @@ class Dict<K, V>::Iterator {
   void SeekToNextEntry();
   const Dict* dict_;
   int table_;
-  ssize_t idx_;
+  std::optional<size_t> idx_;
   const DictEntry* entry_;
 };
 
 template <typename K, typename V>
 Dict<K, V>::Iterator::Iterator(const Dict* dict)
-    : dict_(dict), entry_(nullptr), table_(0), idx_(-1) {}
-
-template <typename K, typename V>
-Dict<K, V>::Iterator::Iterator(const Dict* dict, const DictEntry* entry)
-    : dict_(dict), entry_(entry), table_(0), idx_(-1) {}
-
-template <typename K, typename V>
-typename Dict<K, V>::Iterator& Dict<K, V>::Iterator::operator=(
-    const Iterator& it) {
-  dict_ = it.dict_;
-  table_ = it.table_;
-  idx_ = it.idx_;
-  entry_ = it.entry_;
-  return *this;
-}
+    : dict_(dict), table_(0), idx_(std::nullopt), entry_(nullptr) {}
 
 template <typename K, typename V>
 bool Dict<K, V>::Iterator::operator==(const Iterator& it) const {
@@ -186,32 +181,37 @@ bool Dict<K, V>::Iterator::Valid() const {
 template <typename K, typename V>
 void Dict<K, V>::Iterator::SeekToFirst() {
   table_ = 0;
-  idx_ = -1;
+  idx_ = std::nullopt;
   entry_ = nullptr;
   SeekToNextEntry();
 }
 
 template <typename K, typename V>
 void Dict<K, V>::Iterator::SeekToLast() {
-  if (dict_->Size() == 0) {
-    return;
+  entry_ = nullptr;
+  const int last_table = dict_->IsRehashing() ? 1 : 0;
+  for (table_ = last_table; table_ >= 0; --table_) {
+    for (size_t bucket = dict_->tables_[table_].size(); bucket > 0; --bucket) {
+      const size_t index = bucket - 1;
+      if (dict_->tables_[table_][index] == nullptr) {
+        continue;
+      }
+      idx_ = index;
+      entry_ = dict_->tables_[table_][index];
+      while (entry_->next != nullptr) {
+        entry_ = entry_->next;
+      }
+      return;
+    }
   }
-  if (dict_->rehash_idx_ > 0) {
-    table_ = 1;
-  }
-  idx_ = dict_->tables_[table_].size() - 1;
-  while (idx_ >= 0 && !dict_->tables_[table_][idx_]) {
-    --idx_;
-  }
-  entry_ = dict_->tables_[table_][idx_];
-  while (entry_->next) {
-    entry_ = entry_->next;
-  }
+  table_ = 0;
+  idx_ = std::nullopt;
 }
 
 template <typename K, typename V>
-void Dict<K, V>::Iterator::operator++() {
+typename Dict<K, V>::Iterator& Dict<K, V>::Iterator::operator++() {
   SeekToNextEntry();
+  return *this;
 }
 
 template <typename K, typename V>
@@ -228,22 +228,22 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
     entry_ = entry_->next;
     return;
   }
-  ++idx_;
+  idx_ = idx_.has_value() ? std::optional<size_t>(*idx_ + 1) : size_t{0};
   // Find next non empty table entry list.
-  while (idx_ < dict_->tables_[table_].size() &&
-         !dict_->tables_[table_][idx_]) {
-    ++idx_;
+  while (*idx_ < dict_->tables_[table_].size() &&
+         dict_->tables_[table_][*idx_] == nullptr) {
+    ++*idx_;
   }
-  if (idx_ < dict_->tables_[table_].size()) {
-    entry_ = dict_->tables_[table_][idx_];
+  if (*idx_ < dict_->tables_[table_].size()) {
+    entry_ = dict_->tables_[table_][*idx_];
     return;
   }
-  if (table_ == 1 || dict_->rehash_idx_ <= 0) {
+  if (table_ == 1 || !dict_->IsRehashing()) {
     entry_ = nullptr;
     return;
   }
   // Find the next element in the rehashed table.
-  idx_ = -1;
+  idx_ = std::nullopt;
   table_ = 1;
   SeekToNextEntry();
 }
@@ -253,26 +253,7 @@ void Dict<K, V>::Iterator::SeekToNextEntry() {
  */
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Create() {
-  std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>());
-  if (!dict->Expand(kTableInitSize)) {
-    return nullptr;
-  }
-  dict->type_.hash_function = [](const K& key) {
-    if constexpr (std::is_same<K, std::string>::value) {
-      std::hash<std::string_view> h;
-      return h(std::string_view(key));
-    } else {
-      std::hash<K> h;
-      return h(key);
-    }
-  };
-  if constexpr (std::is_same<K, std::string>::value) {
-    dict->type_.string_view_hash_function = [](std::string_view key) {
-      std::hash<std::string_view> h;
-      return h(key);
-    };
-  }
-  return dict;
+  return Create(kTableInitSize);
 }
 
 /*
@@ -308,6 +289,9 @@ std::unique_ptr<Dict<K, V>> Dict<K, V>::Create(size_t capacity) {
 template <typename K, typename V>
 std::unique_ptr<Dict<K, V>> Dict<K, V>::Create(
     const typename Dict<K, V>::DictType& type) {
+  if (!type.hash_function) {
+    return nullptr;
+  }
   std::unique_ptr<Dict<K, V>> dict(new Dict<K, V>(type));
   if (!dict->Expand(kTableInitSize)) {
     return nullptr;
@@ -325,11 +309,6 @@ std::optional<V> Dict<K, V>::Get(const K& key) {
     return std::nullopt;
   }
   return entry->val;
-}
-
-template <typename K, typename V>
-typename std::optional<V> Dict<K, V>::Get(K&& key) {
-  return Get(key);
 }
 
 template <typename K, typename V>
@@ -437,7 +416,16 @@ void Dict<K, V>::Set(const K& key, V&& val) {
 
 template <typename K, typename V>
 void Dict<K, V>::Set(K&& key, V&& val) {
-  Set(key, std::move(val));
+  DictEntry* existing = nullptr;
+  DictEntry* entry = InsertRaw(std::move(key), &existing);
+  if (entry != nullptr) {
+    SetVal(entry, std::move(val));
+  } else if (existing != nullptr) {
+    DictEntry auxentry;
+    auxentry.val = std::move(existing->val);
+    SetVal(existing, std::move(val));
+    FreeVal(&auxentry);
+  }
 }
 
 /*
@@ -456,7 +444,7 @@ bool Dict<K, V>::Insert(const K& key, const V& val) {
 
 template <typename K, typename V>
 bool Dict<K, V>::Insert(K&& key, V&& val) {
-  DictEntry* entry = InsertRaw(key, nullptr);
+  DictEntry* entry = InsertRaw(std::move(key), nullptr);
   if (!entry) {
     return false;
   }
@@ -479,12 +467,20 @@ bool Dict<K, V>::Delete(const K& key) {
 }
 
 template <typename K, typename V>
-bool Dict<K, V>::Delete(K&& key) {
-  return Delete(key);
+bool Dict<K, V>::Delete(std::string_view key) {
+  static_assert(std::is_same<K, std::string>::value,
+                "std::string_view deletion only supports std::string keys");
+  DictEntry* entry = Unlink(key);
+  if (entry == nullptr) {
+    return false;
+  }
+  FreeUnlinkedEntry(entry);
+  return true;
 }
 
 template <typename K, typename V>
-ssize_t Dict<K, V>::Scan(size_t cursor, DictScanFunc callback) {
+template <typename Visitor>
+std::optional<size_t> Dict<K, V>::Scan(size_t cursor, Visitor&& visitor) {
   // Scanning visits the same bucket index in both tables; pause incremental
   // rehashing so entries do not move while this cursor position is processed.
   PauseRehashing();
@@ -492,7 +488,7 @@ ssize_t Dict<K, V>::Scan(size_t cursor, DictScanFunc callback) {
     const DictEntry* de = tables_[0][cursor];
     while (de) {
       const DictEntry* next = de->next;
-      callback(de->key, de->val);
+      visitor(de->key, de->val);
       de = next;
     }
   }
@@ -501,12 +497,13 @@ ssize_t Dict<K, V>::Scan(size_t cursor, DictScanFunc callback) {
     const DictEntry* de = tables_[1][cursor];
     while (de) {
       const DictEntry* next = de->next;
-      callback(de->key, de->val);
+      visitor(de->key, de->val);
       de = next;
     }
   }
   if (++cursor >= std::max(tables_[0].size(), tables_[1].size())) {
-    cursor = -1;
+    ResumeRehashing();
+    return std::nullopt;
   }
   ResumeRehashing();
   return cursor;
@@ -516,7 +513,7 @@ template <typename K, typename V>
 void Dict<K, V>::Clear() {
   Clear(0);
   Clear(1);
-  rehash_idx_ = -1;
+  rehash_idx_ = std::nullopt;
   pause_rehash_ = 0;
 }
 
@@ -526,19 +523,18 @@ Dict<K, V>::~Dict() {
 }
 
 template <typename K, typename V>
-Dict<K, V>::Dict() : rehash_idx_(-1), pause_rehash_(0) {
+Dict<K, V>::Dict() : rehash_idx_(std::nullopt), pause_rehash_(0) {
   InitializeTables();
 }
 
 template <typename K, typename V>
 Dict<K, V>::Dict(const DictType& type)
-    : rehash_idx_(-1), pause_rehash_(0), type_(type) {
+    : type_(type), rehash_idx_(std::nullopt), pause_rehash_(0) {
   InitializeTables();
 }
 
 template <typename K, typename V>
 void Dict<K, V>::InitializeTables() {
-  tables_.resize(2);
   Reset(0);
   Reset(1);
 }
@@ -586,6 +582,37 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(const K& key) {
 }
 
 template <typename K, typename V>
+typename Dict<K, V>::DictEntry* Dict<K, V>::Unlink(std::string_view key) {
+  static_assert(std::is_same<K, std::string>::value,
+                "std::string_view unlink only supports std::string keys");
+  RehashStepIfNeeded();
+  const size_t hash = StringViewKeyHash(key);
+  for (size_t table = 0; table < tables_.size(); ++table) {
+    if (tables_[table].empty()) {
+      if (!IsRehashing()) {
+        break;
+      }
+      continue;
+    }
+    const size_t index = HashIndex(hash, table);
+    DictEntry* entry = tables_[table][index];
+    DictEntry* previous = nullptr;
+    while (entry != nullptr) {
+      if (entry->hash == hash && IsEqual(key, entry->key)) {
+        UnlinkEntry(entry, previous, table);
+        return entry;
+      }
+      previous = entry;
+      entry = entry->next;
+    }
+    if (!IsRehashing()) {
+      break;
+    }
+  }
+  return nullptr;
+}
+
+template <typename K, typename V>
 void Dict<K, V>::UnlinkEntry(DictEntry* de, DictEntry* prev, int i) {
   if (prev) {
     prev->next = de->next;
@@ -605,7 +632,7 @@ void Dict<K, V>::DeleteEntry(DictEntry* de, DictEntry* prev, int i) {
 
 template <typename K, typename V>
 size_t Dict<K, V>::TableMask(int i) const {
-  return table_size_exp_[i] == -1 ? 0 : (1 << table_size_exp_[i]) - 1;
+  return table_size_exp_[i] == -1 ? 0 : (size_t{1} << table_size_exp_[i]) - 1;
 }
 
 template <typename K, typename V>
@@ -632,9 +659,16 @@ size_t Dict<K, V>::StringViewKeyHash(std::string_view key) const {
 
 template <typename K, typename V>
 int Dict<K, V>::NextExp(size_t size) const {
-  int i = 1;
-  while ((1 << i) < size) ++i;
-  return i;
+  int exponent = 1;
+  size_t table_size = size_t{1} << exponent;
+  while (table_size < size) {
+    if (table_size > std::numeric_limits<size_t>::max() / 2) {
+      return -1;
+    }
+    table_size *= 2;
+    ++exponent;
+  }
+  return exponent;
 }
 
 template <typename K, typename V>
@@ -662,6 +696,11 @@ bool Dict<K, V>::IsEqual(std::string_view key1, const K& key2) const {
 template <typename K, typename V>
 void Dict<K, V>::SetKey(DictEntry* entry, const K& key) {
   entry->key = type_.key_dup ? type_.key_dup(key) : key;
+}
+
+template <typename K, typename V>
+void Dict<K, V>::SetKey(DictEntry* entry, K&& key) {
+  entry->key = type_.key_dup ? type_.key_dup(key) : std::move(key);
 }
 
 template <typename K, typename V>
@@ -694,14 +733,15 @@ void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
     FreeKey(entry);
     FreeVal(entry);
     delete entry;
-    entry = nullptr;
   }
 }
 
 template <typename K, typename V>
 std::optional<size_t> Dict<K, V>::KeyIndex(const K& key, size_t hash,
                                            Dict<K, V>::DictEntry** existing) {
-  if (existing) *existing = nullptr;
+  if (existing != nullptr) {
+    *existing = nullptr;
+  }
   size_t idx = 0;
   for (size_t i = 0; i < tables_.size(); ++i) {
     if (tables_[i].empty()) {
@@ -739,11 +779,29 @@ typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
     return nullptr;
   }
   int i = IsRehashing() ? 1 : 0;
-  DictEntry* de = new DictEntry();
-  de->hash = hash;
-  SetKey(de, key);
-  InsertEntry(de, i);
-  return de;
+  auto entry = std::make_unique<DictEntry>();
+  entry->hash = hash;
+  SetKey(entry.get(), key);
+  InsertEntry(entry.get(), i);
+  return entry.release();
+}
+
+template <typename K, typename V>
+typename Dict<K, V>::DictEntry* Dict<K, V>::InsertRaw(
+    K&& key, Dict<K, V>::DictEntry** existing) {
+  ExpandIfNeeded();
+  RehashStepIfNeeded();
+  const size_t hash = KeyHash(key);
+  const auto idx = KeyIndex(key, hash, existing);
+  if (!idx.has_value()) {
+    return nullptr;
+  }
+  const int table = IsRehashing() ? 1 : 0;
+  auto entry = std::make_unique<DictEntry>();
+  entry->hash = hash;
+  SetKey(entry.get(), std::move(key));
+  InsertEntry(entry.get(), table);
+  return entry.release();
 }
 
 template <typename K, typename V>
@@ -761,22 +819,25 @@ bool Dict<K, V>::Expand(size_t size) {
     return false;
   }
   int new_exp = NextExp(size);
+  if (new_exp < 0) {
+    return false;
+  }
   if (new_exp <= table_size_exp_[0]) {
     return false;
   }
   size_t new_size = TableSize(new_exp);
   if (new_size < size ||
-      new_size * sizeof(DictEntry*) < size * sizeof(DictEntry*)) {
+      new_size > std::numeric_limits<size_t>::max() / sizeof(DictEntry*)) {
     return false;
   }
   // First allocation initializes table 0; later expansions rehash into table 1.
   if (table_size_exp_[0] < 0) {
     InitializeTableWithSize(0, new_exp, new_size);
-    rehash_idx_ = -1;
+    rehash_idx_ = std::nullopt;
     return true;
   }
   InitializeTableWithSize(1, new_exp, new_size);
-  rehash_idx_ = 0;
+  rehash_idx_ = size_t{0};
   return true;
 }
 
@@ -798,11 +859,12 @@ bool Dict<K, V>::Rehash(int n) {
   }
   int empty_visit = n * 10;
   size_t dict_size = TableSize(table_size_exp_[0]);
-  while (n > 0 && rehash_idx_ < dict_size && table_used_[0] > 0 &&
+  while (n > 0 && *rehash_idx_ < dict_size && table_used_[0] > 0 &&
          empty_visit > 0) {
-    DictEntry* de = tables_[0][rehash_idx_];
+    DictEntry* de = tables_[0][*rehash_idx_];
     if (!de) {
-      --empty_visit, ++rehash_idx_;
+      --empty_visit;
+      ++*rehash_idx_;
       continue;
     }
     while (de) {
@@ -811,8 +873,9 @@ bool Dict<K, V>::Rehash(int n) {
       InsertEntry(de, 1);
       de = next;
     }
-    tables_[0][rehash_idx_] = nullptr;
-    --n, ++rehash_idx_;
+    tables_[0][*rehash_idx_] = nullptr;
+    --n;
+    ++*rehash_idx_;
   }
   if (table_used_[0] == 0) {
     MigrateRehashedTable();
@@ -827,7 +890,7 @@ void Dict<K, V>::MigrateRehashedTable() {
   table_size_exp_[0] = table_size_exp_[1];
   table_used_[0] = table_used_[1];
   Reset(1);
-  rehash_idx_ = -1;
+  rehash_idx_ = std::nullopt;
 }
 
 /*
@@ -850,7 +913,7 @@ void Dict<K, V>::Clear(int i) {
 
 template <typename K, typename V>
 void Dict<K, V>::Reset(int i) {
-  if (i >= tables_.size()) {
+  if (i < 0 || static_cast<size_t>(i) >= tables_.size()) {
     return;
   }
   tables_[i].clear();

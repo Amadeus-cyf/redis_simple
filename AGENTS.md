@@ -42,6 +42,18 @@ ctest --preset debug -L unit --output-on-failure
 ctest --preset debug -L integration --output-on-failure
 ```
 
+Run release and sanitizer checks after changes to ownership, memory layout,
+assertions, or low-level data structures:
+
+```sh
+cmake --preset release
+cmake --build --preset release
+ctest --preset release --output-on-failure
+cmake --preset sanitizer
+cmake --build --preset sanitizer
+ctest --preset sanitizer --output-on-failure
+```
+
 Use Docker for a local Linux build and test check from macOS:
 
 ```sh
@@ -71,6 +83,10 @@ Before committing, run the relevant build and tests.
 ## Project Management
 
 - Run `clang-format` on changed C/C++ files before committing or pushing.
+- Use `scripts/format.sh --check` and `scripts/run_clang_tidy.sh` for local
+  quality checks; clang-tidy warnings are treated as errors.
+- Never put required side effects inside `assert`; release builds must preserve
+  behavior when assertions are disabled.
 - Always update relevant docs, including `README.md` and this `AGENTS.md`, when
   changing build, test, workflow, or project conventions.
 - Keep CMake target-based. Source files are discovered by scoped directory

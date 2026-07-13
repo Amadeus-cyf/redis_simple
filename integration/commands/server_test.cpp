@@ -1,6 +1,7 @@
 #include "server/server.h"
 
 #include <csignal>
+#include <cstdint>
 #include <cstdlib>
 
 #include "event_loop/loop.h"
@@ -13,7 +14,7 @@ volatile std::sig_atomic_t g_stop_requested = 0;
 
 void RequestStop(int /*signal*/) { g_stop_requested = 1; }
 
-int StopServerIfRequested(long long /*id*/) {
+int StopServerIfRequested(int64_t /*id*/) {
   if (g_stop_requested == 0) {
     return 1;
   }

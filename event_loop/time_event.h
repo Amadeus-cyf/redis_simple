@@ -1,6 +1,6 @@
 #pragma once
 
-#include <ctime>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <utility>
@@ -8,28 +8,31 @@
 namespace redis_simple::event_loop {
 class TimeEvent {
  public:
-  using TimeCallback = std::function<int(long long)>;
+  using TimeCallback = std::function<int(int64_t)>;
   using FinalizeCallback = std::function<int()>;
 
   static std::unique_ptr<TimeEvent> Create(TimeCallback time_callback,
                                            FinalizeCallback finalize_callback) {
-    static long long gen_id = 0;
+    if (!time_callback) {
+      return nullptr;
+    }
+    static int64_t gen_id = 0;
     return std::unique_ptr<TimeEvent>(new TimeEvent(
         gen_id++, std::move(time_callback), std::move(finalize_callback)));
   }
 
   template <typename T>
-  static std::unique_ptr<TimeEvent> Create(int (*time_callback)(long long, T*),
+  static std::unique_ptr<TimeEvent> Create(int (*time_callback)(int64_t, T*),
                                            int (*finalize_callback)(T*),
                                            T* client_data) {
     return Create(Wrap(time_callback, client_data),
                   Wrap(finalize_callback, client_data));
   }
 
-  long long Id() const { return id_; }
-  void SetId(long long id) { id_ = id; }
-  void SetWhen(time_t when) { when_ = when; }
-  time_t When() const { return when_; }
+  int64_t Id() const { return id_; }
+  void SetId(int64_t id) { id_ = id; }
+  void SetWhen(int64_t when) { when_ = when; }
+  int64_t When() const { return when_; }
   bool HasFinalizeCallback() const {
     return static_cast<bool>(finalize_callback_);
   }
@@ -37,7 +40,7 @@ class TimeEvent {
   int CallFinalizeCallback() const { return finalize_callback_(); }
 
  private:
-  explicit TimeEvent(long long id, TimeCallback time_callback,
+  explicit TimeEvent(int64_t id, TimeCallback time_callback,
                      FinalizeCallback finalize_callback)
       : id_(id),
         when_(0),
@@ -45,11 +48,11 @@ class TimeEvent {
         finalize_callback_(std::move(finalize_callback)) {}
 
   template <typename T>
-  static TimeCallback Wrap(int (*callback)(long long, T*), T* client_data) {
+  static TimeCallback Wrap(int (*callback)(int64_t, T*), T* client_data) {
     if (callback == nullptr) {
       return nullptr;
     }
-    return [callback, client_data](long long id) {
+    return [callback, client_data](int64_t id) {
       return callback(id, client_data);
     };
   }
@@ -62,8 +65,8 @@ class TimeEvent {
     return [callback, client_data]() { return callback(client_data); };
   }
 
-  long long id_;
-  time_t when_;
+  int64_t id_;
+  int64_t when_;
   TimeCallback time_callback_;
   FinalizeCallback finalize_callback_;
 };

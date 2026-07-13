@@ -5,25 +5,6 @@
 
 namespace redis_simple::list {
 namespace {
-constexpr size_t kEntryOverheadEstimate = 8;
-
-bool HasRemoveLimit(size_t limit) { return limit != 0; }
-
-bool ListPackEntryEquals(const in_memory::ListPack* const listpack,
-                         size_t index, std::string_view value) {
-  size_t len = 0;
-  const auto* data = listpack->Get(index, &len);
-  return data != nullptr &&
-         std::string_view(reinterpret_cast<const char*>(data), len) == value;
-}
-
-ssize_t NextAfterDelete(const in_memory::ListPack* const listpack,
-                        size_t deleted_index) {
-  return deleted_index < listpack->TotalBytes() - 1
-             ? static_cast<ssize_t>(deleted_index)
-             : -1;
-}
-
 in_memory::QuickList::RemoveDirection ToQuickListRemoveDirection(
     List::RemoveDirection direction) {
   return direction == List::RemoveDirection::kFromTail
@@ -111,56 +92,20 @@ bool List::Trim(size_t start, size_t stop) {
 std::optional<size_t> List::RemoveFromListPack(std::string_view value,
                                                size_t limit,
                                                RemoveDirection direction) {
-  size_t removed = 0;
-  if (direction == RemoveDirection::kFromTail && HasRemoveLimit(limit)) {
-    ssize_t idx = listpack_->Last();
-    while (idx != -1) {
-      const auto current_index = static_cast<size_t>(idx);
-      idx = listpack_->Prev(current_index);
-      if (ListPackEntryEquals(listpack_.get(), current_index, value)) {
-        listpack_->Delete(current_index);
-        ++removed;
-        if (removed >= limit) {
-          break;
-        }
-      }
-    }
-    return removed;
-  }
-
-  ssize_t idx = listpack_->First();
-  while (idx != -1) {
-    const auto current_index = static_cast<size_t>(idx);
-    if (ListPackEntryEquals(listpack_.get(), current_index, value)) {
-      listpack_->Delete(current_index);
-      ++removed;
-      if (HasRemoveLimit(limit) && removed >= limit) {
-        break;
-      }
-      idx = NextAfterDelete(listpack_.get(), current_index);
-      continue;
-    }
-    idx = listpack_->Next(current_index);
-  }
-  return removed;
+  return listpack_->DeleteMatching(value, limit,
+                                   direction == RemoveDirection::kFromTail);
 }
 
 void List::TrimListPack(size_t start, size_t stop) {
   const size_t size = listpack_->Size();
   const size_t tail_count = size - stop - 1;
-  for (size_t i = 0; i < tail_count; ++i) {
-    const auto idx = listpack_->IndexAt(stop + 1);
-    if (!idx.has_value()) {
-      break;
-    }
-    listpack_->Delete(*idx);
+  const auto tail_index = listpack_->IndexAt(stop + 1);
+  if (tail_index.has_value()) {
+    listpack_->DeleteRange(*tail_index, tail_count);
   }
-  for (size_t i = 0; i < start; ++i) {
-    const ssize_t idx = listpack_->First();
-    if (idx == -1) {
-      break;
-    }
-    listpack_->Delete(static_cast<size_t>(idx));
+  const auto first = listpack_->First();
+  if (first.has_value()) {
+    listpack_->DeleteRange(*first, start);
   }
 }
 
@@ -208,9 +153,12 @@ std::optional<std::string> List::Pop(bool head) {
     if (listpack_->Size() == 0) {
       return std::nullopt;
     }
-    const size_t idx = head ? listpack_->First() : listpack_->Last();
-    auto value = listpack_->Get(idx);
-    listpack_->Delete(idx);
+    const auto idx = head ? listpack_->First() : listpack_->Last();
+    if (!idx.has_value()) {
+      return std::nullopt;
+    }
+    auto value = listpack_->Get(*idx);
+    listpack_->Delete(*idx);
     return value;
   }
 
@@ -229,8 +177,10 @@ bool List::WouldExceedListpackLimit(std::string_view value) const {
   if (!listpack_) {
     return false;
   }
-  return listpack_->TotalBytes() + value.size() + kEntryOverheadEstimate >
-         list_max_listpack_bytes_;
+  const size_t bytes = listpack_->TotalBytes();
+  const size_t added = in_memory::ListPack::EstimateEntryBytes(value);
+  return bytes > list_max_listpack_bytes_ ||
+         added > list_max_listpack_bytes_ - bytes;
 }
 
 bool List::ConvertListPackToQuickList() {
@@ -251,24 +201,14 @@ bool List::ConvertListPackToQuickList() {
 }
 
 void List::TryConvertQuickListToListPack() {
-  if (!quicklist_ || quicklist_->NodeCount() > 1) {
+  if (!quicklist_) {
     return;
   }
-
-  auto listpack = std::make_unique<in_memory::ListPack>();
-  const size_t size = quicklist_->Size();
-  const bool converted =
-      size == 0 ||
-      quicklist_->ForEach(0, size - 1, [&listpack](std::string_view value) {
-        return listpack->Append(value);
-      });
-  if (!converted) {
+  const auto bytes = quicklist_->ListPackBytes();
+  if (!bytes.has_value() || *bytes > list_max_listpack_bytes_ / 2) {
     return;
   }
-  if (listpack->TotalBytes() > list_max_listpack_bytes_ / 2) {
-    return;
-  }
-  listpack_ = std::move(listpack);
+  listpack_ = quicklist_->ReleaseListPack();
   quicklist_.reset();
 }
 }  // namespace redis_simple::list

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sys/types.h>
-
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -24,14 +22,13 @@ class ListPack {
   // Header: 32-bit total bytes followed by 16-bit element count.
   static constexpr int kListPackHeaderSize = 6;
   ListPack();
-  explicit ListPack(size_t capacity);
   ListPack(const ListPack&) = delete;
   ListPack& operator=(const ListPack&) = delete;
   unsigned char* Get(size_t idx, size_t* const len) const;
   std::optional<std::string> Get(size_t idx) const;
   std::optional<int64_t> IntegerAt(size_t idx) const;
-  ssize_t Find(std::string_view val) const;
-  ssize_t FindAndSkip(std::string_view val, size_t skip) const;
+  std::optional<size_t> Find(std::string_view val) const;
+  std::optional<size_t> FindAndSkip(std::string_view val, size_t skip) const;
   bool Append(std::string_view element_string);
   bool Append(int64_t element_integer);
   bool Prepend(std::string_view element_string);
@@ -53,12 +50,16 @@ class ListPack {
   template <typename Visitor>
   bool ForEachPair(Visitor&& visitor) const;
   void Delete(size_t idx);
-  ssize_t First() const;
-  ssize_t Last() const;
-  ssize_t Next(size_t idx) const;
-  ssize_t Prev(size_t idx) const;
+  size_t DeleteRange(size_t idx, size_t count);
+  size_t DeleteMatching(std::string_view value, size_t limit,
+                        bool from_tail = false);
+  std::optional<size_t> First() const;
+  std::optional<size_t> Last() const;
+  std::optional<size_t> Next(size_t idx) const;
+  std::optional<size_t> Prev(size_t idx) const;
   uint32_t TotalBytes() const;
   size_t Size() const;
+  static size_t EstimateEntryBytes(std::string_view value);
   static size_t EstimateBytes(int64_t lval, size_t repeat);
   static bool SafeToAdd(const ListPack* const lp, size_t bytes);
   ~ListPack() = default;
@@ -154,10 +155,10 @@ bool ListPack::ForEach(size_t start, size_t stop, Visitor&& visitor) const {
 
   size_t index = 0;
   auto listpack_index = First();
-  while (listpack_index != -1 && index <= stop) {
+  while (listpack_index.has_value() && index <= stop) {
     if (index >= start) {
       size_t len = 0;
-      const auto* data = Get(static_cast<size_t>(listpack_index), &len);
+      const auto* data = Get(*listpack_index, &len);
       if (data != nullptr) {
         const std::string_view value(reinterpret_cast<const char*>(data), len);
         if (!visitor(value)) {
@@ -166,7 +167,7 @@ bool ListPack::ForEach(size_t start, size_t stop, Visitor&& visitor) const {
       }
     }
     ++index;
-    listpack_index = Next(static_cast<size_t>(listpack_index));
+    listpack_index = Next(*listpack_index);
   }
   return true;
 }
@@ -182,14 +183,14 @@ bool ListPack::ForEachReverse(size_t start, size_t stop,
 
   size_t index = 0;
   auto listpack_index = First();
-  while (listpack_index != -1 && index < stop) {
-    listpack_index = Next(static_cast<size_t>(listpack_index));
+  while (listpack_index.has_value() && index < stop) {
+    listpack_index = Next(*listpack_index);
     ++index;
   }
 
-  while (listpack_index != -1 && index >= start) {
+  while (listpack_index.has_value() && index >= start) {
     size_t len = 0;
-    const auto* data = Get(static_cast<size_t>(listpack_index), &len);
+    const auto* data = Get(*listpack_index, &len);
     if (data != nullptr) {
       const std::string_view value(reinterpret_cast<const char*>(data), len);
       if (!visitor(value)) {
@@ -199,7 +200,7 @@ bool ListPack::ForEachReverse(size_t start, size_t stop,
     if (index == 0) {
       break;
     }
-    listpack_index = Prev(static_cast<size_t>(listpack_index));
+    listpack_index = Prev(*listpack_index);
     --index;
   }
   return true;
@@ -208,9 +209,9 @@ bool ListPack::ForEachReverse(size_t start, size_t stop,
 template <typename Visitor>
 bool ListPack::ForEachPair(Visitor&& visitor) const {
   auto first_idx = First();
-  while (first_idx != -1) {
-    const auto second_idx = Next(static_cast<size_t>(first_idx));
-    if (second_idx == -1) {
+  while (first_idx.has_value()) {
+    const auto second_idx = Next(*first_idx);
+    if (!second_idx.has_value()) {
       break;
     }
 
@@ -218,20 +219,16 @@ bool ListPack::ForEachPair(Visitor&& visitor) const {
     size_t second_len = 0;
     std::array<unsigned char, kListPackIntBufSize> first_int_buf{};
     std::array<unsigned char, kListPackIntBufSize> second_int_buf{};
-    const EncodingType first_type = EncodingAt(static_cast<size_t>(first_idx));
-    const EncodingType second_type =
-        EncodingAt(static_cast<size_t>(second_idx));
-    const auto* first =
-        IsString(first_type)
-            ? StringAt(static_cast<size_t>(first_idx), &first_len, first_type)
-            : IntegerAt(static_cast<size_t>(first_idx), first_int_buf.data(),
-                        &first_len, nullptr, first_type);
-    const auto* second =
-        IsString(second_type)
-            ? StringAt(static_cast<size_t>(second_idx), &second_len,
-                       second_type)
-            : IntegerAt(static_cast<size_t>(second_idx), second_int_buf.data(),
-                        &second_len, nullptr, second_type);
+    const EncodingType first_type = EncodingAt(*first_idx);
+    const EncodingType second_type = EncodingAt(*second_idx);
+    const auto* first = IsString(first_type)
+                            ? StringAt(*first_idx, &first_len, first_type)
+                            : IntegerAt(*first_idx, first_int_buf.data(),
+                                        &first_len, nullptr, first_type);
+    const auto* second = IsString(second_type)
+                             ? StringAt(*second_idx, &second_len, second_type)
+                             : IntegerAt(*second_idx, second_int_buf.data(),
+                                         &second_len, nullptr, second_type);
     if (first != nullptr && second != nullptr) {
       const std::string_view first_value(reinterpret_cast<const char*>(first),
                                          first_len);
@@ -241,7 +238,7 @@ bool ListPack::ForEachPair(Visitor&& visitor) const {
         return false;
       }
     }
-    first_idx = Next(static_cast<size_t>(second_idx));
+    first_idx = Next(*second_idx);
   }
   return true;
 }

@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "cli/resp_parser.h"
 #include "connection/connection.h"
 #include "memory/dynamic_buffer.h"
 
@@ -31,7 +32,7 @@ class RedisCli {
   static constexpr const char* kNoReplyResp = "no_reply";
   std::optional<std::string> MaybeReadReply();
   std::string ReadReplyFromConnection();
-  bool ProcessReply(std::vector<std::string>& reply);
+  resp_parser::ParseStatus ProcessReply(std::vector<std::string>& reply);
   std::unique_ptr<connection::Connection> connection_;
   std::optional<std::string> ip_;
   std::optional<int> port_;
