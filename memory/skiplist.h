@@ -1078,5 +1078,6 @@ void Skiplist<Key, Comparator, Destructor>::Reset() {
 template <typename Key, typename Comparator, typename Destructor>
 Skiplist<Key, Comparator, Destructor>::~Skiplist() {
   Reset();
+  delete head_;
 }
 }  // namespace redis_simple::in_memory

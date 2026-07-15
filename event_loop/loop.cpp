@@ -213,7 +213,7 @@ void Loop::ProcessFileEvents() {
   if (file_event_count_ == 0) {
     return;
   }
-  struct timespec timeout_spec;
+  timespec timeout_spec{};
   timeout_spec.tv_sec = 1;
   timeout_spec.tv_nsec = 0;
   const auto& ready_events = event_poller_->Poll(&timeout_spec);

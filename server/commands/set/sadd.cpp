@@ -66,6 +66,8 @@ std::optional<int64_t> SAdd(db::RedisDb* redis_db, const SAddArgs* args) {
     return std::nullopt;
   }
   if (obj == nullptr) {
+    // LLVM 18 cannot trace unique_ptr ownership through Dict::Set.
+    // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
     auto new_obj = db::RedisObject::CreateWithSet(Set::Create());
     obj = new_obj.get();
     const auto status = redis_db->SetKey(args->key, std::move(new_obj), 0);

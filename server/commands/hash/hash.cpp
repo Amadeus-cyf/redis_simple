@@ -63,18 +63,18 @@ struct IncrementArgs {
 };
 
 struct HashResult {
-  const Hash* hash;
-  HashStatus status;
+  const Hash* hash{nullptr};
+  HashStatus status{HashStatus::kMissing};
 };
 
 struct MutableHashResult {
-  Hash* hash;
-  HashStatus status;
+  Hash* hash{nullptr};
+  HashStatus status{HashStatus::kMissing};
 };
 
 struct IncrementResult {
   std::optional<int64_t> value;
-  HashStatus status;
+  HashStatus status{HashStatus::kMissing};
 };
 
 int ParseKeyArgs(const CommandArgs& args, KeyArgs* key_args);
@@ -186,6 +186,8 @@ MutableHashResult FindOrCreateHash(db::RedisDb* const redis_db,
   if (result.status != HashStatus::kMissing) {
     return result;
   }
+  // LLVM 18 cannot trace unique_ptr ownership through Dict::Set.
+  // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
   auto new_obj = db::RedisObject::CreateWithHash(Hash::Create());
   auto* obj = new_obj.get();
   if (redis_db->SetKey(key, std::move(new_obj), 0) == db::DbStatus::kError) {

@@ -71,18 +71,18 @@ struct RemoveArgs {
 };
 
 struct ListResult {
-  List* list;
-  ListStatus status;
+  List* list{nullptr};
+  ListStatus status{ListStatus::kMissing};
 };
 
 struct ConstListResult {
-  const List* list;
-  ListStatus status;
+  const List* list{nullptr};
+  ListStatus status{ListStatus::kMissing};
 };
 
 struct PopResult {
   std::optional<std::string> value;
-  ListStatus status;
+  ListStatus status{ListStatus::kMissing};
 };
 
 int ParsePushArgs(const CommandArgs& args, PushArgs* push_args);
@@ -205,6 +205,8 @@ ListResult FindOrCreateList(db::RedisDb* const redis_db, std::string_view key) {
   if (result.status != ListStatus::kMissing) {
     return result;
   }
+  // LLVM 18 cannot trace unique_ptr ownership through Dict::Set.
+  // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks)
   auto new_obj = db::RedisObject::CreateWithList(List::Create());
   auto* obj = new_obj.get();
   if (redis_db->SetKey(key, std::move(new_obj), 0) == db::DbStatus::kError) {

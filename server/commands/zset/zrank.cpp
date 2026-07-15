@@ -24,7 +24,7 @@ enum class ZRankStatus : std::uint8_t {
 };
 struct ZRankResult {
   std::optional<size_t> rank;
-  ZRankStatus status;
+  ZRankStatus status{ZRankStatus::kMissing};
 };
 int ParseArgs(const CommandArgs& args, ZRankArgs* zset_args);
 ZRankResult ZRank(db::RedisDb* redis_db, const ZRankArgs* args);

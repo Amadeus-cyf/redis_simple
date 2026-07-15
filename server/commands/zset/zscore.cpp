@@ -23,7 +23,7 @@ enum class ZScoreStatus : std::uint8_t {
 };
 struct ZScoreResult {
   std::optional<double> score;
-  ZScoreStatus status;
+  ZScoreStatus status{ZScoreStatus::kMissing};
 };
 int ParseArgs(const CommandArgs& args, ZScoreArgs* zscore_args);
 ZScoreResult ZScore(db::RedisDb* redis_db, const ZScoreArgs* args);
