@@ -4,9 +4,12 @@
 #include <unistd.h>
 
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <limits>
+#include <memory>
+#include <vector>
 
 #include "event_loop/loop.h"
 #include "logging/logger.h"

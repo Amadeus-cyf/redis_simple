@@ -7,8 +7,11 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include <limits>
+#include <memory>
+#include <vector>
 
 #include "event_loop/loop.h"
 #include "logging/logger.h"

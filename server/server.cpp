@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <any>
+#include <cstdint>
+#include <string>
 #include <utility>
 
 #include "client_connection/client_connection.h"

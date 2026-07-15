@@ -5,9 +5,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 

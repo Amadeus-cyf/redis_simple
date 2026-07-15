@@ -3,9 +3,12 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <limits>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "utils/int_utils.h"
 

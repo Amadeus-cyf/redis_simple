@@ -2,8 +2,10 @@
 
 #include <cassert>
 #include <cstddef>
+#include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>

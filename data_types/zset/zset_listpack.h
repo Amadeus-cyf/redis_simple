@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstddef>
+#include <memory>
 #include <optional>
 #include <string_view>
+#include <vector>
 
 #include "data_types/zset/zset_storage.h"
 #include "memory/listpack.h"

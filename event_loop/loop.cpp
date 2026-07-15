@@ -7,10 +7,14 @@
 #include <array>
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <functional>
 #include <limits>
+#include <memory>
 #include <utility>
+#include <vector>
 
 #include "logging/logger.h"
 #include "utils/time_utils.h"

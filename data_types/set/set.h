@@ -3,11 +3,13 @@
 #include <array>
 #include <charconv>
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 #include "memory/dict.h"

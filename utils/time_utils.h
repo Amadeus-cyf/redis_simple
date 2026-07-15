@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstdint>
 
 namespace redis_simple::utils {
 inline int64_t NowInMilliseconds() {

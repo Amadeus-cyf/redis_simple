@@ -1,5 +1,7 @@
 #include "utils/int_utils.h"
 
+#include <cstdint>
+
 namespace redis_simple::utils {
 uint32_t Digits10(uint64_t v) {
   if (v < 10) {

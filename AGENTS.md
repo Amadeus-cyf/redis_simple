@@ -60,6 +60,10 @@ Use Docker for a local Linux build and test check from macOS:
 scripts/run_linux_docker_check.sh
 ```
 
+The helper prepares its cached Ubuntu toolchain without mounting the
+repository. Its build and test container has networking disabled and mounts the
+repository read-only.
+
 Before committing, run the relevant build and tests.
 
 ## Test Layout

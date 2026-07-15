@@ -1,7 +1,9 @@
 #include <benchmark/benchmark.h>
 
 #include <random>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "memory/dict.h"
 

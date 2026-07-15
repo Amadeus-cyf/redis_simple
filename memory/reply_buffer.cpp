@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <memory>
+#include <utility>
+#include <vector>
 
 #include "logging/logger.h"
 

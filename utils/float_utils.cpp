@@ -3,6 +3,8 @@
 #include <array>
 #include <charconv>
 #include <cmath>
+#include <string>
+#include <string_view>
 #include <system_error>
 
 namespace redis_simple::utils {

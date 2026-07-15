@@ -2,7 +2,11 @@
 
 #include <algorithm>
 #include <cassert>
+#include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 namespace redis_simple::in_memory {

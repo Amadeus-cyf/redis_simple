@@ -1,6 +1,8 @@
 #include "server/client_connection/redis_cmd.h"
 
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace redis_simple::client_connection {
 RedisCommand::RedisCommand(std::string name, std::vector<std::string> args)

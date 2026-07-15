@@ -1,11 +1,14 @@
 #include "dynamic_buffer.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <string_view>
+#include <utility>
 
 namespace redis_simple::in_memory {
 DynamicBuffer::DynamicBuffer()

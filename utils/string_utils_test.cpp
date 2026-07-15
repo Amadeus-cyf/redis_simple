@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace redis_simple::utils {
 TEST(StringUtilsTest, Split) {

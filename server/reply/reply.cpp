@@ -2,9 +2,13 @@
 
 #include <array>
 #include <charconv>
+#include <cstdint>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <string_view>
+#include <system_error>
+#include <vector>
 
 #include "utils/float_utils.h"
 

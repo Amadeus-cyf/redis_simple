@@ -1,10 +1,17 @@
 #include "memory/listpack.h"
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "utils/string_utils.h"
 

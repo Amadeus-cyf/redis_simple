@@ -9,6 +9,7 @@
 #include <array>
 #include <cerrno>
 #include <cstring>
+#include <optional>
 #include <string>
 
 #include "logging/logger.h"

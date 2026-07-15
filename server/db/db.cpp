@@ -1,6 +1,11 @@
 #include "db.h"
 
 #include <algorithm>
+#include <cinttypes>
+#include <cstdint>
+#include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -52,7 +57,7 @@ DbStatus RedisDb::SetKey(std::string_view key, RedisObjectPtr object,
   }
   if (expire > 0) {
     expires_->Set(std::string(key), expire);
-    RS_LOG_DEBUG("add expire %lld\n", expire);
+    RS_LOG_DEBUG("add expire %" PRId64 "\n", expire);
   }
   return DbStatus::kOk;
 }

@@ -1,7 +1,10 @@
 #include "data_types/zset/zset_skiplist.h"
 
 #include <cmath>
+#include <cstdint>
 #include <limits>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 

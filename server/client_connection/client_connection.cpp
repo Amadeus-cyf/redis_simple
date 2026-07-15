@@ -2,6 +2,8 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
+#include <utility>
 
 #include "logging/logger.h"
 #include "server/client.h"

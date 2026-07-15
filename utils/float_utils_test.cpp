@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <string>
 
 namespace redis_simple::utils {
 TEST(FloatUtilsTest, FormatsCommonValuesConcise) {

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
 #include <string>
@@ -36,7 +37,8 @@ bool ExpectIntegerBetween(cli::RedisCli* cli, const std::string& command,
   if (reply.empty() ||
       !utils::ToInt64(reply.substr(0, reply.size() - 1), &value) ||
       value < min_value || value > max_value) {
-    RS_LOG_DEBUG("command failed: %s expected range: [%lld, %lld] actual: %s\n",
+    RS_LOG_DEBUG("command failed: %s expected range: [%" PRId64 ", %" PRId64
+                 "] actual: %s\n",
                  command.c_str(), min_value, max_value, reply.c_str());
     return false;
   }

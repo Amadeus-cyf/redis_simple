@@ -1,5 +1,7 @@
 #include "expire.h"
 
+#include <cstdint>
+
 #include "logging/logger.h"
 #include "server.h"
 #include "utils/time_utils.h"

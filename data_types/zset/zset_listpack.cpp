@@ -1,8 +1,13 @@
 #include "data_types/zset/zset_listpack.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "memory/listpack.h"
 #include "utils/float_utils.h"

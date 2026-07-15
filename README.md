@@ -198,10 +198,13 @@ Run the Linux build and test flow locally from macOS through Docker:
 scripts/run_linux_docker_check.sh
 ```
 
-The Docker helper uses Ubuntu 24.04 by default and builds under `/tmp` inside
-the container, so it validates the Linux `epoll` poller without writing Linux
-build artifacts into the working tree. Set `DOCKER_IMAGE` or
-`LINUX_DOCKER_BUILD_DIR` to override those defaults.
+On its first run, the Docker helper creates a local Ubuntu 24.04 toolchain image
+without mounting the repository. Build and test runs then disable container
+networking, mount the repository read-only, drop Linux capabilities, and build
+under a temporary filesystem. This validates the Linux `epoll` poller without
+writing Linux artifacts into the working tree or exposing source code to the
+container network. Set `DOCKER_BASE_IMAGE`, `DOCKER_TOOLCHAIN_IMAGE`, or
+`LINUX_DOCKER_BUILD_DIR` to override the defaults.
 
 ## C++ Style
 

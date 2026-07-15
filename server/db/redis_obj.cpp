@@ -1,6 +1,8 @@
 #include "redis_obj.h"
 
 #include <stdexcept>
+#include <string>
+#include <variant>
 
 namespace redis_simple::db {
 const std::string& RedisObject::String() const {

@@ -2,9 +2,15 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include "utils/int_utils.h"
 #include "utils/string_utils.h"

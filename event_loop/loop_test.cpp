@@ -6,8 +6,10 @@
 
 #include <array>
 #include <cerrno>
+#include <cstdint>
 #include <cstring>
 #include <utility>
+#include <vector>
 
 namespace redis_simple::event_loop {
 namespace {

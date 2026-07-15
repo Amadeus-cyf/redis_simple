@@ -3,6 +3,10 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <memory>
+#include <optional>
+#include <string_view>
+#include <utility>
 
 #include "data_types/zset/zset_listpack.h"
 #include "data_types/zset/zset_skiplist.h"

@@ -6,7 +6,11 @@
 #include <array>
 #include <cstdio>
 #include <future>
+#include <memory>
+#include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "logging/logger.h"
 #include "resp_parser.h"

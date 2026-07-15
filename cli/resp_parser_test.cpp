@@ -2,6 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
+#include <string>
+#include <string_view>
+#include <vector>
+
 namespace redis_simple::cli::resp_parser {
 namespace {
 std::ptrdiff_t ParseBytes(std::string_view response,
