@@ -1,11 +1,10 @@
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <limits>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
 #include "data_types/zset/zset.h"
 #include "logging/logger.h"
@@ -20,7 +19,6 @@ namespace {
 using LimitSpec = ::redis_simple::zset::LimitSpec;
 using RangeByRankSpec = ::redis_simple::zset::RangeByRankSpec;
 using RangeByScoreSpec = ::redis_simple::zset::RangeByScoreSpec;
-using ZSetEntry = ::redis_simple::zset::ZSetEntry;
 using ZSetEntryList = ::redis_simple::zset::ZSetEntryList;
 
 constexpr std::string_view kFlagByScore = "BYSCORE";
@@ -29,238 +27,209 @@ constexpr std::string_view kFlagReverse = "REV";
 constexpr std::string_view kFlagWithScores = "WITHSCORES";
 constexpr std::string_view kMaxVal = "+inf";
 constexpr std::string_view kMinVal = "-inf";
-constexpr int kRangeSyntaxError = -1;
-constexpr int kRangeWrongType = -2;
-constexpr int kRangeDbUnavailable = -3;
 
-bool FlaggedByScore(const CommandArgs& args);
-bool ValidateRangeOptions(const CommandArgs& args);
-int ParseRangeToRankSpec(const CommandArgs& args, RangeByRankSpec* spec);
-int ParseRankRange(std::string_view start, std::string_view end,
-                   RangeByRankSpec* spec);
-int ParseRangeTerm(std::string_view term, int64_t* dst);
-int ParseRangeToScoreSpec(const CommandArgs& args, RangeByScoreSpec* spec);
-int ParseScoreRange(std::string_view start, std::string_view end,
-                    RangeByScoreSpec* spec);
-int ParseScoreTerm(std::string_view term, double* dst);
-int ParseLimitOffsetAndCount(const CommandArgs& args,
-                             const std::unique_ptr<LimitSpec>& spec);
-bool IsReverse(const CommandArgs& args);
-bool IsWithScores(const CommandArgs& args);
-std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
-                                             bool with_scores);
-std::optional<int64_t> ToReplyInteger(size_t value);
-void AddRangeReply(Client* client, const CommandArgs& args, bool by_score);
-int RangeByRank(Client* client, const CommandArgs& args, ZSetEntryList* result);
-int RangeByScore(Client* client, const CommandArgs& args,
-                 ZSetEntryList* result);
+enum class RangeMode : std::uint8_t {
+  kRank,
+  kScore,
+};
 
-bool FlaggedByScore(const CommandArgs& args) {
-  // The command parser stores args as key/start/end/options, so options begin
-  // after the first three entries.
-  for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper(args[i]);
-    utils::ToUppercase(upper);
-    if (std::string_view(upper) == kFlagByScore) {
-      return true;
-    }
+enum class RangeStatus : std::uint8_t {
+  kOk,
+  kSyntaxError,
+  kWrongType,
+  kDbUnavailable,
+};
+
+struct RangeOptions {
+  bool by_score{false};
+  bool reverse{false};
+  bool with_scores{false};
+  std::optional<LimitSpec> limit;
+};
+
+bool ParseRangeOptions(const CommandArgs& args, RangeMode mode, bool reverse,
+                       RangeOptions* const options) {
+  if (args.size() < 3 || options == nullptr) {
+    return false;
   }
-  return false;
-}
 
-bool ValidateRangeOptions(const CommandArgs& args) {
-  bool has_by_score = false;
-  bool has_limit = false;
-  bool has_reverse = false;
-  bool has_with_scores = false;
-  for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper(args[i]);
-    utils::ToUppercase(upper);
-    if (std::string_view(upper) == kFlagByScore) {
+  RangeOptions parsed;
+  parsed.by_score = mode == RangeMode::kScore;
+  parsed.reverse = reverse;
+  bool has_by_score = parsed.by_score;
+  bool has_reverse = parsed.reverse;
+
+  for (size_t i = 3; i < args.size();) {
+    const std::string_view option = args[i];
+    if (utils::EqualsIgnoreCase(option, kFlagByScore)) {
       if (has_by_score) {
         return false;
       }
       has_by_score = true;
-    } else if (std::string_view(upper) == kFlagReverse) {
+      parsed.by_score = true;
+      ++i;
+      continue;
+    }
+    if (utils::EqualsIgnoreCase(option, kFlagReverse)) {
       if (has_reverse) {
         return false;
       }
       has_reverse = true;
-    } else if (std::string_view(upper) == kFlagWithScores) {
-      if (has_with_scores) {
+      parsed.reverse = true;
+      ++i;
+      continue;
+    }
+    if (utils::EqualsIgnoreCase(option, kFlagWithScores)) {
+      if (parsed.with_scores) {
         return false;
       }
-      has_with_scores = true;
-    } else if (std::string_view(upper) == kFlagLimit) {
-      if (has_limit || i + 2 >= args.size()) {
-        return false;
-      }
-      has_limit = true;
-      i += 2;
-    } else {
+      parsed.with_scores = true;
+      ++i;
+      continue;
+    }
+    if (!utils::EqualsIgnoreCase(option, kFlagLimit) ||
+        parsed.limit.has_value() || i + 2 >= args.size()) {
       return false;
     }
+
+    int64_t offset = 0;
+    int64_t count = 0;
+    if (!utils::ToInt64(args[i + 1], &offset) || offset < 0 ||
+        !utils::ToInt64(args[i + 2], &count)) {
+      return false;
+    }
+    parsed.limit.emplace(
+        static_cast<size_t>(offset),
+        count < 0 ? std::nullopt
+                  : std::optional<size_t>(static_cast<size_t>(count)));
+    i += 3;
   }
+
+  *options = parsed;
   return true;
 }
 
-int ParseRangeToRankSpec(const CommandArgs& args, RangeByRankSpec* const spec) {
-  if (args.size() < 3 || !ValidateRangeOptions(args)) {
+int ParseRangeTerm(std::string_view term, int64_t* const value) {
+  if (term.empty() || value == nullptr) {
     return -1;
   }
-  std::string_view start = args[1];
-  std::string_view end = args[2];
-  if (ParseRankRange(start, end, spec) < 0) {
-    return -1;
+  if (utils::EqualsIgnoreCase(term, kMinVal)) {
+    *value = 0;
+    return 0;
   }
-  spec->limit = std::make_unique<LimitSpec>();
-  if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
-    return -1;
+  if (utils::EqualsIgnoreCase(term, kMaxVal)) {
+    *value = std::numeric_limits<int64_t>::max();
+    return 0;
   }
-  spec->reverse = IsReverse(args);
-  return 0;
+  const auto number = term[0] == '(' ? term.substr(1) : term;
+  return utils::ToInt64(number, value) ? 0 : -1;
 }
 
 int ParseRankRange(std::string_view start, std::string_view end,
                    RangeByRankSpec* const spec) {
-  if (ParseRangeTerm(start, &(spec->min)) < 0) {
+  if (spec == nullptr || ParseRangeTerm(start, &spec->min) < 0 ||
+      ParseRangeTerm(end, &spec->max) < 0) {
     return -1;
   }
-  if (ParseRangeTerm(end, &(spec->max)) < 0) {
-    return -1;
-  }
-  // Redis uses a leading '(' to make a range endpoint exclusive.
-  spec->minex = (start[0] == '(');
-  spec->maxex = (end[0] == '(');
+  spec->minex = start[0] == '(';
+  spec->maxex = end[0] == '(';
   return 0;
 }
 
-int ParseRangeTerm(std::string_view term, int64_t* const dst) {
-  if (term.empty() || (dst == nullptr)) {
+int ParseScoreTerm(std::string_view term, double* const value) {
+  if (term.empty() || value == nullptr) {
     return -1;
   }
-  if (std::string_view(term) == kMinVal) {
-    *dst = 0;
-  } else if (std::string_view(term) == kMaxVal) {
-    *dst = std::numeric_limits<int64_t>::max();
-  } else {
-    const auto value = term[0] == '(' ? term.substr(1) : term;
-    if (!utils::ToInt64(value, dst)) {
-      return -1;
-    }
+  if (utils::EqualsIgnoreCase(term, kMinVal)) {
+    *value = -std::numeric_limits<double>::infinity();
+    return 0;
   }
-  return 0;
-}
-
-int ParseRangeToScoreSpec(const CommandArgs& args,
-                          RangeByScoreSpec* const spec) {
-  if (args.size() < 3 || !ValidateRangeOptions(args)) {
-    return -1;
+  if (utils::EqualsIgnoreCase(term, kMaxVal)) {
+    *value = std::numeric_limits<double>::infinity();
+    return 0;
   }
-  std::string_view start = args[1];
-  std::string_view end = args[2];
-  if (ParseScoreRange(start, end, spec) < 0) {
-    return -1;
-  }
-  spec->limit = std::make_unique<LimitSpec>();
-  if (ParseLimitOffsetAndCount(args, spec->limit) < 0) {
-    return -1;
-  }
-  spec->reverse = IsReverse(args);
-  return 0;
+  const auto number = term[0] == '(' ? term.substr(1) : term;
+  return utils::ToDouble(number, value) ? 0 : -1;
 }
 
 int ParseScoreRange(std::string_view start, std::string_view end,
                     RangeByScoreSpec* const spec) {
-  if (ParseScoreTerm(start, &(spec->min)) < 0) {
+  if (spec == nullptr || ParseScoreTerm(start, &spec->min) < 0 ||
+      ParseScoreTerm(end, &spec->max) < 0) {
     return -1;
   }
-  if (ParseScoreTerm(end, &(spec->max)) < 0) {
-    return -1;
-  }
-  // Redis uses a leading '(' to make a score endpoint exclusive.
-  spec->minex = (start[0] == '(');
-  spec->maxex = (end[0] == '(');
+  spec->minex = start[0] == '(';
+  spec->maxex = end[0] == '(';
   return 0;
 }
 
-int ParseScoreTerm(std::string_view term, double* const dst) {
-  if (term.empty() || (dst == nullptr)) {
-    return -1;
+template <typename Spec>
+void ApplyRangeOptions(const RangeOptions& options, Spec* const spec) {
+  spec->reverse = options.reverse;
+  if (options.limit.has_value()) {
+    spec->limit = options.limit;
   }
-  if (std::string_view(term) == kMinVal) {
-    *dst = -std::numeric_limits<double>::infinity();
-  } else if (std::string_view(term) == kMaxVal) {
-    *dst = std::numeric_limits<double>::infinity();
-  } else {
-    const auto value = term[0] == '(' ? term.substr(1) : term;
-    if (!utils::ToDouble(value, dst)) {
-      return -1;
-    }
-  }
-  return 0;
 }
 
-int ParseLimitOffsetAndCount(const CommandArgs& args,
-                             const std::unique_ptr<LimitSpec>& spec) {
-  // LIMIT is optional; when absent, the zset implementation uses an unbounded
-  // range.
-  size_t i = 3;
-  for (; i < args.size(); ++i) {
-    std::string upper(args[i]);
-    utils::ToUppercase(upper);
-    if (std::string_view(upper) == kFlagLimit) {
-      break;
-    }
+RangeStatus RangeByRank(Client* const client, const CommandArgs& args,
+                        const RangeOptions& options,
+                        ZSetEntryList* const result) {
+  RangeByRankSpec spec;
+  if (ParseRankRange(args[1], args[2], &spec) < 0) {
+    return RangeStatus::kSyntaxError;
   }
-  if (i == args.size()) {
-    spec->offset = 0;
-    spec->count = std::nullopt;
-    return 0;
+  ApplyRangeOptions(options, &spec);
+
+  auto* redis_db = client->Db();
+  if (redis_db == nullptr) {
+    return RangeStatus::kDbUnavailable;
   }
-  if (i + 2 >= args.size()) {
-    return -1;
+  const auto* object = redis_db->LookupKey(args[0]);
+  if (object == nullptr) {
+    return RangeStatus::kOk;
   }
-  int64_t offset = 0;
-  int64_t count = 0;
-  if (!utils::ToInt64(args[i + 1], &offset) ||
-      !utils::ToInt64(args[i + 2], &count)) {
-    return -1;
+  if (object->Type() != db::RedisObject::ObjectType::kZSet) {
+    return RangeStatus::kWrongType;
   }
-  if (offset < 0) {
-    return -1;
+  try {
+    *result = object->ZSet()->RangeByRank(&spec);
+  } catch (const std::exception& error) {
+    RS_LOG_DEBUG("zrange by rank failed: %s\n", error.what());
+    return RangeStatus::kSyntaxError;
   }
-  spec->offset = static_cast<size_t>(offset);
-  spec->count = count < 0 ? std::nullopt
-                          : std::optional<size_t>(static_cast<size_t>(count));
-  return 0;
+  return RangeStatus::kOk;
 }
 
-bool IsReverse(const CommandArgs& args) {
-  // REV is an option token, so it can appear after key/start/end.
-  for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper(args[i]);
-    utils::ToUppercase(upper);
-    if (std::string_view(upper) == kFlagReverse) {
-      return true;
-    }
+RangeStatus RangeByScore(Client* const client, const CommandArgs& args,
+                         const RangeOptions& options,
+                         ZSetEntryList* const result) {
+  RangeByScoreSpec spec;
+  if (ParseScoreRange(args[1], args[2], &spec) < 0) {
+    return RangeStatus::kSyntaxError;
   }
-  return false;
+  ApplyRangeOptions(options, &spec);
+
+  auto* redis_db = client->Db();
+  if (redis_db == nullptr) {
+    return RangeStatus::kDbUnavailable;
+  }
+  const auto* object = redis_db->LookupKey(args[0]);
+  if (object == nullptr) {
+    return RangeStatus::kOk;
+  }
+  if (object->Type() != db::RedisObject::ObjectType::kZSet) {
+    return RangeStatus::kWrongType;
+  }
+  try {
+    *result = object->ZSet()->RangeByScore(&spec);
+  } catch (const std::exception& error) {
+    RS_LOG_DEBUG("zrange by score failed: %s\n", error.what());
+    return RangeStatus::kSyntaxError;
+  }
+  return RangeStatus::kOk;
 }
 
-bool IsWithScores(const CommandArgs& args) {
-  for (size_t i = 3; i < args.size(); ++i) {
-    std::string upper(args[i]);
-    utils::ToUppercase(upper);
-    if (std::string_view(upper) == kFlagWithScores) {
-      return true;
-    }
-  }
-  return false;
-}
-
-std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
-                                             bool with_scores) {
+std::string EncodeZRangeReply(const ZSetEntryList& result, bool with_scores) {
   const size_t reply_size = with_scores ? result.size() * 2 : result.size();
   std::string encoded = reply::FromArrayHeader(reply_size);
   for (const auto* entry : result) {
@@ -272,6 +241,35 @@ std::optional<std::string> EncodeZRangeReply(const ZSetEntryList& result,
   return encoded;
 }
 
+void AddRangeError(Client* const client, RangeStatus status) {
+  if (status == RangeStatus::kWrongType) {
+    client->AddReply(reply::WrongTypeError());
+  } else if (status == RangeStatus::kDbUnavailable) {
+    client->AddReply(reply::FromError("ERR db unavailable"));
+  } else {
+    client->AddReply(reply::SyntaxError());
+  }
+}
+
+void AddRangeReply(Client* const client, RangeMode mode, bool reverse) {
+  const auto& args = client->Args();
+  RangeOptions options;
+  if (!ParseRangeOptions(args, mode, reverse, &options)) {
+    client->AddReply(reply::SyntaxError());
+    return;
+  }
+
+  ZSetEntryList entries;
+  const RangeStatus status = options.by_score
+                                 ? RangeByScore(client, args, options, &entries)
+                                 : RangeByRank(client, args, options, &entries);
+  if (status != RangeStatus::kOk) {
+    AddRangeError(client, status);
+    return;
+  }
+  client->AddReply(EncodeZRangeReply(entries, options.with_scores));
+}
+
 std::optional<int64_t> ToReplyInteger(size_t value) {
   if (value > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
     return std::nullopt;
@@ -281,20 +279,15 @@ std::optional<int64_t> ToReplyInteger(size_t value) {
 }  // namespace
 
 void HandleZRange(Client* const client) {
-  const auto& args = client->Args();
-  AddRangeReply(client, args, FlaggedByScore(args));
+  AddRangeReply(client, RangeMode::kRank, false);
 }
 
 void HandleZRevRange(Client* const client) {
-  auto args = client->Args();
-  args.emplace_back(kFlagReverse);
-  AddRangeReply(client, args, false);
+  AddRangeReply(client, RangeMode::kRank, true);
 }
 
 void HandleZRangeByScore(Client* const client) {
-  auto args = client->Args();
-  args.emplace_back(kFlagByScore);
-  AddRangeReply(client, args, true);
+  AddRangeReply(client, RangeMode::kScore, false);
 }
 
 void HandleZCount(Client* const client) {
@@ -310,110 +303,23 @@ void HandleZCount(Client* const client) {
     return;
   }
 
-  if (auto* redis_db = client->Db()) {
-    const auto* obj = redis_db->LookupKey(args[0]);
-    if (obj == nullptr) {
-      client->AddReply(reply::FromInt64(0));
-      return;
-    }
-    if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
-      client->AddReply(reply::WrongTypeError());
-      return;
-    }
-    const auto count = ToReplyInteger(obj->ZSet()->Count(&spec));
-    client->AddReply(count.has_value()
-                         ? reply::FromInt64(*count)
-                         : reply::FromError("ERR zset count out of range"));
+  auto* redis_db = client->Db();
+  if (redis_db == nullptr) {
+    client->AddReply(reply::FromError("ERR db unavailable"));
     return;
   }
-  client->AddReply(reply::FromError("ERR db unavailable"));
-}
-
-namespace {
-
-void AddRangeReply(Client* const client, const CommandArgs& args,
-                   bool by_score) {
-  ZSetEntryList range_entries;
-  const int status = by_score ? RangeByScore(client, args, &range_entries)
-                              : RangeByRank(client, args, &range_entries);
-  if (status < 0) {
-    if (status == kRangeWrongType) {
-      client->AddReply(reply::WrongTypeError());
-    } else if (status == kRangeDbUnavailable) {
-      client->AddReply(reply::FromError("ERR db unavailable"));
-    } else {
-      client->AddReply(reply::SyntaxError());
-    }
+  const auto* object = redis_db->LookupKey(args[0]);
+  if (object == nullptr) {
+    client->AddReply(reply::FromInt64(0));
     return;
   }
-  const auto reply = EncodeZRangeReply(range_entries, IsWithScores(args));
-  if (reply.has_value()) {
-    client->AddReply(*reply);
-  } else {
-    client->AddReply(reply::FromError("ERR zrange encode failed"));
+  if (object->Type() != db::RedisObject::ObjectType::kZSet) {
+    client->AddReply(reply::WrongTypeError());
+    return;
   }
+  const auto count = ToReplyInteger(object->ZSet()->Count(&spec));
+  client->AddReply(count.has_value()
+                       ? reply::FromInt64(*count)
+                       : reply::FromError("ERR zset count out of range"));
 }
-
-int RangeByRank(Client* const client, const CommandArgs& args,
-                ZSetEntryList* result) {
-  RangeByRankSpec spec;
-  if (ParseRangeToRankSpec(args, &spec) < 0) {
-    RS_LOG_DEBUG("invalid arguments for zrange rank\n");
-    return kRangeSyntaxError;
-  }
-  if (auto* redis_db = client->Db()) {
-    const auto& key = args[0];
-    const auto* obj = redis_db->LookupKey(key);
-    if (obj == nullptr) {
-      return 0;
-    }
-    if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
-      RS_LOG_DEBUG("incorrect value type\n");
-      return kRangeWrongType;
-    }
-    try {
-      const auto* const zset = obj->ZSet();
-      *result = zset->RangeByRank(&spec);
-    } catch (const std::exception& e) {
-      RS_LOG_DEBUG("catch exception %s", e.what());
-      return kRangeSyntaxError;
-    }
-  } else {
-    RS_LOG_DEBUG("db unavailable\n");
-    return kRangeDbUnavailable;
-  }
-  return 0;
-}
-
-int RangeByScore(Client* const client, const CommandArgs& args,
-                 ZSetEntryList* result) {
-  RangeByScoreSpec spec;
-  if (ParseRangeToScoreSpec(args, &spec) < 0) {
-    RS_LOG_DEBUG("invalid arguments for zrange score\n");
-    return kRangeSyntaxError;
-  }
-  if (auto* redis_db = client->Db()) {
-    const auto& key = args[0];
-    const auto* obj = redis_db->LookupKey(key);
-    if (obj == nullptr) {
-      return 0;
-    }
-    if (obj->Type() != db::RedisObject::ObjectType::kZSet) {
-      RS_LOG_DEBUG("incorrect value type\n");
-      return kRangeWrongType;
-    }
-    try {
-      const auto* zset = obj->ZSet();
-      *result = zset->RangeByScore(&spec);
-    } catch (const std::exception& e) {
-      RS_LOG_DEBUG("catch exception %s", e.what());
-      return kRangeSyntaxError;
-    }
-  } else {
-    RS_LOG_DEBUG("db unavailable\n");
-    return kRangeDbUnavailable;
-  }
-  return 0;
-}
-}  // namespace
 }  // namespace redis_simple::command::zsets

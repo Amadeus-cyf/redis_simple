@@ -29,11 +29,7 @@ class Set {
     return std::unique_ptr<Set>(new Set());
   }
   bool Add(std::string_view value);
-  bool HasMember(const std::string& value) const;
   bool HasMember(std::string_view value) const;
-  bool HasMember(const char* value) const {
-    return HasMember(std::string_view(value));
-  }
   std::vector<std::string> ListAllMembers() const;
   template <typename Visitor>
   bool ForEachMember(Visitor&& visitor) const;

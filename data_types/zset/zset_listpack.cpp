@@ -119,8 +119,7 @@ ZSetEntryList ZSetListPack::RangeByRank(const RangeByRankSpec* spec) const {
   rank_spec.minex = spec->minex;
   rank_spec.maxex = spec->maxex;
   if (spec->limit) {
-    rank_spec.limit =
-        std::make_unique<LimitSpec>(spec->limit->offset, spec->limit->count);
+    rank_spec.limit = spec->limit;
   }
   if (!ValidateRangeRankSpec(&rank_spec)) {
     return {};

@@ -9,7 +9,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -36,11 +35,6 @@ enum class ListStatus : std::uint8_t {
   kMissing,
   kWrongType,
   kError,
-};
-
-struct PushArgs {
-  std::string_view key;
-  std::vector<std::string_view> values;
 };
 
 struct KeyArgs {
@@ -85,7 +79,6 @@ struct PopResult {
   ListStatus status{ListStatus::kMissing};
 };
 
-int ParsePushArgs(const CommandArgs& args, PushArgs* push_args);
 int ParseKeyArgs(const CommandArgs& args, KeyArgs* key_args);
 int ParseRangeArgs(const CommandArgs& args, RangeArgs* range_args);
 int ParseIndexArgs(const CommandArgs& args, IndexArgs* index_args);
@@ -100,7 +93,7 @@ std::optional<std::pair<size_t, size_t>> NormalizeRange(int64_t start,
                                                         size_t size);
 std::optional<int64_t> ToReplyInteger(size_t value);
 std::pair<size_t, List::RemoveDirection> NormalizeRemoveCount(int64_t count);
-std::optional<int64_t> Push(db::RedisDb* redis_db, const PushArgs* args,
+std::optional<int64_t> Push(db::RedisDb* redis_db, const CommandArgs& args,
                             PushSide side);
 PopResult Pop(db::RedisDb* redis_db, const KeyArgs* args, PopSide side);
 std::optional<int64_t> LLen(db::RedisDb* redis_db, const KeyArgs* args);
@@ -109,15 +102,6 @@ PopResult LIndex(db::RedisDb* redis_db, const IndexArgs* args);
 ListStatus LSet(db::RedisDb* redis_db, const SetArgs* args);
 std::optional<int64_t> LRem(db::RedisDb* redis_db, const RemoveArgs* args);
 ListStatus LTrim(db::RedisDb* redis_db, const RangeArgs* args);
-
-int ParsePushArgs(const CommandArgs& args, PushArgs* const push_args) {
-  if (args.size() < 2) {
-    return -1;
-  }
-  push_args->key = args[0];
-  push_args->values.assign(args.begin() + 1, args.end());
-  return 0;
-}
 
 int ParseKeyArgs(const CommandArgs& args, KeyArgs* const key_args) {
   if (args.size() != 1) {
@@ -259,14 +243,14 @@ std::pair<size_t, List::RemoveDirection> NormalizeRemoveCount(int64_t count) {
 }
 
 std::optional<int64_t> Push(db::RedisDb* const redis_db,
-                            const PushArgs* const args, PushSide side) {
-  const ListResult result = FindOrCreateList(redis_db, args->key);
+                            const CommandArgs& args, PushSide side) {
+  const ListResult result = FindOrCreateList(redis_db, args[0]);
   if (result.status != ListStatus::kOk) {
     return std::nullopt;
   }
-  for (const auto& value : args->values) {
-    const bool pushed = side == PushSide::kLeft ? result.list->LPush(value)
-                                                : result.list->RPush(value);
+  for (size_t i = 1; i < args.size(); ++i) {
+    const bool pushed = side == PushSide::kLeft ? result.list->LPush(args[i])
+                                                : result.list->RPush(args[i]);
     if (!pushed) {
       return std::nullopt;
     }
@@ -397,14 +381,14 @@ ListStatus LTrim(db::RedisDb* const redis_db, const RangeArgs* const args) {
 }
 
 void HandlePush(Client* const client, PushSide side) {
-  PushArgs args;
-  if (ParsePushArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() < 2) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = Push(redis_db, &args, side);
+    const auto result = Push(redis_db, args, side);
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
     return;
@@ -467,12 +451,12 @@ void HandleLRange(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto encoded = LRange(redis_db, &args);
+    auto encoded = LRange(redis_db, &args);
     if (!encoded.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(*encoded);
+    client->AddReply(std::move(*encoded));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

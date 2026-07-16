@@ -29,6 +29,10 @@ void ReadQuery(connection::Connection* conn) {
   if (client->ProcessInputBuffer() == ClientStatus::kError) {
     RS_LOG_DEBUG("process query buffer failed\n");
   }
+  if (conn->State() != connection::ConnectionState::kConnected) {
+    Server::Get()->RemoveClient(client);
+    return;
+  }
   if (client->HasPendingReplies() &&
       !client->Connection()->HasWriteCallback()) {
     RS_LOG_DEBUG("client has pending replies, install write callback\n");

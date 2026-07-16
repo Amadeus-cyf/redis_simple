@@ -28,7 +28,6 @@ class Client {
       std::unique_ptr<connection::Connection> connection) {
     return std::unique_ptr<Client>(new Client(std::move(connection)));
   }
-  int Flags() const { return flags_; }
   connection::Connection* Connection() { return connection_.get(); }
   const connection::Connection* Connection() const { return connection_.get(); }
   db::RedisDb* Db() { return db_; }
@@ -36,6 +35,9 @@ class Client {
   ssize_t SendReply();
   size_t AddReply(std::string_view reply) {
     return reply_buf_.Append(reply.data(), reply.size());
+  }
+  size_t AddReply(std::string&& reply) {
+    return reply_buf_.Append(std::move(reply));
   }
   bool HasPendingReplies() const { return !reply_buf_.Empty(); }
   ClientStatus ProcessInputBuffer();
@@ -54,12 +56,12 @@ class Client {
   ClientStatus ProcessCommand();
   ssize_t SendBufferReply();
   ssize_t SendListReply();
-  int flags_{};
   std::unique_ptr<connection::Connection> connection_;
   db::RedisDb* db_{nullptr};
   const command::Command* command_{nullptr};
   command::CommandArgs args_;
   in_memory::DynamicBuffer query_buf_;
   in_memory::ReplyBuffer reply_buf_;
+  std::vector<iovec> reply_blocks_;
 };
 }  // namespace redis_simple

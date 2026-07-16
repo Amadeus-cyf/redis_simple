@@ -112,6 +112,10 @@ int Run() {
                           "ele1\n1\nele2\n1.0000234\n\n\n"})) {
     return EXIT_FAILURE;
   }
+  if (!ExpectReply(&cli, {"ZRANGE integration_zset 1 2 byscore withscores\r\n",
+                          "ele1\n1\nele2\n1.0000234\n\n\n"})) {
+    return EXIT_FAILURE;
+  }
   if (!ExpectMembers(&cli, "ZRANGE missing_zset 0 -1\r\n", {})) {
     return EXIT_FAILURE;
   }

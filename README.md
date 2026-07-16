@@ -38,6 +38,10 @@ Start the server:
 ./build/debug/redis_simple
 ```
 
+Each client query buffer is capped at 64 MiB. Readable sockets are drained in
+one event-loop callback, while the cap prevents an incomplete request from
+growing memory without bound.
+
 In another terminal, run a mock command client or your own TCP client against
 `localhost:8080`.
 
@@ -87,6 +91,18 @@ cmake --preset sanitizer
 cmake --build --preset sanitizer
 ctest --preset sanitizer --output-on-failure
 ```
+
+Run the platform-specific memory leak check after building the corresponding
+preset:
+
+```sh
+scripts/run_leak_check.sh
+```
+
+On macOS, the script runs the complete debug unit-test binary under Apple's
+`leaks` tool because Apple AddressSanitizer does not provide LeakSanitizer. On
+Linux, it runs the complete sanitizer CTest suite with LeakSanitizer explicitly
+enabled.
 
 This runs:
 
@@ -218,6 +234,10 @@ traversal when callers can encode or rebuild results directly. Vector-returning
 helpers remain useful for convenience APIs and tests, but command handlers
 should avoid materializing extra copies when they can stream replies in one
 pass.
+
+Command handlers borrow their argument views directly from the client query
+buffer. Completed string replies are moved into the output queue, and the queue
+reuses scatter/gather metadata across partial writes.
 
 ## CI
 

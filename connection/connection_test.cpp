@@ -135,4 +135,23 @@ TEST(ConnectionTest, WriteBarrierRunsCallbacksOnceInWriteFirstOrder) {
 
   EXPECT_EQ(order, (std::vector<int>{1, 2}));
 }
+
+TEST(ConnectionTest, WriteVectorSendsAllBlocks) {
+  auto sockets = CreateSocketPair();
+  Connection connection({nullptr, sockets[0].Release()});
+  connection.SetState(ConnectionState::kConnected);
+  std::array<std::string, 3> parts{"first", "-second", "-third"};
+  std::vector<iovec> blocks;
+  blocks.reserve(parts.size());
+  for (auto& part : parts) {
+    blocks.push_back({part.data(), part.size()});
+  }
+
+  EXPECT_EQ(connection.WriteVector(blocks), 18);
+
+  std::array<char, 18> received{};
+  EXPECT_EQ(read(sockets[1].Get(), received.data(), received.size()), 18);
+  EXPECT_EQ(std::string_view(received.data(), received.size()),
+            "first-second-third");
+}
 }  // namespace redis_simple::connection

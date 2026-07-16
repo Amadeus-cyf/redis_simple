@@ -86,7 +86,7 @@ void ZSet::ConvertAndExpand() {
   spec.max = static_cast<int64_t>(storage_->Size()) - 1;
   spec.minex = false;
   spec.maxex = false;
-  spec.limit = nullptr;
+  spec.limit.reset();
   spec.reverse = false;
   const auto entries = storage_->RangeByRank(&spec);
   for (const auto* entry : entries) {

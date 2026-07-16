@@ -2,9 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
-#include <utility>
 
 namespace redis_simple::zset {
 // Spec for LIMIT flag
@@ -20,56 +18,48 @@ struct LimitSpec {
 
 // Spec for range by rank
 struct RangeByRankSpec {
-  RangeByRankSpec()
-      : min(0),
-        max(0),
-        minex(false),
-        maxex(false),
-        limit(nullptr),
-        reverse(false) {}
+  RangeByRankSpec() = default;
   RangeByRankSpec(int64_t min, int64_t max, bool minex, bool maxex,
-                  std::unique_ptr<LimitSpec> limit = nullptr,
+                  std::optional<LimitSpec> limit = std::nullopt,
                   bool reverse = false)
       : min(min),
         max(max),
         minex(minex),
         maxex(maxex),
-        limit(std::move(limit)),
+        limit(limit),
         reverse(reverse) {}
   // 0-based index
-  int64_t min, max;
+  int64_t min{};
+  int64_t max{};
   // Are min or max exclusive?
-  bool minex, maxex;
+  bool minex{};
+  bool maxex{};
   // Starting offset and count
-  std::unique_ptr<LimitSpec> limit;
+  std::optional<LimitSpec> limit;
   // Reverse order?
-  bool reverse;
+  bool reverse{};
 };
 
 // Spec for range by score
 struct RangeByScoreSpec {
-  RangeByScoreSpec()
-      : min(0),
-        max(0),
-        minex(false),
-        maxex(false),
-        limit(nullptr),
-        reverse(false) {}
+  RangeByScoreSpec() = default;
   RangeByScoreSpec(double min, double max, bool minex, bool maxex,
-                   std::unique_ptr<LimitSpec> limit = nullptr,
+                   std::optional<LimitSpec> limit = std::nullopt,
                    bool reverse = false)
       : min(min),
         max(max),
         minex(minex),
         maxex(maxex),
-        limit(std::move(limit)),
+        limit(limit),
         reverse(reverse) {}
-  double min, max;
+  double min{};
+  double max{};
   // Are min or max exclusive?
-  bool minex, maxex;
+  bool minex{};
+  bool maxex{};
   // Starting offset and count
-  std::unique_ptr<LimitSpec> limit;
+  std::optional<LimitSpec> limit;
   // Reverse order?
-  bool reverse;
+  bool reverse{};
 };
 }  // namespace redis_simple::zset

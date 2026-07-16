@@ -2,8 +2,6 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <string_view>
-#include <vector>
 
 #include "logging/logger.h"
 #include "server/client.h"
@@ -13,23 +11,18 @@
 
 namespace redis_simple::command::sets {
 namespace {
-struct SRemArgs {
-  std::string_view key;
-  std::vector<std::string_view> elements;
-};
-int ParseArgs(const CommandArgs& args, SRemArgs* srem_args);
-std::optional<int64_t> SRem(db::RedisDb* redis_db, const SRemArgs* args);
+std::optional<int64_t> SRem(db::RedisDb* redis_db, const CommandArgs& args);
 }  // namespace
 
 void HandleSRem(Client* const client) {
-  SRemArgs args;
-  if (ParseArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() < 2) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = SRem(redis_db, &args);
+    const auto result = SRem(redis_db, args);
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
   } else {
@@ -40,20 +33,8 @@ void HandleSRem(Client* const client) {
 
 namespace {
 
-int ParseArgs(const CommandArgs& args, SRemArgs* const srem_args) {
-  if (args.size() < 2) {
-    RS_LOG_DEBUG("invalid number of args\n");
-    return -1;
-  }
-  srem_args->key = args[0];
-  for (size_t i = 1; i < args.size(); ++i) {
-    srem_args->elements.push_back(args[i]);
-  }
-  return 0;
-}
-
-std::optional<int64_t> SRem(db::RedisDb* redis_db, const SRemArgs* args) {
-  auto* obj = redis_db->MutableLookupKey(args->key);
+std::optional<int64_t> SRem(db::RedisDb* redis_db, const CommandArgs& args) {
+  auto* obj = redis_db->MutableLookupKey(args[0]);
   if (obj == nullptr) {
     return 0;
   }
@@ -63,8 +44,8 @@ std::optional<int64_t> SRem(db::RedisDb* redis_db, const SRemArgs* args) {
   try {
     auto* const set = obj->Set();
     int64_t deleted = 0;
-    for (const auto& element : args->elements) {
-      deleted += set->Remove(element) ? 1 : 0;
+    for (size_t i = 1; i < args.size(); ++i) {
+      deleted += set->Remove(args[i]) ? 1 : 0;
     }
     return deleted;
   } catch (const std::exception& e) {

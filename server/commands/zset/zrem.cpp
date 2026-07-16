@@ -2,8 +2,6 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <string_view>
-#include <vector>
 
 #include "logging/logger.h"
 #include "server/client.h"
@@ -13,23 +11,18 @@
 
 namespace redis_simple::command::zsets {
 namespace {
-struct ZRemArgs {
-  std::string_view key;
-  std::vector<std::string_view> elements;
-};
-int ParseArgs(const CommandArgs& args, ZRemArgs* zset_args);
-std::optional<int64_t> ZRem(db::RedisDb* redis_db, const ZRemArgs* args);
+std::optional<int64_t> ZRem(db::RedisDb* redis_db, const CommandArgs& args);
 }  // namespace
 
 void HandleZRem(Client* const client) {
-  ZRemArgs args;
-  if (ParseArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() < 2) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = ZRem(redis_db, &args);
+    const auto result = ZRem(redis_db, args);
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
   } else {
@@ -40,23 +33,11 @@ void HandleZRem(Client* const client) {
 
 namespace {
 
-int ParseArgs(const CommandArgs& args, ZRemArgs* const zset_args) {
-  if (args.size() < 2) {
-    RS_LOG_DEBUG("invalid number of args\n");
-    return -1;
-  }
-  zset_args->key = args[0];
-  for (size_t i = 1; i < args.size(); ++i) {
-    zset_args->elements.push_back(args[i]);
-  }
-  return 0;
-}
-
-std::optional<int64_t> ZRem(db::RedisDb* redis_db, const ZRemArgs* args) {
-  if (redis_db == nullptr || args == nullptr) {
+std::optional<int64_t> ZRem(db::RedisDb* redis_db, const CommandArgs& args) {
+  if (redis_db == nullptr) {
     return std::nullopt;
   }
-  auto* obj = redis_db->MutableLookupKey(args->key);
+  auto* obj = redis_db->MutableLookupKey(args[0]);
   if (obj == nullptr) {
     RS_LOG_DEBUG("key not found\n");
     return 0;
@@ -68,8 +49,8 @@ std::optional<int64_t> ZRem(db::RedisDb* redis_db, const ZRemArgs* args) {
   try {
     auto* zset = obj->ZSet();
     int64_t deleted = 0;
-    for (const auto& element : args->elements) {
-      deleted += zset->Delete(element) ? 1 : 0;
+    for (size_t i = 1; i < args.size(); ++i) {
+      deleted += zset->Delete(args[i]) ? 1 : 0;
     }
     return deleted;
   } catch (const std::exception& e) {

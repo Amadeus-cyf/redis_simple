@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <ctime>
 #include <functional>
 #include <list>
 #include <memory>
@@ -78,12 +79,13 @@ class Loop {
   void ProcessFileEvents();
   void ProcessTimeEvents();
   void ProcessDeferredCallbacks();
+  timespec PollTimeout() const;
   std::vector<std::unique_ptr<FileEvent>> file_events_;
   std::vector<std::unique_ptr<FileEvent>> retired_file_events_;
   std::list<std::unique_ptr<TimeEvent>> time_events_;
   std::vector<std::function<void()>> deferred_callbacks_;
+  std::vector<std::function<void()>> running_deferred_callbacks_;
   std::unique_ptr<EventPoller> event_poller_;
-  size_t file_event_count_{};
   bool processing_file_events_{false};
   bool stop_requested_{false};
 };

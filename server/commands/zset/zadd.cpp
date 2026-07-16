@@ -52,6 +52,7 @@ int ParseArgs(const CommandArgs& args, ZAddArgs* const zset_args) {
     return -1;
   }
   zset_args->key = args[0];
+  zset_args->element_scores.reserve((args.size() - 1) / 2);
   for (size_t i = 1; i < args.size() - 1; i += 2) {
     std::string_view element = args[i + 1];
     double score = 0.0;

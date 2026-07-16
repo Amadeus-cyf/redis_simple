@@ -24,7 +24,7 @@ TEST(ZSetTest, InsertAndConvert) {
   spec.max = 255;
   spec.minex = false;
   spec.maxex = false;
-  spec.limit = std::make_unique<LimitSpec>(0, std::nullopt);
+  spec.limit.emplace(0, std::nullopt);
   spec.reverse = false;
   const auto entries = zset->RangeByRank(&spec);
   ASSERT_EQ(entries.size(), 256);

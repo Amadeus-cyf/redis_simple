@@ -14,6 +14,11 @@
 
 namespace redis_simple::utils {
 namespace {
+char FoldAsciiCase(char value) {
+  return value >= 'A' && value <= 'Z' ? static_cast<char>(value + ('a' - 'A'))
+                                      : value;
+}
+
 size_t SplitTokenCount(std::string_view s, std::string_view delimiter) {
   if (delimiter.empty()) {
     return 1;
@@ -86,6 +91,18 @@ void ToUppercase(std::string& s) {
   std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) -> char {
     return static_cast<char>(std::toupper(c));
   });
+}
+
+bool EqualsIgnoreCase(std::string_view left, std::string_view right) {
+  if (left.size() != right.size()) {
+    return false;
+  }
+  for (size_t i = 0; i < left.size(); ++i) {
+    if (FoldAsciiCase(left[i]) != FoldAsciiCase(right[i])) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool ToInt64(std::string_view s, int64_t* const v) {

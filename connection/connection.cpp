@@ -49,6 +49,19 @@ int BindAndConnectTcp(const AddressInfo& remote,
           : std::nullopt;
   return tcp::TcpBindAndConnect(remote_addr, local_addr);
 }
+
+bool WouldBlock(int error) { return error == EAGAIN || error == EWOULDBLOCK; }
+
+size_t MaxIovCount() {
+  static const size_t max_iov_count = [] {
+    const long system_limit = sysconf(_SC_IOV_MAX);
+    const size_t limit =
+        system_limit > 0 ? static_cast<size_t>(system_limit) : 1024;
+    return std::min(limit,
+                    static_cast<size_t>(std::numeric_limits<int>::max()));
+  }();
+  return max_iov_count;
+}
 }  // namespace
 
 Connection::Connection(const Context& ctx)
@@ -259,7 +272,7 @@ ssize_t Connection::Read(char* const buffer, size_t readlen) const {
       break;
     }
   }
-  if (r < 0 && errno != EAGAIN) {
+  if (r < 0 && !WouldBlock(errno)) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {
       state_ = ConnectionState::kError;
     }
@@ -286,8 +299,7 @@ ssize_t Connection::BatchRead(std::string& s) const {
     }
     s.append(buffer.data(), static_cast<size_t>(r));
   }
-  if (s.size() == initial_size && r < 0 && errno != EAGAIN &&
-      errno != EWOULDBLOCK) {
+  if (s.size() == initial_size && r < 0 && !WouldBlock(errno)) {
     if (state_ == ConnectionState::kConnected) {
       state_ = ConnectionState::kError;
     }
@@ -319,7 +331,7 @@ ssize_t Connection::SyncRead(char* buffer, size_t readlen,
   if (r == 0) {
     return 0;
   }
-  if (r < 0 && errno != EAGAIN && errno != EWOULDBLOCK) {
+  if (r < 0 && !WouldBlock(errno)) {
     return -1;
   }
   if (WaitRead(timeout_ms) < 0) {
@@ -347,7 +359,7 @@ ssize_t Connection::SyncReadline(std::string& s, int64_t timeout_ms) const {
     }
     s.push_back(buffer);
   }
-  if (r < 0 && errno != EAGAIN) {
+  if (r < 0 && !WouldBlock(errno)) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {
       state_ = ConnectionState::kError;
     }
@@ -363,8 +375,11 @@ ssize_t Connection::SyncReadline(std::string& s, int64_t timeout_ms) const {
 }
 
 ssize_t Connection::Write(const char* buffer, size_t len) const {
-  ssize_t n = write(fd_, buffer, len);
-  if (n < 0 && errno != EAGAIN) {
+  auto n = write(fd_, buffer, len);
+  while (n < 0 && errno == EINTR) {
+    n = write(fd_, buffer, len);
+  }
+  if (n < 0 && !WouldBlock(errno)) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {
       state_ = ConnectionState::kError;
     }
@@ -404,15 +419,12 @@ ssize_t Connection::WriteVector(const std::vector<iovec>& blocks) const {
   if (blocks.empty()) {
     return 0;
   }
-  const long system_limit = sysconf(_SC_IOV_MAX);
-  const size_t max_blocks =
-      system_limit > 0 ? static_cast<size_t>(system_limit) : 1024;
-  const size_t block_count = std::min(blocks.size(), max_blocks);
-  if (block_count > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    return -1;
+  const size_t block_count = std::min(blocks.size(), MaxIovCount());
+  auto n = writev(fd_, blocks.data(), static_cast<int>(block_count));
+  while (n < 0 && errno == EINTR) {
+    n = writev(fd_, blocks.data(), static_cast<int>(block_count));
   }
-  const ssize_t n = writev(fd_, blocks.data(), static_cast<int>(block_count));
-  if (n < 0 && errno != EAGAIN) {
+  if (n < 0 && !WouldBlock(errno)) {
     if (errno != EINTR && state_ == ConnectionState::kConnected) {
       state_ = ConnectionState::kError;
     }

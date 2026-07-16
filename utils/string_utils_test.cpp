@@ -97,6 +97,14 @@ TEST(StringUtilsTest, ToUppercase) {
   ASSERT_EQ(s5, "123456_**&&&||||%%%%");
 }
 
+TEST(StringUtilsTest, EqualsIgnoreCase) {
+  EXPECT_TRUE(EqualsIgnoreCase("zrange", "ZRANGE"));
+  EXPECT_TRUE(EqualsIgnoreCase("KeepTtl", "KEEPTTL"));
+  EXPECT_TRUE(EqualsIgnoreCase("+inf", "+INF"));
+  EXPECT_FALSE(EqualsIgnoreCase("set", "get"));
+  EXPECT_FALSE(EqualsIgnoreCase("expire", "expires"));
+}
+
 TEST(StringUtilsTest, ToInt64) {
   std::string s1("100234567");
   int64_t v1 = 0;

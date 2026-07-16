@@ -35,10 +35,6 @@ bool Set::Add(std::string_view value) {
   throw std::invalid_argument("unknown encoding type");
 }
 
-bool Set::HasMember(const std::string& value) const {
-  return HasMember(std::string_view(value));
-}
-
 bool Set::HasMember(std::string_view value) const {
   if (Size() == 0) {
     return false;

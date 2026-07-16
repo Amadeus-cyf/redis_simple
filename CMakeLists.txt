@@ -125,9 +125,7 @@ redis_simple_collect_sources(REDIS_SIMPLE_UNIT_TEST_SOURCES
   connection
   event_loop
   memory
-  server/commands
-  server/db
-  server/reply
+  server
   data_types
   tcp
   utils
@@ -174,6 +172,7 @@ redis_simple_add_gtest_suite(RespParserTest)
 redis_simple_add_gtest_suite(ReplyParserTest)
 redis_simple_add_gtest_suite(ReplyParseTest)
 redis_simple_add_gtest_suite(ConnectionTest)
+redis_simple_add_gtest_suite(ClientTest)
 redis_simple_add_gtest_suite(TcpTest)
 
 redis_simple_add_executable(mock_tcp_server "integration/tcp/server_test.cpp")

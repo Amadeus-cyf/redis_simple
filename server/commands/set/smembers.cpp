@@ -1,7 +1,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
+#include <utility>
 
 #include "logging/logger.h"
 #include "server/client.h"
@@ -27,12 +27,12 @@ void HandleSMembers(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto encoded = SMembers(redis_db, &args);
+    auto encoded = SMembers(redis_db, &args);
     if (!encoded.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(*encoded);
+    client->AddReply(std::move(*encoded));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromError("ERR db unavailable"));

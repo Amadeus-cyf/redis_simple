@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <string>
+#include <string_view>
 #include <utility>
 
 #include "logging/logger.h"
@@ -72,9 +72,8 @@ int ParseArgs(const CommandArgs& args, StringArgs* string_args) {
 
 int ParseSetOption(const CommandArgs& args, size_t* const idx,
                    StringArgs* const string_args) {
-  std::string option(args[*idx]);
-  utils::ToUppercase(option);
-  if (option == "KEEPTTL") {
+  const std::string_view option = args[*idx];
+  if (utils::EqualsIgnoreCase(option, "KEEPTTL")) {
     if (string_args->expire > 0) {
       return -1;
     }
@@ -82,7 +81,9 @@ int ParseSetOption(const CommandArgs& args, size_t* const idx,
     ++(*idx);
     return 0;
   }
-  if (option != "EX" && option != "PX") {
+  const bool expires_in_seconds = utils::EqualsIgnoreCase(option, "EX");
+  const bool expires_in_milliseconds = utils::EqualsIgnoreCase(option, "PX");
+  if (!expires_in_seconds && !expires_in_milliseconds) {
     return -1;
   }
   if ((string_args->flags & db::ToInt(db::SetKeyFlag::kKeepTtl)) != 0 ||
@@ -94,7 +95,7 @@ int ParseSetOption(const CommandArgs& args, size_t* const idx,
     return -1;
   }
   constexpr int64_t kMillisecondsPerSecond = 1000;
-  const int64_t multiplier = option == "EX" ? kMillisecondsPerSecond : 1;
+  const int64_t multiplier = expires_in_seconds ? kMillisecondsPerSecond : 1;
   if (!ExpireAtFromTtl(ttl, multiplier, utils::NowInMilliseconds(),
                        &string_args->expire)) {
     return -1;

@@ -1,10 +1,10 @@
 #include "server/commands/command.h"
 
 #include <array>
-#include <cctype>
 #include <string_view>
 
 #include "server/commands/handlers.h"
+#include "utils/string_utils.h"
 
 namespace redis_simple::command {
 namespace {
@@ -67,23 +67,11 @@ constexpr std::array kCommandTable = {
     Command{"HINCRBY", hashes::HandleHIncrBy},
 };
 
-bool CommandNameEquals(std::string_view input, std::string_view registered) {
-  if (input.size() != registered.size()) {
-    return false;
-  }
-  for (size_t index = 0; index < input.size(); ++index) {
-    if (std::toupper(static_cast<unsigned char>(input[index])) !=
-        registered[index]) {
-      return false;
-    }
-  }
-  return true;
-}
 }  // namespace
 
 const Command* Find(std::string_view name) {
   for (const Command& command : kCommandTable) {
-    if (CommandNameEquals(name, command.name)) {
+    if (utils::EqualsIgnoreCase(name, command.name)) {
       return &command;
     }
   }

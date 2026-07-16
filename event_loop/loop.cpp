@@ -31,6 +31,9 @@ namespace redis_simple::event_loop {
 namespace {
 constexpr int kIoEventMask =
     ToInt(EventFlag::kReadable) | ToInt(EventFlag::kWritable);
+constexpr int64_t kDefaultPollTimeoutMs = 1000;
+constexpr int64_t kMillisecondsPerSecond = 1000;
+constexpr int64_t kNanosecondsPerMillisecond = 1000000;
 }  // namespace
 
 void FileEvent::Merge(const FileEvent* file_event) {
@@ -141,7 +144,6 @@ Status Loop::CreateFileEvent(int fd, std::unique_ptr<FileEvent> file_event) {
   }
   if (file_events_[index] == nullptr) {
     RS_LOG_DEBUG("add new event\n");
-    ++file_event_count_;
   } else {
     // A descriptor stores one FileEvent, so merge separately registered
     // read/write callbacks before replacing the old event.
@@ -179,7 +181,6 @@ Status Loop::DeleteFileEvent(int fd, int mask) {
     } else {
       file_events_[fd].reset();
     }
-    --file_event_count_;
   } else {
     int m = file_event->Mask();
     m &= ~removed_io_mask;
@@ -210,12 +211,7 @@ void Loop::ProcessEvents() {
 }
 
 void Loop::ProcessFileEvents() {
-  if (file_event_count_ == 0) {
-    return;
-  }
-  timespec timeout_spec{};
-  timeout_spec.tv_sec = 1;
-  timeout_spec.tv_nsec = 0;
+  timespec timeout_spec = PollTimeout();
   const auto& ready_events = event_poller_->Poll(&timeout_spec);
   processing_file_events_ = true;
   for (const auto& ready_event : ready_events) {
@@ -268,11 +264,35 @@ void Loop::ProcessFileEvents() {
 }
 
 void Loop::ProcessDeferredCallbacks() {
-  std::vector<std::function<void()>> callbacks;
-  callbacks.swap(deferred_callbacks_);
-  for (auto& callback : callbacks) {
+  running_deferred_callbacks_.clear();
+  running_deferred_callbacks_.swap(deferred_callbacks_);
+  for (auto& callback : running_deferred_callbacks_) {
     callback();
   }
+  running_deferred_callbacks_.clear();
+}
+
+timespec Loop::PollTimeout() const {
+  int64_t timeout_ms = kDefaultPollTimeoutMs;
+  if (!deferred_callbacks_.empty()) {
+    timeout_ms = 0;
+  } else {
+    const int64_t now = utils::NowInMilliseconds();
+    for (const auto& event : time_events_) {
+      if (event->Id() == ToInt(EventFlag::kDeleteEventId) ||
+          event->When() <= now) {
+        timeout_ms = 0;
+        break;
+      }
+      timeout_ms = std::min(timeout_ms, event->When() - now);
+    }
+  }
+
+  timespec timeout{};
+  timeout.tv_sec = timeout_ms / kMillisecondsPerSecond;
+  timeout.tv_nsec =
+      (timeout_ms % kMillisecondsPerSecond) * kNanosecondsPerMillisecond;
+  return timeout;
 }
 
 void Loop::ProcessTimeEvents() {
@@ -292,7 +312,6 @@ void Loop::ProcessTimeEvents() {
           // Defer deletion so unlinking and finalization happen in one path.
           time_event->SetId(ToInt(EventFlag::kDeleteEventId));
         } else {
-          constexpr int64_t kMillisecondsPerSecond = 1000;
           time_event->SetWhen(
               now + (static_cast<int64_t>(ret) * kMillisecondsPerSecond));
         }

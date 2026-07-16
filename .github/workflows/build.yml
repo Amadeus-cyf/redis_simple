@@ -43,6 +43,9 @@ jobs:
         run: ctest --preset debug -L unit --output-on-failure
       - name: Run integration test suites
         run: ctest --preset debug -L integration --output-on-failure
+      - name: Run macOS leak check
+        if: runner.os == 'macOS'
+        run: scripts/run_leak_check.sh
 
   release:
     name: Release / Ubuntu
@@ -71,5 +74,5 @@ jobs:
         run: cmake --preset sanitizer
       - name: Build sanitizer targets
         run: cmake --build --preset sanitizer
-      - name: Run sanitizer tests
-        run: ctest --preset sanitizer --output-on-failure
+      - name: Run ASan, UBSan, and LeakSanitizer tests
+        run: scripts/run_leak_check.sh

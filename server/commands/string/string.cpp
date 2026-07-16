@@ -69,14 +69,14 @@ void HandleIncrement(Client* const client, int64_t increment) {
     return;
   }
 
-  const auto current = LookupString(redis_db, args[0]);
-  if (current.status == StringStatus::kWrongType) {
+  auto* object = redis_db->MutableLookupKey(args[0]);
+  if (object != nullptr &&
+      object->Type() != db::RedisObject::ObjectType::kString) {
     client->AddReply(reply::WrongTypeError());
     return;
   }
   int64_t value = 0;
-  if (current.status == StringStatus::kOk &&
-      !utils::ToInt64(*current.value, &value)) {
+  if (object != nullptr && !utils::ToInt64(object->String(), &value)) {
     client->AddReply(reply::FromError("ERR value is not an integer"));
     return;
   }
@@ -87,9 +87,16 @@ void HandleIncrement(Client* const client, int64_t increment) {
         reply::FromError("ERR increment or decrement would overflow"));
     return;
   }
-  auto object = db::RedisObject::CreateWithString(std::to_string(next));
-  redis_db->SetKey(args[0], std::move(object), 0,
-                   db::ToInt(db::SetKeyFlag::kKeepTtl));
+  std::string next_value = std::to_string(next);
+  if (object != nullptr) {
+    *object->MutableString() = std::move(next_value);
+  } else if (redis_db->SetKey(
+                 args[0],
+                 db::RedisObject::CreateWithString(std::move(next_value)),
+                 0) == db::DbStatus::kError) {
+    client->AddReply(reply::FromError("ERR failed to set key"));
+    return;
+  }
   client->AddReply(reply::FromInt64(next));
 }
 }  // namespace
@@ -157,7 +164,7 @@ void HandleMGet(Client* const client) {
       encoded.append(reply::Null());
     }
   }
-  client->AddReply(encoded);
+  client->AddReply(std::move(encoded));
 }
 
 void HandleMSet(Client* const client) {

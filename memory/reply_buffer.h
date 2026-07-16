@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "buf_node.h"
@@ -18,11 +19,11 @@ class ReplyBuffer {
   size_t ReplyCount() const { return node_count_; }
   size_t ReplyBytes() const { return reply_bytes_; }
   size_t BufferSize() const { return size_; }
-  BufNode* ReplyHead() const { return reply_head_.get(); }
   BufNode* ReplyTail() const { return reply_tail_; }
   size_t Append(const char* s, size_t len);
+  size_t Append(std::string&& reply);
   void Consume(size_t nwritten);
-  std::vector<iovec> Blocks() const;
+  void FillBlocks(std::vector<iovec>* blocks);
   bool Empty() const { return size_ == 0 && node_count_ == 0; }
   ~ReplyBuffer() = default;
 

@@ -28,6 +28,18 @@ size_t ReplyBuffer::Append(const char* s, size_t len) {
   return nwritten;
 }
 
+size_t ReplyBuffer::Append(std::string&& reply) {
+  const size_t length = reply.size();
+  if (length == 0) {
+    return 0;
+  }
+  if (node_count_ == 0 && length <= buf_usable_size_ - size_) {
+    return AppendToBuffer(reply.data(), length);
+  }
+  PushNode(BufNode::Create(std::move(reply)));
+  return length;
+}
+
 size_t ReplyBuffer::AppendToBuffer(const char* s, size_t len) {
   // Preserve write order: once overflow nodes exist, new bytes must also go to
   // the list until earlier list data is drained.
@@ -53,20 +65,20 @@ size_t ReplyBuffer::AppendToList(const char* c, size_t len) {
   return len;
 }
 
-std::vector<iovec> ReplyBuffer::Blocks() const {
-  std::vector<iovec> mem_vec;
-  mem_vec.reserve(node_count_ + (size_ > 0 ? 1 : 0));
+void ReplyBuffer::FillBlocks(std::vector<iovec>* const blocks) {
+  assert(blocks != nullptr);
+  blocks->clear();
+  blocks->reserve(node_count_ + (size_ > 0 ? 1 : 0));
   if (size_ > 0) {
-    mem_vec.push_back({buf_.get() + sent_, size_ - sent_});
+    blocks->push_back({buf_.get() + sent_, size_ - sent_});
   }
   size_t offset = size_ > 0 ? 0 : sent_;
-  const BufNode* node = reply_head_.get();
+  BufNode* node = reply_head_.get();
   while (node != nullptr) {
-    mem_vec.push_back({node->buf_.get() + offset, node->used_ - offset});
+    blocks->push_back({node->Data() + offset, node->used_ - offset});
     node = node->next_.get();
     offset = 0;
   }
-  return mem_vec;
 }
 
 void ReplyBuffer::ClearBuffer() {
@@ -145,8 +157,11 @@ std::unique_ptr<BufNode> ReplyBuffer::NewNode(const char* buffer, size_t len) {
 
 size_t ReplyBuffer::AppendToNode(BufNode* node, const char* buffer,
                                  size_t len) {
+  if (!node->Writable()) {
+    return 0;
+  }
   size_t nwritten = std::min(len, node->capacity_ - node->used_);
-  std::memcpy(node->buf_.get() + node->used_, buffer, nwritten);
+  std::memcpy(node->Data() + node->used_, buffer, nwritten);
   node->used_ += nwritten;
   return nwritten;
 }

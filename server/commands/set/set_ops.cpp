@@ -23,33 +23,23 @@ enum class SetLookupStatus : std::uint8_t {
   kWrongType,
 };
 
-struct KeysArgs {
-  std::vector<std::string_view> keys;
-};
-
 struct SetLookup {
   const Set* set;
   SetLookupStatus status;
 };
 
-int ParseKeysArgs(const CommandArgs& args, KeysArgs* keys_args);
 SetLookup FindSet(db::RedisDb* redis_db, std::string_view key);
 using SetOperation = std::optional<std::string> (*)(db::RedisDb*,
-                                                    const KeysArgs*);
+                                                    const CommandArgs&);
 
 std::string BulkBodyToArrayReply(size_t count, std::string body);
-std::optional<std::string> SInter(db::RedisDb* redis_db, const KeysArgs* args);
-std::optional<std::string> SUnion(db::RedisDb* redis_db, const KeysArgs* args);
-std::optional<std::string> SDiff(db::RedisDb* redis_db, const KeysArgs* args);
+std::optional<std::string> SInter(db::RedisDb* redis_db,
+                                  const CommandArgs& keys);
+std::optional<std::string> SUnion(db::RedisDb* redis_db,
+                                  const CommandArgs& keys);
+std::optional<std::string> SDiff(db::RedisDb* redis_db,
+                                 const CommandArgs& keys);
 void AddSetOperationReply(Client* client, SetOperation operation);
-
-int ParseKeysArgs(const CommandArgs& args, KeysArgs* const keys_args) {
-  if (args.empty()) {
-    return -1;
-  }
-  keys_args->keys = args;
-  return 0;
-}
 
 SetLookup FindSet(db::RedisDb* const redis_db, std::string_view key) {
   const auto* object = redis_db->LookupKey(key);
@@ -68,10 +58,10 @@ std::string BulkBodyToArrayReply(size_t count, std::string body) {
 }
 
 std::optional<std::string> SInter(db::RedisDb* const redis_db,
-                                  const KeysArgs* const args) {
+                                  const CommandArgs& keys) {
   std::vector<const Set*> sets;
-  sets.reserve(args->keys.size());
-  for (const auto& key : args->keys) {
+  sets.reserve(keys.size());
+  for (std::string_view key : keys) {
     const SetLookup lookup = FindSet(redis_db, key);
     if (lookup.status == SetLookupStatus::kMissing) {
       return reply::FromArrayHeader(0);
@@ -107,9 +97,9 @@ std::optional<std::string> SInter(db::RedisDb* const redis_db,
 }
 
 std::optional<std::string> SUnion(db::RedisDb* const redis_db,
-                                  const KeysArgs* const args) {
+                                  const CommandArgs& keys) {
   std::unordered_set<std::string> members;
-  for (const auto& key : args->keys) {
+  for (std::string_view key : keys) {
     const SetLookup lookup = FindSet(redis_db, key);
     if (lookup.status == SetLookupStatus::kMissing) {
       continue;
@@ -131,8 +121,8 @@ std::optional<std::string> SUnion(db::RedisDb* const redis_db,
 }
 
 std::optional<std::string> SDiff(db::RedisDb* const redis_db,
-                                 const KeysArgs* const args) {
-  const SetLookup first = FindSet(redis_db, args->keys.front());
+                                 const CommandArgs& keys) {
+  const SetLookup first = FindSet(redis_db, keys.front());
   if (first.status == SetLookupStatus::kMissing) {
     return reply::FromArrayHeader(0);
   }
@@ -141,8 +131,8 @@ std::optional<std::string> SDiff(db::RedisDb* const redis_db,
   }
 
   std::vector<const Set*> subtract_sets;
-  subtract_sets.reserve(args->keys.size() - 1);
-  for (auto it = args->keys.begin() + 1; it != args->keys.end(); ++it) {
+  subtract_sets.reserve(keys.size() - 1);
+  for (auto it = keys.begin() + 1; it != keys.end(); ++it) {
     const SetLookup lookup = FindSet(redis_db, *it);
     if (lookup.status == SetLookupStatus::kMissing) {
       continue;
@@ -174,15 +164,19 @@ std::optional<std::string> SDiff(db::RedisDb* const redis_db,
 }
 
 void AddSetOperationReply(Client* const client, SetOperation operation) {
-  KeysArgs args;
-  if (ParseKeysArgs(client->Args(), &args) < 0) {
+  const auto& keys = client->Args();
+  if (keys.empty()) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto encoded = operation(redis_db, &args);
-    client->AddReply(encoded.has_value() ? *encoded : reply::WrongTypeError());
+    auto encoded = operation(redis_db, keys);
+    if (!encoded.has_value()) {
+      client->AddReply(reply::WrongTypeError());
+      return;
+    }
+    client->AddReply(std::move(*encoded));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

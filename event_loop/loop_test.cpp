@@ -218,4 +218,20 @@ TEST(LoopTest, DeferredCallbacksRunAfterFileCallbacks) {
 
   EXPECT_EQ(order, (std::vector<int>{1, 2}));
 }
+
+TEST(LoopTest, CallbackDeferredDuringDispatchRunsNextCycle) {
+  auto loop = Loop::Create();
+  ASSERT_NE(loop, nullptr);
+  std::vector<int> order;
+  loop->Defer([&] {
+    order.push_back(1);
+    loop->Defer([&order] { order.push_back(2); });
+  });
+
+  loop->ProcessEvents();
+  EXPECT_EQ(order, (std::vector<int>{1}));
+
+  loop->ProcessEvents();
+  EXPECT_EQ(order, (std::vector<int>{1, 2}));
+}
 }  // namespace redis_simple::event_loop

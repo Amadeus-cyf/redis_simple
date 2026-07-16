@@ -18,6 +18,9 @@ Guidance for AI coding agents working in this repository.
 - Command handlers should read arguments through `CommandArgs`
   (`std::string_view`s into the client query buffer). Copy arguments only at an
   ownership boundary, such as storing a key/value in the DB or data structure.
+- Pass `CommandArgs` by const reference instead of copying its view vector.
+  Move completed `std::string` replies into `Client::AddReply`; use the
+  `std::string_view` overload only for borrowed reply data.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.
@@ -52,7 +55,11 @@ ctest --preset release --output-on-failure
 cmake --preset sanitizer
 cmake --build --preset sanitizer
 ctest --preset sanitizer --output-on-failure
+scripts/run_leak_check.sh
 ```
+
+The leak-check script uses Apple `leaks` for the macOS unit-test binary and
+explicit LeakSanitizer options for the complete Linux sanitizer test suite.
 
 Use Docker for a local Linux build and test check from macOS:
 

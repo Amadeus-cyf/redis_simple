@@ -21,9 +21,6 @@ class Server {
     clients_.push_back(std::move(client));
   }
   bool RemoveClient(Client* c);
-  const std::vector<std::unique_ptr<Client>>& Clients() const {
-    return clients_;
-  }
   ~Server() = default;
 
  private:

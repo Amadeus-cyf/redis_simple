@@ -13,25 +13,45 @@
 #include "server.h"
 #include "server/reply/reply.h"
 namespace redis_simple {
+namespace {
+constexpr auto kReadBufferSize = size_t{16} * 1024;
+constexpr auto kMaxQueryBufferSize = size_t{64} * 1024 * 1024;
+}  // namespace
+
 Client::Client(std::unique_ptr<connection::Connection> connection)
     : connection_(std::move(connection)), db_(Server::Get()->Db()) {}
 
 ssize_t Client::ReadQuery() {
-  std::array<char, 4096> buf{};
-  ssize_t nread = connection_->Read(buf.data(), buf.size());
-  if (nread <= 0) {
-    RS_LOG_DEBUG("nread %zd\n", nread);
-    return nread;
+  std::array<char, kReadBufferSize> buffer{};
+  size_t total_read = 0;
+  while (true) {
+    const ssize_t nread = connection_->Read(buffer.data(), buffer.size());
+    if (nread > 0) {
+      const auto chunk_size = static_cast<size_t>(nread);
+      if (query_buf_.Size() > kMaxQueryBufferSize ||
+          chunk_size > kMaxQueryBufferSize - query_buf_.Size()) {
+        RS_LOG_DEBUG("query buffer limit exceeded\n");
+        connection_->SetState(connection::ConnectionState::kError);
+        return -1;
+      }
+      query_buf_.Append(buffer.data(), chunk_size);
+      total_read += chunk_size;
+      continue;
+    }
+    if (nread == 0) {
+      break;
+    }
+    if (connection_->State() != connection::ConnectionState::kConnected) {
+      return -1;
+    }
+    break;
   }
-  RS_LOG_DEBUG("nread %zd, buf %.*s end\n", nread, static_cast<int>(nread),
-               buf.data());
-  query_buf_.Append(buf.data(), static_cast<size_t>(nread));
-  return nread;
+  RS_LOG_DEBUG("read %zu query bytes\n", total_read);
+  return static_cast<ssize_t>(total_read);
 }
 
 ssize_t Client::SendReply() {
-  return (reply_buf_.ReplyHead() != nullptr) ? SendListReply()
-                                             : SendBufferReply();
+  return reply_buf_.ReplyCount() > 0 ? SendListReply() : SendBufferReply();
 }
 
 ssize_t Client::SendBufferReply() {
@@ -51,8 +71,8 @@ ssize_t Client::SendBufferReply() {
 
 ssize_t Client::SendListReply() {
   RS_LOG_DEBUG("_sendvReply\n");
-  const auto mem_to_write = reply_buf_.Blocks();
-  ssize_t nwritten = connection_->WriteVector(mem_to_write);
+  reply_buf_.FillBlocks(&reply_blocks_);
+  ssize_t nwritten = connection_->WriteVector(reply_blocks_);
   if (nwritten < 0) {
     return -1;
   }

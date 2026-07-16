@@ -1,5 +1,4 @@
 #include <string_view>
-#include <vector>
 
 #include "logging/logger.h"
 #include "server/client.h"
@@ -9,23 +8,9 @@
 
 namespace redis_simple::command::key {
 namespace {
-struct ExistsArgs {
-  std::vector<std::string_view> keys;
-};
-
-int ParseExistsArgs(const CommandArgs& args, ExistsArgs* exists_args) {
-  if (args.empty()) {
-    RS_LOG_DEBUG("invalid args\n");
-    return -1;
-  }
-  exists_args->keys = args;
-  return 0;
-}
-
-int CountExistingKeys(db::RedisDb* const redis_db,
-                      const ExistsArgs* const args) {
+int CountExistingKeys(db::RedisDb* const redis_db, const CommandArgs& keys) {
   int existing = 0;
-  for (std::string_view key : args->keys) {
+  for (std::string_view key : keys) {
     if (redis_db->LookupKey(key) != nullptr) {
       ++existing;
     }
@@ -36,14 +21,14 @@ int CountExistingKeys(db::RedisDb* const redis_db,
 
 void HandleExists(Client* const client) {
   RS_LOG_DEBUG("exists command called\n");
-  ExistsArgs args;
-  if (ParseExistsArgs(client->Args(), &args) < 0) {
+  const auto& keys = client->Args();
+  if (keys.empty()) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    client->AddReply(reply::FromInt64(CountExistingKeys(redis_db, &args)));
+    client->AddReply(reply::FromInt64(CountExistingKeys(redis_db, keys)));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromError("ERR db unavailable"));

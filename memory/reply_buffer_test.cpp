@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -89,7 +90,8 @@ TEST(ReplyBufferTest, AddToReplyList) {
   ASSERT_EQ(buf->BufferSize(), 4096);
   ASSERT_EQ(buf->ReplyCount(), 4);
 
-  const auto mem_vec = buf->Blocks();
+  std::vector<iovec> mem_vec;
+  buf->FillBlocks(&mem_vec);
   ASSERT_EQ(mem_vec.size(), 5);
   ASSERT_EQ(BlockString(mem_vec[0]),
             std::string(2000, 'a').append(4096 - 2000, 'b'));
@@ -118,7 +120,8 @@ TEST(ReplyBufferTest, Consume) {
   ASSERT_EQ(buf->SentLength(), kExpectedSentAfterConsume);
   ASSERT_EQ(buf->ReplyCount(), 3);
 
-  const auto mem_vec = buf->Blocks();
+  std::vector<iovec> mem_vec;
+  buf->FillBlocks(&mem_vec);
   ASSERT_EQ(mem_vec.size(), 3);
   ASSERT_EQ(BlockString(mem_vec[0]),
             std::string(1024 - kExpectedSentAfterConsume, 'c'));
@@ -136,13 +139,14 @@ TEST(ReplyBufferTest, ConsumeListNodeInMultiplePartialWrites) {
 
   buf->Consume(300);
   ASSERT_EQ(buf->SentLength(), 300);
-  auto mem_vec = buf->Blocks();
+  std::vector<iovec> mem_vec;
+  buf->FillBlocks(&mem_vec);
   ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(mem_vec[0].iov_len, 1700);
 
   buf->Consume(400);
   ASSERT_EQ(buf->SentLength(), 700);
-  mem_vec = buf->Blocks();
+  buf->FillBlocks(&mem_vec);
   ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(BlockString(mem_vec[0]), std::string(1300, 'b'));
   ASSERT_EQ(mem_vec[0].iov_len, 1300);
@@ -161,7 +165,8 @@ TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
   ASSERT_EQ(buf->BufferSize(), 0);
   ASSERT_EQ(buf->ReplyCount(), 4);
 
-  const auto mem_vec = buf->Blocks();
+  std::vector<iovec> mem_vec;
+  buf->FillBlocks(&mem_vec);
   ASSERT_EQ(mem_vec.size(), 4);
   ASSERT_EQ(BlockString(mem_vec[0]),
             std::string(1024 - kExpectedSentAfterConsume, 'c'));
@@ -174,5 +179,26 @@ TEST(ReplyBufferTest, AppendNewNodeToReplyList) {
   ASSERT_EQ(mem_vec[2].iov_len, 1024);
   ASSERT_EQ(BlockString(mem_vec[3]), std::string(kRemainingBytes, 'e'));
   ASSERT_EQ(mem_vec[3].iov_len, kRemainingBytes);
+}
+
+TEST(ReplyBufferTest, MovesLargeReplyIntoOutputList) {
+  ReplyBuffer buffer;
+  std::string reply(8192, 'x');
+  const auto original_address = reinterpret_cast<std::uintptr_t>(reply.data());
+
+  EXPECT_EQ(buffer.Append(std::move(reply)), 8192);
+
+  std::vector<iovec> blocks;
+  buffer.FillBlocks(&blocks);
+  ASSERT_EQ(blocks.size(), 1);
+  EXPECT_EQ(reinterpret_cast<std::uintptr_t>(blocks[0].iov_base),
+            original_address);
+  EXPECT_EQ(BlockString(blocks[0]), std::string(8192, 'x'));
+
+  buffer.Consume(4096);
+  buffer.FillBlocks(&blocks);
+  ASSERT_EQ(blocks.size(), 1);
+  EXPECT_EQ(blocks[0].iov_len, 4096);
+  EXPECT_EQ(BlockString(blocks[0]), std::string(4096, 'x'));
 }
 }  // namespace redis_simple::in_memory

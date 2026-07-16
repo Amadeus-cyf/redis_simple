@@ -8,7 +8,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
@@ -19,11 +18,6 @@
 namespace redis_simple::command::hashes {
 namespace {
 using Hash = ::redis_simple::hash::Hash;
-
-struct HashEntryView {
-  std::string_view field;
-  std::string_view value;
-};
 
 enum class HashStatus : std::uint8_t {
   kOk,
@@ -39,21 +33,6 @@ struct KeyArgs {
 struct FieldArgs {
   std::string_view key;
   std::string_view field;
-};
-
-struct SetArgs {
-  std::string_view key;
-  std::vector<HashEntryView> entries;
-};
-
-struct DeleteArgs {
-  std::string_view key;
-  std::vector<std::string_view> fields;
-};
-
-struct FieldsArgs {
-  std::string_view key;
-  std::vector<std::string_view> fields;
 };
 
 struct IncrementArgs {
@@ -79,22 +58,20 @@ struct IncrementResult {
 
 int ParseKeyArgs(const CommandArgs& args, KeyArgs* key_args);
 int ParseFieldArgs(const CommandArgs& args, FieldArgs* field_args);
-int ParseSetArgs(const CommandArgs& args, SetArgs* set_args);
-int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* delete_args);
-int ParseFieldsArgs(const CommandArgs& args, FieldsArgs* fields_args);
 int ParseIncrementArgs(const CommandArgs& args, IncrementArgs* increment_args);
 HashResult FindHash(db::RedisDb* redis_db, std::string_view key);
 MutableHashResult FindMutableHash(db::RedisDb* redis_db, std::string_view key);
 MutableHashResult FindOrCreateHash(db::RedisDb* redis_db, std::string_view key);
 std::optional<int64_t> ToReplyInteger(size_t value);
 bool AddWithOverflowCheck(int64_t value, int64_t increment, int64_t* result);
-std::optional<int64_t> HSet(db::RedisDb* redis_db, const SetArgs* args);
+std::optional<int64_t> HSet(db::RedisDb* redis_db, const CommandArgs& args);
 std::optional<std::string> HGet(db::RedisDb* redis_db, const FieldArgs* args);
-std::optional<int64_t> HDel(db::RedisDb* redis_db, const DeleteArgs* args);
+std::optional<int64_t> HDel(db::RedisDb* redis_db, const CommandArgs& args);
 std::optional<int64_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<int64_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
 std::optional<std::string> HGetAll(db::RedisDb* redis_db, const KeyArgs* args);
-std::optional<std::string> HMGet(db::RedisDb* redis_db, const FieldsArgs* args);
+std::optional<std::string> HMGet(db::RedisDb* redis_db,
+                                 const CommandArgs& args);
 std::optional<std::string> HKeys(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<std::string> HVals(db::RedisDb* redis_db, const KeyArgs* args);
 IncrementResult HIncrBy(db::RedisDb* redis_db, const IncrementArgs* args);
@@ -113,36 +90,6 @@ int ParseFieldArgs(const CommandArgs& args, FieldArgs* const field_args) {
   }
   field_args->key = args[0];
   field_args->field = args[1];
-  return 0;
-}
-
-int ParseSetArgs(const CommandArgs& args, SetArgs* const set_args) {
-  if (args.size() < 3 || args.size() % 2 == 0) {
-    return -1;
-  }
-  set_args->key = args[0];
-  set_args->entries.reserve((args.size() - 1) / 2);
-  for (size_t i = 1; i < args.size(); i += 2) {
-    set_args->entries.push_back({args[i], args[i + 1]});
-  }
-  return 0;
-}
-
-int ParseDeleteArgs(const CommandArgs& args, DeleteArgs* const delete_args) {
-  if (args.size() < 2) {
-    return -1;
-  }
-  delete_args->key = args[0];
-  delete_args->fields.assign(args.begin() + 1, args.end());
-  return 0;
-}
-
-int ParseFieldsArgs(const CommandArgs& args, FieldsArgs* const fields_args) {
-  if (args.size() < 2) {
-    return -1;
-  }
-  fields_args->key = args[0];
-  fields_args->fields.assign(args.begin() + 1, args.end());
   return 0;
 }
 
@@ -215,14 +162,14 @@ bool AddWithOverflowCheck(int64_t value, int64_t increment, int64_t* result) {
 }
 
 std::optional<int64_t> HSet(db::RedisDb* const redis_db,
-                            const SetArgs* const args) {
-  const MutableHashResult result = FindOrCreateHash(redis_db, args->key);
+                            const CommandArgs& args) {
+  const MutableHashResult result = FindOrCreateHash(redis_db, args[0]);
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
   int64_t added = 0;
-  for (const auto& entry : args->entries) {
-    added += result.hash->Set(entry.field, entry.value) ? 1 : 0;
+  for (size_t i = 1; i < args.size(); i += 2) {
+    added += result.hash->Set(args[i], args[i + 1]) ? 1 : 0;
   }
   return added;
 }
@@ -246,8 +193,8 @@ std::optional<std::string> HGet(db::RedisDb* const redis_db,
 }
 
 std::optional<int64_t> HDel(db::RedisDb* const redis_db,
-                            const DeleteArgs* const args) {
-  const MutableHashResult result = FindMutableHash(redis_db, args->key);
+                            const CommandArgs& args) {
+  const MutableHashResult result = FindMutableHash(redis_db, args[0]);
   if (result.status == HashStatus::kMissing) {
     return 0;
   }
@@ -255,11 +202,11 @@ std::optional<int64_t> HDel(db::RedisDb* const redis_db,
     return std::nullopt;
   }
   int64_t deleted = 0;
-  for (const auto& field : args->fields) {
-    deleted += result.hash->Delete(field) ? 1 : 0;
+  for (size_t i = 1; i < args.size(); ++i) {
+    deleted += result.hash->Delete(args[i]) ? 1 : 0;
   }
   if (result.hash->Size() == 0) {
-    redis_db->DeleteKey(args->key);
+    redis_db->DeleteKey(args[0]);
   }
   return deleted;
 }
@@ -308,11 +255,11 @@ std::optional<std::string> HGetAll(db::RedisDb* const redis_db,
 }
 
 std::optional<std::string> HMGet(db::RedisDb* const redis_db,
-                                 const FieldsArgs* const args) {
-  const HashResult result = FindHash(redis_db, args->key);
-  std::string encoded = reply::FromArrayHeader(args->fields.size());
+                                 const CommandArgs& args) {
+  const HashResult result = FindHash(redis_db, args[0]);
+  std::string encoded = reply::FromArrayHeader(args.size() - 1);
   if (result.status == HashStatus::kMissing) {
-    for (size_t i = 0; i < args->fields.size(); ++i) {
+    for (size_t i = 1; i < args.size(); ++i) {
       encoded.append(reply::Null());
     }
     return encoded;
@@ -320,8 +267,8 @@ std::optional<std::string> HMGet(db::RedisDb* const redis_db,
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  for (const auto& field : args->fields) {
-    if (!result.hash->VisitValue(field, [&encoded](std::string_view value) {
+  for (size_t i = 1; i < args.size(); ++i) {
+    if (!result.hash->VisitValue(args[i], [&encoded](std::string_view value) {
           reply::AppendBulkString(value, &encoded);
         })) {
       encoded.append(reply::Null());
@@ -390,14 +337,14 @@ IncrementResult HIncrBy(db::RedisDb* const redis_db,
 }  // namespace
 
 void HandleHSet(Client* const client) {
-  SetArgs args;
-  if (ParseSetArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() < 3 || args.size() % 2 == 0) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HSet(redis_db, &args);
+    const auto result = HSet(redis_db, args);
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
     return;
@@ -413,22 +360,26 @@ void HandleHGet(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HGet(redis_db, &args);
-    client->AddReply(result.has_value() ? *result : reply::WrongTypeError());
+    auto result = HGet(redis_db, &args);
+    if (!result.has_value()) {
+      client->AddReply(reply::WrongTypeError());
+      return;
+    }
+    client->AddReply(std::move(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
 }
 
 void HandleHDel(Client* const client) {
-  DeleteArgs args;
-  if (ParseDeleteArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() < 2) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HDel(redis_db, &args);
+    const auto result = HDel(redis_db, args);
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
     return;
@@ -476,31 +427,31 @@ void HandleHGetAll(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HGetAll(redis_db, &args);
+    auto result = HGetAll(redis_db, &args);
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(*result);
+    client->AddReply(std::move(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
 }
 
 void HandleHMGet(Client* const client) {
-  FieldsArgs args;
-  if (ParseFieldsArgs(client->Args(), &args) < 0) {
+  const auto& args = client->Args();
+  if (args.size() < 2) {
     client->AddReply(reply::WrongNumberOfArguments());
     return;
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HMGet(redis_db, &args);
+    auto result = HMGet(redis_db, args);
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(*result);
+    client->AddReply(std::move(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -514,12 +465,12 @@ void HandleHKeys(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HKeys(redis_db, &args);
+    auto result = HKeys(redis_db, &args);
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(*result);
+    client->AddReply(std::move(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -533,12 +484,12 @@ void HandleHVals(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    const auto result = HVals(redis_db, &args);
+    auto result = HVals(redis_db, &args);
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(*result);
+    client->AddReply(std::move(*result));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

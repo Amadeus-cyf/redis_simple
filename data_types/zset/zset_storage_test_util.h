@@ -15,9 +15,9 @@
 namespace redis_simple::zset::zset_storage_test {
 using KeyScorePair = std::pair<std::string, double>;
 
-inline std::unique_ptr<LimitSpec> MakeLimit(size_t offset,
-                                            std::optional<size_t> count) {
-  return std::make_unique<LimitSpec>(offset, count);
+inline std::optional<LimitSpec> MakeLimit(size_t offset,
+                                          std::optional<size_t> count) {
+  return LimitSpec(offset, count);
 }
 
 inline std::vector<KeyScorePair> ToKeyScorePairs(const ZSetEntryList& entries) {

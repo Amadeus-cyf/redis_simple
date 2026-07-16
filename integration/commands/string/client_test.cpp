@@ -51,6 +51,8 @@ int Run() {
       {"GET string_ex_key\r\n", "value\n"},
       {"SET string_px_key value PX 10000\r\n", "1\n"},
       {"GET string_px_key\r\n", "value\n"},
+      {"SET string_lowercase_option value px 10000\r\n", "1\n"},
+      {"GET string_lowercase_option\r\n", "value\n"},
       {"INCR string_counter\r\n", "1\n"},
       {"INCR string_counter\r\n", "2\n"},
       {"DECR string_counter\r\n", "1\n"},
