@@ -132,7 +132,9 @@ int64_t RedisDb::TimeToLive(std::string_view key, TtlResolution resolution) {
     return ttl;
   }
   constexpr int64_t kMillisecondsPerSecond = 1000;
-  return ttl / kMillisecondsPerSecond;
+  constexpr int64_t kRoundingOffset = kMillisecondsPerSecond / 2;
+  return (ttl / kMillisecondsPerSecond) +
+         (ttl % kMillisecondsPerSecond >= kRoundingOffset ? 1 : 0);
 }
 
 void RedisDb::Flush() {

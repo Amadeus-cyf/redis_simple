@@ -92,14 +92,14 @@ TEST(RedisDbTest, ExpirePersistAndTtl) {
   EXPECT_EQ(redis_db->LookupKey("key"), nullptr);
 }
 
-TEST(RedisDbTest, TtlTruncatesPartialSeconds) {
+TEST(RedisDbTest, TtlRoundsToNearestSecond) {
   auto redis_db = RedisDb::Create();
   const int64_t now = utils::NowInMilliseconds();
   ASSERT_EQ(redis_db->SetKey("key", RedisObject::CreateWithString("value"),
                              now + 60'999),
             DbStatus::kOk);
 
-  EXPECT_EQ(redis_db->TimeToLive("key", TtlResolution::kSeconds), 60);
+  EXPECT_EQ(redis_db->TimeToLive("key", TtlResolution::kSeconds), 61);
   EXPECT_GT(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), 60'000);
 }
 
