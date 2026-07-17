@@ -33,8 +33,7 @@ TEST(RequestParserTest, DistinguishesIncompleteAndInvalidResp) {
   EXPECT_TRUE(args.empty());
   EXPECT_EQ(Parse("*1\r\n+GET\r\n", &command, &args).status,
             ParseStatus::kInvalid);
-  EXPECT_EQ(Parse("*0\r\n", &command, &args).status,
-            ParseStatus::kInvalid);
+  EXPECT_EQ(Parse("*0\r\n", &command, &args).status, ParseStatus::kInvalid);
 }
 
 TEST(RequestParserTest, PreservesInlineProtocolCompatibility) {

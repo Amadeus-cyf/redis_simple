@@ -7,9 +7,10 @@
 #include <optional>
 
 namespace redis_simple::zset {
-std::optional<RangeByRankSpec> NormalizeRankRange(
-    const RangeByRankSpec& spec, size_t size) {
-  if (size == 0 || size > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+std::optional<RangeByRankSpec> NormalizeRankRange(const RangeByRankSpec& spec,
+                                                  size_t size) {
+  if (size == 0 ||
+      size > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
     return std::nullopt;
   }
   const auto signed_size = static_cast<int64_t>(size);

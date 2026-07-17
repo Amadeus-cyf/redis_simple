@@ -112,8 +112,8 @@ ParseResult ParseInline(std::string_view input, std::string_view* command,
 
   const size_t command_end = line.find(' ', position);
   *command = line.substr(position, command_end == std::string_view::npos
-                                      ? std::string_view::npos
-                                      : command_end - position);
+                                       ? std::string_view::npos
+                                       : command_end - position);
   position = command_end;
   while (position != std::string_view::npos) {
     const size_t start = line.find_first_not_of(' ', position);
@@ -122,8 +122,8 @@ ParseResult ParseInline(std::string_view input, std::string_view* command,
     }
     const size_t end = line.find(' ', start);
     args->push_back(line.substr(start, end == std::string_view::npos
-                                          ? std::string_view::npos
-                                          : end - start));
+                                           ? std::string_view::npos
+                                           : end - start));
     position = end;
   }
   return {ParseStatus::kComplete, newline + 1};
