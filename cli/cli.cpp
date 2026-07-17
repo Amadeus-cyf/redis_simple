@@ -14,6 +14,7 @@
 
 #include "logging/logger.h"
 #include "resp_parser.h"
+#include "server/reply/reply.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple::cli {
@@ -33,6 +34,14 @@ std::string ReplyListToString(const std::vector<std::string>& reply) {
     reply_str.append(r).push_back('\n');
   }
   return reply_str;
+}
+
+std::string EncodeCommand(const std::vector<std::string_view>& args) {
+  std::string encoded = reply::FromArrayHeader(args.size());
+  for (const auto arg : args) {
+    reply::AppendBulkString(arg, &encoded);
+  }
+  return encoded;
 }
 }  // namespace
 
@@ -59,6 +68,12 @@ CliStatus RedisCli::Connect(const std::string& ip, int port) {
 void RedisCli::AddCommand(const std::string& cmd) {
   const std::scoped_lock lock(lock_);
   query_buf_.Append(cmd.c_str(), cmd.size());
+}
+
+void RedisCli::AddCommand(const std::vector<std::string_view>& args) {
+  const std::scoped_lock lock(lock_);
+  const std::string encoded = EncodeCommand(args);
+  query_buf_.Append(encoded.data(), encoded.size());
 }
 
 std::string RedisCli::ReadReply() {

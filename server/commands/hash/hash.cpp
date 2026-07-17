@@ -65,13 +65,14 @@ MutableHashResult FindOrCreateHash(db::RedisDb* redis_db, std::string_view key);
 std::optional<int64_t> ToReplyInteger(size_t value);
 bool AddWithOverflowCheck(int64_t value, int64_t increment, int64_t* result);
 std::optional<int64_t> HSet(db::RedisDb* redis_db, const CommandArgs& args);
-std::optional<std::string> HGet(db::RedisDb* redis_db, const FieldArgs* args);
+std::optional<std::string> HGet(db::RedisDb* redis_db, const FieldArgs* args,
+                                reply::ProtocolVersion protocol);
 std::optional<int64_t> HDel(db::RedisDb* redis_db, const CommandArgs& args);
 std::optional<int64_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<int64_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
 std::optional<std::string> HGetAll(db::RedisDb* redis_db, const KeyArgs* args);
-std::optional<std::string> HMGet(db::RedisDb* redis_db,
-                                 const CommandArgs& args);
+std::optional<std::string> HMGet(db::RedisDb* redis_db, const CommandArgs& args,
+                                 reply::ProtocolVersion protocol);
 std::optional<std::string> HKeys(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<std::string> HVals(db::RedisDb* redis_db, const KeyArgs* args);
 IncrementResult HIncrBy(db::RedisDb* redis_db, const IncrementArgs* args);
@@ -175,10 +176,11 @@ std::optional<int64_t> HSet(db::RedisDb* const redis_db,
 }
 
 std::optional<std::string> HGet(db::RedisDb* const redis_db,
-                                const FieldArgs* const args) {
+                                const FieldArgs* const args,
+                                reply::ProtocolVersion protocol) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
-    return reply::Null();
+    return reply::Null(protocol);
   }
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
@@ -187,7 +189,7 @@ std::optional<std::string> HGet(db::RedisDb* const redis_db,
   if (!result.hash->VisitValue(args->field, [&encoded](std::string_view value) {
         encoded = reply::FromBulkString(value);
       })) {
-    return reply::Null();
+    return reply::Null(protocol);
   }
   return encoded;
 }
@@ -255,12 +257,13 @@ std::optional<std::string> HGetAll(db::RedisDb* const redis_db,
 }
 
 std::optional<std::string> HMGet(db::RedisDb* const redis_db,
-                                 const CommandArgs& args) {
+                                 const CommandArgs& args,
+                                 reply::ProtocolVersion protocol) {
   const HashResult result = FindHash(redis_db, args[0]);
   std::string encoded = reply::FromArrayHeader(args.size() - 1);
   if (result.status == HashStatus::kMissing) {
     for (size_t i = 1; i < args.size(); ++i) {
-      encoded.append(reply::Null());
+      encoded.append(reply::Null(protocol));
     }
     return encoded;
   }
@@ -271,7 +274,7 @@ std::optional<std::string> HMGet(db::RedisDb* const redis_db,
     if (!result.hash->VisitValue(args[i], [&encoded](std::string_view value) {
           reply::AppendBulkString(value, &encoded);
         })) {
-      encoded.append(reply::Null());
+      encoded.append(reply::Null(protocol));
     }
   }
   return encoded;
@@ -360,7 +363,7 @@ void HandleHGet(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    auto result = HGet(redis_db, &args);
+    auto result = HGet(redis_db, &args, client->Protocol());
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
@@ -446,7 +449,7 @@ void HandleHMGet(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    auto result = HMGet(redis_db, args);
+    auto result = HMGet(redis_db, args, client->Protocol());
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;

@@ -173,6 +173,7 @@ redis_simple_add_gtest_suite(ReplyParserTest)
 redis_simple_add_gtest_suite(ReplyParseTest)
 redis_simple_add_gtest_suite(ConnectionTest)
 redis_simple_add_gtest_suite(ClientTest)
+redis_simple_add_gtest_suite(RequestParserTest)
 redis_simple_add_gtest_suite(TcpTest)
 
 redis_simple_add_executable(mock_tcp_server "integration/tcp/server_test.cpp")

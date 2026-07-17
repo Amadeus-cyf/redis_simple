@@ -73,7 +73,7 @@ int Run() {
       {"SCARD missing_set\r\n", "0\n"},
       {"SISMEMBER missing_set ele1\r\n", "0\n"},
       {"SREM missing_set ele1 ele2\r\n", "0\n"},
-      {"SET set_wrong_type value\r\n", "1\n"},
+      {"SET set_wrong_type value\r\n", "OK\n"},
       {"SCARD set_wrong_type\r\n",
        "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
   };

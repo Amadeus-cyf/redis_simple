@@ -411,7 +411,7 @@ void HandlePop(Client* const client, PopSide side) {
     } else if (result.value.has_value()) {
       client->AddReply(reply::FromBulkString(*result.value));
     } else {
-      client->AddReply(reply::Null());
+      client->AddReply(reply::Null(client->Protocol()));
     }
     return;
   }
@@ -476,7 +476,7 @@ void HandleLIndex(Client* const client) {
     } else if (result.value.has_value()) {
       client->AddReply(reply::FromBulkString(*result.value));
     } else {
-      client->AddReply(reply::Null());
+      client->AddReply(reply::Null(client->Protocol()));
     }
     return;
   }

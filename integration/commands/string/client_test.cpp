@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "cli/cli.h"
@@ -33,25 +34,25 @@ int Run() {
   }
 
   const std::vector<Case> cases = {
-      {"SET string_key val 1000\r\n", "1\n"},
+      {"SET string_key val PX 1000\r\n", "OK\n"},
       {"GET string_key\r\n", "val\n"},
       {"GET    string_key   \r\n", "val\n"},
       {"GET missing_string_key\r\n", "(nil)\n"},
-      {"SET string_key val1 3000\r\n", "1\n"},
+      {"SET string_key val1 PX 3000\r\n", "OK\n"},
       {"GET string_key\r\n", "val1\n"},
       {"DEL string_key\r\n", "1\n"},
       {"DEL missing_string_key\r\n", "0\n"},
       {"GET string_key\r\n", "(nil)\n"},
-      {"SET string_key_1 value1 1000\r\n", "1\n"},
-      {"SET string_key_2 value2 1000\r\n", "1\n"},
+      {"SET string_key_1 value1 PX 1000\r\n", "OK\n"},
+      {"SET string_key_2 value2 PX 1000\r\n", "OK\n"},
       {"DEL string_key_1 missing_string_key string_key_2\r\n", "2\n"},
       {"GET string_key_1\r\n", "(nil)\n"},
       {"GET string_key_2\r\n", "(nil)\n"},
-      {"SET string_ex_key value EX 10\r\n", "1\n"},
+      {"SET string_ex_key value EX 10\r\n", "OK\n"},
       {"GET string_ex_key\r\n", "value\n"},
-      {"SET string_px_key value PX 10000\r\n", "1\n"},
+      {"SET string_px_key value PX 10000\r\n", "OK\n"},
       {"GET string_px_key\r\n", "value\n"},
-      {"SET string_lowercase_option value px 10000\r\n", "1\n"},
+      {"SET string_lowercase_option value px 10000\r\n", "OK\n"},
       {"GET string_lowercase_option\r\n", "value\n"},
       {"INCR string_counter\r\n", "1\n"},
       {"INCR string_counter\r\n", "2\n"},
@@ -73,6 +74,15 @@ int Run() {
     if (!ExpectReply(&cli, test_case)) {
       return EXIT_FAILURE;
     }
+  }
+  cli.AddCommand(std::vector<std::string_view>{"SET", "key with spaces",
+                                               "value with spaces"});
+  if (cli.ReadReply() != "OK\n") {
+    return EXIT_FAILURE;
+  }
+  cli.AddCommand(std::vector<std::string_view>{"GET", "key with spaces"});
+  if (cli.ReadReply() != "value with spaces\n") {
+    return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;
 }

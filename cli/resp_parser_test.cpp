@@ -55,6 +55,8 @@ TEST(RespParserTest, ParseBulkString) {
   ASSERT_EQ(reply.back(), "hello\n");
   ASSERT_EQ(ParseBytes("$15\r\nhello_hello_hel\r\n\r\n\r\n", reply), 22);
   ASSERT_EQ(reply.back(), "hello_hello_hel");
+  ASSERT_EQ(ParseBytes("$-1\r\n", reply), 5);
+  ASSERT_EQ(reply.back(), "(nil)");
 }
 
 TEST(RespParserTest, ParseInt64) {
@@ -101,6 +103,16 @@ TEST(ReplyParserTest, ParseArray) {
   ASSERT_EQ(ParseBytes(s4, reply4), s4.size());
   ASSERT_EQ(reply4, std::vector<std::string>({"0", "1", "2", "3", "4", "5", "6",
                                               "7", "8", "9", "\n"}));
+}
+
+TEST(ReplyParserTest, ParseMap) {
+  std::vector<std::string> reply;
+  constexpr std::string_view kResponse =
+      "%2\r\n$6\r\nserver\r\n$12\r\nredis_simple\r\n$5\r\nproto\r\n:3\r\n";
+
+  ASSERT_EQ(ParseBytes(kResponse, reply), kResponse.size());
+  EXPECT_EQ(reply, std::vector<std::string>(
+                       {"server", "redis_simple", "proto", "3", "\n"}));
 }
 
 TEST(ReplyParseTest, ParseNull) {

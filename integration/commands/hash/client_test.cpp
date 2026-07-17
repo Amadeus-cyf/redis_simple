@@ -103,7 +103,7 @@ int Run() {
       {"HINCRBY integration_hash counter 2\r\n", "2\n"},
       {"HINCRBY integration_hash counter -1\r\n", "1\n"},
       {"HGET integration_hash counter\r\n", "1\n"},
-      {"SET hash_wrong_type value\r\n", "1\n"},
+      {"SET hash_wrong_type value\r\n", "OK\n"},
       {"HSET hash_wrong_type field value\r\n",
        "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
       {"HGET hash_wrong_type field\r\n",

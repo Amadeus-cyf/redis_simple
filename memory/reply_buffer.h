@@ -18,6 +18,7 @@ class ReplyBuffer {
   size_t SentLength() const { return sent_; }
   size_t ReplyCount() const { return node_count_; }
   size_t ReplyBytes() const { return reply_bytes_; }
+  size_t PendingBytes() const { return pending_bytes_; }
   size_t BufferSize() const { return size_; }
   BufNode* ReplyTail() const { return reply_tail_; }
   size_t Append(const char* s, size_t len);
@@ -45,6 +46,7 @@ class ReplyBuffer {
   BufNode* reply_tail_{};
   size_t node_count_{};
   size_t reply_bytes_{};
+  size_t pending_bytes_{};
   size_t sent_;
 };
 }  // namespace redis_simple::in_memory

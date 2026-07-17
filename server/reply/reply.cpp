@@ -18,6 +18,7 @@ constexpr char kStringPrefix = '+';
 constexpr char kBulkStringPrefix = '$';
 constexpr char kInt64Prefix = ':';
 constexpr char kArrayPrefix = '*';
+constexpr char kMapPrefix = '%';
 constexpr char kDoublePrefix = ',';
 constexpr char kNullPrefix = '_';
 constexpr char kErrorPrefix = '-';
@@ -56,8 +57,6 @@ std::string FromInt64(int64_t i64) {
   return reply;
 }
 
-std::string FromInt64(ReplyStatus status) { return FromInt64(ToInt(status)); }
-
 std::string FromArray(const std::vector<std::string>& array) {
   std::string reply = FromArrayHeader(array.size());
   for (const std::string& str : array) {
@@ -95,10 +94,14 @@ void AppendBulkString(std::string_view s, std::string* const reply) {
       .append(kCrlf.data(), kCrlf.size());
 }
 
-std::string FromFloat(double fl) {
+std::string FromFloat(double fl, ProtocolVersion protocol) {
+  const std::string value = utils::FloatToString(fl);
+  if (protocol == ProtocolVersion::kResp2) {
+    return FromBulkString(value);
+  }
   std::string reply;
   reply.push_back(kDoublePrefix);
-  reply.append(utils::FloatToString(fl)).append(kCrlf.data(), kCrlf.size());
+  reply.append(value).append(kCrlf.data(), kCrlf.size());
   return reply;
 }
 
@@ -128,9 +131,26 @@ std::string WrongTypeError() {
       "value");
 }
 
-std::string Null() {
+std::string Null(ProtocolVersion protocol) {
+  if (protocol == ProtocolVersion::kResp2) {
+    return "$-1\r\n";
+  }
   std::string reply(1, kNullPrefix);
   reply.append(kCrlf);
+  return reply;
+}
+
+std::string FromMapHeader(size_t size, ProtocolVersion protocol) {
+  if (protocol == ProtocolVersion::kResp2) {
+    if (size > std::numeric_limits<size_t>::max() / 2) {
+      throw std::length_error("map reply size overflow");
+    }
+    return FromArrayHeader(size * 2);
+  }
+  std::string reply;
+  reply.push_back(kMapPrefix);
+  AppendInteger(size, &reply);
+  reply.append(kCrlf.data(), kCrlf.size());
   return reply;
 }
 }  // namespace redis_simple::reply

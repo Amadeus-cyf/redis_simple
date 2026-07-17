@@ -109,13 +109,16 @@ TEST(ReplyBufferTest, AddToReplyList) {
 
 TEST(ReplyBufferTest, Consume) {
   auto buf = MakeBufferWithReplyList();
+  EXPECT_EQ(buf->PendingBytes(), 9144);
   // Partially consume the main buffer.
   buf->Consume(2047);
+  EXPECT_EQ(buf->PendingBytes(), 7097);
   ASSERT_EQ(buf->BufferSize(), 4096);
   ASSERT_EQ(buf->SentLength(), 2047);
 
   // Consume the rest of the main buffer and one list node.
   buf->Consume(5000);
+  EXPECT_EQ(buf->PendingBytes(), 2097);
   ASSERT_EQ(buf->BufferSize(), 0);
   ASSERT_EQ(buf->SentLength(), kExpectedSentAfterConsume);
   ASSERT_EQ(buf->ReplyCount(), 3);

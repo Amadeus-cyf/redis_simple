@@ -25,6 +25,7 @@ size_t ReplyBuffer::Append(const char* s, size_t len) {
   if (nwritten < len) {
     nwritten += AppendToList(s + nwritten, len - nwritten);
   }
+  pending_bytes_ += nwritten;
   return nwritten;
 }
 
@@ -34,9 +35,12 @@ size_t ReplyBuffer::Append(std::string&& reply) {
     return 0;
   }
   if (node_count_ == 0 && length <= buf_usable_size_ - size_) {
-    return AppendToBuffer(reply.data(), length);
+    const size_t appended = AppendToBuffer(reply.data(), length);
+    pending_bytes_ += appended;
+    return appended;
   }
   PushNode(BufNode::Create(std::move(reply)));
+  pending_bytes_ += length;
   return length;
 }
 
@@ -88,6 +92,7 @@ void ReplyBuffer::ClearBuffer() {
 
 void ReplyBuffer::Consume(size_t nwritten) {
   RS_LOG_DEBUG("clear processed: nwritten %zu\n", nwritten);
+  pending_bytes_ -= std::min(nwritten, pending_bytes_);
   size_t processed = ConsumeBuffer(nwritten);
   if (processed < nwritten) {
     ConsumeList(nwritten - processed);

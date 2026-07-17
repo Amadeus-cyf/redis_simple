@@ -64,9 +64,14 @@ ParseResult ParseBulkString(std::string_view resp, size_t start,
   if (header.status != ParseStatus::kComplete) {
     return header;
   }
+  const std::string_view length_text =
+      resp.substr(start + 1, header.consumed - start - 1);
+  if (length_text == "-1") {
+    reply->emplace_back(kNilReply);
+    return {ParseStatus::kComplete, header.consumed - start + 2};
+  }
   size_t length = 0;
-  if (!ParseSize(resp.substr(start + 1, header.consumed - start - 1),
-                 &length)) {
+  if (!ParseSize(length_text, &length)) {
     return {ParseStatus::kInvalid, 0};
   }
   const size_t content_start = header.consumed + 2;
@@ -112,6 +117,33 @@ ParseResult ParseArray(std::string_view resp, size_t start,
   }
   size_t consumed = header.consumed - start + 2;
   for (size_t index = 0; index < length; ++index) {
+    const auto element = ParseAt(resp, start + consumed, reply);
+    if (element.status != ParseStatus::kComplete) {
+      return element;
+    }
+    if (element.consumed > std::numeric_limits<size_t>::max() - consumed) {
+      return {ParseStatus::kInvalid, 0};
+    }
+    consumed += element.consumed;
+  }
+  reply->emplace_back("\n");
+  return {ParseStatus::kComplete, consumed};
+}
+
+ParseResult ParseMap(std::string_view resp, size_t start,
+                     std::vector<std::string>* const reply) {
+  const auto header = FindLineEnd(resp, start + 1);
+  if (header.status != ParseStatus::kComplete) {
+    return header;
+  }
+  size_t pair_count = 0;
+  if (!ParseSize(resp.substr(start + 1, header.consumed - start - 1),
+                 &pair_count) ||
+      pair_count > std::numeric_limits<size_t>::max() / 2) {
+    return {ParseStatus::kInvalid, 0};
+  }
+  size_t consumed = header.consumed - start + 2;
+  for (size_t index = 0; index < pair_count * 2; ++index) {
     const auto element = ParseAt(resp, start + consumed, reply);
     if (element.status != ParseStatus::kComplete) {
       return element;
@@ -249,6 +281,8 @@ ParseResult ParseAt(std::string_view resp, size_t start,
       return ParseInteger(resp, start, reply);
     case '*':
       return ParseArray(resp, start, reply);
+    case '%':
+      return ParseMap(resp, start, reply);
     case '_':
       return ParseNull(resp, start, reply);
     case ',':

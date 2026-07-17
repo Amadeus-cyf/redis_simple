@@ -25,6 +25,15 @@ TEST(ReplyTest, From64BitsInt) {
   ASSERT_EQ(FromInt64(1234567), ":1234567\r\n");
 }
 
+TEST(ReplyTest, EncodesVersionSpecificTypes) {
+  EXPECT_EQ(Null(ProtocolVersion::kResp2), "$-1\r\n");
+  EXPECT_EQ(Null(ProtocolVersion::kResp3), "_\r\n");
+  EXPECT_EQ(FromFloat(1.5, ProtocolVersion::kResp2), "$3\r\n1.5\r\n");
+  EXPECT_EQ(FromFloat(1.5, ProtocolVersion::kResp3), ",1.5\r\n");
+  EXPECT_EQ(FromMapHeader(2, ProtocolVersion::kResp2), "*4\r\n");
+  EXPECT_EQ(FromMapHeader(2, ProtocolVersion::kResp3), "%2\r\n");
+}
+
 TEST(ReplyTest, FromArray) {
   ASSERT_EQ(
       FromArray({":123\r\n", "+hello world\r\n", "$13\r\nhello world\r\n"}),

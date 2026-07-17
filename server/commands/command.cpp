@@ -9,6 +9,7 @@
 namespace redis_simple::command {
 namespace {
 constexpr std::array kCommandTable = {
+    Command{"HELLO", connection_commands::HandleHello},
     Command{"GET", strings::HandleGet},
     Command{"SET", strings::HandleSet},
     Command{"INCR", strings::HandleIncr},

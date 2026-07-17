@@ -38,9 +38,10 @@ Start the server:
 ./build/debug/redis_simple
 ```
 
-Each client query buffer is capped at 64 MiB. Readable sockets are drained in
-one event-loop callback, while the cap prevents an incomplete request from
-growing memory without bound.
+Clients can send standard RESP arrays of bulk strings or the legacy inline
+syntax. RESP2 is the default reply protocol; `HELLO 3` switches a connection to
+RESP3. Request buffers are capped at 64 MiB. Pending output pauses reads at 8
+MiB, resumes below 4 MiB, and closes the connection before exceeding 64 MiB.
 
 In another terminal, run a mock command client or your own TCP client against
 `localhost:8080`.
@@ -63,6 +64,7 @@ including protocol errors such as `ERR wrong number of arguments` and
   `ZRANGEBYSCORE`, `ZCOUNT`, `ZSCORE`
 - Hashes: `HSET`, `HGET`, `HDEL`, `HLEN`, `HEXISTS`, `HGETALL`, `HMGET`,
   `HKEYS`, `HVALS`, `HINCRBY`
+- Connection: `HELLO` with RESP2 and RESP3 negotiation
 
 ## Test
 
@@ -133,6 +135,16 @@ For debugging one unit-test suite directly:
 
 The integration clients return nonzero on failed expectations, so they are safe
 to run in CI instead of relying on manual log inspection.
+
+When a reference Redis server is available on port 6379, run the focused
+differential protocol and command check with:
+
+```sh
+scripts/run_redis_compatibility_check.sh build/debug/redis_simple
+```
+
+The script uses `redis-cli` against both servers and covers RESP requests,
+spaces in arguments, expiration replies, and sorted-set range semantics.
 
 ## Benchmarks
 
@@ -241,9 +253,10 @@ reuses scatter/gather metadata across partial writes.
 
 ## CI
 
-GitHub Actions runs the same flow recommended locally on macOS and Ubuntu, so
-both event-loop pollers are built and tested. Separate Ubuntu jobs also enforce
-clang-format and clang-tidy, run the full release suite, and run ASan/UBSan:
+GitHub Actions runs debug, release, and ASan/UBSan matrices on macOS and Ubuntu,
+so both event-loop pollers are built and tested. macOS also runs Apple `leaks`;
+Ubuntu runs LeakSanitizer, clang-format, and clang-tidy. A separate Ubuntu job
+compares supported behavior with a real Redis instance through `redis-cli`:
 
 ```sh
 cmake --preset debug

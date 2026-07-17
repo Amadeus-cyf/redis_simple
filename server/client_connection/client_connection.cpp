@@ -1,33 +1,14 @@
 #include "client_connection.h"
 
-#include <cstddef>
 #include <memory>
-#include <string>
 #include <utility>
 
 #include "logging/logger.h"
 #include "server/client.h"
 #include "server/client_connection/callback.h"
-#include "server/client_connection/redis_cmd.h"
 #include "server/server.h"
 
 namespace redis_simple::client_connection {
-namespace {
-bool SendString(const connection::Connection* conn, const std::string& cmd) {
-  const ssize_t ret = conn->SyncWrite(cmd.c_str(), cmd.length(), 1000);
-  return ret >= 0 && static_cast<size_t>(ret) == cmd.size();
-}
-
-bool SendStringInline(const connection::Connection* conn, std::string s) {
-  s.push_back('\n');
-  return SendString(conn, s);
-}
-}  // namespace
-
-bool SendCommand(const connection::Connection* conn, const RedisCommand* cmd) {
-  return SendStringInline(conn, cmd->String());
-}
-
 event_loop::CallbackStatus AcceptConnectionCallback(event_loop::Loop* /*loop*/,
                                                     int fd, Server* server,
                                                     int /*mask*/) {

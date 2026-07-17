@@ -110,7 +110,7 @@ int Run() {
       {"LLEN integration_list\r\n", "0\n"},
       {"RPUSH integration_list recreated\r\n", "1\n"},
       {"LPOP integration_list\r\n", "recreated\n"},
-      {"SET list_string value 1000\r\n", "1\n"},
+      {"SET list_string value PX 1000\r\n", "OK\n"},
       {"LLEN list_string\r\n",
        "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
       {"LPUSH list_string value\r\n",

@@ -206,13 +206,11 @@ bool Set::MaybeConvertIntSetToListPack(std::string_view val) {
     estimated_bytes =
         in_memory::ListPack::EstimateBytes(estimated_integer, intset_->Size());
   }
-  if (!intset_ ||
-      (intset_->Size() < kListPackMaxEntries &&
-       len <= kListPackElementMaxLength &&
-       max_integer_length <= kListPackElementMaxLength &&
-       estimated_bytes <= std::numeric_limits<size_t>::max() - entry_bytes &&
-       in_memory::ListPack::SafeToAdd(nullptr,
-                                      estimated_bytes + entry_bytes))) {
+  const size_t current_size = intset_ ? intset_->Size() : 0;
+  if (current_size < kListPackMaxEntries && len <= kListPackElementMaxLength &&
+      max_integer_length <= kListPackElementMaxLength &&
+      estimated_bytes <= std::numeric_limits<size_t>::max() - entry_bytes &&
+      in_memory::ListPack::SafeToAdd(nullptr, estimated_bytes + entry_bytes)) {
     ConvertIntSetToListPack(val);
     return true;
   }

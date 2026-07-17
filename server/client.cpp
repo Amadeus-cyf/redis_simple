@@ -12,14 +12,54 @@
 #include "logging/logger.h"
 #include "server.h"
 #include "server/reply/reply.h"
+#include "server/request_parser.h"
 namespace redis_simple {
 namespace {
 constexpr auto kReadBufferSize = size_t{16} * 1024;
 constexpr auto kMaxQueryBufferSize = size_t{64} * 1024 * 1024;
 }  // namespace
 
-Client::Client(std::unique_ptr<connection::Connection> connection)
-    : connection_(std::move(connection)), db_(Server::Get()->Db()) {}
+Client::Client(std::unique_ptr<connection::Connection> connection,
+               OutputBufferLimits output_limits)
+    : connection_(std::move(connection)),
+      db_(Server::Get()->Db()),
+      output_limits_(output_limits) {}
+
+size_t Client::AddReply(std::string_view reply_text) {
+  if (!CanQueueReply(reply_text.size())) {
+    return 0;
+  }
+  return reply_buf_.Append(reply_text.data(), reply_text.size());
+}
+
+size_t Client::AddReply(std::string&& reply_text) {
+  if (!CanQueueReply(reply_text.size())) {
+    return 0;
+  }
+  return reply_buf_.Append(std::move(reply_text));
+}
+
+bool Client::ShouldPauseReads() const {
+  return !reads_paused_ && (close_after_reply_ ||
+                            (output_limits_.soft_bytes > 0 &&
+                             PendingReplyBytes() >= output_limits_.soft_bytes));
+}
+
+bool Client::ShouldResumeReads() const {
+  return reads_paused_ && !close_after_reply_ &&
+         PendingReplyBytes() <= output_limits_.resume_bytes;
+}
+
+bool Client::CanQueueReply(size_t size) {
+  const size_t pending = PendingReplyBytes();
+  if (size <= output_limits_.hard_bytes &&
+      pending <= output_limits_.hard_bytes - size) {
+    return true;
+  }
+  RS_LOG_DEBUG("client output buffer limit exceeded\n");
+  close_after_reply_ = true;
+  return false;
+}
 
 ssize_t Client::ReadQuery() {
   std::array<char, kReadBufferSize> buffer{};
@@ -81,14 +121,15 @@ ssize_t Client::SendListReply() {
 }
 
 ClientStatus Client::ProcessInputBuffer() {
-  while (query_buf_.Consumed() < query_buf_.Size()) {
+  while (!close_after_reply_ && query_buf_.Consumed() < query_buf_.Size()) {
     RS_LOG_DEBUG("process loop %zu %zu\n", query_buf_.Consumed(),
                  query_buf_.Size());
-    const LineStatus status = ParseLine();
-    if (status == LineStatus::kIncomplete) {
+    const RequestStatus status = ParseRequest();
+    if (status == RequestStatus::kIncomplete ||
+        status == RequestStatus::kProtocolError) {
       break;
     }
-    if (status == LineStatus::kRejected) {
+    if (status == RequestStatus::kRejected) {
       continue;
     }
     if (ProcessCommand() == ClientStatus::kError) {
@@ -99,49 +140,35 @@ ClientStatus Client::ProcessInputBuffer() {
   return ClientStatus::kOk;
 }
 
-Client::LineStatus Client::ParseLine() {
+Client::RequestStatus Client::ParseRequest() {
   command_ = nullptr;
   args_.clear();
-  const auto line = query_buf_.ReadLineView();
-  if (!line.has_value()) {
-    return LineStatus::kIncomplete;
+  std::string_view name;
+  const auto parsed = request_parser::Parse(query_buf_.View(), &name, &args_);
+  if (parsed.status == request_parser::ParseStatus::kIncomplete) {
+    return RequestStatus::kIncomplete;
   }
-  if (line->empty()) {
+  if (parsed.status == request_parser::ParseStatus::kInvalid) {
+    AddReply(reply::FromError("ERR Protocol error: invalid request"));
+    close_after_reply_ = true;
+    query_buf_.Clear();
+    return RequestStatus::kProtocolError;
+  }
+  query_buf_.Consume(parsed.consumed);
+  if (name.empty()) {
     AddReply(reply::FromError("ERR empty command"));
-    return LineStatus::kRejected;
+    return RequestStatus::kRejected;
   }
-  RS_LOG_DEBUG("cmd str %.*s\n", static_cast<int>(line->size()), line->data());
-  const size_t command_start = line->find_first_not_of(' ');
-  if (command_start == std::string_view::npos) {
-    AddReply(reply::FromError("ERR empty command"));
-    return LineStatus::kRejected;
-  }
-  const size_t command_end = line->find(' ', command_start);
-  const std::string_view name =
-      line->substr(command_start, command_end == std::string_view::npos
-                                      ? std::string_view::npos
-                                      : command_end - command_start);
-  size_t position = command_end;
-  while (position != std::string_view::npos) {
-    const size_t argument_start = line->find_first_not_of(' ', position);
-    if (argument_start == std::string_view::npos) {
-      break;
-    }
-    const size_t argument_end = line->find(' ', argument_start);
-    args_.push_back(
-        line->substr(argument_start, argument_end == std::string_view::npos
-                                         ? std::string_view::npos
-                                         : argument_end - argument_start));
-    position = argument_end;
-  }
+  RS_LOG_DEBUG("command name %.*s\n", static_cast<int>(name.size()),
+               name.data());
   const auto* command = command::Find(name);
   if (command == nullptr) {
     RS_LOG_DEBUG("command not found\n");
     AddReply(reply::UnknownCommand(name));
-    return LineStatus::kRejected;
+    return RequestStatus::kRejected;
   }
   command_ = command;
-  return LineStatus::kReady;
+  return RequestStatus::kReady;
 }
 
 ClientStatus Client::ProcessCommand() {

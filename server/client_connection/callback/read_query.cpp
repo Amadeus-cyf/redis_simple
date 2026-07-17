@@ -33,6 +33,13 @@ void ReadQuery(connection::Connection* conn) {
     Server::Get()->RemoveClient(client);
     return;
   }
+  if (client->ShouldPauseReads() && conn->UnsetReadCallback()) {
+    client->SetReadsPaused(true);
+  }
+  if (client->ShouldCloseAfterReply() && !client->HasPendingReplies()) {
+    Server::Get()->RemoveClient(client);
+    return;
+  }
   if (client->HasPendingReplies() &&
       !client->Connection()->HasWriteCallback()) {
     RS_LOG_DEBUG("client has pending replies, install write callback\n");

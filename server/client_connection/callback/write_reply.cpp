@@ -4,6 +4,7 @@
 
 #include "logging/logger.h"
 #include "server/client.h"
+#include "server/client_connection/callback.h"
 #include "server/server.h"
 
 namespace redis_simple::client_connection {
@@ -29,6 +30,15 @@ ssize_t WriteToClient(Client* client) {
       !client->Connection()->UnsetWriteCallback()) {
     // Ignore the failure of uninstalling the write callback.
     RS_LOG_DEBUG("failed to unset the write callback\n");
+  }
+  if (client->ShouldCloseAfterReply() && !client->HasPendingReplies()) {
+    Server::Get()->RemoveClient(client);
+    return nwritten;
+  }
+  if (client->ShouldResumeReads() &&
+      client->Connection()->SetReadCallback(
+          CreateCallback(CallbackType::kReadQuery))) {
+    client->SetReadsPaused(false);
   }
   return nwritten;
 }

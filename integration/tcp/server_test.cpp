@@ -3,8 +3,11 @@
 #include <unistd.h>
 
 #include <array>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <string_view>
 
@@ -28,20 +31,42 @@ ssize_t ReadWithTimeout(int fd, char* buffer, size_t len) {
 }
 }  // namespace
 
-int Run() {
+int Run(std::string_view port_file) {
   int s = tcp::TcpCreateSocket(AF_INET, false);
   if (s < 0) {
+    std::cerr << "failed to create TCP integration socket\n";
     RS_LOG_DEBUG("failed to create socket\n");
     return EXIT_FAILURE;
   }
-  const tcp::TcpAddrInfo local("localhost", 8080);
+  constexpr int kPort = 0;
+  const tcp::TcpAddrInfo local("localhost", kPort);
   if (tcp::TcpBind(s, local) != tcp::TcpStatusCode::kOk) {
+    std::cerr << "failed to bind TCP integration socket: "
+              << std::strerror(errno) << '\n';
     RS_LOG_DEBUG("failed to bind tcp integration server\n");
     close(s);
     return EXIT_FAILURE;
   }
   if (tcp::TcpListen(s) != tcp::TcpStatusCode::kOk) {
+    std::cerr << "failed to listen on TCP integration socket\n";
     RS_LOG_DEBUG("failed to listen on tcp integration server\n");
+    close(s);
+    return EXIT_FAILURE;
+  }
+  sockaddr_in bound_address{};
+  socklen_t bound_address_size = sizeof(bound_address);
+  if (getsockname(s, reinterpret_cast<sockaddr*>(&bound_address),
+                  &bound_address_size) < 0) {
+    std::cerr << "failed to read TCP integration port: " << std::strerror(errno)
+              << '\n';
+    close(s);
+    return EXIT_FAILURE;
+  }
+  std::ofstream ready_file{std::string(port_file)};
+  ready_file << ntohs(bound_address.sin_port);
+  ready_file.close();
+  if (!ready_file) {
+    std::cerr << "failed to publish TCP integration port\n";
     close(s);
     return EXIT_FAILURE;
   }
@@ -49,6 +74,7 @@ int Run() {
   tcp::TcpAddrInfo remote_addr;
   const int remote_fd = tcp::TcpAccept(s, &remote_addr);
   if (remote_fd < 0) {
+    std::cerr << "failed to accept TCP integration client\n";
     RS_LOG_DEBUG("failed to accept tcp integration client\n");
     close(s);
     return EXIT_FAILURE;
@@ -79,9 +105,9 @@ int Run() {
 }
 }  // namespace redis_simple
 
-int main() {
+int main(int argc, char** argv) {
   try {
-    return redis_simple::Run();
+    return argc == 2 ? redis_simple::Run(argv[1]) : EXIT_FAILURE;
   } catch (...) {
     return EXIT_FAILURE;
   }

@@ -41,9 +41,9 @@ void HandleZScore(Client* const client) {
     if (result.status == ZScoreStatus::kWrongType) {
       client->AddReply(reply::WrongTypeError());
     } else if (result.score.has_value()) {
-      client->AddReply(reply::FromFloat(*result.score));
+      client->AddReply(reply::FromFloat(*result.score, client->Protocol()));
     } else {
-      client->AddReply(reply::Null());
+      client->AddReply(reply::Null(client->Protocol()));
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");

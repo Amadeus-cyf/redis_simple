@@ -24,7 +24,7 @@ int ParseTypeArgs(const CommandArgs& args, TypeArgs* type_args) {
   return 0;
 }
 
-std::string ObjectTypeName(const db::RedisObject* const object) {
+std::string_view ObjectTypeName(const db::RedisObject* const object) {
   if (object == nullptr) {
     return "none";
   }

@@ -36,7 +36,7 @@ void HandleSet(Client* const client) {
       client->AddReply(reply::FromError("ERR failed to set key"));
       return;
     }
-    client->AddReply(reply::FromInt64(reply::ReplyStatus::kOk));
+    client->AddReply(reply::FromString("OK"));
   } else {
     RS_LOG_DEBUG("db unavailable\n");
     client->AddReply(reply::FromError("ERR db unavailable"));
@@ -54,14 +54,6 @@ int ParseArgs(const CommandArgs& args, StringArgs* string_args) {
   string_args->value = args[1];
   string_args->expire = 0;
   string_args->flags = 0;
-  if (args.size() == 3) {
-    int64_t now = utils::NowInMilliseconds();
-    int64_t ttl = 0;
-    if (utils::ToInt64(args[2], &ttl) &&
-        ExpireAtFromTtl(ttl, 1, now, &string_args->expire)) {
-      return 0;
-    }
-  }
   for (size_t i = 2; i < args.size();) {
     if (ParseSetOption(args, &i, string_args) < 0) {
       return -1;

@@ -51,7 +51,7 @@ void HandleZRank(Client* const client) {
       }
       client->AddReply(reply::FromInt64(static_cast<int64_t>(*result.rank)));
     } else {
-      client->AddReply(reply::Null());
+      client->AddReply(reply::Null(client->Protocol()));
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");

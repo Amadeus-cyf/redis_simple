@@ -19,6 +19,10 @@ void HandleType(Client* client);
 void HandleUnlink(Client* client);
 }  // namespace redis_simple::command::key
 
+namespace redis_simple::command::connection_commands {
+void HandleHello(Client* client);
+}  // namespace redis_simple::command::connection_commands
+
 namespace redis_simple::command::strings {
 void HandleAppend(Client* client);
 void HandleDecr(Client* client);

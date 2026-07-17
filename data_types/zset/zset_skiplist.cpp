@@ -112,34 +112,22 @@ size_t ZSetSkiplist::Count(const RangeByScoreSpec* spec) const {
 
 ZSetSkiplist::RankSpecPtr ZSetSkiplist::ToSkiplistRangeByRankSpec(
     const RangeByRankSpec* spec) const {
-  if (spec == nullptr ||
-      Size() > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+  if (spec == nullptr) {
     return {nullptr};
   }
-  const auto size = static_cast<int64_t>(Size());
-  const auto normalize_rank = [size](int64_t rank) -> std::optional<size_t> {
-    if (rank < -size) {
-      return std::nullopt;
-    }
-    if (rank < 0) {
-      rank += size;
-    }
-    return static_cast<size_t>(rank);
-  };
-  const auto min = normalize_rank(spec->min);
-  const auto max = normalize_rank(spec->max);
-  if (!min.has_value() || !max.has_value()) {
+  const auto normalized = NormalizeRankRange(*spec, Size());
+  if (!normalized.has_value()) {
     return {nullptr};
   }
   auto skiplist_spec = RankSpecPtr(new SkiplistRangeByRankSpec());
-  skiplist_spec->min = *min;
-  skiplist_spec->max = *max;
-  skiplist_spec->minex = spec->minex;
-  skiplist_spec->maxex = spec->maxex;
-  if (spec->limit) {
+  skiplist_spec->min = static_cast<size_t>(normalized->min);
+  skiplist_spec->max = static_cast<size_t>(normalized->max);
+  skiplist_spec->minex = normalized->minex;
+  skiplist_spec->maxex = normalized->maxex;
+  if (normalized->limit) {
     auto limit = std::make_unique<SkiplistLimitSpec>();
-    limit->offset = spec->limit->offset;
-    limit->count = spec->limit->count;
+    limit->offset = normalized->limit->offset;
+    limit->count = normalized->limit->count;
     skiplist_spec->limit = limit.release();
   }
   return skiplist_spec;

@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <cstdlib>
 #include <sstream>
 #include <string>
@@ -38,12 +37,11 @@ std::vector<std::string> NonEmptyLines(const std::string& reply) {
   return lines;
 }
 
-bool ExpectMembers(cli::RedisCli* cli, const std::string& command,
-                   std::vector<std::string> expected_members) {
+bool ExpectMembersInOrder(cli::RedisCli* cli, const std::string& command,
+                          const std::vector<std::string>& expected_members) {
   cli->AddCommand(command);
-  std::vector<std::string> actual_members = NonEmptyLines(cli->ReadReply());
-  std::sort(actual_members.begin(), actual_members.end());
-  std::sort(expected_members.begin(), expected_members.end());
+  const std::vector<std::string> actual_members =
+      NonEmptyLines(cli->ReadReply());
   if (actual_members != expected_members) {
     RS_LOG_DEBUG("member command failed: %s\n", command.c_str());
     return false;
@@ -71,12 +69,14 @@ int Run() {
       {"ZREM missing_zset ele1 ele2\r\n", "0\n"},
       {"ZCOUNT integration_zset 1 2\r\n", "2\n"},
       {"ZCOUNT missing_zset 1 2\r\n", "0\n"},
-      {"SET zset_wrong_type value\r\n", "1\n"},
+      {"SET zset_wrong_type value\r\n", "OK\n"},
       {"ZCARD zset_wrong_type\r\n",
        "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
       {"ZRANGE integration_zset 0 1 WTHSCORES\r\n", "ERR syntax error\n"},
       {"ZRANGE integration_zset 0 1 LIMIT 0\r\n", "ERR syntax error\n"},
       {"ZRANGE integration_zset 0 1 LIMIT -1 1\r\n", "ERR syntax error\n"},
+      {"ZRANGE integration_zset 0 1 LIMIT 0 -1\r\n", "ERR syntax error\n"},
+      {"ZRANGE integration_zset (0 1\r\n", "ERR syntax error\n"},
       {"ZADD integration_zset 1junk invalid\r\n", "ERR syntax error\n"},
       {"ZADD integration_zset nan invalid\r\n", "ERR syntax error\n"},
       {"ZRANGE integration_zset 1junk 2 BYSCORE\r\n", "ERR syntax error\n"},
@@ -88,24 +88,33 @@ int Run() {
     }
   }
 
-  if (!ExpectMembers(&cli, "ZRANGE integration_zset 0 1\r\n",
-                     {"ele1", "ele2"})) {
+  if (!ExpectMembersInOrder(&cli, "ZRANGE integration_zset 0 1\r\n",
+                            {"ele1", "ele2"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectMembers(&cli, "ZRANGE integration_zset 0 1 LIMIT 0 -1\r\n",
-                     {"ele1", "ele2"})) {
+  if (!ExpectMembersInOrder(
+          &cli, "ZRANGE integration_zset 1 2 BYSCORE LIMIT 0 -1\r\n",
+          {"ele1", "ele2"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectMembers(&cli, "ZRANGE integration_zset 1.0 2.0 BYSCORE\r\n",
-                     {"ele1", "ele2"})) {
+  if (!ExpectMembersInOrder(&cli, "ZRANGE integration_zset 1.0 2.0 BYSCORE\r\n",
+                            {"ele1", "ele2"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectMembers(&cli, "ZREVRANGE integration_zset 0 1\r\n",
-                     {"ele1", "ele2"})) {
+  if (!ExpectMembersInOrder(&cli, "ZREVRANGE integration_zset 0 1\r\n",
+                            {"ele2", "ele1"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectMembers(&cli, "ZRANGEBYSCORE integration_zset 1.0 2.0\r\n",
-                     {"ele1", "ele2"})) {
+  if (!ExpectMembersInOrder(&cli, "ZRANGE integration_zset 2 1 REV BYSCORE\r\n",
+                            {"ele2", "ele1"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembersInOrder(&cli, "ZRANGEBYSCORE integration_zset 1.0 2.0\r\n",
+                            {"ele1", "ele2"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembersInOrder(&cli, "ZRANGE integration_zset -10 1\r\n",
+                            {"ele1", "ele2"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectReply(&cli, {"ZRANGE integration_zset 0 1 WITHSCORES\r\n",
@@ -116,7 +125,7 @@ int Run() {
                           "ele1\n1\nele2\n1.0000234\n\n\n"})) {
     return EXIT_FAILURE;
   }
-  if (!ExpectMembers(&cli, "ZRANGE missing_zset 0 -1\r\n", {})) {
+  if (!ExpectMembersInOrder(&cli, "ZRANGE missing_zset 0 -1\r\n", {})) {
     return EXIT_FAILURE;
   }
 

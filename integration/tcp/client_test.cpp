@@ -5,7 +5,6 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
-#include <optional>
 #include <string>
 #include <string_view>
 
@@ -29,10 +28,9 @@ ssize_t ReadWithTimeout(int fd, char* buffer, size_t len) {
 }
 }  // namespace
 
-int Run() {
-  const tcp::TcpAddrInfo remote("localhost", 8080);
-  const auto local = std::make_optional<tcp::TcpAddrInfo>("localhost", 8081);
-  const int fd = tcp::TcpBindAndConnect(remote, local, false);
+int Run(int port) {
+  const tcp::TcpAddrInfo remote("localhost", port);
+  const int fd = tcp::TcpBindAndConnect(remote, {}, false);
   if (fd < 0) {
     RS_LOG_DEBUG("failed to connect to tcp integration server\n");
     return EXIT_FAILURE;
@@ -55,9 +53,9 @@ int Run() {
 }
 }  // namespace redis_simple
 
-int main() {
+int main(int argc, char** argv) {
   try {
-    return redis_simple::Run();
+    return argc == 2 ? redis_simple::Run(std::stoi(argv[1])) : EXIT_FAILURE;
   } catch (...) {
     return EXIT_FAILURE;
   }

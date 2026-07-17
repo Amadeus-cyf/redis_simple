@@ -42,7 +42,7 @@ void HandleGet(Client* const client) {
     } else if (value_result.value != nullptr) {
       client->AddReply(reply::FromBulkString(*value_result.value));
     } else {
-      client->AddReply(reply::Null());
+      client->AddReply(reply::Null(client->Protocol()));
     }
   } else {
     RS_LOG_DEBUG("db unavailable\n");

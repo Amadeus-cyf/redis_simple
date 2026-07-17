@@ -18,6 +18,10 @@ Guidance for AI coding agents working in this repository.
 - Command handlers should read arguments through `CommandArgs`
   (`std::string_view`s into the client query buffer). Copy arguments only at an
   ownership boundary, such as storing a key/value in the DB or data structure.
+- Keep request decoding incremental and zero-copy. Standard RESP arrays are the
+  primary wire format; inline commands remain a compatibility path.
+- Keep protocol-sensitive replies based on the client's negotiated RESP
+  version. Connections default to RESP2 and may switch through `HELLO`.
 - Pass `CommandArgs` by const reference instead of copying its view vector.
   Move completed `std::string` replies into `Client::AddReply`; use the
   `std::string_view` overload only for borrowed reply data.
@@ -43,6 +47,13 @@ Run unit and integration tests separately:
 ```sh
 ctest --preset debug -L unit --output-on-failure
 ctest --preset debug -L integration --output-on-failure
+```
+
+When changing behavior shared with Redis and a reference server is available,
+run:
+
+```sh
+scripts/run_redis_compatibility_check.sh build/debug/redis_simple
 ```
 
 Run release and sanitizer checks after changes to ownership, memory layout,
@@ -87,6 +98,8 @@ Before committing, run the relevant build and tests.
   set, list, zset, and hash commands.
 - Register integration command tests as separate CTest entries by command
   family, so failures identify the affected area without log digging.
+- Keep exact ordering assertions for ordered command results such as sorted-set
+  ranges; do not sort actual output in compatibility tests.
 - Project runner scripts live under `scripts/`.
 - Do not add manual log-inspection tests. Tests should assert behavior and
   return nonzero on failure.

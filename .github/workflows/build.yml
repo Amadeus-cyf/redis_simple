@@ -48,8 +48,12 @@ jobs:
         run: scripts/run_leak_check.sh
 
   release:
-    name: Release / Ubuntu
-    runs-on: ubuntu-latest
+    name: Release / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v5
@@ -63,8 +67,12 @@ jobs:
         run: ctest --preset release --output-on-failure
 
   sanitizers:
-    name: Sanitizers / Ubuntu
-    runs-on: ubuntu-latest
+    name: Sanitizers / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v5
@@ -74,5 +82,36 @@ jobs:
         run: cmake --preset sanitizer
       - name: Build sanitizer targets
         run: cmake --build --preset sanitizer
+      - name: Run ASan and UBSan tests
+        if: runner.os == 'macOS'
+        run: ctest --preset sanitizer --output-on-failure
       - name: Run ASan, UBSan, and LeakSanitizer tests
+        if: runner.os == 'Linux'
         run: scripts/run_leak_check.sh
+
+  redis-compatibility:
+    name: Redis Compatibility / Ubuntu
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+      - name: Install Redis client
+        run: sudo apt-get update && sudo apt-get install -y redis-tools
+      - name: Configure debug build
+        run: cmake --preset debug -DREDIS_SIMPLE_WARNINGS_AS_ERRORS=ON
+      - name: Build server
+        run: cmake --build --preset debug --target redis_simple
+      - name: Compare supported behavior with Redis
+        run: scripts/run_redis_compatibility_check.sh build/debug/redis_simple

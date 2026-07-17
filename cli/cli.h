@@ -5,6 +5,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "cli/resp_parser.h"
@@ -23,6 +24,7 @@ class RedisCli {
   RedisCli(const std::string& ip, int port);
   CliStatus Connect(const std::string& ip, int port);
   void AddCommand(const std::string& cmd);
+  void AddCommand(const std::vector<std::string_view>& args);
   std::string ReadReply();
   std::future<std::string> ReadReplyAsync();
   ~RedisCli() = default;

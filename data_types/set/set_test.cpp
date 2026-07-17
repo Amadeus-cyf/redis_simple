@@ -81,6 +81,17 @@ TEST(SetTest, LongMemberConvertsListPackToDict) {
   ASSERT_FALSE(set->Add(long_member));
 }
 
+TEST(SetTest, OversizedFirstMemberUsesDict) {
+  auto set = Set::Create();
+  const std::string long_member(65, 'x');
+
+  ASSERT_TRUE(set->Add(long_member));
+
+  EXPECT_EQ(set->Encoding(), Set::Encoding::kDict);
+  EXPECT_EQ(set->Size(), 1);
+  EXPECT_TRUE(set->HasMember(long_member));
+}
+
 TEST(SetTest, RemoveMembersFromEachEncoding) {
   auto intset = Set::Create();
   ASSERT_TRUE(intset->Add("1"));

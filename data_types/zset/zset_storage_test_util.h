@@ -175,7 +175,9 @@ void TestRangeByRank() {
                     {{"key3", 4.0}, {"key2", 2.0}, {"key4", 1.0}});
   ExpectRangeByRank(*zset, -1, -3, false, false, 0, std::nullopt, false, {});
   ExpectRangeByRank(*zset, -1, -1, true, false, 0, std::nullopt, false, {});
-  ExpectRangeByRank(*zset, -10, 3, false, false, 0, std::nullopt, false, {});
+  ExpectRangeByRank(
+      *zset, -10, 3, false, false, 0, std::nullopt, false,
+      {{"key4", 1.0}, {"key2", 2.0}, {"key3", 4.0}, {"key1", 5.0}});
   ExpectRangeByRank(*zset, -1, -6, false, false, 0, std::nullopt, false, {});
   ExpectRangeByRank(
       *zset, 0, std::numeric_limits<int64_t>::max(), false, false, 0,

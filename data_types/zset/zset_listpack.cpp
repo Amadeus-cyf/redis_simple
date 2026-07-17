@@ -107,25 +107,12 @@ ZSetEntryList ZSetListPack::RangeByRank(const RangeByRankSpec* spec) const {
   if (spec == nullptr) {
     return {};
   }
-  // Turn negative index to positive.
-  const size_t size = Size();
-  if (size > static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+  const auto rank_spec = NormalizeRankRange(*spec, Size());
+  if (!rank_spec.has_value() || !ValidateRangeRankSpec(&*rank_spec)) {
     return {};
   }
-  const auto zset_size = static_cast<int64_t>(size);
-  RangeByRankSpec rank_spec;
-  rank_spec.min = spec->min < 0 ? (spec->min + zset_size) : spec->min;
-  rank_spec.max = spec->max < 0 ? (spec->max + zset_size) : spec->max;
-  rank_spec.minex = spec->minex;
-  rank_spec.maxex = spec->maxex;
-  if (spec->limit) {
-    rank_spec.limit = spec->limit;
-  }
-  if (!ValidateRangeRankSpec(&rank_spec)) {
-    return {};
-  }
-  return spec->reverse ? RevRangeByRankUtil(&rank_spec)
-                       : RangeByRankUtil(&rank_spec);
+  return spec->reverse ? RevRangeByRankUtil(&*rank_spec)
+                       : RangeByRankUtil(&*rank_spec);
 }
 
 ZSetEntryList ZSetListPack::RangeByScore(const RangeByScoreSpec* spec) const {

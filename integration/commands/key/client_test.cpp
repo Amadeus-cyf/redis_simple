@@ -57,7 +57,7 @@ int Run() {
       {"NOTACOMMAND\r\n", "ERR unknown command 'NOTACOMMAND'\n"},
       {"TYPE missing_key\r\n", "none\n"},
       {"EXISTS missing_key\r\n", "0\n"},
-      {"SET key_string value\r\n", "1\n"},
+      {"SET key_string value\r\n", "OK\n"},
       {"SADD key_set member\r\n", "1\n"},
       {"RPUSH key_list one two\r\n", "2\n"},
       {"ZADD key_zset 1.0 member\r\n", "1\n"},
@@ -75,7 +75,7 @@ int Run() {
       {"DEL key_set key_list key_zset key_hash\r\n", "4\n"},
       {"EXISTS key_set key_list key_zset key_hash\r\n", "0\n"},
       {"TYPE key_set\r\n", "none\n"},
-      {"SET expire_key value\r\n", "1\n"},
+      {"SET expire_key value\r\n", "OK\n"},
       {"EXPIRE expire_key 10\r\n", "1\n"},
       {"PERSIST expire_key\r\n", "1\n"},
       {"TTL expire_key\r\n", "-1\n"},
@@ -83,7 +83,7 @@ int Run() {
       {"PERSIST missing_expire_key\r\n", "0\n"},
       {"EXPIRE missing_expire_key 10\r\n", "0\n"},
       {"PTTL missing_expire_key\r\n", "-2\n"},
-      {"SET rename_source value\r\n", "1\n"},
+      {"SET rename_source value\r\n", "OK\n"},
       {"RENAME rename_source rename_dest\r\n", "OK\n"},
       {"GET rename_dest\r\n", "value\n"},
       {"UNLINK rename_dest missing_key\r\n", "1\n"},
@@ -95,7 +95,7 @@ int Run() {
     }
   }
 
-  if (!ExpectReply(&cli, {"SET ttl_key value PX 5000\r\n", "1\n"})) {
+  if (!ExpectReply(&cli, {"SET ttl_key value PX 5000\r\n", "OK\n"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectIntegerBetween(&cli, "TTL ttl_key\r\n", 1, 5)) {
@@ -104,7 +104,7 @@ int Run() {
   if (!ExpectIntegerBetween(&cli, "PTTL ttl_key\r\n", 1, 5000)) {
     return EXIT_FAILURE;
   }
-  if (!ExpectReply(&cli, {"SET ttl_key kept KEEPTTL\r\n", "1\n"})) {
+  if (!ExpectReply(&cli, {"SET ttl_key kept KEEPTTL\r\n", "OK\n"})) {
     return EXIT_FAILURE;
   }
   if (!ExpectIntegerBetween(&cli, "PTTL ttl_key\r\n", 1, 5000)) {

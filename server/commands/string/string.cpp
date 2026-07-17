@@ -161,7 +161,7 @@ void HandleMGet(Client* const client) {
     if (result.status == StringStatus::kOk) {
       reply::AppendBulkString(*result.value, &encoded);
     } else {
-      encoded.append(reply::Null());
+      encoded.append(reply::Null(client->Protocol()));
     }
   }
   client->AddReply(std::move(encoded));

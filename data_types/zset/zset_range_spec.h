@@ -62,4 +62,7 @@ struct RangeByScoreSpec {
   // Reverse order?
   bool reverse{};
 };
+
+std::optional<RangeByRankSpec> NormalizeRankRange(const RangeByRankSpec& spec,
+                                                  size_t size);
 }  // namespace redis_simple::zset

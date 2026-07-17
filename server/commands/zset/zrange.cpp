@@ -105,34 +105,20 @@ bool ParseRangeOptions(const CommandArgs& args, RangeMode mode, bool reverse,
     i += 3;
   }
 
+  if (parsed.limit.has_value() && !parsed.by_score) {
+    return false;
+  }
+
   *options = parsed;
   return true;
 }
 
-int ParseRangeTerm(std::string_view term, int64_t* const value) {
-  if (term.empty() || value == nullptr) {
-    return -1;
-  }
-  if (utils::EqualsIgnoreCase(term, kMinVal)) {
-    *value = 0;
-    return 0;
-  }
-  if (utils::EqualsIgnoreCase(term, kMaxVal)) {
-    *value = std::numeric_limits<int64_t>::max();
-    return 0;
-  }
-  const auto number = term[0] == '(' ? term.substr(1) : term;
-  return utils::ToInt64(number, value) ? 0 : -1;
-}
-
 int ParseRankRange(std::string_view start, std::string_view end,
                    RangeByRankSpec* const spec) {
-  if (spec == nullptr || ParseRangeTerm(start, &spec->min) < 0 ||
-      ParseRangeTerm(end, &spec->max) < 0) {
+  if (spec == nullptr || !utils::ToInt64(start, &spec->min) ||
+      !utils::ToInt64(end, &spec->max)) {
     return -1;
   }
-  spec->minex = start[0] == '(';
-  spec->maxex = end[0] == '(';
   return 0;
 }
 
@@ -204,7 +190,9 @@ RangeStatus RangeByScore(Client* const client, const CommandArgs& args,
                          const RangeOptions& options,
                          ZSetEntryList* const result) {
   RangeByScoreSpec spec;
-  if (ParseScoreRange(args[1], args[2], &spec) < 0) {
+  const std::string_view start = options.reverse ? args[2] : args[1];
+  const std::string_view stop = options.reverse ? args[1] : args[2];
+  if (ParseScoreRange(start, stop, &spec) < 0) {
     return RangeStatus::kSyntaxError;
   }
   ApplyRangeOptions(options, &spec);
@@ -229,13 +217,20 @@ RangeStatus RangeByScore(Client* const client, const CommandArgs& args,
   return RangeStatus::kOk;
 }
 
-std::string EncodeZRangeReply(const ZSetEntryList& result, bool with_scores) {
-  const size_t reply_size = with_scores ? result.size() * 2 : result.size();
+std::string EncodeZRangeReply(const ZSetEntryList& result, bool with_scores,
+                              reply::ProtocolVersion protocol) {
+  const bool nested_scores =
+      with_scores && protocol == reply::ProtocolVersion::kResp3;
+  const size_t reply_size =
+      with_scores && !nested_scores ? result.size() * 2 : result.size();
   std::string encoded = reply::FromArrayHeader(reply_size);
   for (const auto* entry : result) {
+    if (nested_scores) {
+      encoded.append(reply::FromArrayHeader(2));
+    }
     reply::AppendBulkString(entry->key, &encoded);
     if (with_scores) {
-      encoded.append(reply::FromFloat(entry->score));
+      encoded.append(reply::FromFloat(entry->score, protocol));
     }
   }
   return encoded;
@@ -267,7 +262,8 @@ void AddRangeReply(Client* const client, RangeMode mode, bool reverse) {
     AddRangeError(client, status);
     return;
   }
-  client->AddReply(EncodeZRangeReply(entries, options.with_scores));
+  client->AddReply(
+      EncodeZRangeReply(entries, options.with_scores, client->Protocol()));
 }
 
 std::optional<int64_t> ToReplyInteger(size_t value) {
