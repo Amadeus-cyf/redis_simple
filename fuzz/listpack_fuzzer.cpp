@@ -7,37 +7,12 @@
 #include <vector>
 
 #include "fuzz/fuzz_input.h"
+#include "fuzz/sequence_model.h"
 #include "memory/listpack.h"
 
 namespace redis_simple::fuzz {
 namespace {
 using in_memory::ListPack;
-
-size_t RemoveMatches(std::vector<std::string>* model, std::string_view value,
-                     size_t limit, bool from_tail) {
-  size_t removed = 0;
-  if (from_tail && limit != 0) {
-    for (size_t index = model->size(); index > 0 && removed < limit;) {
-      --index;
-      if ((*model)[index] == value) {
-        model->erase(model->begin() + static_cast<std::ptrdiff_t>(index));
-        ++removed;
-      }
-    }
-    return removed;
-  }
-
-  for (size_t index = 0;
-       index < model->size() && (limit == 0 || removed < limit);) {
-    if ((*model)[index] == value) {
-      model->erase(model->begin() + static_cast<std::ptrdiff_t>(index));
-      ++removed;
-    } else {
-      ++index;
-    }
-  }
-  return removed;
-}
 
 void Verify(const ListPack& listpack, const std::vector<std::string>& model) {
   Require(listpack.Size() == model.size());
@@ -73,7 +48,7 @@ void RunOperations(FuzzInput* input) {
   std::vector<std::string> model;
   for (size_t operation_count = 0; operation_count < 128 && input->HasData();
        ++operation_count) {
-    const uint8_t operation = input->ReadByte() % 14;
+    const uint8_t operation = input->ReadByte() % 13;
     const std::string value = input->ReadValue(96);
     const size_t index = input->ReadIndex(model.size() + 2);
     const size_t limit = input->ReadIndex(6);
@@ -134,7 +109,8 @@ void RunOperations(FuzzInput* input) {
         break;
       case 8: {
         const bool from_tail = (input->ReadByte() & 1U) != 0;
-        const size_t expected = RemoveMatches(&model, value, limit, from_tail);
+        const size_t expected =
+            RemoveMatchesFromModel(&model, value, limit, from_tail);
         Require(listpack.DeleteMatching(value, limit, from_tail) == expected);
         break;
       }
