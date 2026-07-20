@@ -1,10 +1,8 @@
-#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <vector>
 
 #include "fuzz/fuzz_input.h"
@@ -14,18 +12,6 @@
 namespace redis_simple::fuzz {
 namespace {
 using in_memory::QuickList;
-
-void TrimModel(std::vector<std::string>* model, size_t start, size_t stop) {
-  if (model->empty() || start > stop || start >= model->size()) {
-    model->clear();
-    return;
-  }
-  stop = std::min(stop, model->size() - 1);
-  std::vector<std::string> trimmed(
-      model->begin() + static_cast<std::ptrdiff_t>(start),
-      model->begin() + static_cast<std::ptrdiff_t>(stop + 1));
-  *model = std::move(trimmed);
-}
 
 void Verify(const QuickList& quicklist, const std::vector<std::string>& model) {
   Require(quicklist.Size() == model.size());

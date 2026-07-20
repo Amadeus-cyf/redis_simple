@@ -115,10 +115,12 @@ cmake --build --preset fuzz --target redis_simple_fuzzers
 ctest --preset fuzz -L fuzz --output-on-failure
 ```
 
-The fuzz targets exercise incremental RESP parsing, listpack mutation, and
-quicklist mutation under AddressSanitizer and UndefinedBehaviorSanitizer. On
-macOS, put Homebrew LLVM on `PATH` before configuring because Apple Clang does
-not ship a libFuzzer runtime:
+The fuzz targets exercise incremental RESP parsing; listpack, quicklist, Dict,
+Skiplist, and IntSet mutation; Redis list, set, hash, and sorted-set behavior;
+dynamic and reply buffers; database expiration; and deterministic event-loop
+callbacks. Every target runs under AddressSanitizer and
+UndefinedBehaviorSanitizer. On macOS, put Homebrew LLVM on `PATH` before
+configuring because Apple Clang does not ship a libFuzzer runtime:
 
 ```sh
 brew install llvm
@@ -180,7 +182,7 @@ above is the project benchmark executable.
 cli/                  Simple client and RESP parsing
 connection/           Connection abstraction
 event_loop/           Event loop with kqueue and epoll pollers
-fuzz/                 Stateful libFuzzer harnesses for parser and containers
+fuzz/                 Stateful libFuzzer harnesses and reference models
 integration/commands/ Server/client command integration tests
 integration/tcp/      TCP client/server integration tests
 logging/              Project logging wrapper

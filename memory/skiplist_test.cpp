@@ -118,6 +118,17 @@ TEST(SkiplistTest, Deletion) {
   ASSERT_FALSE(skiplist->Delete("key_not_exist"));
 }
 
+TEST(SkiplistTest, ReusesListAfterClear) {
+  auto skiplist = MakeInsertedSkiplist();
+
+  skiplist->Clear();
+
+  EXPECT_EQ(skiplist->Size(), 0);
+  EXPECT_EQ(skiplist->Begin(), skiplist->End());
+  EXPECT_EQ(skiplist->Insert("new-key"), "new-key");
+  EXPECT_TRUE(skiplist->Contains("new-key"));
+}
+
 TEST(SkiplistTest, Update) {
   auto skiplist = std::make_unique<Skiplist<std::string>>(4);
   ASSERT_EQ(skiplist->Insert("key0"), "key0");

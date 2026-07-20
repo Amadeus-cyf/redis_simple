@@ -1,11 +1,26 @@
 #pragma once
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace redis_simple::fuzz {
+inline void TrimModel(std::vector<std::string>* model, size_t start,
+                      size_t stop) {
+  if (model->empty() || start > stop || start >= model->size()) {
+    model->clear();
+    return;
+  }
+  stop = std::min(stop, model->size() - 1);
+  std::vector<std::string> trimmed(
+      model->begin() + static_cast<std::ptrdiff_t>(start),
+      model->begin() + static_cast<std::ptrdiff_t>(stop + 1));
+  *model = std::move(trimmed);
+}
+
 inline size_t RemoveMatchesFromModel(std::vector<std::string>* model,
                                      std::string_view value, size_t limit,
                                      bool from_tail) {

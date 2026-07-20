@@ -355,12 +355,25 @@ if(REDIS_SIMPLE_BUILD_FUZZERS)
     )
   endfunction()
 
-  redis_simple_add_fuzzer(request_parser_fuzzer
-                          "fuzz/request_parser_fuzzer.cpp")
-  redis_simple_add_fuzzer(listpack_fuzzer "fuzz/listpack_fuzzer.cpp")
-  redis_simple_add_fuzzer(quicklist_fuzzer "fuzz/quicklist_fuzzer.cpp")
-  add_custom_target(
-    redis_simple_fuzzers
-    DEPENDS request_parser_fuzzer listpack_fuzzer quicklist_fuzzer
+  set(
+    REDIS_SIMPLE_FUZZ_TARGETS
+    request_parser_fuzzer
+    listpack_fuzzer
+    quicklist_fuzzer
+    list_fuzzer
+    set_fuzzer
+    hash_fuzzer
+    zset_fuzzer
+    dict_fuzzer
+    skiplist_fuzzer
+    intset_fuzzer
+    dynamic_buffer_fuzzer
+    reply_buffer_fuzzer
+    db_expiration_fuzzer
+    event_loop_fuzzer
   )
+  foreach(fuzz_target IN LISTS REDIS_SIMPLE_FUZZ_TARGETS)
+    redis_simple_add_fuzzer(${fuzz_target} "fuzz/${fuzz_target}.cpp")
+  endforeach()
+  add_custom_target(redis_simple_fuzzers DEPENDS ${REDIS_SIMPLE_FUZZ_TARGETS})
 endif()

@@ -220,7 +220,7 @@ Skiplist<Key, Comparator, Destructor>::SkiplistNode::Create(
 
 template <typename Key, typename Comparator, typename Destructor>
 void Skiplist<Key, Comparator, Destructor>::SkiplistNode::Reset() {
-  levels_.clear();
+  std::fill(levels_.begin(), levels_.end(), SkiplistLevel{});
   prev_ = nullptr;
 }
 

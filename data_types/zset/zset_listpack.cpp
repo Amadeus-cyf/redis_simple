@@ -160,16 +160,18 @@ std::optional<std::string_view> ZSetListPack::ValueAt(size_t idx) const {
 
 std::optional<ZSetListPack::EntryView> ZSetListPack::EntryAt(
     size_t key_idx) const {
-  const auto key = ValueAt(key_idx);
-  if (!key.has_value()) {
-    return std::nullopt;
-  }
   const auto score_idx = listpack_->Next(key_idx);
   if (!score_idx.has_value()) {
     return std::nullopt;
   }
   const auto score = ScoreAt(*score_idx);
   if (!score.has_value()) {
+    return std::nullopt;
+  }
+  // Read the key last because numeric values share ListPack's conversion
+  // buffer. Reading a numeric score after the key would invalidate its view.
+  const auto key = ValueAt(key_idx);
+  if (!key.has_value()) {
     return std::nullopt;
   }
   return EntryView{*key, *score, key_idx, *score_idx};

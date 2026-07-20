@@ -49,6 +49,28 @@ class FuzzInput {
     return (selector & 1U) == 0 ? value : -value;
   }
 
+  double ReadScore() {
+    constexpr std::array<double, 8> kBoundaryValues = {
+        -std::numeric_limits<double>::infinity(),
+        std::numeric_limits<double>::lowest(),
+        -1.0,
+        -0.0,
+        0.0,
+        1.0,
+        std::numeric_limits<double>::max(),
+        std::numeric_limits<double>::infinity(),
+    };
+    const uint8_t selector = ReadByte();
+    if (selector < kBoundaryValues.size()) {
+      return kBoundaryValues[selector];
+    }
+    if (selector == kBoundaryValues.size()) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
+    constexpr double kScoreScale = 100.0;
+    return static_cast<double>(ReadInt64()) / kScoreScale;
+  }
+
   std::string ReadValue(size_t max_bytes) {
     const uint16_t selector =
         (static_cast<uint16_t>(ReadByte()) << 8) | ReadByte();
@@ -73,6 +95,11 @@ inline void Require(bool condition) {
   if (!condition) {
     std::abort();
   }
+}
+
+inline std::string PadToSize(std::string value, size_t size, char fill = 'x') {
+  value.resize(std::max(value.size(), size), fill);
+  return value;
 }
 
 template <typename T>

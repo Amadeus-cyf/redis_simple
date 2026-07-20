@@ -70,7 +70,8 @@ scripts/run_leak_check.sh
 ```
 
 Build and run the bounded Clang libFuzzer smoke tests after changes to request
-parsing, listpack, or quicklist behavior:
+parsing, Redis data types, core containers, buffers, expiration, or event-loop
+behavior:
 
 ```sh
 cmake --preset fuzz
@@ -103,8 +104,9 @@ Before committing, run the relevant build and tests.
   `redis_simple_add_gtest_suite`, so failures identify the affected suite while
   preserving same-suite fixture behavior.
 - Integration tests live under `integration/`.
-- Stateful libFuzzer harnesses live under `fuzz/` and use bounded CTest smoke
-  runs for CI.
+- Stateful libFuzzer harnesses live under `fuzz/`, compare operations against
+  simple reference models where practical, and use bounded CTest smoke runs
+  for CI.
 - Current integration coverage should stay focused:
   - `integration/commands/`
   - `integration/tcp/`

@@ -16,6 +16,18 @@ TEST(ZSetListPackTest, RangeByRank) {
   zset_storage_test::TestRangeByRank<ZSetListPack>();
 }
 
+TEST(ZSetListPackTest, PreservesNumericKeyWhileReadingScore) {
+  ZSetListPack zset;
+  ASSERT_TRUE(zset.InsertOrUpdate("0", 42.0));
+  const RangeByRankSpec spec(0, 0, false, false);
+
+  const auto entries = zset.RangeByRank(&spec);
+
+  ASSERT_EQ(entries.size(), 1);
+  EXPECT_EQ(entries.front()->key, "0");
+  EXPECT_EQ(entries.front()->score, 42.0);
+}
+
 TEST(ZSetListPackTest, RangeByScore) {
   zset_storage_test::TestRangeByScore<ZSetListPack>();
 }
