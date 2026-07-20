@@ -1,5 +1,6 @@
 #include "server/request_parser.h"
 
+#include <algorithm>
 #include <charconv>
 #include <cstddef>
 #include <limits>
@@ -76,7 +77,9 @@ ParseResult ParseResp(std::string_view input, std::string_view* command,
     return {ParseStatus::kInvalid, 0};
   }
 
-  args->reserve(element_count - 1);
+  constexpr size_t kMinimumBulkStringBytes = 6;
+  const size_t possible_args = input.size() / kMinimumBulkStringBytes;
+  args->reserve(std::min(element_count - 1, possible_args));
   size_t consumed = header.consumed + 2;
   for (size_t index = 0; index < element_count; ++index) {
     std::string_view value;

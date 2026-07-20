@@ -36,6 +36,15 @@ TEST(RequestParserTest, DistinguishesIncompleteAndInvalidResp) {
   EXPECT_EQ(Parse("*0\r\n", &command, &args).status, ParseStatus::kInvalid);
 }
 
+TEST(RequestParserTest, BoundsReservationForIncompleteResp) {
+  constexpr std::string_view kRequest = "*1048576\r\n";
+  std::string_view command;
+  command::CommandArgs args;
+
+  EXPECT_EQ(Parse(kRequest, &command, &args).status, ParseStatus::kIncomplete);
+  EXPECT_LE(args.capacity(), kRequest.size());
+}
+
 TEST(RequestParserTest, PreservesInlineProtocolCompatibility) {
   std::string_view command;
   command::CommandArgs args;

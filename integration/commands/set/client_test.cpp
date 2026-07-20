@@ -73,6 +73,10 @@ int Run() {
       {"SCARD missing_set\r\n", "0\n"},
       {"SISMEMBER missing_set ele1\r\n", "0\n"},
       {"SREM missing_set ele1 ele2\r\n", "0\n"},
+      {"SADD integer_text_set 1 +1 0 -0\r\n", "4\n"},
+      {"SCARD integer_text_set\r\n", "4\n"},
+      {"SISMEMBER integer_text_set +1\r\n", "1\n"},
+      {"SISMEMBER integer_text_set -0\r\n", "1\n"},
       {"SET set_wrong_type value\r\n", "OK\n"},
       {"SCARD set_wrong_type\r\n",
        "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
@@ -89,6 +93,10 @@ int Run() {
     return EXIT_FAILURE;
   }
   if (!ExpectMembers(&cli, "SMEMBERS missing_set\r\n", {})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(&cli, "SMEMBERS integer_text_set\r\n",
+                     {"1", "+1", "0", "-0"})) {
     return EXIT_FAILURE;
   }
   const std::vector<Case> operation_setup = {

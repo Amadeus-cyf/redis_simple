@@ -20,6 +20,9 @@ bool EqualsIgnoreCase(std::string_view left, std::string_view right);
 // Return true if the string strictly represents a signed int64: no leading or
 // trailing spaces, no extra characters, and no leading zeroes except "0".
 bool ToInt64(std::string_view s, int64_t* v);
+// Parse an integer only when its text is the canonical decimal representation.
+// Compact encodings use this to preserve distinct values such as "+1" and "1".
+bool ToCanonicalInt64(std::string_view s, int64_t* v);
 // Convert an int64 to string and store it in dst.
 int Int64ToString(char* dst, size_t dstlen, int64_t svalue);
 // Convert a uint64 to string and store it in dst. Ref to

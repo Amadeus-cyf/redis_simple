@@ -106,6 +106,25 @@ On macOS, the script runs the complete debug unit-test binary under Apple's
 Linux, it runs the complete sanitizer CTest suite with LeakSanitizer explicitly
 enabled.
 
+Build the opt-in Clang libFuzzer targets and run their bounded CTest smoke
+checks with:
+
+```sh
+cmake --preset fuzz
+cmake --build --preset fuzz --target redis_simple_fuzzers
+ctest --preset fuzz -L fuzz --output-on-failure
+```
+
+The fuzz targets exercise incremental RESP parsing, listpack mutation, and
+quicklist mutation under AddressSanitizer and UndefinedBehaviorSanitizer. On
+macOS, put Homebrew LLVM on `PATH` before configuring because Apple Clang does
+not ship a libFuzzer runtime:
+
+```sh
+brew install llvm
+PATH="$(brew --prefix llvm)/bin:${PATH}" cmake --preset fuzz
+```
+
 This runs:
 
 - `redis_simple_unit_<SuiteName>`: unit tests compiled into
@@ -161,6 +180,7 @@ above is the project benchmark executable.
 cli/                  Simple client and RESP parsing
 connection/           Connection abstraction
 event_loop/           Event loop with kqueue and epoll pollers
+fuzz/                 Stateful libFuzzer harnesses for parser and containers
 integration/commands/ Server/client command integration tests
 integration/tcp/      TCP client/server integration tests
 logging/              Project logging wrapper
@@ -183,7 +203,7 @@ Redis object wrappers stay under `server/db/`.
 Project management files are checked in:
 
 - `CMakePresets.json` for reproducible configure/build/test commands.
-- `.clang-format` for Google-style formatting.
+- `.clang-format` for Google-style formatting with clang-format 18.
 - `.clang-tidy` for static-analysis defaults.
 - `.editorconfig` for editor consistency.
 - `.github/workflows/build.yml` for CI on push and pull request.
@@ -195,8 +215,10 @@ Format project C++ files with:
 cmake --build --preset debug --target format
 ```
 
-For one-off formatting, `scripts/format.sh` discovers Homebrew's LLVM toolchain
-on macOS and honors `CLANG_FORMAT_BIN` when set.
+Formatting is pinned to clang-format 18 so local and CI output remains stable.
+Install it with `brew install llvm@18` on macOS or `apt install clang-format-18`
+on Ubuntu. `scripts/format.sh` discovers those installations and honors
+`CLANG_FORMAT_BIN` when it points to a clang-format 18 executable.
 
 Check formatting without modifying files with:
 
@@ -255,8 +277,9 @@ reuses scatter/gather metadata across partial writes.
 
 GitHub Actions runs debug, release, and ASan/UBSan matrices on macOS and Ubuntu,
 so both event-loop pollers are built and tested. macOS also runs Apple `leaks`;
-Ubuntu runs LeakSanitizer, clang-format, and clang-tidy. A separate Ubuntu job
-compares supported behavior with a real Redis instance through `redis-cli`:
+Ubuntu runs LeakSanitizer, clang-format 18, clang-tidy, and bounded libFuzzer
+smoke tests. A separate Ubuntu job compares supported behavior with a real
+Redis instance through `redis-cli`:
 
 ```sh
 cmake --preset debug

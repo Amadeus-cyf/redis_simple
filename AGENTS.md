@@ -69,6 +69,18 @@ ctest --preset sanitizer --output-on-failure
 scripts/run_leak_check.sh
 ```
 
+Build and run the bounded Clang libFuzzer smoke tests after changes to request
+parsing, listpack, or quicklist behavior:
+
+```sh
+cmake --preset fuzz
+cmake --build --preset fuzz --target redis_simple_fuzzers
+ctest --preset fuzz -L fuzz --output-on-failure
+```
+
+On macOS, configure the fuzz preset with Homebrew LLVM on `PATH`; Apple Clang
+does not include the libFuzzer runtime.
+
 The leak-check script uses Apple `leaks` for the macOS unit-test binary and
 explicit LeakSanitizer options for the complete Linux sanitizer test suite.
 
@@ -91,6 +103,8 @@ Before committing, run the relevant build and tests.
   `redis_simple_add_gtest_suite`, so failures identify the affected suite while
   preserving same-suite fixture behavior.
 - Integration tests live under `integration/`.
+- Stateful libFuzzer harnesses live under `fuzz/` and use bounded CTest smoke
+  runs for CI.
 - Current integration coverage should stay focused:
   - `integration/commands/`
   - `integration/tcp/`
@@ -106,7 +120,8 @@ Before committing, run the relevant build and tests.
 
 ## Project Management
 
-- Run `clang-format` on changed C/C++ files before committing or pushing.
+- Run clang-format 18 on changed C/C++ files before committing or pushing. The
+  format script rejects other major versions to keep local and CI output equal.
 - Use `scripts/format.sh --check` and `scripts/run_clang_tidy.sh` for local
   quality checks; clang-tidy warnings are treated as errors.
 - Never put required side effects inside `assert`; release builds must preserve

@@ -4,50 +4,50 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:-format}"
+readonly clang_format_major=18
 
 if [[ "${mode}" != "format" && "${mode}" != "--check" ]]; then
   printf 'usage: %s [--check]\n' "$0" >&2
   exit 2
 fi
 
-llvm_bin_dirs=(
-  "/opt/homebrew/opt/llvm/bin"
-  "/usr/local/opt/llvm/bin"
+clang_format_candidates=(
+  clang-format-18
+  /opt/homebrew/opt/llvm@18/bin/clang-format
+  /usr/local/opt/llvm@18/bin/clang-format
+  clang-format
 )
-
 if command -v brew >/dev/null 2>&1; then
-  llvm_prefix="$(brew --prefix llvm 2>/dev/null || true)"
+  llvm_prefix="$(brew --prefix llvm@18 2>/dev/null || true)"
   if [[ -n "${llvm_prefix}" ]]; then
-    llvm_bin_dirs=("${llvm_prefix}/bin" "${llvm_bin_dirs[@]}")
+    clang_format_candidates=(
+      "${llvm_prefix}/bin/clang-format"
+      "${clang_format_candidates[@]}"
+    )
   fi
 fi
+if [[ -n "${CLANG_FORMAT_BIN:-}" ]]; then
+  clang_format_candidates=("${CLANG_FORMAT_BIN}")
+fi
 
-find_tool() {
-  local tool_name="$1"
-  local override="${2:-}"
-
-  if [[ -n "${override}" ]]; then
-    command -v "${override}" || return 1
-    return 0
+clang_format_bin=""
+for candidate in "${clang_format_candidates[@]}"; do
+  candidate_path="$(command -v "${candidate}" 2>/dev/null || true)"
+  if [[ -z "${candidate_path}" ]]; then
+    continue
   fi
-
-  if command -v "${tool_name}" >/dev/null 2>&1; then
-    command -v "${tool_name}"
-    return 0
+  version="$(${candidate_path} --version 2>/dev/null || true)"
+  if [[ "${version}" =~ version[[:space:]]+${clang_format_major}\. ]]; then
+    clang_format_bin="${candidate_path}"
+    break
   fi
+done
 
-  local bin_dir
-  for bin_dir in "${llvm_bin_dirs[@]}"; do
-    if [[ -x "${bin_dir}/${tool_name}" ]]; then
-      printf '%s\n' "${bin_dir}/${tool_name}"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
-clang_format_bin="$(find_tool clang-format "${CLANG_FORMAT_BIN:-}")"
+if [[ -z "${clang_format_bin}" ]]; then
+  printf 'clang-format %s is required. Install llvm@18 or set CLANG_FORMAT_BIN.\n' \
+    "${clang_format_major}" >&2
+  exit 1
+fi
 
 cd "${repo_root}"
 files=()

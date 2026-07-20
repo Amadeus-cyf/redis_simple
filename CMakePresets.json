@@ -36,6 +36,18 @@
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
         "REDIS_SIMPLE_WARNINGS_AS_ERRORS": "ON"
       }
+    },
+    {
+      "name": "fuzz",
+      "displayName": "Clang libFuzzer",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/fuzz",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "REDIS_SIMPLE_BUILD_FUZZERS": "ON",
+        "REDIS_SIMPLE_WARNINGS_AS_ERRORS": "ON"
+      }
     }
   ],
   "buildPresets": [
@@ -50,6 +62,10 @@
     {
       "name": "sanitizer",
       "configurePreset": "sanitizer"
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz"
     }
   ],
   "testPresets": [
@@ -70,6 +86,13 @@
     {
       "name": "sanitizer",
       "configurePreset": "sanitizer",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "fuzz",
+      "configurePreset": "fuzz",
       "output": {
         "outputOnFailure": true
       }

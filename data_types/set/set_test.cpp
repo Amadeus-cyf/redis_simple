@@ -45,6 +45,21 @@ TEST(SetTest, AddingFirstNonIntegerConvertsIntSetToListPack) {
   ASSERT_FALSE(set->Add("member"));
 }
 
+TEST(SetTest, KeepsNonCanonicalIntegerMembersDistinct) {
+  auto set = Set::Create();
+
+  EXPECT_TRUE(set->Add("1"));
+  EXPECT_TRUE(set->Add("+1"));
+  EXPECT_TRUE(set->Add("0"));
+  EXPECT_TRUE(set->Add("-0"));
+  EXPECT_EQ(set->Encoding(), Set::Encoding::kListPack);
+  EXPECT_EQ(set->Size(), 4);
+  EXPECT_TRUE(set->HasMember("1"));
+  EXPECT_TRUE(set->HasMember("+1"));
+  EXPECT_TRUE(set->HasMember("0"));
+  EXPECT_TRUE(set->HasMember("-0"));
+}
+
 TEST(SetTest, ListPackConversionToDictReportsNewMemberAdded) {
   auto set = Set::Create();
 

@@ -286,6 +286,21 @@ TEST(ListPackTest, Append) {
   ASSERT_THROW(listpack->IntegerAt(listpack->TotalBytes()), std::out_of_range);
 }
 
+TEST(ListPackTest, PreservesNonCanonicalIntegerStrings) {
+  ListPack listpack;
+  ASSERT_TRUE(listpack.Append("+44"));
+  ASSERT_TRUE(listpack.Prepend("-0"));
+  ASSERT_TRUE(listpack.BatchAppend({StrEntry("+0"), StrEntry("-42")}));
+
+  std::vector<std::string> values;
+  ASSERT_TRUE(listpack.ForEach(0, listpack.Size() - 1,
+                               [&values](std::string_view value) {
+                                 values.emplace_back(value);
+                                 return true;
+                               }));
+  EXPECT_EQ(values, std::vector<std::string>({"-0", "+44", "+0", "-42"}));
+}
+
 TEST(ListPackTest, Prepend) {
   auto listpack = MakeAppendedListPack();
   std::string s0(4094, 'c');

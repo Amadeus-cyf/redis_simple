@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.21)
 project(redis_simple LANGUAGES C CXX)
 
 option(REDIS_SIMPLE_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
+option(REDIS_SIMPLE_BUILD_FUZZERS "Build Clang libFuzzer targets" OFF)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -312,3 +313,54 @@ target_link_libraries(
     redis_simple_core
     benchmark::benchmark
 )
+
+if(REDIS_SIMPLE_BUILD_FUZZERS)
+  if(NOT CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    message(FATAL_ERROR "Fuzz targets require Clang or AppleClang")
+  endif()
+
+  add_library(redis_simple_fuzz_core STATIC ${REDIS_SIMPLE_CORE_SOURCES})
+  redis_simple_configure_target(redis_simple_fuzz_core)
+  target_compile_options(
+    redis_simple_fuzz_core
+    PRIVATE
+      -fsanitize=fuzzer-no-link,address,undefined
+      -fno-omit-frame-pointer
+  )
+
+  function(redis_simple_add_fuzzer target source)
+    redis_simple_add_executable(${target} "${source}")
+    target_compile_options(
+      ${target}
+      PRIVATE
+        -fsanitize=fuzzer,address,undefined
+        -fno-omit-frame-pointer
+    )
+    target_link_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined)
+    target_link_libraries(${target} PRIVATE redis_simple_fuzz_core)
+    add_test(
+      NAME redis_simple_fuzz_${target}
+      COMMAND
+        ${target}
+        -runs=2000
+        -max_len=4096
+        -seed=1
+        -timeout=5
+    )
+    set_tests_properties(
+      redis_simple_fuzz_${target}
+      PROPERTIES
+        LABELS fuzz
+        TIMEOUT 60
+    )
+  endfunction()
+
+  redis_simple_add_fuzzer(request_parser_fuzzer
+                          "fuzz/request_parser_fuzzer.cpp")
+  redis_simple_add_fuzzer(listpack_fuzzer "fuzz/listpack_fuzzer.cpp")
+  redis_simple_add_fuzzer(quicklist_fuzzer "fuzz/quicklist_fuzzer.cpp")
+  add_custom_target(
+    redis_simple_fuzzers
+    DEPENDS request_parser_fuzzer listpack_fuzzer quicklist_fuzzer
+  )
+endif()

@@ -182,6 +182,18 @@ TEST(StringUtilsTest, ToInt64) {
   ASSERT_FALSE(ToInt64(s19, nullptr));
 }
 
+TEST(StringUtilsTest, ToCanonicalInt64) {
+  int64_t value = 0;
+
+  EXPECT_TRUE(ToCanonicalInt64("0", &value));
+  EXPECT_EQ(value, 0);
+  EXPECT_TRUE(ToCanonicalInt64("-42", &value));
+  EXPECT_EQ(value, -42);
+  EXPECT_FALSE(ToCanonicalInt64("+42", nullptr));
+  EXPECT_FALSE(ToCanonicalInt64("+0", nullptr));
+  EXPECT_FALSE(ToCanonicalInt64("-0", nullptr));
+}
+
 TEST(StringUtilsTest, Int64ToString) {
   std::array<char, 21> dst1{};
   std::string s1("1234567");

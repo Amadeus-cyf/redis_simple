@@ -145,6 +145,13 @@ bool ToInt64(std::string_view s, int64_t* const v) {
   return true;
 }
 
+bool ToCanonicalInt64(std::string_view s, int64_t* const v) {
+  if (s.empty() || s.front() == '+' || s == "-0") {
+    return false;
+  }
+  return ToInt64(s, v);
+}
+
 int Int64ToString(char* dst, size_t dstlen, int64_t svalue) {
   uint64_t value = 0;
   int negative = 0;
