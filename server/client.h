@@ -14,7 +14,7 @@
 #include "memory/reply_buffer.h"
 #include "server/commands/command.h"
 #include "server/db/db.h"
-#include "server/reply/reply.h"
+#include "server/reply.h"
 
 namespace redis_simple {
 enum class ClientStatus {

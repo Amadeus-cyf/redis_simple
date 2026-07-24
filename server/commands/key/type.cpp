@@ -7,7 +7,7 @@
 #include "server/commands/handlers.h"
 #include "server/db/db.h"
 #include "server/db/redis_obj.h"
-#include "server/reply/reply.h"
+#include "server/reply.h"
 
 namespace redis_simple::command::key {
 namespace {

@@ -11,7 +11,7 @@
 
 #include "logging/logger.h"
 #include "server.h"
-#include "server/reply/reply.h"
+#include "server/reply.h"
 #include "server/request_parser.h"
 namespace redis_simple {
 namespace {

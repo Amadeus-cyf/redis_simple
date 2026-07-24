@@ -9,7 +9,7 @@
 #include "server/commands/handlers.h"
 #include "server/commands/string/args.h"
 #include "server/db/db.h"
-#include "server/reply/reply.h"
+#include "server/reply.h"
 #include "utils/string_utils.h"
 #include "utils/time_utils.h"
 

@@ -11,7 +11,7 @@
 #include <utility>
 #include <vector>
 
-#include "server/reply/reply.h"
+#include "server/reply.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple {

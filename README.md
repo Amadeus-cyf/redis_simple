@@ -197,7 +197,7 @@ benchmarks/           Memory/data-structure benchmarks
 
 Command handler declarations are grouped in `server/commands/handlers.h`; the
 individual command `.cpp` files keep implementation details local.
-Reply encoding helpers live under `server/reply/`, while database state and
+Reply encoding helpers live directly under `server/`, while database state and
 Redis object wrappers stay under `server/db/`.
 
 ## Tooling

@@ -3,7 +3,7 @@
 
 #include "server/client.h"
 #include "server/commands/handlers.h"
-#include "server/reply/reply.h"
+#include "server/reply.h"
 #include "utils/string_utils.h"
 
 namespace redis_simple::command::connection_commands {

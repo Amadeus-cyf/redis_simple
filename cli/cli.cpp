@@ -14,7 +14,7 @@
 
 #include "logging/logger.h"
 #include "resp_parser.h"
-#include "server/reply/reply.h"
+#include "server/reply.h"
 #include "tcp/tcp.h"
 
 namespace redis_simple::cli {

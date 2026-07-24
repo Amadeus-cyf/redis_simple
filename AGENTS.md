@@ -30,8 +30,8 @@ Guidance for AI coding agents working in this repository.
   avoid per-command headers unless a handler becomes a broader shared API.
 - When adding or changing supported commands, update the README command
   coverage list and the relevant command-family integration test.
-- Keep reply encoding helpers under `server/reply/`, and keep database state
-  and Redis object wrappers under `server/db/`.
+- Keep reply encoding helpers directly under `server/`, and keep database
+  state and Redis object wrappers under `server/db/`.
 
 ## Build And Test
 
