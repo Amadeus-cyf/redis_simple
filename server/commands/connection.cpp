@@ -50,4 +50,32 @@ void HandleHello(Client* const client) {
   }
   client->AddReply(EncodeHello(protocol));
 }
+
+void HandlePing(Client* const client) {
+  const auto& args = client->Args();
+  if (args.size() > 1) {
+    client->AddReply(reply::WrongNumberOfArguments());
+    return;
+  }
+  client->AddReply(args.empty() ? reply::FromString("PONG")
+                                : reply::FromBulkString(args[0]));
+}
+
+void HandleEcho(Client* const client) {
+  const auto& args = client->Args();
+  if (args.size() != 1) {
+    client->AddReply(reply::WrongNumberOfArguments());
+    return;
+  }
+  client->AddReply(reply::FromBulkString(args[0]));
+}
+
+void HandleQuit(Client* const client) {
+  if (!client->Args().empty()) {
+    client->AddReply(reply::WrongNumberOfArguments());
+    return;
+  }
+  client->AddReply(reply::FromString("OK"));
+  client->CloseAfterReply();
+}
 }  // namespace redis_simple::command::connection_commands

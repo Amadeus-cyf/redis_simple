@@ -111,7 +111,7 @@ Before committing, run the relevant build and tests.
   - `integration/commands/`
   - `integration/tcp/`
 - Keep command-family integration tests split by area, including key, string,
-  set, list, zset, and hash commands.
+  set, list, zset, hash, and connection commands.
 - Register integration command tests as separate CTest entries by command
   family, so failures identify the affected area without log digging.
 - Keep exact ordering assertions for ordered command results such as sorted-set

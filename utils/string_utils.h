@@ -17,6 +17,8 @@ void ShiftCString(char* s, size_t len, size_t offset);
 void ToUppercase(std::string& s);
 // Compare ASCII text without allocating normalized copies.
 bool EqualsIgnoreCase(std::string_view left, std::string_view right);
+// Match Redis-style glob patterns without allocating temporary strings.
+bool MatchesGlob(std::string_view value, std::string_view pattern);
 // Return true if the string strictly represents a signed int64: no leading or
 // trailing spaces, no extra characters, and no leading zeroes except "0".
 bool ToInt64(std::string_view s, int64_t* v);

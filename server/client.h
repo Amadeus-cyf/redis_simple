@@ -50,6 +50,7 @@ class Client {
   bool ReadsPaused() const { return reads_paused_; }
   void SetReadsPaused(bool paused) { reads_paused_ = paused; }
   bool ShouldCloseAfterReply() const { return close_after_reply_; }
+  void CloseAfterReply() { close_after_reply_ = true; }
   reply::ProtocolVersion Protocol() const { return protocol_; }
   void SetProtocol(reply::ProtocolVersion protocol) { protocol_ = protocol; }
   ClientStatus ProcessInputBuffer();

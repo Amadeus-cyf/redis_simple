@@ -1,8 +1,12 @@
+#include <algorithm>
 #include <chrono>
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
+#include <sstream>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -44,6 +48,48 @@ bool ExpectIntegerBetween(cli::RedisCli* cli, const std::string& command,
   }
   return true;
 }
+
+std::vector<std::string> NonEmptyLines(const std::string& reply) {
+  std::stringstream stream(reply);
+  std::string line;
+  std::vector<std::string> lines;
+  while (std::getline(stream, line)) {
+    if (!line.empty()) {
+      lines.push_back(line);
+    }
+  }
+  return lines;
+}
+
+bool ExpectScanKeys(cli::RedisCli* cli, std::string_view pattern,
+                    std::vector<std::string> expected_keys) {
+  std::vector<std::string> actual_keys;
+  std::string cursor = "0";
+  size_t calls = 0;
+  while (true) {
+    cli->AddCommand({"SCAN", cursor, "MATCH", pattern, "COUNT", "1"});
+    auto lines = NonEmptyLines(cli->ReadReply());
+    if (lines.empty()) {
+      RS_LOG_DEBUG("SCAN returned no cursor\n");
+      return false;
+    }
+    cursor = std::move(lines.front());
+    actual_keys.insert(actual_keys.end(),
+                       std::make_move_iterator(lines.begin() + 1),
+                       std::make_move_iterator(lines.end()));
+    if (++calls > 1024) {
+      RS_LOG_DEBUG("SCAN did not complete\n");
+      return false;
+    }
+    if (cursor == "0") {
+      break;
+    }
+  }
+
+  std::sort(actual_keys.begin(), actual_keys.end());
+  std::sort(expected_keys.begin(), expected_keys.end());
+  return actual_keys == expected_keys;
+}
 }  // namespace
 
 int Run() {
@@ -53,7 +99,7 @@ int Run() {
     return EXIT_FAILURE;
   }
 
-  const std::vector<Case> cases = {
+  const std::vector<Case> setup_cases = {
       {"NOTACOMMAND\r\n", "ERR unknown command 'NOTACOMMAND'\n"},
       {"TYPE missing_key\r\n", "none\n"},
       {"EXISTS missing_key\r\n", "0\n"},
@@ -69,6 +115,27 @@ int Run() {
       {"TYPE key_hash\r\n", "hash\n"},
       {"EXISTS key_string key_set key_list key_zset key_hash missing_key\r\n",
        "5\n"},
+  };
+
+  for (const Case& test_case : setup_cases) {
+    if (!ExpectReply(&cli, test_case)) {
+      return EXIT_FAILURE;
+    }
+  }
+
+  if (!ExpectScanKeys(
+          &cli, "key_*",
+          {"key_hash", "key_list", "key_set", "key_string", "key_zset"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectScanKeys(&cli, "missing:*", {})) {
+    return EXIT_FAILURE;
+  }
+
+  const std::vector<Case> cases = {
+      {"SCAN invalid\r\n", "ERR invalid cursor\n"},
+      {"SCAN 0 COUNT 0\r\n", "ERR value is not an integer or out of range\n"},
+      {"SCAN 0 UNKNOWN value\r\n", "ERR syntax error\n"},
       {"DEL key_string missing_key\r\n", "1\n"},
       {"TYPE key_string\r\n", "none\n"},
       {"EXISTS key_string key_set\r\n", "1\n"},

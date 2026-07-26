@@ -2,8 +2,11 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include "utils/time_utils.h"
 
@@ -125,5 +128,32 @@ TEST(RedisDbTest, RenameAndFlush) {
   redis_db->Flush();
   EXPECT_EQ(redis_db->KeyCount(), 0);
   EXPECT_EQ(redis_db->LookupKey("target"), nullptr);
+}
+
+TEST(RedisDbTest, ScansKeysIncrementallyWithoutExpiredKeys) {
+  auto redis_db = RedisDb::Create();
+  ASSERT_EQ(redis_db->ScanKeys(0, 1, [](std::string_view) {}), 0);
+  ASSERT_EQ(redis_db->SetKey("alpha", RedisObject::CreateWithString("1"), 0),
+            DbStatus::kOk);
+  ASSERT_EQ(redis_db->SetKey("beta", RedisObject::CreateWithString("2"), 0),
+            DbStatus::kOk);
+  ASSERT_EQ(redis_db->SetKey("gamma", RedisObject::CreateWithString("3"), 0),
+            DbStatus::kOk);
+  ASSERT_EQ(
+      redis_db->SetKey("expired", RedisObject::CreateWithString("gone"), 1),
+      DbStatus::kOk);
+
+  std::vector<std::string> keys;
+  size_t cursor = 0;
+  while (true) {
+    cursor = redis_db->ScanKeys(
+        cursor, 1, [&keys](std::string_view key) { keys.emplace_back(key); });
+    if (cursor == 0) {
+      break;
+    }
+  }
+
+  std::sort(keys.begin(), keys.end());
+  EXPECT_EQ(keys, std::vector<std::string>({"alpha", "beta", "gamma"}));
 }
 }  // namespace redis_simple::db

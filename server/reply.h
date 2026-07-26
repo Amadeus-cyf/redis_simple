@@ -18,6 +18,7 @@ std::string FromInt64(int64_t i64);
 std::string FromArray(const std::vector<std::string>& array);
 std::string FromBulkStringArray(const std::vector<std::string>& values);
 std::string FromArrayHeader(size_t size);
+void AppendArrayHeader(size_t size, std::string* reply);
 void AppendBulkString(std::string_view s, std::string* reply);
 std::string FromFloat(double fl, ProtocolVersion protocol);
 std::string FromError(std::string_view message);

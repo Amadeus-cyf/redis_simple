@@ -14,13 +14,17 @@ void HandlePersist(Client* client);
 void HandlePExpire(Client* client);
 void HandlePTtl(Client* client);
 void HandleRename(Client* client);
+void HandleScan(Client* client);
 void HandleTtl(Client* client);
 void HandleType(Client* client);
 void HandleUnlink(Client* client);
 }  // namespace redis_simple::command::key
 
 namespace redis_simple::command::connection_commands {
+void HandleEcho(Client* client);
 void HandleHello(Client* client);
+void HandlePing(Client* client);
+void HandleQuit(Client* client);
 }  // namespace redis_simple::command::connection_commands
 
 namespace redis_simple::command::strings {

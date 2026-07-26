@@ -53,7 +53,7 @@ including protocol errors such as `ERR wrong number of arguments` and
 `WRONGTYPE`.
 
 - Keys: `DEL`, `UNLINK`, `EXISTS`, `TYPE`, `EXPIRE`, `PEXPIRE`, `TTL`, `PTTL`,
-  `PERSIST`, `RENAME`, `DBSIZE`, `FLUSHDB`
+  `PERSIST`, `RENAME`, `DBSIZE`, `FLUSHDB`, `SCAN` with `MATCH` and `COUNT`
 - Strings: `GET`, `SET` with `EX`, `PX`, and `KEEPTTL`, `INCR`, `DECR`,
   `APPEND`, `MGET`, `MSET`
 - Lists: `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LLEN`, `LRANGE`, `LINDEX`, `LSET`,
@@ -64,7 +64,7 @@ including protocol errors such as `ERR wrong number of arguments` and
   `ZRANGEBYSCORE`, `ZCOUNT`, `ZSCORE`
 - Hashes: `HSET`, `HGET`, `HDEL`, `HLEN`, `HEXISTS`, `HGETALL`, `HMGET`,
   `HKEYS`, `HVALS`, `HINCRBY`
-- Connection: `HELLO` with RESP2 and RESP3 negotiation
+- Connection: `HELLO` with RESP2 and RESP3 negotiation, `PING`, `ECHO`, `QUIT`
 
 ## Test
 
@@ -132,6 +132,8 @@ This runs:
 - `redis_simple_unit_<SuiteName>`: unit tests compiled into
   `redis_simple_tests` and registered in CTest by GoogleTest suite.
 - `redis_simple_integration_tcp`: TCP client/server integration check.
+- `redis_simple_integration_command_connection`: connection command integration
+  checks.
 - `redis_simple_integration_command_key`: generic key command integration
   checks.
 - `redis_simple_integration_command_string`: string command integration checks.

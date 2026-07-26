@@ -105,6 +105,23 @@ TEST(StringUtilsTest, EqualsIgnoreCase) {
   EXPECT_FALSE(EqualsIgnoreCase("expire", "expires"));
 }
 
+TEST(StringUtilsTest, MatchesRedisStyleGlobs) {
+  EXPECT_TRUE(MatchesGlob("", "*"));
+  EXPECT_TRUE(MatchesGlob("user:42", "user:*"));
+  EXPECT_TRUE(MatchesGlob("key7", "key?"));
+  EXPECT_TRUE(MatchesGlob("file5", "file[0-9]"));
+  EXPECT_TRUE(MatchesGlob("filex", "file[^0-9]"));
+  EXPECT_TRUE(MatchesGlob("literal*", R"(literal\*)"));
+  EXPECT_TRUE(MatchesGlob("[abc", "[abc"));
+  EXPECT_TRUE(MatchesGlob("value-m", "value-[z-a]"));
+
+  EXPECT_FALSE(MatchesGlob("user:42", "admin:*"));
+  EXPECT_FALSE(MatchesGlob("key42", "key?"));
+  EXPECT_FALSE(MatchesGlob("filex", "file[0-9]"));
+  EXPECT_FALSE(MatchesGlob("file5", "file[^0-9]"));
+  EXPECT_FALSE(MatchesGlob("", "?"));
+}
+
 TEST(StringUtilsTest, ToInt64) {
   std::string s1("100234567");
   int64_t v1 = 0;

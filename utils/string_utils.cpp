@@ -14,6 +14,11 @@
 
 namespace redis_simple::utils {
 namespace {
+struct GlobToken {
+  size_t next{};
+  bool matches{};
+};
+
 char FoldAsciiCase(char value) {
   return value >= 'A' && value <= 'Z' ? static_cast<char>(value + ('a' - 'A'))
                                       : value;
@@ -35,6 +40,56 @@ size_t SplitTokenCount(std::string_view s, std::string_view delimiter) {
     ++count;
   }
   return count;
+}
+
+GlobToken MatchCharacterClass(std::string_view pattern, size_t offset,
+                              char value) {
+  size_t cursor = offset + 1;
+  const bool negate = cursor < pattern.size() && pattern[cursor] == '^';
+  cursor += negate ? 1 : 0;
+
+  bool matched = false;
+  while (cursor < pattern.size() && pattern[cursor] != ']') {
+    char range_start = pattern[cursor++];
+    if (range_start == '\\' && cursor < pattern.size()) {
+      range_start = pattern[cursor++];
+    }
+
+    if (cursor + 1 < pattern.size() && pattern[cursor] == '-' &&
+        pattern[cursor + 1] != ']') {
+      ++cursor;
+      char range_end = pattern[cursor++];
+      if (range_end == '\\' && cursor < pattern.size()) {
+        range_end = pattern[cursor++];
+      }
+      const auto candidate = static_cast<unsigned char>(value);
+      const auto start = static_cast<unsigned char>(range_start);
+      const auto end = static_cast<unsigned char>(range_end);
+      matched =
+          matched || (start <= end ? candidate >= start && candidate <= end
+                                   : candidate >= end && candidate <= start);
+      continue;
+    }
+    matched = matched || value == range_start;
+  }
+
+  if (cursor == pattern.size()) {
+    return GlobToken{offset + 1, value == '['};
+  }
+  return GlobToken{cursor + 1, negate ? !matched : matched};
+}
+
+GlobToken MatchGlobToken(std::string_view pattern, size_t offset, char value) {
+  if (pattern[offset] == '?') {
+    return GlobToken{offset + 1, true};
+  }
+  if (pattern[offset] == '[') {
+    return MatchCharacterClass(pattern, offset, value);
+  }
+  if (pattern[offset] == '\\' && offset + 1 < pattern.size()) {
+    return GlobToken{offset + 2, pattern[offset + 1] == value};
+  }
+  return GlobToken{offset + 1, pattern[offset] == value};
 }
 }  // namespace
 
@@ -103,6 +158,46 @@ bool EqualsIgnoreCase(std::string_view left, std::string_view right) {
     }
   }
   return true;
+}
+
+bool MatchesGlob(std::string_view value, std::string_view pattern) {
+  size_t value_offset = 0;
+  size_t pattern_offset = 0;
+  size_t retry_pattern = std::string_view::npos;
+  size_t retry_value = 0;
+
+  while (value_offset < value.size()) {
+    if (pattern_offset < pattern.size() && pattern[pattern_offset] == '*') {
+      while (pattern_offset < pattern.size() &&
+             pattern[pattern_offset] == '*') {
+        ++pattern_offset;
+      }
+      retry_pattern = pattern_offset;
+      retry_value = value_offset;
+      continue;
+    }
+
+    if (pattern_offset < pattern.size()) {
+      const GlobToken token =
+          MatchGlobToken(pattern, pattern_offset, value[value_offset]);
+      if (token.matches) {
+        pattern_offset = token.next;
+        ++value_offset;
+        continue;
+      }
+    }
+
+    if (retry_pattern == std::string_view::npos) {
+      return false;
+    }
+    pattern_offset = retry_pattern;
+    value_offset = ++retry_value;
+  }
+
+  while (pattern_offset < pattern.size() && pattern[pattern_offset] == '*') {
+    ++pattern_offset;
+  }
+  return pattern_offset == pattern.size();
 }
 
 bool ToInt64(std::string_view s, int64_t* const v) {

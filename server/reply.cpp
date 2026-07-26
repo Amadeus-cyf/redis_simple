@@ -80,10 +80,14 @@ std::string FromBulkStringArray(const std::vector<std::string>& values) {
 
 std::string FromArrayHeader(size_t size) {
   std::string reply;
-  reply.push_back(kArrayPrefix);
-  AppendInteger(size, &reply);
-  reply.append(kCrlf.data(), kCrlf.size());
+  AppendArrayHeader(size, &reply);
   return reply;
+}
+
+void AppendArrayHeader(size_t size, std::string* const reply) {
+  reply->push_back(kArrayPrefix);
+  AppendInteger(size, reply);
+  reply->append(kCrlf.data(), kCrlf.size());
 }
 
 void AppendBulkString(std::string_view s, std::string* const reply) {

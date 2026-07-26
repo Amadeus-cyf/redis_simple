@@ -147,6 +147,26 @@ TEST(ClientTest, HelloNegotiatesResp3) {
   EXPECT_EQ(response.substr(response.size() - 3), "_\r\n");
 }
 
+TEST(ClientTest, HandlesConnectionCommandsAndStopsAfterQuit) {
+  auto [client, peer] = CreateClient();
+  const std::string payload("hello\0world", 11);
+  const std::string request = EncodeRequest({"PING"}) +
+                              EncodeRequest({"PING", payload}) +
+                              EncodeRequest({"ECHO", payload}) +
+                              EncodeRequest({"QUIT"}) + EncodeRequest({"PING"});
+
+  ASSERT_EQ(write(peer.Get(), request.data(), request.size()),
+            static_cast<ssize_t>(request.size()));
+  ASSERT_EQ(client->ReadQuery(), static_cast<ssize_t>(request.size()));
+  EXPECT_EQ(client->ProcessInputBuffer(), ClientStatus::kOk);
+  EXPECT_TRUE(client->ShouldCloseAfterReply());
+
+  std::string expected = "+PONG\r\n$11\r\n";
+  expected.append(payload).append("\r\n$11\r\n").append(payload);
+  expected.append("\r\n+OK\r\n");
+  EXPECT_EQ(SendAndReadReply(client.get(), peer.Get()), expected);
+}
+
 TEST(ClientTest, ProtocolErrorsCloseAfterReply) {
   auto [client, peer] = CreateClient();
   constexpr std::string_view kRequest = "*1\r\n+GET\r\n";

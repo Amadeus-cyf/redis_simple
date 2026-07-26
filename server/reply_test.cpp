@@ -21,6 +21,12 @@ TEST(ReplyTest, FromBulkStringArray) {
   ASSERT_EQ(FromBulkStringArray({}), "*0\r\n");
 }
 
+TEST(ReplyTest, AppendsArrayHeader) {
+  std::string encoded = "+OK\r\n";
+  AppendArrayHeader(3, &encoded);
+  EXPECT_EQ(encoded, "+OK\r\n*3\r\n");
+}
+
 TEST(ReplyTest, From64BitsInt) {
   ASSERT_EQ(FromInt64(1234567), ":1234567\r\n");
 }
