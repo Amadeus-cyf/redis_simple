@@ -117,12 +117,12 @@ std::string EncodeScanReply(size_t cursor,
 
   reply::AppendArrayHeader(2, &encoded);
   std::array<char, 21> cursor_buffer{};
-  const int cursor_length = utils::Uint64ToString(
-      cursor_buffer.data(), cursor_buffer.size(), static_cast<uint64_t>(cursor));
-  reply::AppendBulkString(
-      std::string_view(cursor_buffer.data(),
-                       static_cast<size_t>(cursor_length)),
-      &encoded);
+  const int cursor_length =
+      utils::Uint64ToString(cursor_buffer.data(), cursor_buffer.size(),
+                            static_cast<uint64_t>(cursor));
+  const std::string_view cursor_text(cursor_buffer.data(),
+                                     static_cast<size_t>(cursor_length));
+  reply::AppendBulkString(cursor_text, &encoded);
   reply::AppendArrayHeader(keys.size(), &encoded);
   for (const auto key : keys) {
     reply::AppendBulkString(key, &encoded);
@@ -149,8 +149,9 @@ void HandleScan(Client* const client) {
   keys.reserve(
       std::min({args.count, redis_db->KeyCount(), kMaxInitialKeyCapacity}));
   const auto collect_key = [&args, &keys](std::string_view key) {
-    if (!args.pattern.has_value() ||
-        utils::MatchesGlob(key, *args.pattern)) {
+    const bool matches_pattern =
+        !args.pattern.has_value() || utils::MatchesGlob(key, *args.pattern);
+    if (matches_pattern) {
       keys.push_back(key);
     }
   };

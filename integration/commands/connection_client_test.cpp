@@ -33,15 +33,26 @@ int Run() {
   const std::string binary_message("hello\0world", 11);
   std::string binary_reply = binary_message;
   binary_reply.push_back('\n');
-  if (!ExpectReply(&cli, {"PING"}, "PONG\n") ||
-      !ExpectReply(&cli, {"PING", "hello world"}, "hello world\n") ||
-      !ExpectReply(&cli, {"ECHO", binary_message}, binary_reply) ||
-      !ExpectReply(&cli, {"PING", "too", "many"},
-                   "ERR wrong number of arguments\n") ||
-      !ExpectReply(&cli, {"ECHO"}, "ERR wrong number of arguments\n") ||
-      !ExpectReply(&cli, {"QUIT", "now"},
-                   "ERR wrong number of arguments\n") ||
-      !ExpectReply(&cli, {"QUIT"}, "OK\n")) {
+  if (!ExpectReply(&cli, {"PING"}, "PONG\n")) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"PING", "hello world"}, "hello world\n")) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"ECHO", binary_message}, binary_reply)) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"PING", "too", "many"},
+                   "ERR wrong number of arguments\n")) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"ECHO"}, "ERR wrong number of arguments\n")) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"QUIT", "now"}, "ERR wrong number of arguments\n")) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectReply(&cli, {"QUIT"}, "OK\n")) {
     return EXIT_FAILURE;
   }
 
