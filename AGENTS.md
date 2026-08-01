@@ -28,10 +28,16 @@ Guidance for AI coding agents working in this repository.
 - Add comments only when they clarify non-obvious behavior.
 - Keep command handler declarations grouped in `server/commands/handlers.h`;
   avoid per-command headers unless a handler becomes a broader shared API.
+- Keep command names, arity, access mode, and key positions in the sorted
+  metadata table in `server/commands/command.cpp`. Preserve its allocation-free,
+  case-insensitive lookup path.
 - When adding or changing supported commands, update the README command
   coverage list and the relevant command-family integration test.
 - Keep reply encoding helpers directly under `server/`, and keep database
   state and Redis object wrappers under `server/db/`.
+- Keep production and command integration servers on the shared `Server::Run`
+  lifecycle. Signal handlers may only update signal-safe state; cleanup belongs
+  on the event-loop thread.
 
 ## Build And Test
 
@@ -110,6 +116,8 @@ Before committing, run the relevant build and tests.
 - Current integration coverage should stay focused:
   - `integration/commands/`
   - `integration/tcp/`
+- Keep server option and graceful shutdown coverage in the lifecycle integration
+  test rather than introducing a separate command-test server implementation.
 - Keep command-family integration tests split by area, including key, string,
   set, list, zset, hash, and connection commands.
 - Register integration command tests as separate CTest entries by command

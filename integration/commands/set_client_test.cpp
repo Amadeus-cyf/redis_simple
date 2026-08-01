@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "cli/cli.h"
@@ -113,6 +114,11 @@ int Run() {
     return EXIT_FAILURE;
   }
   if (!ExpectMembers(
+          &cli, "SUNION integration_set\r\n",
+          {"ele1", "ele2", "ele3", "ele4", "ele5", "ele6", "ele7"})) {
+    return EXIT_FAILURE;
+  }
+  if (!ExpectMembers(
           &cli,
           "SINTER integration_set integration_set_b integration_set_c\r\n",
           {"ele3"})) {
@@ -159,8 +165,21 @@ int Run() {
       return EXIT_FAILURE;
     }
   }
+  if (!ExpectMembers(&cli, "SMEMBERS integration_set\r\n",
+                     {"ele2", "ele3", "ele4"})) {
+    return EXIT_FAILURE;
+  }
+
+  cli.AddCommand(std::vector<std::string_view>{"HELLO", "3"});
+  if (cli.ReadReply().find("proto\n3\n") == std::string::npos) {
+    RS_LOG_DEBUG("failed to negotiate RESP3\n");
+    return EXIT_FAILURE;
+  }
   return ExpectMembers(&cli, "SMEMBERS integration_set\r\n",
-                       {"ele2", "ele3", "ele4"})
+                       {"ele2", "ele3", "ele4"}) &&
+                 ExpectMembers(&cli,
+                               "SINTER integration_set integration_set_b\r\n",
+                               {"ele2", "ele3"})
              ? EXIT_SUCCESS
              : EXIT_FAILURE;
 }

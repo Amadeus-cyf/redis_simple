@@ -6,7 +6,7 @@
 #include "server/reply.h"
 #include "utils/string_utils.h"
 
-namespace redis_simple::command::connection_commands {
+namespace redis_simple::command::session {
 namespace {
 std::string EncodeHello(reply::ProtocolVersion protocol) {
   constexpr size_t kFieldCount = 7;
@@ -78,4 +78,4 @@ void HandleQuit(Client* const client) {
   client->AddReply(reply::FromString("OK"));
   client->CloseAfterReply();
 }
-}  // namespace redis_simple::command::connection_commands
+}  // namespace redis_simple::command::session

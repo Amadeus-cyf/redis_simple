@@ -37,6 +37,11 @@ class Dict {
   bool Delete(const K& key);
   bool Delete(std::string_view key);
   bool Delete(const char* key) { return Delete(std::string_view(key)); }
+  std::optional<V> Extract(const K& key);
+  std::optional<V> Extract(std::string_view key);
+  std::optional<V> Extract(const char* key) {
+    return Extract(std::string_view(key));
+  }
   template <typename Visitor>
   std::optional<size_t> Scan(size_t cursor, Visitor&& visitor);
   size_t Size() const { return table_used_[0] + table_used_[1]; }
@@ -80,6 +85,7 @@ class Dict {
   void FreeKey(DictEntry* entry);
   void FreeVal(DictEntry* entry);
   void FreeUnlinkedEntry(DictEntry* entry);
+  std::optional<V> ExtractUnlinkedEntry(DictEntry* entry);
   DictEntry* FindEntry(const K& key);
   DictEntry* FindEntry(std::string_view key);
   std::optional<size_t> KeyIndex(const K& key, size_t hash,
@@ -479,6 +485,18 @@ bool Dict<K, V>::Delete(std::string_view key) {
 }
 
 template <typename K, typename V>
+std::optional<V> Dict<K, V>::Extract(const K& key) {
+  return ExtractUnlinkedEntry(Unlink(key));
+}
+
+template <typename K, typename V>
+std::optional<V> Dict<K, V>::Extract(std::string_view key) {
+  static_assert(std::is_same<K, std::string>::value,
+                "std::string_view extraction only supports std::string keys");
+  return ExtractUnlinkedEntry(Unlink(key));
+}
+
+template <typename K, typename V>
 template <typename Visitor>
 std::optional<size_t> Dict<K, V>::Scan(size_t cursor, Visitor&& visitor) {
   // Scanning visits the same bucket index in both tables; pause incremental
@@ -734,6 +752,17 @@ void Dict<K, V>::FreeUnlinkedEntry(DictEntry* entry) {
     FreeVal(entry);
     delete entry;
   }
+}
+
+template <typename K, typename V>
+std::optional<V> Dict<K, V>::ExtractUnlinkedEntry(DictEntry* entry) {
+  if (entry == nullptr) {
+    return std::nullopt;
+  }
+  std::optional<V> value(std::move(entry->val));
+  FreeKey(entry);
+  delete entry;
+  return value;
 }
 
 template <typename K, typename V>

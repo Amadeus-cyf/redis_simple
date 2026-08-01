@@ -28,17 +28,19 @@ struct SetLookup {
   SetLookupStatus status;
 };
 
-SetLookup FindSet(db::RedisDb* redis_db, std::string_view key);
-using SetOperation = std::optional<std::string> (*)(db::RedisDb*,
-                                                    const CommandArgs&);
+struct SetReply {
+  size_t count{};
+  std::string body;
+};
 
-std::string BulkBodyToArrayReply(size_t count, std::string body);
-std::optional<std::string> SInter(db::RedisDb* redis_db,
-                                  const CommandArgs& keys);
-std::optional<std::string> SUnion(db::RedisDb* redis_db,
-                                  const CommandArgs& keys);
-std::optional<std::string> SDiff(db::RedisDb* redis_db,
-                                 const CommandArgs& keys);
+SetLookup FindSet(db::RedisDb* redis_db, std::string_view key);
+SetReply EncodeMembers(const Set& set);
+using SetOperation = std::optional<SetReply> (*)(db::RedisDb*,
+                                                 const CommandArgs&);
+
+std::optional<SetReply> SInter(db::RedisDb* redis_db, const CommandArgs& keys);
+std::optional<SetReply> SUnion(db::RedisDb* redis_db, const CommandArgs& keys);
+std::optional<SetReply> SDiff(db::RedisDb* redis_db, const CommandArgs& keys);
 void AddSetOperationReply(Client* client, SetOperation operation);
 
 SetLookup FindSet(db::RedisDb* const redis_db, std::string_view key) {
@@ -52,19 +54,23 @@ SetLookup FindSet(db::RedisDb* const redis_db, std::string_view key) {
   return {object->Set(), SetLookupStatus::kOk};
 }
 
-std::string BulkBodyToArrayReply(size_t count, std::string body) {
-  body.insert(0, reply::FromArrayHeader(count));
-  return body;
+SetReply EncodeMembers(const Set& set) {
+  std::string body;
+  set.ForEachMember([&body](std::string_view member) {
+    reply::AppendBulkString(member, &body);
+    return true;
+  });
+  return {set.Size(), std::move(body)};
 }
 
-std::optional<std::string> SInter(db::RedisDb* const redis_db,
-                                  const CommandArgs& keys) {
+std::optional<SetReply> SInter(db::RedisDb* const redis_db,
+                               const CommandArgs& keys) {
   std::vector<const Set*> sets;
   sets.reserve(keys.size());
   for (std::string_view key : keys) {
     const SetLookup lookup = FindSet(redis_db, key);
     if (lookup.status == SetLookupStatus::kMissing) {
-      return reply::FromArrayHeader(0);
+      return SetReply{};
     }
     if (lookup.status != SetLookupStatus::kOk) {
       return std::nullopt;
@@ -93,11 +99,22 @@ std::optional<std::string> SInter(db::RedisDb* const redis_db,
         }
         return true;
       });
-  return BulkBodyToArrayReply(count, std::move(body));
+  return SetReply{count, std::move(body)};
 }
 
-std::optional<std::string> SUnion(db::RedisDb* const redis_db,
-                                  const CommandArgs& keys) {
+std::optional<SetReply> SUnion(db::RedisDb* const redis_db,
+                               const CommandArgs& keys) {
+  if (keys.size() == 1) {
+    const SetLookup lookup = FindSet(redis_db, keys.front());
+    if (lookup.status == SetLookupStatus::kMissing) {
+      return SetReply{};
+    }
+    if (lookup.status != SetLookupStatus::kOk) {
+      return std::nullopt;
+    }
+    return EncodeMembers(*lookup.set);
+  }
+
   std::unordered_set<std::string> members;
   for (std::string_view key : keys) {
     const SetLookup lookup = FindSet(redis_db, key);
@@ -117,14 +134,14 @@ std::optional<std::string> SUnion(db::RedisDb* const redis_db,
   for (const auto& member : members) {
     reply::AppendBulkString(member, &body);
   }
-  return BulkBodyToArrayReply(members.size(), std::move(body));
+  return SetReply{members.size(), std::move(body)};
 }
 
-std::optional<std::string> SDiff(db::RedisDb* const redis_db,
-                                 const CommandArgs& keys) {
+std::optional<SetReply> SDiff(db::RedisDb* const redis_db,
+                              const CommandArgs& keys) {
   const SetLookup first = FindSet(redis_db, keys.front());
   if (first.status == SetLookupStatus::kMissing) {
-    return reply::FromArrayHeader(0);
+    return SetReply{};
   }
   if (first.status != SetLookupStatus::kOk) {
     return std::nullopt;
@@ -160,7 +177,7 @@ std::optional<std::string> SDiff(db::RedisDb* const redis_db,
         }
         return true;
       });
-  return BulkBodyToArrayReply(count, std::move(body));
+  return SetReply{count, std::move(body)};
 }
 
 void AddSetOperationReply(Client* const client, SetOperation operation) {
@@ -176,7 +193,8 @@ void AddSetOperationReply(Client* const client, SetOperation operation) {
       client->AddReply(reply::WrongTypeError());
       return;
     }
-    client->AddReply(std::move(*encoded));
+    client->AddReply(reply::FromSetHeader(encoded->count, client->Protocol()),
+                     std::move(encoded->body));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));

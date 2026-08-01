@@ -11,6 +11,7 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 find_package(spdlog QUIET)
+find_package(Threads REQUIRED)
 
 add_custom_target(
   format
@@ -110,6 +111,7 @@ redis_simple_exclude_sources(REDIS_SIMPLE_CLI_SOURCES "_test\\.cpp$")
 
 add_library(redis_simple_core STATIC ${REDIS_SIMPLE_CORE_SOURCES})
 redis_simple_configure_target(redis_simple_core)
+target_link_libraries(redis_simple_core PUBLIC Threads::Threads)
 
 add_library(redis_simple_cli STATIC ${REDIS_SIMPLE_CLI_SOURCES})
 redis_simple_configure_target(redis_simple_cli)
@@ -156,6 +158,9 @@ redis_simple_add_gtest_suite(CustomSkiplistTest)
 redis_simple_add_gtest_suite(CommandRegistryTest)
 redis_simple_add_gtest_suite(RedisDbTest)
 redis_simple_add_gtest_suite(RedisObjectTest)
+redis_simple_add_gtest_suite(AsyncReclaimerTest)
+redis_simple_add_gtest_suite(ServerOptionsTest)
+redis_simple_add_gtest_suite(ShutdownTest)
 redis_simple_add_gtest_suite(ReplyTest)
 redis_simple_add_gtest_suite(FloatUtilsTest)
 redis_simple_add_gtest_suite(IntUtilsTest)
@@ -182,12 +187,6 @@ target_link_libraries(mock_tcp_server PRIVATE redis_simple_core)
 
 redis_simple_add_executable(mock_tcp_client "integration/tcp/client_test.cpp")
 target_link_libraries(mock_tcp_client PRIVATE redis_simple_core)
-
-redis_simple_add_executable(
-  mock_command_server
-  "integration/commands/server_test.cpp"
-)
-target_link_libraries(mock_command_server PRIVATE redis_simple_core)
 
 redis_simple_add_executable(
   mock_key_client
@@ -241,11 +240,19 @@ add_test(
 )
 
 add_test(
+  NAME redis_simple_integration_server_lifecycle
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_server_lifecycle_test.sh"
+    $<TARGET_FILE:redis_simple>
+)
+
+add_test(
   NAME redis_simple_integration_command_key
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_key_client>
 )
 
@@ -254,7 +261,7 @@ add_test(
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_connection_client>
 )
 
@@ -263,7 +270,7 @@ add_test(
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_string_client>
 )
 
@@ -272,7 +279,7 @@ add_test(
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_set_client>
 )
 
@@ -281,7 +288,7 @@ add_test(
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_list_client>
 )
 
@@ -290,7 +297,7 @@ add_test(
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_zset_client>
 )
 
@@ -299,12 +306,13 @@ add_test(
   COMMAND
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_integration_commands.sh"
-    $<TARGET_FILE:mock_command_server>
+    $<TARGET_FILE:redis_simple>
     $<TARGET_FILE:mock_hash_client>
 )
 
 set_tests_properties(
   redis_simple_integration_tcp
+  redis_simple_integration_server_lifecycle
   redis_simple_integration_command_connection
   redis_simple_integration_command_key
   redis_simple_integration_command_string
@@ -314,7 +322,21 @@ set_tests_properties(
   redis_simple_integration_command_hash
   PROPERTIES
     LABELS integration
-    RESOURCE_LOCK redis_simple_port_8080
+)
+set_tests_properties(
+  redis_simple_integration_tcp
+  redis_simple_integration_command_connection
+  redis_simple_integration_command_key
+  redis_simple_integration_command_string
+  redis_simple_integration_command_set
+  redis_simple_integration_command_list
+  redis_simple_integration_command_zset
+  redis_simple_integration_command_hash
+  PROPERTIES RESOURCE_LOCK redis_simple_port_8080
+)
+set_tests_properties(
+  redis_simple_integration_server_lifecycle
+  PROPERTIES RESOURCE_LOCK redis_simple_port_18080
 )
 
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark's tests" FORCE)

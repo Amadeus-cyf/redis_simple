@@ -72,6 +72,20 @@ DbStatus RedisDb::DeleteKey(std::string_view key) {
   return DbStatus::kOk;
 }
 
+DbStatus RedisDb::UnlinkKey(std::string_view key) {
+  if (IsKeyExpired(key)) {
+    DeleteKey(key);
+    return DbStatus::kError;
+  }
+  auto object = dict_->Extract(key);
+  if (!object.has_value()) {
+    return DbStatus::kError;
+  }
+  expires_->Delete(key);
+  return reclaimer_.Reclaim(std::move(*object)) ? DbStatus::kOk
+                                                : DbStatus::kError;
+}
+
 DbStatus RedisDb::ExpireKeyAt(std::string_view key, int64_t expire) {
   if (LookupKey(key) == nullptr) {
     return DbStatus::kError;

@@ -39,6 +39,20 @@ size_t Client::AddReply(std::string&& reply_text) {
   return reply_buf_.Append(std::move(reply_text));
 }
 
+size_t Client::AddReply(std::string&& header, std::string&& body) {
+  if (body.size() > std::numeric_limits<size_t>::max() - header.size()) {
+    close_after_reply_ = true;
+    return 0;
+  }
+  const size_t total_size = header.size() + body.size();
+  if (!CanQueueReply(total_size)) {
+    return 0;
+  }
+  const size_t header_size = reply_buf_.Append(std::move(header));
+  const size_t body_size = reply_buf_.Append(std::move(body));
+  return header_size + body_size;
+}
+
 bool Client::ShouldPauseReads() const {
   return !reads_paused_ && (close_after_reply_ ||
                             (output_limits_.soft_bytes > 0 &&
@@ -167,6 +181,10 @@ Client::RequestStatus Client::ParseRequest() {
     AddReply(reply::UnknownCommand(name));
     return RequestStatus::kRejected;
   }
+  if (!command->arity.Accepts(args_.size())) {
+    AddReply(reply::WrongNumberOfArguments());
+    return RequestStatus::kRejected;
+  }
   command_ = command;
   return RequestStatus::kReady;
 }
@@ -175,7 +193,8 @@ ClientStatus Client::ProcessCommand() {
   if (command_ == nullptr) {
     return ClientStatus::kError;
   }
-  RS_LOG_DEBUG("process command: %s\n", command_->name);
+  RS_LOG_DEBUG("process command: %.*s\n",
+               static_cast<int>(command_->name.size()), command_->name.data());
   command_->callback(this);
   return ClientStatus::kOk;
 }

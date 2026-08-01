@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -13,7 +13,7 @@ namespace redis_simple {
 class Server {
  public:
   static Server* Get();
-  bool Run(const std::string& ip, int port);
+  bool Run(std::string_view ip, int port);
   void Stop();
   event_loop::Loop* Loop() { return loop_.get(); }
   db::RedisDb* Db() { return db_.get(); }
@@ -27,7 +27,7 @@ class Server {
   Server();
   bool InstallAcceptCallback();
   static int ServerCron();
-  int fd_{};
+  int fd_{-1};
   std::unique_ptr<event_loop::Loop> loop_;
   std::vector<std::unique_ptr<Client>> clients_;
   std::unique_ptr<db::RedisDb> db_;

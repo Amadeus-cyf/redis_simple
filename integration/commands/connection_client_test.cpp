@@ -30,6 +30,12 @@ int Run() {
     return EXIT_FAILURE;
   }
 
+  cli.AddCommand(std::vector<std::string_view>{"HELLO", "3"});
+  if (cli.ReadReply().find("proto\n3\n") == std::string::npos) {
+    RS_LOG_DEBUG("failed to negotiate RESP3\n");
+    return EXIT_FAILURE;
+  }
+
   const std::string binary_message("hello\0world", 11);
   std::string binary_reply = binary_message;
   binary_reply.push_back('\n');

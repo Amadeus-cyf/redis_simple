@@ -52,7 +52,7 @@ void RunOperations(FuzzInput* input) {
 
   for (size_t operation_count = 0; operation_count < 256 && input->HasData();
        ++operation_count) {
-    const uint8_t operation = input->ReadByte() % 6;
+    const uint8_t operation = input->ReadByte() % 7;
     const std::string key = input->ReadValue(64);
     const std::string value = input->ReadValue(96);
     switch (operation) {
@@ -82,6 +82,16 @@ void RunOperations(FuzzInput* input) {
         dict->Clear();
         model.clear();
         break;
+      case 6: {
+        auto extracted = dict->Extract(std::string_view(key));
+        const auto expected = model.find(key);
+        Require(extracted.has_value() == (expected != model.end()));
+        if (extracted.has_value()) {
+          Require(*extracted == expected->second);
+          model.erase(expected);
+        }
+        break;
+      }
       default:
         break;
     }

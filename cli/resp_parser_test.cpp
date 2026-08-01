@@ -115,6 +115,14 @@ TEST(ReplyParserTest, ParseMap) {
                        {"server", "redis_simple", "proto", "3", "\n"}));
 }
 
+TEST(ReplyParserTest, ParseSet) {
+  std::vector<std::string> reply;
+  constexpr std::string_view kResponse = "~2\r\n$3\r\none\r\n$3\r\ntwo\r\n";
+
+  ASSERT_EQ(ParseBytes(kResponse, reply), kResponse.size());
+  EXPECT_EQ(reply, std::vector<std::string>({"one", "two", "\n"}));
+}
+
 TEST(ReplyParseTest, ParseNull) {
   std::vector<std::string> reply;
   ASSERT_EQ(ParseBytes("_\r\n", reply), 3);

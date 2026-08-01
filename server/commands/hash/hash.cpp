@@ -70,7 +70,8 @@ std::optional<std::string> HGet(db::RedisDb* redis_db, const FieldArgs* args,
 std::optional<int64_t> HDel(db::RedisDb* redis_db, const CommandArgs& args);
 std::optional<int64_t> HLen(db::RedisDb* redis_db, const KeyArgs* args);
 std::optional<int64_t> HExists(db::RedisDb* redis_db, const FieldArgs* args);
-std::optional<std::string> HGetAll(db::RedisDb* redis_db, const KeyArgs* args);
+std::optional<std::string> HGetAll(db::RedisDb* redis_db, const KeyArgs* args,
+                                   reply::ProtocolVersion protocol);
 std::optional<std::string> HMGet(db::RedisDb* redis_db, const CommandArgs& args,
                                  reply::ProtocolVersion protocol);
 std::optional<std::string> HKeys(db::RedisDb* redis_db, const KeyArgs* args);
@@ -238,15 +239,16 @@ std::optional<int64_t> HExists(db::RedisDb* const redis_db,
 }
 
 std::optional<std::string> HGetAll(db::RedisDb* const redis_db,
-                                   const KeyArgs* const args) {
+                                   const KeyArgs* const args,
+                                   reply::ProtocolVersion protocol) {
   const HashResult result = FindHash(redis_db, args->key);
   if (result.status == HashStatus::kMissing) {
-    return reply::FromArrayHeader(0);
+    return reply::FromMapHeader(0, protocol);
   }
   if (result.status != HashStatus::kOk) {
     return std::nullopt;
   }
-  std::string encoded = reply::FromArrayHeader(result.hash->Size() * 2);
+  std::string encoded = reply::FromMapHeader(result.hash->Size(), protocol);
   result.hash->ForEachEntry(
       [&encoded](std::string_view field, std::string_view value) {
         reply::AppendBulkString(field, &encoded);
@@ -430,7 +432,7 @@ void HandleHGetAll(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    auto result = HGetAll(redis_db, &args);
+    auto result = HGetAll(redis_db, &args, client->Protocol());
     if (!result.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;

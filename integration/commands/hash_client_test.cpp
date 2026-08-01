@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -176,7 +177,16 @@ int Run() {
       return EXIT_FAILURE;
     }
   }
-  return EXIT_SUCCESS;
+
+  cli.AddCommand(std::vector<std::string_view>{"HELLO", "3"});
+  if (cli.ReadReply().find("proto\n3\n") == std::string::npos) {
+    RS_LOG_DEBUG("failed to negotiate RESP3\n");
+    return EXIT_FAILURE;
+  }
+  return ExpectPairs(&cli, "HGETALL integration_hash\r\n",
+                     {{"recreated", "value"}})
+             ? EXIT_SUCCESS
+             : EXIT_FAILURE;
 }
 }  // namespace redis_simple
 

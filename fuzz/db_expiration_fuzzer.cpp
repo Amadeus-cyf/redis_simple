@@ -85,7 +85,7 @@ void RunOperations(FuzzInput* input) {
 
   for (size_t operation_count = 0; operation_count < 128 && input->HasData();
        ++operation_count) {
-    const uint8_t operation = input->ReadByte() % 10;
+    const uint8_t operation = input->ReadByte() % 11;
     const std::string key = input->ReadValue(64);
     const std::string value = input->ReadValue(96);
     switch (operation) {
@@ -144,6 +144,11 @@ void RunOperations(FuzzInput* input) {
                 db::DbStatus::kOk);
         Require(database->LookupKey(key) == nullptr);
         model.erase(key);
+        break;
+      case 10:
+        Require(
+            database->UnlinkKey(key) ==
+            (model.erase(key) != 0 ? db::DbStatus::kOk : db::DbStatus::kError));
         break;
       default:
         break;

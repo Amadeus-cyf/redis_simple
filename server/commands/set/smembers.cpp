@@ -16,7 +16,8 @@ struct SMembersArgs {
 };
 int ParseArgs(const CommandArgs& args, SMembersArgs* smembers_args);
 std::optional<std::string> SMembers(db::RedisDb* redis_db,
-                                    const SMembersArgs* args);
+                                    const SMembersArgs* args,
+                                    reply::ProtocolVersion protocol);
 }  // namespace
 
 void HandleSMembers(Client* const client) {
@@ -27,7 +28,7 @@ void HandleSMembers(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    auto encoded = SMembers(redis_db, &args);
+    auto encoded = SMembers(redis_db, &args, client->Protocol());
     if (!encoded.has_value()) {
       client->AddReply(reply::WrongTypeError());
       return;
@@ -51,16 +52,17 @@ int ParseArgs(const CommandArgs& args, SMembersArgs* const smembers_args) {
 }
 
 std::optional<std::string> SMembers(db::RedisDb* redis_db,
-                                    const SMembersArgs* args) {
+                                    const SMembersArgs* args,
+                                    reply::ProtocolVersion protocol) {
   const auto* obj = redis_db->LookupKey(args->key);
   if (obj == nullptr) {
-    return reply::FromArrayHeader(0);
+    return reply::FromSetHeader(0, protocol);
   }
   if (obj->Type() != db::RedisObject::ObjectType::kSet) {
     return std::nullopt;
   }
   const auto* set = obj->Set();
-  std::string encoded = reply::FromArrayHeader(set->Size());
+  std::string encoded = reply::FromSetHeader(set->Size(), protocol);
   set->ForEachMember([&encoded](std::string_view member) {
     reply::AppendBulkString(member, &encoded);
     return true;

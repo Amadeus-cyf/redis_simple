@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace redis_simple::in_memory {
 TEST(DictStrTest, Init) {
@@ -76,6 +77,19 @@ TEST(DictStrTest, Delete) {
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result, std::nullopt);
   ASSERT_EQ(dict_str->Size(), 0);
+}
+
+TEST(DictStrTest, ExtractTransfersMoveOnlyValue) {
+  auto dict = Dict<std::string, std::unique_ptr<int>>::Create();
+  dict->Set(std::string("key"), std::make_unique<int>(42));
+
+  auto value = dict->Extract(std::string_view("key"));
+
+  auto extracted = std::move(value).value_or(nullptr);
+  ASSERT_NE(extracted, nullptr);
+  EXPECT_EQ(*extracted, 42);
+  EXPECT_EQ(dict->Size(), 0);
+  EXPECT_FALSE(dict->Extract(std::string_view("missing")).has_value());
 }
 
 namespace {

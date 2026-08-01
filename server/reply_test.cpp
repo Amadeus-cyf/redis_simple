@@ -38,6 +38,8 @@ TEST(ReplyTest, EncodesVersionSpecificTypes) {
   EXPECT_EQ(FromFloat(1.5, ProtocolVersion::kResp3), ",1.5\r\n");
   EXPECT_EQ(FromMapHeader(2, ProtocolVersion::kResp2), "*4\r\n");
   EXPECT_EQ(FromMapHeader(2, ProtocolVersion::kResp3), "%2\r\n");
+  EXPECT_EQ(FromSetHeader(2, ProtocolVersion::kResp2), "*2\r\n");
+  EXPECT_EQ(FromSetHeader(2, ProtocolVersion::kResp3), "~2\r\n");
 }
 
 TEST(ReplyTest, FromArray) {

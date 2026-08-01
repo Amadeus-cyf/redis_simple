@@ -38,10 +38,19 @@ Start the server:
 ./build/debug/redis_simple
 ```
 
+The server binds to `127.0.0.1:8080` by default. Configure either value at
+startup and stop cleanly with `SIGINT` or `SIGTERM`:
+
+```sh
+./build/debug/redis_simple --bind 0.0.0.0 --port 6380
+./build/debug/redis_simple --help
+```
+
 Clients can send standard RESP arrays of bulk strings or the legacy inline
 syntax. RESP2 is the default reply protocol; `HELLO 3` switches a connection to
-RESP3. Request buffers are capped at 64 MiB. Pending output pauses reads at 8
-MiB, resumes below 4 MiB, and closes the connection before exceeding 64 MiB.
+RESP3, including native null, map, set, and double replies. Request buffers are
+capped at 64 MiB. Pending output pauses reads at 8 MiB, resumes below 4 MiB,
+and closes the connection before exceeding 64 MiB.
 
 In another terminal, run a mock command client or your own TCP client against
 `localhost:8080`.
@@ -65,6 +74,11 @@ including protocol errors such as `ERR wrong number of arguments` and
 - Hashes: `HSET`, `HGET`, `HDEL`, `HLEN`, `HEXISTS`, `HGETALL`, `HMGET`,
   `HKEYS`, `HVALS`, `HINCRBY`
 - Connection: `HELLO` with RESP2 and RESP3 negotiation, `PING`, `ECHO`, `QUIT`
+
+`UNLINK` detaches keys synchronously and releases their values on a background
+worker. Command names, arity, access mode, and key positions are held in one
+allocation-free registry used for case-insensitive dispatch and early argument
+validation.
 
 ## Test
 
@@ -132,6 +146,8 @@ This runs:
 - `redis_simple_unit_<SuiteName>`: unit tests compiled into
   `redis_simple_tests` and registered in CTest by GoogleTest suite.
 - `redis_simple_integration_tcp`: TCP client/server integration check.
+- `redis_simple_integration_server_lifecycle`: command-line option, nondefault
+  bind, and graceful shutdown checks.
 - `redis_simple_integration_command_connection`: connection command integration
   checks.
 - `redis_simple_integration_command_key`: generic key command integration

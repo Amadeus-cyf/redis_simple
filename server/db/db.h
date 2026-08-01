@@ -8,11 +8,10 @@
 #include <string_view>
 
 #include "memory/dict.h"
+#include "server/db/async_reclaimer.h"
 #include "server/db/redis_obj.h"
 
 namespace redis_simple::db {
-using RedisObjectPtr = std::unique_ptr<RedisObject>;
-
 enum class DbStatus {
   kOk = 1 << 0,
   kError = -1,
@@ -46,6 +45,7 @@ class RedisDb {
   DbStatus SetKey(std::string_view key, RedisObjectPtr object, int64_t expire,
                   int flags);
   DbStatus DeleteKey(std::string_view key);
+  DbStatus UnlinkKey(std::string_view key);
   DbStatus ExpireKeyAt(std::string_view key, int64_t expire);
   DbStatus PersistKey(std::string_view key);
   DbStatus RenameKey(std::string_view old_key, std::string_view new_key);
@@ -62,6 +62,7 @@ class RedisDb {
   bool IsKeyExpired(std::string_view key) const;
   std::unique_ptr<in_memory::Dict<std::string, RedisObjectPtr>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
+  AsyncReclaimer reclaimer_;
   size_t expire_cursor_{};
 };
 

@@ -104,19 +104,22 @@ ParseResult ParseInteger(std::string_view resp, size_t start,
   return {ParseStatus::kComplete, line.consumed - start + 2};
 }
 
-ParseResult ParseArray(std::string_view resp, size_t start,
-                       std::vector<std::string>* const reply) {
+ParseResult ParseAggregate(std::string_view resp, size_t start,
+                           size_t element_multiplier,
+                           std::vector<std::string>* const reply) {
   const auto header = FindLineEnd(resp, start + 1);
   if (header.status != ParseStatus::kComplete) {
     return header;
   }
   size_t length = 0;
   if (!ParseSize(resp.substr(start + 1, header.consumed - start - 1),
-                 &length)) {
+                 &length) ||
+      length > std::numeric_limits<size_t>::max() / element_multiplier) {
     return {ParseStatus::kInvalid, 0};
   }
   size_t consumed = header.consumed - start + 2;
-  for (size_t index = 0; index < length; ++index) {
+  const size_t element_count = length * element_multiplier;
+  for (size_t index = 0; index < element_count; ++index) {
     const auto element = ParseAt(resp, start + consumed, reply);
     if (element.status != ParseStatus::kComplete) {
       return element;
@@ -130,31 +133,19 @@ ParseResult ParseArray(std::string_view resp, size_t start,
   return {ParseStatus::kComplete, consumed};
 }
 
+ParseResult ParseArray(std::string_view resp, size_t start,
+                       std::vector<std::string>* const reply) {
+  return ParseAggregate(resp, start, 1, reply);
+}
+
 ParseResult ParseMap(std::string_view resp, size_t start,
                      std::vector<std::string>* const reply) {
-  const auto header = FindLineEnd(resp, start + 1);
-  if (header.status != ParseStatus::kComplete) {
-    return header;
-  }
-  size_t pair_count = 0;
-  if (!ParseSize(resp.substr(start + 1, header.consumed - start - 1),
-                 &pair_count) ||
-      pair_count > std::numeric_limits<size_t>::max() / 2) {
-    return {ParseStatus::kInvalid, 0};
-  }
-  size_t consumed = header.consumed - start + 2;
-  for (size_t index = 0; index < pair_count * 2; ++index) {
-    const auto element = ParseAt(resp, start + consumed, reply);
-    if (element.status != ParseStatus::kComplete) {
-      return element;
-    }
-    if (element.consumed > std::numeric_limits<size_t>::max() - consumed) {
-      return {ParseStatus::kInvalid, 0};
-    }
-    consumed += element.consumed;
-  }
-  reply->emplace_back("\n");
-  return {ParseStatus::kComplete, consumed};
+  return ParseAggregate(resp, start, 2, reply);
+}
+
+ParseResult ParseSet(std::string_view resp, size_t start,
+                     std::vector<std::string>* const reply) {
+  return ParseAggregate(resp, start, 1, reply);
 }
 
 ParseResult ParseNull(std::string_view resp, size_t start,
@@ -283,6 +274,8 @@ ParseResult ParseAt(std::string_view resp, size_t start,
       return ParseArray(resp, start, reply);
     case '%':
       return ParseMap(resp, start, reply);
+    case '~':
+      return ParseSet(resp, start, reply);
     case '_':
       return ParseNull(resp, start, reply);
     case ',':

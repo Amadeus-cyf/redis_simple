@@ -82,4 +82,6 @@ class RedisObject {
   explicit RedisObject(Value value) : value_(std::move(value)) {}
   Value value_;
 };
+
+using RedisObjectPtr = std::unique_ptr<RedisObject>;
 }  // namespace redis_simple::db

@@ -43,6 +43,7 @@ class Client {
   ssize_t SendReply();
   size_t AddReply(std::string_view reply);
   size_t AddReply(std::string&& reply);
+  size_t AddReply(std::string&& header, std::string&& body);
   bool HasPendingReplies() const { return !reply_buf_.Empty(); }
   size_t PendingReplyBytes() const { return reply_buf_.PendingBytes(); }
   bool ShouldPauseReads() const;

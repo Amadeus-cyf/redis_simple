@@ -19,6 +19,7 @@ constexpr char kBulkStringPrefix = '$';
 constexpr char kInt64Prefix = ':';
 constexpr char kArrayPrefix = '*';
 constexpr char kMapPrefix = '%';
+constexpr char kSetPrefix = '~';
 constexpr char kDoublePrefix = ',';
 constexpr char kNullPrefix = '_';
 constexpr char kErrorPrefix = '-';
@@ -153,6 +154,17 @@ std::string FromMapHeader(size_t size, ProtocolVersion protocol) {
   }
   std::string reply;
   reply.push_back(kMapPrefix);
+  AppendInteger(size, &reply);
+  reply.append(kCrlf.data(), kCrlf.size());
+  return reply;
+}
+
+std::string FromSetHeader(size_t size, ProtocolVersion protocol) {
+  if (protocol == ProtocolVersion::kResp2) {
+    return FromArrayHeader(size);
+  }
+  std::string reply;
+  reply.push_back(kSetPrefix);
   AppendInteger(size, &reply);
   reply.append(kCrlf.data(), kCrlf.size());
   return reply;

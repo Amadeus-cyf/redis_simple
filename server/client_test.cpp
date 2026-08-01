@@ -134,7 +134,9 @@ TEST(ClientTest, RespRequestsPreserveSpacesAndBinaryData) {
 TEST(ClientTest, HelloNegotiatesResp3) {
   auto [client, peer] = CreateClient();
   const std::string request = EncodeRequest({"HELLO", "3"}) +
-                              EncodeRequest({"GET", "missing-resp3-key"});
+                              EncodeRequest({"GET", "missing-resp3-key"}) +
+                              EncodeRequest({"HGETALL", "missing-resp3-hash"}) +
+                              EncodeRequest({"SMEMBERS", "missing-resp3-set"});
 
   ASSERT_EQ(write(peer.Get(), request.data(), request.size()),
             static_cast<ssize_t>(request.size()));
@@ -144,7 +146,7 @@ TEST(ClientTest, HelloNegotiatesResp3) {
   const std::string response = SendAndReadReply(client.get(), peer.Get());
   EXPECT_EQ(client->Protocol(), reply::ProtocolVersion::kResp3);
   EXPECT_EQ(response.rfind("%7\r\n", 0), 0);
-  EXPECT_EQ(response.substr(response.size() - 3), "_\r\n");
+  EXPECT_EQ(response.substr(response.size() - 11), "_\r\n%0\r\n~0\r\n");
 }
 
 TEST(ClientTest, HandlesConnectionCommandsAndStopsAfterQuit) {
@@ -181,6 +183,20 @@ TEST(ClientTest, ProtocolErrorsCloseAfterReply) {
             "-ERR Protocol error: invalid request\r\n");
 }
 
+TEST(ClientTest, RejectsInvalidArityBeforeDispatch) {
+  auto [client, peer] = CreateClient();
+  const std::string request =
+      EncodeRequest(std::vector<std::string_view>{"GET"}) +
+      EncodeRequest(std::vector<std::string_view>{"PING"});
+
+  ASSERT_EQ(write(peer.Get(), request.data(), request.size()),
+            static_cast<ssize_t>(request.size()));
+  ASSERT_EQ(client->ReadQuery(), static_cast<ssize_t>(request.size()));
+  EXPECT_EQ(client->ProcessInputBuffer(), ClientStatus::kOk);
+  EXPECT_EQ(SendAndReadReply(client.get(), peer.Get()),
+            "-ERR wrong number of arguments\r\n+PONG\r\n");
+}
+
 TEST(ClientTest, OutputLimitsControlBackpressure) {
   auto [client, peer] = CreateClient({4, 8, 16});
   EXPECT_EQ(client->AddReply(std::string_view("12345678")), 8);
@@ -193,6 +209,19 @@ TEST(ClientTest, OutputLimitsControlBackpressure) {
   auto [limited_client, limited_peer] = CreateClient({4, 8, 16});
   (void)limited_peer;
   EXPECT_EQ(limited_client->AddReply(std::string(17, 'x')), 0);
+  EXPECT_TRUE(limited_client->ShouldCloseAfterReply());
+  EXPECT_FALSE(limited_client->HasPendingReplies());
+}
+
+TEST(ClientTest, QueuesSplitReplyAtomically) {
+  auto [client, peer] = CreateClient({4, 8, 16});
+  EXPECT_EQ(client->AddReply(std::string("header"), std::string("body")), 10);
+  EXPECT_EQ(SendAndReadReply(client.get(), peer.Get()), "headerbody");
+
+  auto [limited_client, limited_peer] = CreateClient({4, 8, 16});
+  (void)limited_peer;
+  EXPECT_EQ(limited_client->AddReply(std::string(8, 'h'), std::string(9, 'b')),
+            0);
   EXPECT_TRUE(limited_client->ShouldCloseAfterReply());
   EXPECT_FALSE(limited_client->HasPendingReplies());
 }

@@ -28,4 +28,5 @@ std::string SyntaxError();
 std::string WrongTypeError();
 std::string Null(ProtocolVersion protocol);
 std::string FromMapHeader(size_t size, ProtocolVersion protocol);
+std::string FromSetHeader(size_t size, ProtocolVersion protocol);
 }  // namespace redis_simple::reply

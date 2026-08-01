@@ -26,6 +26,22 @@ TEST(RedisDbTest, SetLookupAndDeleteKey) {
   EXPECT_EQ(redis_db->DeleteKey("key"), DbStatus::kError);
 }
 
+TEST(RedisDbTest, UnlinkRemovesKeyBeforeReclaimingValue) {
+  auto redis_db = RedisDb::Create();
+  const int64_t future = utils::NowInMilliseconds() + 60'000;
+  ASSERT_EQ(redis_db->SetKey("key",
+                             RedisObject::CreateWithString(
+                                 std::string(size_t{64} * 1024, 'x')),
+                             future),
+            DbStatus::kOk);
+
+  EXPECT_EQ(redis_db->UnlinkKey("key"), DbStatus::kOk);
+  EXPECT_EQ(redis_db->LookupKey("key"), nullptr);
+  EXPECT_EQ(redis_db->TimeToLive("key", TtlResolution::kMilliseconds), -2);
+  EXPECT_EQ(redis_db->KeyCount(), 0);
+  EXPECT_EQ(redis_db->UnlinkKey("key"), DbStatus::kError);
+}
+
 TEST(RedisDbTest, ExpiredKeyIsRemovedOnLookup) {
   auto redis_db = RedisDb::Create();
   ASSERT_EQ(

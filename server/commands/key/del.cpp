@@ -8,19 +8,20 @@
 
 namespace redis_simple::command::key {
 namespace {
-int DeleteKeys(db::RedisDb* const redis_db, const CommandArgs& keys) {
+using DeleteOperation = db::DbStatus (db::RedisDb::*)(std::string_view);
+
+int DeleteKeys(db::RedisDb* const redis_db, const CommandArgs& keys,
+               DeleteOperation operation) {
   int deleted = 0;
   for (std::string_view key : keys) {
-    if (redis_db->DeleteKey(key) == db::DbStatus::kOk) {
+    if ((redis_db->*operation)(key) == db::DbStatus::kOk) {
       ++deleted;
     }
   }
   return deleted;
 }
-}  // namespace
 
-void HandleDel(Client* const client) {
-  RS_LOG_DEBUG("del command called\n");
+void AddDeleteReply(Client* const client, DeleteOperation operation) {
   const auto& keys = client->Args();
   if (keys.empty()) {
     client->AddReply(reply::WrongNumberOfArguments());
@@ -28,12 +29,21 @@ void HandleDel(Client* const client) {
   }
 
   if (auto* redis_db = client->Db()) {
-    client->AddReply(reply::FromInt64(DeleteKeys(redis_db, keys)));
-  } else {
-    RS_LOG_DEBUG("db unavailable\n");
-    client->AddReply(reply::FromError("ERR db unavailable"));
+    client->AddReply(reply::FromInt64(DeleteKeys(redis_db, keys, operation)));
+    return;
   }
+  RS_LOG_DEBUG("db unavailable\n");
+  client->AddReply(reply::FromError("ERR db unavailable"));
+}
+}  // namespace
+
+void HandleDel(Client* const client) {
+  RS_LOG_DEBUG("del command called\n");
+  AddDeleteReply(client, &db::RedisDb::DeleteKey);
 }
 
-void HandleUnlink(Client* const client) { HandleDel(client); }
+void HandleUnlink(Client* const client) {
+  RS_LOG_DEBUG("unlink command called\n");
+  AddDeleteReply(client, &db::RedisDb::UnlinkKey);
+}
 }  // namespace redis_simple::command::key

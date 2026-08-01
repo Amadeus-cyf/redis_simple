@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <any>
 #include <cstdint>
-#include <string>
+#include <string_view>
 #include <utility>
 
 #include "client_connection/client_connection.h"
@@ -15,6 +15,7 @@
 #include "event_loop/time_event.h"
 #include "expire.h"
 #include "logging/logger.h"
+#include "server/shutdown.h"
 
 namespace redis_simple {
 Server::Server()
@@ -25,8 +26,9 @@ Server* Server::Get() {
   return &server;
 }
 
-bool Server::Run(const std::string& ip, int port) {
-  if (loop_ == nullptr || db_ == nullptr) {
+bool Server::Run(std::string_view ip, int port) {
+  if (loop_ == nullptr || db_ == nullptr || ip.empty() || port <= 0 ||
+      port > 65535 || !shutdown::InstallSignalHandlers()) {
     return false;
   }
   connection::Context ctx;
@@ -47,6 +49,7 @@ bool Server::Run(const std::string& ip, int port) {
   loop_->Run();
   loop_->DeleteFileEvent(fd_, event_loop::EventFlag::kReadable);
   fd_ = -1;
+  clients_.clear();
   return true;
 }
 
@@ -85,6 +88,10 @@ bool Server::InstallAcceptCallback() {
 }
 
 int Server::ServerCron() {
+  if (shutdown::StopRequested()) {
+    Server::Get()->Stop();
+    return event_loop::ToInt(event_loop::EventFlag::kNoMore);
+  }
   ActiveExpireCycle();
   return 1;
 }
