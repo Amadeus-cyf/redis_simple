@@ -24,8 +24,7 @@ bool AsyncReclaimer::Reclaim(RedisObjectPtr object) {
 
 void AsyncReclaimer::WaitUntilIdle() {
   std::unique_lock<std::mutex> lock(mutex_);
-  idle_.wait(lock,
-             [this] { return pending_.empty() && reclaiming_ == 0; });
+  idle_.wait(lock, [this] { return pending_.empty() && reclaiming_ == 0; });
 }
 
 size_t AsyncReclaimer::PendingCount() const {
@@ -49,8 +48,8 @@ void AsyncReclaimer::Run() {
     std::deque<RedisObjectPtr> batch;
     {
       std::unique_lock<std::mutex> lock(mutex_);
-      work_available_.wait(
-          lock, [this] { return stopping_ || !pending_.empty(); });
+      work_available_.wait(lock,
+                           [this] { return stopping_ || !pending_.empty(); });
       if (pending_.empty()) {
         if (stopping_) {
           return;

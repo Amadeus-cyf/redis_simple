@@ -32,8 +32,7 @@ TEST(ServerOptionsTest, HandlesHelpAndInvalidArguments) {
             OptionsStatus::kHelp);
 
   constexpr std::array kInvalidPort = {"redis_simple", "--port", "65536"};
-  EXPECT_EQ(
-      ParseServerOptions(kInvalidPort.size(), kInvalidPort.data()).status,
+  EXPECT_EQ(ParseServerOptions(kInvalidPort.size(), kInvalidPort.data()).status,
             OptionsStatus::kError);
 
   constexpr std::array kUnknown = {"redis_simple", "--unknown"};
