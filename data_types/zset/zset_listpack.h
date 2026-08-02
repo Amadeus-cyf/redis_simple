@@ -20,6 +20,7 @@ class ZSetListPack : public ZSetStorage {
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const override;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const override;
   size_t Count(const RangeByScoreSpec* spec) const override;
+  bool ForEachEntry(const ZSetEntryVisitor& visitor) const override;
   size_t Size() const override {
     // Since listpack include both keys and scores, the actual size should be
     // divided by 2.

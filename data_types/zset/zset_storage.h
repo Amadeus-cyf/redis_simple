@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -12,6 +13,8 @@
 
 namespace redis_simple::zset {
 using ZSetEntryList = std::vector<const ZSetEntry*>;
+using ZSetEntryVisitor =
+    std::function<bool(std::string_view key, double score)>;
 
 class ZSetStorage {
  public:
@@ -30,6 +33,8 @@ class ZSetStorage {
   virtual ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const = 0;
   // Count the number of keys within the given range of score.
   virtual size_t Count(const RangeByScoreSpec* spec) const = 0;
+  // Visit entries without allocating a result container.
+  virtual bool ForEachEntry(const ZSetEntryVisitor& visitor) const = 0;
   // Return the total number of keys.
   virtual size_t Size() const = 0;
   virtual ~ZSetStorage() = default;

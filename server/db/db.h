@@ -56,6 +56,10 @@ class RedisDb {
   std::optional<int64_t> Expiration(std::string_view key) const;
   int64_t TimeToLive(std::string_view key, TtlResolution resolution);
   size_t KeyCount() const { return dict_->Size(); }
+  // Key views and object references remain valid only until the database is
+  // mutated. Returning false from the visitor stops further callbacks.
+  template <typename Visitor>
+  bool ForEachObject(Visitor&& visitor);
   // Key views remain valid until the database is mutated.
   template <typename Visitor>
   size_t ScanKeys(size_t cursor, size_t bucket_count, Visitor&& visitor);
@@ -74,6 +78,29 @@ class RedisDb {
   // Replay defers expiration checks until all historical writes are applied.
   bool loading_{};
 };
+
+template <typename Visitor>
+bool RedisDb::ForEachObject(Visitor&& visitor) {
+  if (dict_->Size() == 0) {
+    return true;
+  }
+
+  bool keep_visiting = true;
+  std::optional<size_t> cursor = 0;
+  while (cursor.has_value()) {
+    cursor = dict_->Scan(
+        *cursor, [this, &visitor, &keep_visiting](
+                     const std::string& key, const RedisObjectPtr& object) {
+          if (keep_visiting && !IsKeyExpired(key)) {
+            keep_visiting = visitor(std::string_view(key), *object);
+          }
+        });
+    if (!keep_visiting) {
+      return false;
+    }
+  }
+  return true;
+}
 
 template <typename Visitor>
 size_t RedisDb::ScanKeys(size_t cursor, size_t bucket_count,

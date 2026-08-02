@@ -41,6 +41,10 @@ Guidance for AI coding agents working in this repository.
 - Keep AOF propagation at the successful command-mutation boundary. Preserve
   command order, encode relative TTLs as absolute `PEXPIREAT` records, and do
   not copy argument payloads beyond the owned persistence record.
+- Keep AOF rewrite snapshots visitor-based and preserve the original AOF until
+  the snapshot and buffered mutation delta have been synced and atomically
+  installed. The normal append path should pay no copy cost when no rewrite is
+  active.
 
 ## Build And Test
 
@@ -122,8 +126,8 @@ Before committing, run the relevant build and tests.
   - `integration/tcp/`
 - Keep server option and graceful shutdown coverage in the lifecycle integration
   test rather than introducing a separate command-test server implementation.
-- Keep AOF restart, shutdown flush, expiration, and cross-data-type recovery in
-  the dedicated AOF integration test.
+- Keep AOF restart, rewrite compaction, shutdown flush, expiration, and
+  cross-data-type recovery in the dedicated AOF integration test.
 - Keep command-family integration tests split by area, including key, string,
   set, list, zset, hash, and connection commands.
 - Register integration command tests as separate CTest entries by command

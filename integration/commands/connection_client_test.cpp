@@ -58,6 +58,10 @@ int Run() {
   if (!ExpectReply(&cli, {"QUIT", "now"}, "ERR wrong number of arguments\n")) {
     return EXIT_FAILURE;
   }
+  if (!ExpectReply(&cli, {"BGREWRITEAOF"},
+                   "ERR append only file is disabled\n")) {
+    return EXIT_FAILURE;
+  }
   if (!ExpectReply(&cli, {"QUIT"}, "OK\n")) {
     return EXIT_FAILURE;
   }

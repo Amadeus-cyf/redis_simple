@@ -37,6 +37,11 @@ constexpr Command WriteCommand(std::string_view name, CommandCallback callback,
   return {name, callback, arity, CommandAccess::kWrite, keys};
 }
 
+constexpr Command AdminCommand(std::string_view name, CommandCallback callback,
+                               CommandArity arity) {
+  return {name, callback, arity, CommandAccess::kAdmin, NoKeys()};
+}
+
 constexpr Command ConnectionCommand(std::string_view name,
                                     CommandCallback callback,
                                     CommandArity arity) {
@@ -65,6 +70,8 @@ constexpr int CompareIgnoreCase(std::string_view left, std::string_view right) {
 
 constexpr std::array kCommandTable = {
     WriteCommand("APPEND", strings::HandleAppend, FixedArity(2), OneKey()),
+    AdminCommand("BGREWRITEAOF", persistence::HandleBgRewriteAof,
+                 FixedArity(0)),
     ReadCommand("DBSIZE", key::HandleDbSize, FixedArity(0)),
     WriteCommand("DECR", strings::HandleDecr, FixedArity(1), OneKey()),
     WriteCommand("DEL", key::HandleDel, VariableArity(1), AllKeys()),

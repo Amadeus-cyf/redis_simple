@@ -1,8 +1,6 @@
 #include "zset.h"
 
 #include <cmath>
-#include <cstdint>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -60,6 +58,10 @@ size_t ZSet::Count(const RangeByScoreSpec* spec) const {
   return storage_->Count(spec);
 }
 
+bool ZSet::ForEachEntry(const ZSetEntryVisitor& visitor) const {
+  return storage_->ForEachEntry(visitor);
+}
+
 enum ZSet::Encoding ZSet::Encoding() const { return encoding_; }
 
 bool ZSet::ShouldConvertToSkiplist(std::string_view key, bool inserted) const {
@@ -70,28 +72,14 @@ bool ZSet::ShouldConvertToSkiplist(std::string_view key, bool inserted) const {
 
 void ZSet::ConvertAndExpand() {
   assert(encoding_ == Encoding::kListPack);
-  if (storage_ != nullptr &&
-      storage_->Size() >
-          static_cast<size_t>(std::numeric_limits<int64_t>::max())) {
+  auto zset_skiplist = std::make_unique<ZSetSkiplist>();
+  if (!storage_->ForEachEntry(
+          [&zset_skiplist](std::string_view key, double score) {
+            return zset_skiplist->InsertOrUpdate(key, score);
+          })) {
     return;
   }
   encoding_ = Encoding::kSkiplist;
-  if (!storage_) {
-    storage_ = std::make_unique<ZSetSkiplist>();
-    return;
-  }
-  auto zset_skiplist = std::make_unique<ZSetSkiplist>();
-  RangeByRankSpec spec;
-  spec.min = 0;
-  spec.max = static_cast<int64_t>(storage_->Size()) - 1;
-  spec.minex = false;
-  spec.maxex = false;
-  spec.limit.reset();
-  spec.reverse = false;
-  const auto entries = storage_->RangeByRank(&spec);
-  for (const auto* entry : entries) {
-    zset_skiplist->InsertOrUpdate(entry->key, entry->score);
-  }
   storage_ = std::move(zset_skiplist);
 }
 }  // namespace redis_simple::zset

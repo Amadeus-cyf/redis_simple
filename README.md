@@ -59,7 +59,10 @@ and `everysec` is the default fsync policy. `always` writes and syncs each
 mutation before continuing, while `no` delegates periodic durability to the
 operating system. Background policies move encoded commands into a bounded
 writer queue and use scatter/gather writes without copying command payloads.
-Graceful shutdown drains and syncs the queue.
+Graceful shutdown drains and syncs the queue. `BGREWRITEAOF` compacts command
+history into a point-in-time database snapshot while a background thread writes,
+syncs, and atomically replaces the AOF. Mutations that overlap the rewrite are
+buffered and appended before the replacement becomes active.
 
 Clients can send standard RESP arrays of bulk strings or the legacy inline
 syntax. RESP2 is the default reply protocol; `HELLO 3` switches a connection to
@@ -89,6 +92,7 @@ including protocol errors such as `ERR wrong number of arguments` and
   `ZRANGEBYSCORE`, `ZCOUNT`, `ZSCORE`
 - Hashes: `HSET`, `HGET`, `HDEL`, `HLEN`, `HEXISTS`, `HGETALL`, `HMGET`,
   `HKEYS`, `HVALS`, `HINCRBY`
+- Persistence: `BGREWRITEAOF`
 - Connection: `HELLO` with RESP2 and RESP3 negotiation, `PING`, `ECHO`, `QUIT`
 
 `UNLINK` detaches keys synchronously and releases their values on a background
@@ -99,8 +103,10 @@ validation.
 When enabled, AOF records successful mutations as canonical RESP commands and
 replays them before the server accepts clients. Relative expirations are stored
 as absolute millisecond timestamps, incomplete final records are truncated,
-and corruption before the final record prevents startup. AOF rewrite and
-compaction are not implemented yet.
+and corruption before the final record prevents startup. AOF rewrites traverse
+collection values through borrowed views, retain concurrent mutations in a
+bounded delta queue, and preserve the original file if rewriting fails before
+the atomic replacement.
 
 ## Test
 
@@ -171,8 +177,8 @@ This runs:
 - `redis_simple_integration_tcp`: TCP client/server integration check.
 - `redis_simple_integration_server_lifecycle`: command-line option, nondefault
   bind, and graceful shutdown checks.
-- `redis_simple_integration_aof`: production-server append, shutdown, restart,
-  expiration, and cross-data-type recovery checks.
+- `redis_simple_integration_aof`: production-server append, background rewrite,
+  compaction, shutdown, restart, expiration, and cross-data-type recovery checks.
 - `redis_simple_integration_command_connection`: connection command integration
   checks.
 - `redis_simple_integration_command_key`: generic key command integration

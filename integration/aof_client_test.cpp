@@ -58,6 +58,29 @@ bool WriteDataset(cli::RedisCli* const cli) {
       {"HSET aof_string field rejected\r\n",
        "WRONGTYPE Operation against a key holding the wrong kind of value\n"},
   };
+  if (!std::all_of(cases.begin(), cases.end(), [cli](const auto& test_case) {
+        return ExpectReply(cli, test_case);
+      })) {
+    return false;
+  }
+  for (int length = 1; length <= 256; ++length) {
+    if (!ExpectReply(
+            cli, {"APPEND aof_history x\r\n", std::to_string(length) + "\n"})) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool RewriteDataset(cli::RedisCli* const cli) {
+  const std::vector<Case> cases = {
+      {"BGREWRITEAOF\r\n", "Background append only file rewriting started\n"},
+      {"SET aof_string updated\r\n", "OK\n"},
+      {"HSET aof_hash second added\r\n", "1\n"},
+      {"RPUSH aof_list three\r\n", "3\n"},
+      {"SREM aof_set second\r\n", "1\n"},
+      {"ZADD aof_zset 2 member\r\n", "0\n"},
+  };
   return std::all_of(cases.begin(), cases.end(), [cli](const auto& test_case) {
     return ExpectReply(cli, test_case);
   });
@@ -65,13 +88,15 @@ bool WriteDataset(cli::RedisCli* const cli) {
 
 bool ReadDataset(cli::RedisCli* const cli) {
   const std::vector<Case> cases = {
-      {"GET aof_string\r\n", "value\n"},
+      {"GET aof_string\r\n", "updated\n"},
       {"GET aof_expired\r\n", "(nil)\n"},
       {"HGET aof_hash field\r\n", "value\n"},
+      {"HGET aof_hash second\r\n", "added\n"},
       {"SISMEMBER aof_set first\r\n", "1\n"},
-      {"SISMEMBER aof_set second\r\n", "1\n"},
-      {"ZSCORE aof_zset member\r\n", "1\n"},
+      {"SISMEMBER aof_set second\r\n", "0\n"},
+      {"ZSCORE aof_zset member\r\n", "2\n"},
       {"GET aof_deleted\r\n", "(nil)\n"},
+      {"GET aof_history\r\n", std::string(256, 'x') + "\n"},
   };
   if (!std::all_of(cases.begin(), cases.end(), [cli](const auto& test_case) {
         return ExpectReply(cli, test_case);
@@ -81,7 +106,7 @@ bool ReadDataset(cli::RedisCli* const cli) {
 
   cli->AddCommand("LRANGE aof_list 0 -1\r\n");
   if (NonEmptyLines(cli->ReadReply()) !=
-      std::vector<std::string>({"one", "two"})) {
+      std::vector<std::string>({"one", "two", "three"})) {
     return false;
   }
 
@@ -104,6 +129,9 @@ int Run(std::string_view mode) {
   }
   if (mode == "read") {
     return ReadDataset(&cli) ? EXIT_SUCCESS : EXIT_FAILURE;
+  }
+  if (mode == "rewrite") {
+    return RewriteDataset(&cli) ? EXIT_SUCCESS : EXIT_FAILURE;
   }
   return EXIT_FAILURE;
 }

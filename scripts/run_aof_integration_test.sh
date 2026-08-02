@@ -37,8 +37,18 @@ stop_server() {
 start_server || exit $?
 "$client" write || exit $?
 stop_server || exit $?
+original_size="$(wc -c < "$aof_file")"
 
 sleep 1
+
+start_server || exit $?
+"$client" rewrite || exit $?
+stop_server || exit $?
+rewritten_size="$(wc -c < "$aof_file")"
+if [ "$rewritten_size" -ge "$original_size" ]; then
+  echo "AOF rewrite did not compact command history" >&2
+  exit 1
+fi
 
 start_server || exit $?
 "$client" read || exit $?

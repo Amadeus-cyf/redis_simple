@@ -170,4 +170,104 @@ TEST(AofTest, FlushesBackgroundWritesOnShutdown) {
   ASSERT_NE(restored->LookupKey("key"), nullptr);
   EXPECT_EQ(restored->LookupKey("key")->String(), "value");
 }
+
+TEST(AofTest, RewritesAllObjectTypesAndPreservesConcurrentWrites) {
+  TempFile file;
+  auto source = db::RedisDb::Create();
+  const int64_t expire = utils::NowInMilliseconds() + 60'000;
+  ASSERT_EQ(source->SetKey("string", db::RedisObject::CreateWithString("old"),
+                           expire),
+            db::DbStatus::kOk);
+
+  auto set_value = set::Set::Create();
+  auto list_value = list::List::Create();
+  auto zset_value = zset::ZSet::Create();
+  auto hash_value = hash::Hash::Create();
+  for (int index = 0; index < 65; ++index) {
+    const std::string suffix = std::to_string(index);
+    ASSERT_TRUE(set_value->Add("member" + suffix));
+    ASSERT_TRUE(list_value->RPush("value" + suffix));
+    ASSERT_TRUE(zset_value->InsertOrUpdate("member" + suffix, index));
+    ASSERT_TRUE(hash_value->Set("field" + suffix, "value" + suffix));
+  }
+  ASSERT_EQ(source->SetKey(
+                "set", db::RedisObject::CreateWithSet(std::move(set_value)), 0),
+            db::DbStatus::kOk);
+
+  ASSERT_EQ(
+      source->SetKey("list",
+                     db::RedisObject::CreateWithList(std::move(list_value)), 0),
+      db::DbStatus::kOk);
+
+  ASSERT_EQ(
+      source->SetKey("zset",
+                     db::RedisObject::CreateWithZSet(std::move(zset_value)), 0),
+      db::DbStatus::kOk);
+
+  ASSERT_EQ(
+      source->SetKey("hash",
+                     db::RedisObject::CreateWithHash(std::move(hash_value)), 0),
+      db::DbStatus::kOk);
+
+  auto writer = Aof::Open(Always(file), source.get());
+  ASSERT_NE(writer, nullptr);
+  ASSERT_EQ(writer->StartRewrite(source.get()), RewriteResult::kStarted);
+
+  ASSERT_EQ(source->SetKey(
+                "string", db::RedisObject::CreateWithString("updated"), expire),
+            db::DbStatus::kOk);
+  const std::vector<std::string_view> set_args = {"string", "updated"};
+  ASSERT_TRUE(writer->Append("SET", set_args, source.get()));
+  writer->WaitUntilRewriteIdle();
+  ASSERT_TRUE(writer->Healthy());
+  writer.reset();
+
+  auto restored = db::RedisDb::Create();
+  auto reader = Aof::Open(Always(file), restored.get());
+  ASSERT_NE(reader, nullptr);
+  ASSERT_NE(restored->LookupKey("string"), nullptr);
+  EXPECT_EQ(restored->LookupKey("string")->String(), "updated");
+  EXPECT_EQ(restored->Expiration("string"), expire);
+  ASSERT_NE(restored->LookupKey("set"), nullptr);
+  EXPECT_EQ(restored->LookupKey("set")->Set()->Size(), 65);
+  EXPECT_TRUE(restored->LookupKey("set")->Set()->HasMember("member64"));
+  ASSERT_NE(restored->LookupKey("list"), nullptr);
+  EXPECT_EQ(restored->LookupKey("list")->List()->Size(), 65);
+  EXPECT_EQ(restored->LookupKey("list")->List()->At(64), "value64");
+  ASSERT_NE(restored->LookupKey("zset"), nullptr);
+  EXPECT_EQ(restored->LookupKey("zset")->ZSet()->Size(), 65);
+  EXPECT_EQ(restored->LookupKey("zset")->ZSet()->Score("member64"), 64.0);
+  ASSERT_NE(restored->LookupKey("hash"), nullptr);
+  EXPECT_EQ(restored->LookupKey("hash")->Hash()->Size(), 65);
+  EXPECT_EQ(restored->LookupKey("hash")->Hash()->Get("field64"), "value64");
+}
+
+TEST(AofTest, RewriteCompactsCommandHistory) {
+  TempFile file;
+  auto source = db::RedisDb::Create();
+  auto writer = Aof::Open(Always(file), source.get());
+  ASSERT_NE(writer, nullptr);
+
+  for (int value = 0; value < 128; ++value) {
+    const std::string text = std::to_string(value);
+    ASSERT_EQ(source->SetKey("key", db::RedisObject::CreateWithString(text), 0),
+              db::DbStatus::kOk);
+    const std::vector<std::string_view> args = {"key", text};
+    ASSERT_TRUE(writer->Append("SET", args, source.get()));
+  }
+  const off_t original_size = file.Size();
+  ASSERT_GT(original_size, 0);
+
+  ASSERT_EQ(writer->StartRewrite(source.get()), RewriteResult::kStarted);
+  writer->WaitUntilRewriteIdle();
+
+  EXPECT_GT(original_size, file.Size());
+  writer.reset();
+
+  auto restored = db::RedisDb::Create();
+  auto reader = Aof::Open(Always(file), restored.get());
+  ASSERT_NE(reader, nullptr);
+  ASSERT_NE(restored->LookupKey("key"), nullptr);
+  EXPECT_EQ(restored->LookupKey("key")->String(), "127");
+}
 }  // namespace redis_simple::aof

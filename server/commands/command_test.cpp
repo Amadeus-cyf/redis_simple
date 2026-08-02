@@ -24,12 +24,13 @@ TEST(CommandRegistryTest, FindsCommandsCaseInsensitively) {
 
 TEST(CommandRegistryTest, FindsExpandedRedisCommandSet) {
   const std::array names = {
-      "EXPIRE", "PEXPIRE", "PEXPIREAT", "TTL",     "PTTL",      "PERSIST",
-      "RENAME", "DBSIZE",  "FLUSHDB",   "INCR",    "DECR",      "APPEND",
-      "MGET",   "MSET",    "LINDEX",    "LSET",    "LREM",      "LTRIM",
-      "SINTER", "SUNION",  "SDIFF",     "ZCOUNT",  "ZREVRANGE", "ZRANGEBYSCORE",
-      "HMGET",  "HKEYS",   "HVALS",     "HINCRBY", "HELLO",     "PING",
-      "ECHO",   "QUIT",    "SCAN"};
+      "EXPIRE",  "PEXPIRE", "PEXPIREAT", "TTL",           "PTTL",
+      "PERSIST", "RENAME",  "DBSIZE",    "FLUSHDB",       "INCR",
+      "DECR",    "APPEND",  "MGET",      "MSET",          "LINDEX",
+      "LSET",    "LREM",    "LTRIM",     "SINTER",        "SUNION",
+      "SDIFF",   "ZCOUNT",  "ZREVRANGE", "ZRANGEBYSCORE", "HMGET",
+      "HKEYS",   "HVALS",   "HINCRBY",   "HELLO",         "PING",
+      "ECHO",    "QUIT",    "SCAN",      "BGREWRITEAOF"};
   for (const auto* name : names) {
     const auto* command = Find(name);
     ASSERT_NE(command, nullptr) << name;
@@ -63,5 +64,10 @@ TEST(CommandRegistryTest, ExposesCommandMetadata) {
   ASSERT_NE(ping, nullptr);
   EXPECT_EQ(ping->access, CommandAccess::kConnection);
   EXPECT_FALSE(ping->keys.HasKeys());
+
+  const auto* rewrite = Find("BGREWRITEAOF");
+  ASSERT_NE(rewrite, nullptr);
+  EXPECT_EQ(rewrite->access, CommandAccess::kAdmin);
+  EXPECT_FALSE(rewrite->keys.HasKeys());
 }
 }  // namespace redis_simple::command

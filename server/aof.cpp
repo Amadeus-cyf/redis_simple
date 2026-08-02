@@ -1,6 +1,7 @@
 #include "server/aof.h"
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <sys/uio.h>
 #include <unistd.h>
 
@@ -10,25 +11,30 @@
 #include <charconv>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <initializer_list>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
 
+#include "logging/logger.h"
 #include "server/client.h"
 #include "server/commands/command.h"
 #include "server/db/db.h"
 #include "server/reply.h"
 #include "server/request_parser.h"
+#include "utils/float_utils.h"
 
 namespace redis_simple::aof {
 namespace {
 constexpr size_t kReadChunkSize = size_t{64} * 1024;
 constexpr size_t kMaxReplayCommandBytes = size_t{64} * 1024 * 1024;
+constexpr size_t kSnapshotBatchSize = 64;
 // Covers a bulk-string frame or array header, including a size_t decimal value.
 constexpr size_t kRespElementOverhead = 32;
 constexpr std::string_view kLongestInt64 = "-9223372036854775808";
@@ -95,7 +101,12 @@ bool ReserveResp(size_t payload_size, size_t element_count,
       !AddSize(overhead, &reserve_size) || reserve_size > output->max_size()) {
     return false;
   }
-  output->reserve(reserve_size);
+  if (reserve_size > output->capacity()) {
+    const size_t capacity = output->capacity();
+    const size_t grown_capacity =
+        capacity <= output->max_size() / 2 ? capacity * 2 : output->max_size();
+    output->reserve(std::max(reserve_size, grown_capacity));
+  }
   return true;
 }
 
@@ -146,6 +157,36 @@ bool AppendCommand(std::string_view command,
   for (std::string_view arg : args) {
     reply::AppendBulkString(arg, output);
   }
+  return true;
+}
+
+bool AppendFixedCommand(std::initializer_list<std::string_view> elements,
+                        std::string* const output) {
+  if (elements.size() == 0 || !ReserveCommands(elements, 1, output)) {
+    return false;
+  }
+  reply::AppendArrayHeader(elements.size(), output);
+  for (const auto element : elements) {
+    reply::AppendBulkString(element, output);
+  }
+  return true;
+}
+
+bool BeginSnapshotBatch(std::string_view command, std::string_view key,
+                        size_t item_index, size_t item_count,
+                        size_t elements_per_item, std::string* const output) {
+  if (item_index % kSnapshotBatchSize != 0) {
+    return true;
+  }
+  const size_t batch_size =
+      std::min(kSnapshotBatchSize, item_count - item_index);
+  const size_t element_count = 2 + (batch_size * elements_per_item);
+  if (!ReserveResp(command.size() + key.size(), element_count, 1, output)) {
+    return false;
+  }
+  reply::AppendArrayHeader(element_count, output);
+  reply::AppendBulkString(command, output);
+  reply::AppendBulkString(key, output);
   return true;
 }
 
@@ -222,6 +263,106 @@ bool WriteBatch(int fd, std::deque<std::string>& batch,
   }
   return true;
 }
+
+bool AppendSnapshotRecord(std::string_view key, const db::RedisObject& object,
+                          std::optional<int64_t> expire,
+                          std::deque<std::string>* const snapshot) {
+  snapshot->emplace_back();
+  auto& record = snapshot->back();
+  bool encoded = false;
+  switch (object.Type()) {
+    case db::RedisObject::ObjectType::kString:
+      encoded = AppendFixedCommand({"SET", key, object.String()}, &record);
+      break;
+    case db::RedisObject::ObjectType::kSet: {
+      const auto* set = object.Set();
+      const size_t size = set->Size();
+      size_t index = 0;
+      encoded = set->ForEachMember(
+          [key, size, &index, &record](std::string_view member) {
+            if (!BeginSnapshotBatch("SADD", key, index, size, 1, &record)) {
+              return false;
+            }
+            reply::AppendBulkString(member, &record);
+            ++index;
+            return true;
+          });
+      break;
+    }
+    case db::RedisObject::ObjectType::kList: {
+      const auto* list = object.List();
+      const size_t size = list->Size();
+      size_t index = 0;
+      if (size == 0) {
+        encoded = true;
+        break;
+      }
+      encoded = list->ForEach(
+          0, size - 1, [key, size, &index, &record](std::string_view value) {
+            if (!BeginSnapshotBatch("RPUSH", key, index, size, 1, &record)) {
+              return false;
+            }
+            reply::AppendBulkString(value, &record);
+            ++index;
+            return true;
+          });
+      break;
+    }
+    case db::RedisObject::ObjectType::kZSet: {
+      const auto* zset = object.ZSet();
+      const size_t size = zset->Size();
+      size_t index = 0;
+      encoded = zset->ForEachEntry(
+          [key, size, &index, &record](std::string_view member, double score) {
+            if (!BeginSnapshotBatch("ZADD", key, index, size, 2, &record)) {
+              return false;
+            }
+            const std::string score_text = utils::FloatToString(score);
+            reply::AppendBulkString(score_text, &record);
+            reply::AppendBulkString(member, &record);
+            ++index;
+            return true;
+          });
+      break;
+    }
+    case db::RedisObject::ObjectType::kHash: {
+      const auto* hash = object.Hash();
+      const size_t size = hash->Size();
+      size_t index = 0;
+      encoded = hash->ForEachEntry(
+          [key, size, &index, &record](std::string_view field,
+                                       std::string_view value) {
+            if (!BeginSnapshotBatch("HSET", key, index, size, 2, &record)) {
+              return false;
+            }
+            reply::AppendBulkString(field, &record);
+            reply::AppendBulkString(value, &record);
+            ++index;
+            return true;
+          });
+      break;
+    }
+  }
+  if (!encoded ||
+      (expire.has_value() && !AppendExpireAt(key, *expire, &record))) {
+    snapshot->pop_back();
+    return false;
+  }
+  if (record.empty()) {
+    snapshot->pop_back();
+  }
+  return true;
+}
+
+bool BuildSnapshot(db::RedisDb* const db,
+                   std::deque<std::string>* const snapshot) {
+  return db != nullptr && snapshot != nullptr &&
+         db->ForEachObject([db, snapshot](std::string_view key,
+                                          const db::RedisObject& object) {
+           return AppendSnapshotRecord(key, object, db->Expiration(key),
+                                       snapshot);
+         });
+}
 }  // namespace
 
 std::unique_ptr<Aof> Aof::Open(const Options& options, db::RedisDb* const db) {
@@ -232,7 +373,7 @@ std::unique_ptr<Aof> Aof::Open(const Options& options, db::RedisDb* const db) {
   if (fd < 0) {
     return nullptr;
   }
-  auto aof = std::unique_ptr<Aof>(new Aof(fd, options.fsync));
+  auto aof = std::unique_ptr<Aof>(new Aof(fd, options.path, options.fsync));
   if (!aof->Replay(db) || lseek(fd, 0, SEEK_END) < 0) {
     return nullptr;
   }
@@ -242,8 +383,11 @@ std::unique_ptr<Aof> Aof::Open(const Options& options, db::RedisDb* const db) {
   return aof;
 }
 
-Aof::Aof(int fd, FsyncPolicy fsync)
-    : fd_(fd), fsync_(fsync), last_sync_(std::chrono::steady_clock::now()) {}
+Aof::Aof(int fd, std::string path, FsyncPolicy fsync)
+    : fd_(fd),
+      path_(std::move(path)),
+      fsync_(fsync),
+      last_sync_(std::chrono::steady_clock::now()) {}
 
 bool Aof::Append(std::string_view command,
                  const std::vector<std::string_view>& args,
@@ -261,7 +405,10 @@ bool Aof::Append(std::string_view command,
     if (!healthy_ || stopping_) {
       return false;
     }
-    healthy_ = WriteAll(fd_, encoded) && SyncFile(fd_);
+    BufferRewriteCommandLocked(encoded);
+    if (!WriteAll(fd_, encoded) || !SyncFile(fd_)) {
+      FailLocked();
+    }
     return healthy_;
   }
 
@@ -270,14 +417,82 @@ bool Aof::Append(std::string_view command,
     if (!healthy_ || stopping_ || encoded.size() > kMaxPendingBytes ||
         pending_bytes_ > kMaxPendingBytes - encoded.size() ||
         pending_.size() >= kMaxPendingCommands) {
-      healthy_ = false;
+      FailLocked();
       return false;
     }
+    BufferRewriteCommandLocked(encoded);
     pending_bytes_ += encoded.size();
     pending_.push_back(std::move(encoded));
   }
   work_available_.notify_one();
   return true;
+}
+
+RewriteResult Aof::StartRewrite(db::RedisDb* const db) {
+  std::thread completed_rewrite;
+  {
+    const std::scoped_lock lock(mutex_);
+    if (!healthy_ || stopping_ || db == nullptr) {
+      return RewriteResult::kError;
+    }
+    if (rewriting_) {
+      return RewriteResult::kInProgress;
+    }
+    if (rewrite_worker_.joinable()) {
+      completed_rewrite = std::move(rewrite_worker_);
+    }
+    rewriting_ = true;
+    rewrite_failed_ = false;
+    rewrite_pending_.clear();
+    rewrite_pending_bytes_ = 0;
+  }
+  if (completed_rewrite.joinable()) {
+    completed_rewrite.join();
+  }
+
+  std::deque<std::string> snapshot;
+  if (!BuildSnapshot(db, &snapshot)) {
+    const std::scoped_lock lock(mutex_);
+    FinishRewriteLocked();
+    return RewriteResult::kError;
+  }
+
+  std::string path_template = path_ + ".rewrite.XXXXXX";
+  std::vector<char> writable_path(path_template.begin(), path_template.end());
+  writable_path.push_back('\0');
+  const int rewrite_fd = mkstemp(writable_path.data());
+  if (rewrite_fd < 0) {
+    const std::scoped_lock lock(mutex_);
+    FinishRewriteLocked();
+    return RewriteResult::kError;
+  }
+
+  struct stat file_info {};
+  const mode_t mode = fstat(fd_, &file_info) == 0
+                          ? static_cast<mode_t>(file_info.st_mode & 0777)
+                          : static_cast<mode_t>(0644);
+  if (fchmod(rewrite_fd, mode) < 0) {
+    close(rewrite_fd);
+    unlink(writable_path.data());
+    const std::scoped_lock lock(mutex_);
+    FinishRewriteLocked();
+    return RewriteResult::kError;
+  }
+
+  try {
+    rewrite_worker_ = std::thread(
+        [this, rewrite_fd, temp_path = std::string(writable_path.data()),
+         snapshot = std::move(snapshot)]() mutable {
+          RunRewrite(rewrite_fd, temp_path, std::move(snapshot));
+        });
+  } catch (const std::system_error&) {
+    close(rewrite_fd);
+    unlink(writable_path.data());
+    const std::scoped_lock lock(mutex_);
+    FinishRewriteLocked();
+    return RewriteResult::kError;
+  }
+  return RewriteResult::kStarted;
 }
 
 bool Aof::Healthy() const {
@@ -295,13 +510,22 @@ void Aof::WaitUntilIdle() {
   });
 }
 
+void Aof::WaitUntilRewriteIdle() {
+  std::unique_lock<std::mutex> lock(mutex_);
+  rewrite_state_changed_.wait(lock, [this] { return !rewriting_; });
+}
+
 Aof::~Aof() {
+  {
+    const std::scoped_lock lock(mutex_);
+    stopping_ = true;
+  }
+  work_available_.notify_all();
+  rewrite_state_changed_.notify_all();
+  if (rewrite_worker_.joinable()) {
+    rewrite_worker_.join();
+  }
   if (worker_.joinable()) {
-    {
-      const std::scoped_lock lock(mutex_);
-      stopping_ = true;
-    }
-    work_available_.notify_one();
     worker_.join();
   }
   close(fd_);
@@ -495,6 +719,88 @@ void Aof::Run() {
   }
 }
 
+void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path,
+                     std::deque<std::string> snapshot) {
+  std::deque<std::string> batch;
+  std::vector<iovec> blocks;
+  bool succeeded = WriteBatch(rewrite_fd, snapshot, &blocks);
+  snapshot.clear();
+
+  while (succeeded) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    rewrite_state_changed_.wait(lock, [this] {
+      return !healthy_ || rewrite_failed_ || !rewrite_pending_.empty() ||
+             (!writing_ && !syncing_ && pending_.empty());
+    });
+    if (!healthy_ || rewrite_failed_) {
+      break;
+    }
+    if (!rewrite_pending_.empty()) {
+      batch.swap(rewrite_pending_);
+      rewrite_pending_bytes_ = 0;
+      lock.unlock();
+      succeeded = WriteBatch(rewrite_fd, batch, &blocks);
+      batch.clear();
+      continue;
+    }
+
+    succeeded = SyncFile(rewrite_fd) &&
+                std::rename(temp_path.c_str(), path_.c_str()) == 0;
+    if (succeeded) {
+      const int old_fd = fd_;
+      fd_ = rewrite_fd;
+      rewrite_fd = -1;
+      dirty_ = false;
+      last_sync_ = std::chrono::steady_clock::now();
+      close(old_fd);
+    }
+    FinishRewriteLocked();
+    work_available_.notify_all();
+    lock.unlock();
+    if (rewrite_fd >= 0) {
+      close(rewrite_fd);
+      unlink(temp_path.c_str());
+    }
+    if (!succeeded) {
+      RS_LOG_DEBUG("AOF rewrite failed\n");
+    }
+    return;
+  }
+
+  close(rewrite_fd);
+  unlink(temp_path.c_str());
+  {
+    const std::scoped_lock lock(mutex_);
+    FinishRewriteLocked();
+  }
+  RS_LOG_DEBUG("AOF rewrite failed\n");
+}
+
+void Aof::BufferRewriteCommandLocked(const std::string& command) {
+  if (!rewriting_ || rewrite_failed_) {
+    return;
+  }
+  if (command.size() > kMaxPendingBytes ||
+      rewrite_pending_bytes_ > kMaxPendingBytes - command.size() ||
+      rewrite_pending_.size() >= kMaxPendingCommands) {
+    rewrite_failed_ = true;
+    rewrite_pending_.clear();
+    rewrite_pending_bytes_ = 0;
+  } else {
+    rewrite_pending_bytes_ += command.size();
+    rewrite_pending_.push_back(command);
+  }
+  rewrite_state_changed_.notify_all();
+}
+
+void Aof::FinishRewriteLocked() {
+  rewrite_pending_.clear();
+  rewrite_pending_bytes_ = 0;
+  rewriting_ = false;
+  rewrite_failed_ = false;
+  rewrite_state_changed_.notify_all();
+}
+
 bool Aof::Sync() const { return SyncFile(fd_); }
 
 void Aof::FailLocked() {
@@ -505,9 +811,11 @@ void Aof::FailLocked() {
   syncing_ = false;
   dirty_ = false;
   idle_.notify_all();
+  rewrite_state_changed_.notify_all();
 }
 
 void Aof::NotifyIfIdleLocked() {
+  rewrite_state_changed_.notify_all();
   if (!writing_ && !syncing_ && pending_.empty()) {
     idle_.notify_all();
   }

@@ -145,6 +145,21 @@ size_t ZSetListPack::Count(const RangeByScoreSpec* spec) const {
   return count;
 }
 
+bool ZSetListPack::ForEachEntry(const ZSetEntryVisitor& visitor) const {
+  auto key_idx = listpack_->First();
+  while (key_idx.has_value()) {
+    const auto entry = EntryAt(*key_idx);
+    if (!entry.has_value()) {
+      return false;
+    }
+    if (!visitor(entry->key, entry->score)) {
+      return false;
+    }
+    key_idx = NextKeyAfterScore(entry->score_index);
+  }
+  return true;
+}
+
 void ZSetListPack::DeleteKeyScorePair(size_t idx) {
   listpack_->DeleteRange(idx, 2);
 }

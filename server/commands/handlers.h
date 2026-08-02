@@ -28,6 +28,10 @@ void HandlePing(Client* client);
 void HandleQuit(Client* client);
 }  // namespace redis_simple::command::session
 
+namespace redis_simple::command::persistence {
+void HandleBgRewriteAof(Client* client);
+}  // namespace redis_simple::command::persistence
+
 namespace redis_simple::command::strings {
 void HandleAppend(Client* client);
 void HandleDecr(Client* client);

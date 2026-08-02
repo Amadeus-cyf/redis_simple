@@ -43,6 +43,7 @@ class Client {
   connection::Connection* Connection() { return connection_.get(); }
   const connection::Connection* Connection() const { return connection_.get(); }
   db::RedisDb* Db() { return db_; }
+  aof::Aof* Aof() { return aof_; }
   ssize_t ReadQuery();
   ssize_t SendReply();
   size_t AddReply(std::string_view reply);

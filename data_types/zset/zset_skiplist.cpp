@@ -110,6 +110,16 @@ size_t ZSetSkiplist::Count(const RangeByScoreSpec* spec) const {
   return skiplist_->Count(skiplist_spec.get());
 }
 
+bool ZSetSkiplist::ForEachEntry(const ZSetEntryVisitor& visitor) const {
+  for (auto entry = skiplist_->Begin(); entry != skiplist_->End(); ++entry) {
+    const auto* value = *entry;
+    if (value == nullptr || !visitor(value->key, value->score)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 ZSetSkiplist::RankSpecPtr ZSetSkiplist::ToSkiplistRangeByRankSpec(
     const RangeByRankSpec* spec) const {
   if (spec == nullptr) {

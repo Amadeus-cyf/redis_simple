@@ -28,6 +28,7 @@ class ZSet {
   ZSetEntryList RangeByRank(const RangeByRankSpec* spec) const;
   ZSetEntryList RangeByScore(const RangeByScoreSpec* spec) const;
   size_t Count(const RangeByScoreSpec* spec) const;
+  bool ForEachEntry(const ZSetEntryVisitor& visitor) const;
   size_t Size() const { return storage_->Size(); }
   Encoding Encoding() const;
 

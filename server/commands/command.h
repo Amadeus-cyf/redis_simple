@@ -17,6 +17,7 @@ using CommandCallback = void (*)(Client* client);
 enum class CommandAccess : std::uint8_t {
   kReadOnly,
   kWrite,
+  kAdmin,
   kConnection,
 };
 
