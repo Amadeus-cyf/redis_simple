@@ -23,6 +23,9 @@ void HandleZRem(Client* const client) {
 
   if (auto* redis_db = client->Db()) {
     const auto result = ZRem(redis_db, args);
+    if (result.has_value() && *result > 0) {
+      client->MarkModified();
+    }
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
   } else {

@@ -13,6 +13,9 @@ TEST(ServerOptionsTest, UsesDefaults) {
   EXPECT_EQ(result.status, OptionsStatus::kOk);
   EXPECT_EQ(result.options.bind_address, "127.0.0.1");
   EXPECT_EQ(result.options.port, 8080);
+  EXPECT_FALSE(result.options.append_only);
+  EXPECT_EQ(result.options.aof_options.path, "appendonly.aof");
+  EXPECT_EQ(result.options.aof_options.fsync, aof::FsyncPolicy::kEverySecond);
 }
 
 TEST(ServerOptionsTest, ParsesBindAddressAndPort) {
@@ -24,6 +27,19 @@ TEST(ServerOptionsTest, ParsesBindAddressAndPort) {
   EXPECT_EQ(result.status, OptionsStatus::kOk);
   EXPECT_EQ(result.options.bind_address, "0.0.0.0");
   EXPECT_EQ(result.options.port, 6380);
+}
+
+TEST(ServerOptionsTest, ParsesAofOptions) {
+  constexpr std::array kArgv = {
+      "redis_simple",        "--appendonly",  "yes",   "--appendfilename",
+      "/tmp/appendonly.aof", "--appendfsync", "always"};
+
+  const auto result = ParseServerOptions(kArgv.size(), kArgv.data());
+
+  EXPECT_EQ(result.status, OptionsStatus::kOk);
+  EXPECT_TRUE(result.options.append_only);
+  EXPECT_EQ(result.options.aof_options.path, "/tmp/appendonly.aof");
+  EXPECT_EQ(result.options.aof_options.fsync, aof::FsyncPolicy::kAlways);
 }
 
 TEST(ServerOptionsTest, HandlesHelpAndInvalidArguments) {
@@ -42,5 +58,15 @@ TEST(ServerOptionsTest, HandlesHelpAndInvalidArguments) {
   constexpr std::array kMissing = {"redis_simple", "--port"};
   EXPECT_EQ(ParseServerOptions(kMissing.size(), kMissing.data()).status,
             OptionsStatus::kError);
+
+  constexpr std::array kInvalidAof = {"redis_simple", "--appendonly", "on"};
+  EXPECT_EQ(ParseServerOptions(kInvalidAof.size(), kInvalidAof.data()).status,
+            OptionsStatus::kError);
+
+  constexpr std::array kInvalidFsync = {"redis_simple", "--appendfsync",
+                                        "sometimes"};
+  EXPECT_EQ(
+      ParseServerOptions(kInvalidFsync.size(), kInvalidFsync.data()).status,
+      OptionsStatus::kError);
 }
 }  // namespace redis_simple

@@ -350,6 +350,9 @@ void HandleHSet(Client* const client) {
 
   if (auto* redis_db = client->Db()) {
     const auto result = HSet(redis_db, args);
+    if (result.has_value()) {
+      client->MarkModified();
+    }
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
     return;
@@ -385,6 +388,9 @@ void HandleHDel(Client* const client) {
 
   if (auto* redis_db = client->Db()) {
     const auto result = HDel(redis_db, args);
+    if (result.has_value() && *result > 0) {
+      client->MarkModified();
+    }
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
     return;
@@ -518,6 +524,7 @@ void HandleHIncrBy(Client* const client) {
           reply::FromError("ERR hash value is not an integer or out of range"));
       return;
     }
+    client->MarkModified();
     client->AddReply(reply::FromInt64(*result.value));
     return;
   }

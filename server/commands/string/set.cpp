@@ -36,6 +36,7 @@ void HandleSet(Client* const client) {
       client->AddReply(reply::FromError("ERR failed to set key"));
       return;
     }
+    client->MarkModified();
     client->AddReply(reply::FromString("OK"));
   } else {
     RS_LOG_DEBUG("db unavailable\n");

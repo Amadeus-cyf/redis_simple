@@ -12,6 +12,7 @@ void HandleExists(Client* client);
 void HandleFlushDb(Client* client);
 void HandlePersist(Client* client);
 void HandlePExpire(Client* client);
+void HandlePExpireAt(Client* client);
 void HandlePTtl(Client* client);
 void HandleRename(Client* client);
 void HandleScan(Client* client);

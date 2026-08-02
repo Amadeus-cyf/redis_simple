@@ -11,6 +11,7 @@
 
 #include "logging/logger.h"
 #include "server.h"
+#include "server/aof.h"
 #include "server/reply.h"
 #include "server/request_parser.h"
 namespace redis_simple {
@@ -23,9 +24,17 @@ Client::Client(std::unique_ptr<connection::Connection> connection,
                OutputBufferLimits output_limits)
     : connection_(std::move(connection)),
       db_(Server::Get()->Db()),
+      aof_(Server::Get()->Aof()),
       output_limits_(output_limits) {}
 
+Client::Client(db::RedisDb* const db) : db_(db), discard_replies_(true) {}
+
 size_t Client::AddReply(std::string_view reply_text) {
+  if (discard_replies_) {
+    reply_error_ =
+        reply_error_ || (!reply_text.empty() && reply_text.front() == '-');
+    return reply_text.size();
+  }
   if (!CanQueueReply(reply_text.size())) {
     return 0;
   }
@@ -33,6 +42,11 @@ size_t Client::AddReply(std::string_view reply_text) {
 }
 
 size_t Client::AddReply(std::string&& reply_text) {
+  if (discard_replies_) {
+    reply_error_ =
+        reply_error_ || (!reply_text.empty() && reply_text.front() == '-');
+    return reply_text.size();
+  }
   if (!CanQueueReply(reply_text.size())) {
     return 0;
   }
@@ -45,6 +59,9 @@ size_t Client::AddReply(std::string&& header, std::string&& body) {
     return 0;
   }
   const size_t total_size = header.size() + body.size();
+  if (discard_replies_) {
+    return total_size;
+  }
   if (!CanQueueReply(total_size)) {
     return 0;
   }
@@ -195,7 +212,30 @@ ClientStatus Client::ProcessCommand() {
   }
   RS_LOG_DEBUG("process command: %.*s\n",
                static_cast<int>(command_->name.size()), command_->name.data());
+  modified_ = false;
   command_->callback(this);
+  if (modified_ && aof_ != nullptr &&
+      !aof_->Append(command_->name, args_, db_)) {
+    RS_LOG_DEBUG("failed to append command to AOF\n");
+    close_after_reply_ = true;
+    Server::Get()->Stop();
+    return ClientStatus::kError;
+  }
   return ClientStatus::kOk;
+}
+
+bool Client::ExecuteForReplay(const command::Command* const command,
+                              command::CommandArgs* const args) {
+  if (command == nullptr || args == nullptr) {
+    return false;
+  }
+  command_ = command;
+  args_.swap(*args);
+  modified_ = false;
+  reply_error_ = false;
+  command_->callback(this);
+  args_.clear();
+  args_.swap(*args);
+  return !reply_error_;
 }
 }  // namespace redis_simple

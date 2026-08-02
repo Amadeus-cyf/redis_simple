@@ -38,6 +38,9 @@ Guidance for AI coding agents working in this repository.
 - Keep production and command integration servers on the shared `Server::Run`
   lifecycle. Signal handlers may only update signal-safe state; cleanup belongs
   on the event-loop thread.
+- Keep AOF propagation at the successful command-mutation boundary. Preserve
+  command order, encode relative TTLs as absolute `PEXPIREAT` records, and do
+  not copy argument payloads beyond the owned persistence record.
 
 ## Build And Test
 
@@ -76,8 +79,8 @@ scripts/run_leak_check.sh
 ```
 
 Build and run the bounded Clang libFuzzer smoke tests after changes to request
-parsing, Redis data types, core containers, buffers, expiration, or event-loop
-behavior:
+parsing, Redis data types, core containers, buffers, expiration, persistence,
+or event-loop behavior:
 
 ```sh
 cmake --preset fuzz
@@ -115,9 +118,12 @@ Before committing, run the relevant build and tests.
   for CI.
 - Current integration coverage should stay focused:
   - `integration/commands/`
+  - `integration/aof_client_test.cpp`
   - `integration/tcp/`
 - Keep server option and graceful shutdown coverage in the lifecycle integration
   test rather than introducing a separate command-test server implementation.
+- Keep AOF restart, shutdown flush, expiration, and cross-data-type recovery in
+  the dedicated AOF integration test.
 - Keep command-family integration tests split by area, including key, string,
   set, list, zset, hash, and connection commands.
 - Register integration command tests as separate CTest entries by command

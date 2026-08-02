@@ -29,7 +29,11 @@ void AddDeleteReply(Client* const client, DeleteOperation operation) {
   }
 
   if (auto* redis_db = client->Db()) {
-    client->AddReply(reply::FromInt64(DeleteKeys(redis_db, keys, operation)));
+    const int deleted = DeleteKeys(redis_db, keys, operation);
+    if (deleted > 0) {
+      client->MarkModified();
+    }
+    client->AddReply(reply::FromInt64(deleted));
     return;
   }
   RS_LOG_DEBUG("db unavailable\n");

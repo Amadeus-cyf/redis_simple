@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <any>
 #include <cstdint>
-#include <string_view>
 #include <utility>
 
 #include "client_connection/client_connection.h"
@@ -26,22 +25,35 @@ Server* Server::Get() {
   return &server;
 }
 
-bool Server::Run(std::string_view ip, int port) {
-  if (loop_ == nullptr || db_ == nullptr || ip.empty() || port <= 0 ||
-      port > 65535 || !shutdown::InstallSignalHandlers()) {
+bool Server::Run(const ServerOptions& options) {
+  if (loop_ == nullptr || options.bind_address.empty() || options.port <= 0 ||
+      options.port > 65535 || !shutdown::InstallSignalHandlers()) {
     return false;
+  }
+  aof_.reset();
+  db_ = db::RedisDb::Create();
+  if (db_ == nullptr) {
+    return false;
+  }
+  if (options.append_only) {
+    aof_ = aof::Aof::Open(options.aof_options, db_.get());
+    if (aof_ == nullptr) {
+      return false;
+    }
   }
   connection::Context ctx;
   ctx.loop = loop_.get();
   ctx.fd = -1;
   connection::Connection conn(ctx);
-  const connection::AddressInfo addr_info(ip, port);
+  const connection::AddressInfo addr_info(options.bind_address, options.port);
   if (conn.BindAndListen(addr_info) == connection::ConnectionStatus::kError) {
+    aof_.reset();
     return false;
   }
   fd_ = conn.Descriptor();
   if (!InstallAcceptCallback()) {
     fd_ = -1;
+    aof_.reset();
     return false;
   }
   loop_->CreateTimeEvent(event_loop::TimeEvent::Create(
@@ -50,6 +62,7 @@ bool Server::Run(std::string_view ip, int port) {
   loop_->DeleteFileEvent(fd_, event_loop::EventFlag::kReadable);
   fd_ = -1;
   clients_.clear();
+  aof_.reset();
   return true;
 }
 
@@ -88,8 +101,10 @@ bool Server::InstallAcceptCallback() {
 }
 
 int Server::ServerCron() {
-  if (shutdown::StopRequested()) {
-    Server::Get()->Stop();
+  auto* const server = Server::Get();
+  if (shutdown::StopRequested() ||
+      (server->Aof() != nullptr && !server->Aof()->Healthy())) {
+    server->Stop();
     return event_loop::ToInt(event_loop::EventFlag::kNoMore);
   }
   ActiveExpireCycle();

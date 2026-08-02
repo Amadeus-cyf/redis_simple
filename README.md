@@ -2,7 +2,8 @@
 
 `redis_simple` is a small Redis-inspired server implemented in modern C++17. It
 includes a TCP server, event loop, command handlers, in-memory data structures,
-a simple CLI client, unit tests, integration tests, and memory benchmarks.
+optional append-only persistence, a simple CLI client, unit tests, integration
+tests, and memory benchmarks.
 
 The project is intentionally compact: implementation-level unit tests live next
 to the code they cover, while runnable end-to-end checks live under
@@ -46,6 +47,20 @@ startup and stop cleanly with `SIGINT` or `SIGTERM`:
 ./build/debug/redis_simple --help
 ```
 
+Enable AOF persistence with Redis-style fsync policies:
+
+```sh
+./build/debug/redis_simple --appendonly yes \
+  --appendfilename appendonly.aof --appendfsync everysec
+```
+
+AOF is disabled by default. When enabled, `appendonly.aof` is the default path
+and `everysec` is the default fsync policy. `always` writes and syncs each
+mutation before continuing, while `no` delegates periodic durability to the
+operating system. Background policies move encoded commands into a bounded
+writer queue and use scatter/gather writes without copying command payloads.
+Graceful shutdown drains and syncs the queue.
+
 Clients can send standard RESP arrays of bulk strings or the legacy inline
 syntax. RESP2 is the default reply protocol; `HELLO 3` switches a connection to
 RESP3, including native null, map, set, and double replies. Request buffers are
@@ -61,8 +76,9 @@ The server supports Redis-style RESP replies for the implemented command set,
 including protocol errors such as `ERR wrong number of arguments` and
 `WRONGTYPE`.
 
-- Keys: `DEL`, `UNLINK`, `EXISTS`, `TYPE`, `EXPIRE`, `PEXPIRE`, `TTL`, `PTTL`,
-  `PERSIST`, `RENAME`, `DBSIZE`, `FLUSHDB`, `SCAN` with `MATCH` and `COUNT`
+- Keys: `DEL`, `UNLINK`, `EXISTS`, `TYPE`, `EXPIRE`, `PEXPIRE`, `PEXPIREAT`,
+  `TTL`, `PTTL`, `PERSIST`, `RENAME`, `DBSIZE`, `FLUSHDB`, `SCAN` with `MATCH`
+  and `COUNT`
 - Strings: `GET`, `SET` with `EX`, `PX`, and `KEEPTTL`, `INCR`, `DECR`,
   `APPEND`, `MGET`, `MSET`
 - Lists: `LPUSH`, `RPUSH`, `LPOP`, `RPOP`, `LLEN`, `LRANGE`, `LINDEX`, `LSET`,
@@ -79,6 +95,12 @@ including protocol errors such as `ERR wrong number of arguments` and
 worker. Command names, arity, access mode, and key positions are held in one
 allocation-free registry used for case-insensitive dispatch and early argument
 validation.
+
+When enabled, AOF records successful mutations as canonical RESP commands and
+replays them before the server accepts clients. Relative expirations are stored
+as absolute millisecond timestamps, incomplete final records are truncated,
+and corruption before the final record prevents startup. AOF rewrite and
+compaction are not implemented yet.
 
 ## Test
 
@@ -132,7 +154,8 @@ ctest --preset fuzz -L fuzz --output-on-failure
 The fuzz targets exercise incremental RESP parsing; listpack, quicklist, Dict,
 Skiplist, and IntSet mutation; Redis list, set, hash, and sorted-set behavior;
 dynamic and reply buffers; database expiration; and deterministic event-loop
-callbacks. Every target runs under AddressSanitizer and
+callbacks. AOF replay also has a bounded malformed-input target. Every target
+runs under AddressSanitizer and
 UndefinedBehaviorSanitizer. On macOS, put Homebrew LLVM on `PATH` before
 configuring because Apple Clang does not ship a libFuzzer runtime:
 
@@ -148,6 +171,8 @@ This runs:
 - `redis_simple_integration_tcp`: TCP client/server integration check.
 - `redis_simple_integration_server_lifecycle`: command-line option, nondefault
   bind, and graceful shutdown checks.
+- `redis_simple_integration_aof`: production-server append, shutdown, restart,
+  expiration, and cross-data-type recovery checks.
 - `redis_simple_integration_command_connection`: connection command integration
   checks.
 - `redis_simple_integration_command_key`: generic key command integration
@@ -202,6 +227,7 @@ connection/           Connection abstraction
 event_loop/           Event loop with kqueue and epoll pollers
 fuzz/                 Stateful libFuzzer harnesses and reference models
 integration/commands/ Server/client command integration tests
+integration/aof_client_test.cpp  AOF restart integration client
 integration/tcp/      TCP client/server integration tests
 logging/              Project logging wrapper
 memory/               Core in-memory data structures
@@ -216,7 +242,9 @@ benchmarks/           Memory/data-structure benchmarks
 Command handler declarations are grouped in `server/commands/handlers.h`; the
 individual command `.cpp` files keep implementation details local.
 Reply encoding helpers live directly under `server/`, while database state and
-Redis object wrappers stay under `server/db/`.
+Redis object wrappers stay under `server/db/`. The AOF writer and replay logic
+also live directly under `server/` because they coordinate command execution,
+database loading, and server lifecycle.
 
 ## Tooling
 

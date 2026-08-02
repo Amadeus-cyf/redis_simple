@@ -97,6 +97,7 @@ constexpr std::array kCommandTable = {
     WriteCommand("MSET", strings::HandleMSet, VariableArity(2), AllKeys(0, 2)),
     WriteCommand("PERSIST", key::HandlePersist, FixedArity(1), OneKey()),
     WriteCommand("PEXPIRE", key::HandlePExpire, FixedArity(2), OneKey()),
+    WriteCommand("PEXPIREAT", key::HandlePExpireAt, FixedArity(2), OneKey()),
     ConnectionCommand("PING", session::HandlePing, {0, 1}),
     ReadCommand("PTTL", key::HandlePTtl, FixedArity(1), OneKey()),
     ConnectionCommand("QUIT", session::HandleQuit, FixedArity(0)),

@@ -11,6 +11,10 @@
 #include "server/db/async_reclaimer.h"
 #include "server/db/redis_obj.h"
 
+namespace redis_simple::aof {
+class Aof;
+}
+
 namespace redis_simple::db {
 enum class DbStatus {
   kOk = 1 << 0,
@@ -49,6 +53,7 @@ class RedisDb {
   DbStatus ExpireKeyAt(std::string_view key, int64_t expire);
   DbStatus PersistKey(std::string_view key);
   DbStatus RenameKey(std::string_view old_key, std::string_view new_key);
+  std::optional<int64_t> Expiration(std::string_view key) const;
   int64_t TimeToLive(std::string_view key, TtlResolution resolution);
   size_t KeyCount() const { return dict_->Size(); }
   // Key views remain valid until the database is mutated.
@@ -58,12 +63,16 @@ class RedisDb {
   ExpireSampleResult ExpireSome(size_t max_samples, int64_t now);
 
  private:
+  friend class aof::Aof;
   RedisDb();
+  void SetLoading(bool loading) { loading_ = loading; }
   bool IsKeyExpired(std::string_view key) const;
   std::unique_ptr<in_memory::Dict<std::string, RedisObjectPtr>> dict_;
   std::unique_ptr<in_memory::Dict<std::string, int64_t>> expires_;
   AsyncReclaimer reclaimer_;
   size_t expire_cursor_{};
+  // Replay defers expiration checks until all historical writes are applied.
+  bool loading_{};
 };
 
 template <typename Visitor>

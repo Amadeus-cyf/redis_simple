@@ -84,6 +84,26 @@ void AddExpireReply(Client* const client, int64_t ttl_ms) {
       return;
     }
     const auto status = redis_db->ExpireKeyAt(args.key, expire);
+    if (status == db::DbStatus::kOk) {
+      client->MarkModified();
+    }
+    client->AddReply(reply::FromInt64(status == db::DbStatus::kOk ? 1 : 0));
+    return;
+  }
+  client->AddReply(reply::FromError("ERR db unavailable"));
+}
+
+void AddExpireAtReply(Client* const client) {
+  ExpireArgs args;
+  if (ParseExpireArgs(client->Args(), &args) < 0) {
+    client->AddReply(reply::WrongNumberOfArguments());
+    return;
+  }
+  if (auto* redis_db = client->Db()) {
+    const auto status = redis_db->ExpireKeyAt(args.key, args.ttl);
+    if (status == db::DbStatus::kOk) {
+      client->MarkModified();
+    }
     client->AddReply(reply::FromInt64(status == db::DbStatus::kOk ? 1 : 0));
     return;
   }
@@ -112,6 +132,8 @@ void HandleExpire(Client* const client) {
 
 void HandlePExpire(Client* const client) { AddExpireReply(client, 1); }
 
+void HandlePExpireAt(Client* const client) { AddExpireAtReply(client); }
+
 void HandleTtl(Client* const client) {
   AddTtlReply(client, db::TtlResolution::kSeconds);
 }
@@ -127,8 +149,11 @@ void HandlePersist(Client* const client) {
     return;
   }
   if (auto* redis_db = client->Db()) {
-    client->AddReply(reply::FromInt64(
-        redis_db->PersistKey(args.key) == db::DbStatus::kOk ? 1 : 0));
+    const auto status = redis_db->PersistKey(args.key);
+    if (status == db::DbStatus::kOk) {
+      client->MarkModified();
+    }
+    client->AddReply(reply::FromInt64(status == db::DbStatus::kOk ? 1 : 0));
     return;
   }
   client->AddReply(reply::FromError("ERR db unavailable"));
@@ -144,6 +169,9 @@ void HandleRename(Client* const client) {
     if (redis_db->RenameKey(args.old_key, args.new_key) != db::DbStatus::kOk) {
       client->AddReply(reply::FromError("ERR no such key"));
       return;
+    }
+    if (args.old_key != args.new_key) {
+      client->MarkModified();
     }
     client->AddReply(reply::FromString("OK"));
     return;
@@ -175,6 +203,9 @@ void HandleFlushDb(Client* const client) {
     return;
   }
   if (auto* redis_db = client->Db()) {
+    if (redis_db->KeyCount() > 0) {
+      client->MarkModified();
+    }
     redis_db->Flush();
     client->AddReply(reply::FromString("OK"));
     return;

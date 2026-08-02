@@ -16,10 +16,8 @@ int main(int argc, char* argv[]) {
                 << redis_simple::ServerUsage();
       return EXIT_FAILURE;
     }
-    return redis_simple::Server::Get()->Run(result.options.bind_address,
-                                            result.options.port)
-               ? EXIT_SUCCESS
-               : EXIT_FAILURE;
+    return redis_simple::Server::Get()->Run(result.options) ? EXIT_SUCCESS
+                                                            : EXIT_FAILURE;
   } catch (...) {
     return EXIT_FAILURE;
   }

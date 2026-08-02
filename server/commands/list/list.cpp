@@ -389,6 +389,9 @@ void HandlePush(Client* const client, PushSide side) {
 
   if (auto* redis_db = client->Db()) {
     const auto result = Push(redis_db, args, side);
+    if (result.has_value()) {
+      client->MarkModified();
+    }
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
     return;
@@ -409,6 +412,7 @@ void HandlePop(Client* const client, PopSide side) {
         result.status != ListStatus::kMissing) {
       client->AddReply(reply::WrongTypeError());
     } else if (result.value.has_value()) {
+      client->MarkModified();
       client->AddReply(reply::FromBulkString(*result.value));
     } else {
       client->AddReply(reply::Null(client->Protocol()));
@@ -493,6 +497,7 @@ void HandleLSet(Client* const client) {
   if (auto* redis_db = client->Db()) {
     const ListStatus status = LSet(redis_db, &args);
     if (status == ListStatus::kOk) {
+      client->MarkModified();
       client->AddReply(reply::FromString("OK"));
     } else if (status == ListStatus::kWrongType) {
       client->AddReply(reply::WrongTypeError());
@@ -513,6 +518,9 @@ void HandleLRem(Client* const client) {
 
   if (auto* redis_db = client->Db()) {
     const auto removed = LRem(redis_db, &args);
+    if (removed.has_value() && *removed > 0) {
+      client->MarkModified();
+    }
     client->AddReply(removed.has_value() ? reply::FromInt64(*removed)
                                          : reply::WrongTypeError());
     return;
@@ -530,6 +538,7 @@ void HandleLTrim(Client* const client) {
   if (auto* redis_db = client->Db()) {
     const ListStatus status = LTrim(redis_db, &args);
     if (status == ListStatus::kOk) {
+      client->MarkModified();
       client->AddReply(reply::FromString("OK"));
     } else if (status == ListStatus::kWrongType) {
       client->AddReply(reply::WrongTypeError());

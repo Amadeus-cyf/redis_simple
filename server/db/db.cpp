@@ -90,11 +90,16 @@ DbStatus RedisDb::ExpireKeyAt(std::string_view key, int64_t expire) {
   if (LookupKey(key) == nullptr) {
     return DbStatus::kError;
   }
-  if (expire <= utils::NowInMilliseconds()) {
+  if (!loading_ && expire <= utils::NowInMilliseconds()) {
     return DeleteKey(key);
   }
   expires_->Set(std::string(key), expire);
   return DbStatus::kOk;
+}
+
+std::optional<int64_t> RedisDb::Expiration(std::string_view key) const {
+  const auto* expire = expires_->FindValue(key);
+  return expire == nullptr ? std::nullopt : std::optional<int64_t>(*expire);
 }
 
 DbStatus RedisDb::PersistKey(std::string_view key) {
@@ -190,7 +195,7 @@ ExpireSampleResult RedisDb::ExpireSome(size_t max_samples, int64_t now) {
 }
 
 bool RedisDb::IsKeyExpired(std::string_view key) const {
-  if (expires_->Size() == 0) {
+  if (loading_ || expires_->Size() == 0) {
     return false;
   }
   const auto* result = expires_->FindValue(key);

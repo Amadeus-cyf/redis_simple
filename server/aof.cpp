@@ -1,0 +1,515 @@
+#include "server/aof.h"
+
+#include <fcntl.h>
+#include <sys/uio.h>
+#include <unistd.h>
+
+#include <algorithm>
+#include <array>
+#include <cerrno>
+#include <charconv>
+#include <chrono>
+#include <cstdint>
+#include <initializer_list>
+#include <limits>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
+#include <vector>
+
+#include "server/client.h"
+#include "server/commands/command.h"
+#include "server/db/db.h"
+#include "server/reply.h"
+#include "server/request_parser.h"
+
+namespace redis_simple::aof {
+namespace {
+constexpr size_t kReadChunkSize = size_t{64} * 1024;
+constexpr size_t kMaxReplayCommandBytes = size_t{64} * 1024 * 1024;
+// Covers a bulk-string frame or array header, including a size_t decimal value.
+constexpr size_t kRespElementOverhead = 32;
+constexpr std::string_view kLongestInt64 = "-9223372036854775808";
+constexpr auto kSyncInterval = std::chrono::seconds(1);
+
+size_t MaxIovCount() {
+  static const size_t max_iov_count = [] {
+    const long system_limit = sysconf(_SC_IOV_MAX);
+    const size_t limit =
+        system_limit > 0 ? static_cast<size_t>(system_limit) : 1024;
+    return std::min(limit,
+                    static_cast<size_t>(std::numeric_limits<int>::max()));
+  }();
+  return max_iov_count;
+}
+
+bool WriteAll(int fd, std::string_view data) {
+  size_t written = 0;
+  while (written < data.size()) {
+    const ssize_t result =
+        write(fd, data.data() + written, data.size() - written);
+    if (result > 0) {
+      written += static_cast<size_t>(result);
+      continue;
+    }
+    if (result < 0 && errno == EINTR) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+bool SyncFile(int fd) {
+  while (fsync(fd) < 0) {
+    if (errno != EINTR) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool AddSize(size_t value, size_t* const total) {
+  if (value > std::numeric_limits<size_t>::max() - *total) {
+    return false;
+  }
+  *total += value;
+  return true;
+}
+
+bool ReserveResp(size_t payload_size, size_t element_count,
+                 size_t command_count, std::string* const output) {
+  const size_t max_size = std::numeric_limits<size_t>::max();
+  if (command_count > max_size - element_count) {
+    return false;
+  }
+  const size_t overhead_count = element_count + command_count;
+  if (overhead_count > max_size / kRespElementOverhead) {
+    return false;
+  }
+  const size_t overhead = kRespElementOverhead * overhead_count;
+  size_t reserve_size = output->size();
+  if (!AddSize(payload_size, &reserve_size) ||
+      !AddSize(overhead, &reserve_size) || reserve_size > output->max_size()) {
+    return false;
+  }
+  output->reserve(reserve_size);
+  return true;
+}
+
+bool ReserveCommands(std::initializer_list<std::string_view> elements,
+                     size_t command_count, std::string* const output) {
+  size_t payload_size = 0;
+  for (const auto element : elements) {
+    if (!AddSize(element.size(), &payload_size)) {
+      return false;
+    }
+  }
+  return ReserveResp(payload_size, elements.size(), command_count, output);
+}
+
+bool ReserveCommand(std::string_view command,
+                    const std::vector<std::string_view>& args,
+                    std::string* const output) {
+  size_t payload_size = command.size();
+  for (const auto arg : args) {
+    if (!AddSize(arg.size(), &payload_size)) {
+      return false;
+    }
+  }
+
+  if (args.size() == std::numeric_limits<size_t>::max()) {
+    return false;
+  }
+  return ReserveResp(payload_size, args.size() + 1, 1, output);
+}
+
+bool ReserveSetRecord(std::string_view key, std::string_view value,
+                      bool has_expiration, std::string* const output) {
+  if (!has_expiration) {
+    return ReserveCommands({"SET", key, value}, 1, output);
+  }
+  return ReserveCommands({"SET", key, value, "PEXPIREAT", key, kLongestInt64},
+                         2, output);
+}
+
+bool AppendCommand(std::string_view command,
+                   const std::vector<std::string_view>& args,
+                   std::string* const output) {
+  if (!ReserveCommand(command, args, output)) {
+    return false;
+  }
+  reply::AppendArrayHeader(args.size() + 1, output);
+  reply::AppendBulkString(command, output);
+  for (std::string_view arg : args) {
+    reply::AppendBulkString(arg, output);
+  }
+  return true;
+}
+
+bool AppendSingleKeyCommand(std::string_view command, std::string_view key,
+                            std::string* const output) {
+  if (!ReserveCommands({command, key}, 1, output)) {
+    return false;
+  }
+  reply::AppendArrayHeader(2, output);
+  reply::AppendBulkString(command, output);
+  reply::AppendBulkString(key, output);
+  return true;
+}
+
+bool AppendExpireAt(std::string_view key, int64_t expire, std::string* output) {
+  std::array<char, std::numeric_limits<int64_t>::digits10 + 3> buffer{};
+  const auto encoded =
+      std::to_chars(buffer.data(), buffer.data() + buffer.size(), expire);
+  if (encoded.ec != std::errc()) {
+    return false;
+  }
+  const std::string_view encoded_expire(
+      buffer.data(), static_cast<size_t>(encoded.ptr - buffer.data()));
+  if (!ReserveCommands({"PEXPIREAT", key, encoded_expire}, 1, output)) {
+    return false;
+  }
+  reply::AppendArrayHeader(3, output);
+  reply::AppendBulkString("PEXPIREAT", output);
+  reply::AppendBulkString(key, output);
+  reply::AppendBulkString(encoded_expire, output);
+  return true;
+}
+
+bool WriteBatch(int fd, std::deque<std::string>& batch,
+                std::vector<iovec>* const blocks) {
+  const size_t max_iov_count = MaxIovCount();
+  blocks->reserve(std::min(batch.size(), max_iov_count));
+  auto command = batch.begin();
+
+  while (command != batch.end()) {
+    blocks->clear();
+    for (; command != batch.end() && blocks->size() < max_iov_count;
+         ++command) {
+      blocks->push_back({command->data(), command->size()});
+    }
+
+    size_t index = 0;
+    while (index < blocks->size()) {
+      ssize_t written = -1;
+      while (true) {
+        written = writev(fd, blocks->data() + index,
+                         static_cast<int>(blocks->size() - index));
+        if (written >= 0 || errno != EINTR) {
+          break;
+        }
+      }
+      if (written <= 0) {
+        return false;
+      }
+      auto consumed = static_cast<size_t>(written);
+      while (consumed > 0) {
+        auto& block = (*blocks)[index];
+        if (consumed < block.iov_len) {
+          auto* data = static_cast<char*>(block.iov_base);
+          block.iov_base = data + consumed;
+          block.iov_len -= consumed;
+          consumed = 0;
+        } else {
+          consumed -= block.iov_len;
+          ++index;
+        }
+      }
+    }
+  }
+  return true;
+}
+}  // namespace
+
+std::unique_ptr<Aof> Aof::Open(const Options& options, db::RedisDb* const db) {
+  if (db == nullptr || options.path.empty()) {
+    return nullptr;
+  }
+  const int fd = open(options.path.c_str(), O_RDWR | O_CREAT, 0644);
+  if (fd < 0) {
+    return nullptr;
+  }
+  auto aof = std::unique_ptr<Aof>(new Aof(fd, options.fsync));
+  if (!aof->Replay(db) || lseek(fd, 0, SEEK_END) < 0) {
+    return nullptr;
+  }
+  if (options.fsync != FsyncPolicy::kAlways) {
+    aof->worker_ = std::thread([instance = aof.get()] { instance->Run(); });
+  }
+  return aof;
+}
+
+Aof::Aof(int fd, FsyncPolicy fsync)
+    : fd_(fd), fsync_(fsync), last_sync_(std::chrono::steady_clock::now()) {}
+
+bool Aof::Append(std::string_view command,
+                 const std::vector<std::string_view>& args,
+                 db::RedisDb* const db) {
+  std::string encoded;
+  if (!Encode(command, args, db, &encoded)) {
+    return false;
+  }
+  if (encoded.empty()) {
+    return true;
+  }
+
+  if (fsync_ == FsyncPolicy::kAlways) {
+    const std::scoped_lock lock(mutex_);
+    if (!healthy_ || stopping_) {
+      return false;
+    }
+    healthy_ = WriteAll(fd_, encoded) && SyncFile(fd_);
+    return healthy_;
+  }
+
+  {
+    const std::scoped_lock lock(mutex_);
+    if (!healthy_ || stopping_ || encoded.size() > kMaxPendingBytes ||
+        pending_bytes_ > kMaxPendingBytes - encoded.size() ||
+        pending_.size() >= kMaxPendingCommands) {
+      healthy_ = false;
+      return false;
+    }
+    pending_bytes_ += encoded.size();
+    pending_.push_back(std::move(encoded));
+  }
+  work_available_.notify_one();
+  return true;
+}
+
+bool Aof::Healthy() const {
+  const std::scoped_lock lock(mutex_);
+  return healthy_;
+}
+
+void Aof::WaitUntilIdle() {
+  if (fsync_ == FsyncPolicy::kAlways) {
+    return;
+  }
+  std::unique_lock<std::mutex> lock(mutex_);
+  idle_.wait(lock, [this] {
+    return (!writing_ && !syncing_ && pending_.empty()) || !healthy_;
+  });
+}
+
+Aof::~Aof() {
+  if (worker_.joinable()) {
+    {
+      const std::scoped_lock lock(mutex_);
+      stopping_ = true;
+    }
+    work_available_.notify_one();
+    worker_.join();
+  }
+  close(fd_);
+}
+
+bool Aof::Replay(db::RedisDb* const db) {
+  if (lseek(fd_, 0, SEEK_SET) < 0) {
+    return false;
+  }
+
+  db->SetLoading(true);
+  const bool replayed = [this, db] {
+    Client client(db);
+    std::array<char, kReadChunkSize> chunk{};
+    std::string input;
+    input.reserve(kReadChunkSize);
+    command::CommandArgs args;
+    size_t complete_bytes = 0;
+    bool reached_end = false;
+
+    while (!reached_end) {
+      ssize_t bytes_read = -1;
+      while (true) {
+        bytes_read = read(fd_, chunk.data(), chunk.size());
+        if (bytes_read >= 0 || errno != EINTR) {
+          break;
+        }
+      }
+      if (bytes_read < 0) {
+        return false;
+      }
+      reached_end = bytes_read == 0;
+      if (bytes_read > 0) {
+        input.append(chunk.data(), static_cast<size_t>(bytes_read));
+      }
+
+      size_t consumed = 0;
+      while (consumed < input.size()) {
+        const std::string_view remaining(input.data() + consumed,
+                                         input.size() - consumed);
+        if (remaining.front() != '*') {
+          return false;
+        }
+        std::string_view name;
+        const auto parsed = request_parser::Parse(remaining, &name, &args);
+        if (parsed.status == request_parser::ParseStatus::kIncomplete) {
+          break;
+        }
+        if (parsed.status != request_parser::ParseStatus::kComplete) {
+          return false;
+        }
+        const auto* metadata = command::Find(name);
+        if (metadata == nullptr ||
+            metadata->access != command::CommandAccess::kWrite ||
+            !metadata->arity.Accepts(args.size()) ||
+            !client.ExecuteForReplay(metadata, &args)) {
+          return false;
+        }
+        consumed += parsed.consumed;
+        complete_bytes += parsed.consumed;
+      }
+      if (consumed > 0) {
+        input.erase(0, consumed);
+      }
+      if (input.size() > kMaxReplayCommandBytes) {
+        return false;
+      }
+    }
+
+    if (!input.empty() &&
+        ftruncate(fd_, static_cast<off_t>(complete_bytes)) < 0) {
+      return false;
+    }
+    return input.empty() || SyncFile(fd_);
+  }();
+  db->SetLoading(false);
+  return replayed;
+}
+
+bool Aof::Encode(std::string_view command,
+                 const std::vector<std::string_view>& args,
+                 db::RedisDb* const db, std::string* const output) {
+  if (db == nullptr || output == nullptr) {
+    return false;
+  }
+  if (command == "SET") {
+    if (args.empty()) {
+      return false;
+    }
+    const auto* object = db->LookupKey(args[0]);
+    if (object == nullptr) {
+      return AppendSingleKeyCommand("DEL", args[0], output);
+    }
+    if (object->Type() != db::RedisObject::ObjectType::kString) {
+      return false;
+    }
+    const auto expire = db->Expiration(args[0]);
+    if (!ReserveSetRecord(args[0], object->String(), expire.has_value(),
+                          output)) {
+      return false;
+    }
+    reply::AppendArrayHeader(3, output);
+    reply::AppendBulkString("SET", output);
+    reply::AppendBulkString(args[0], output);
+    reply::AppendBulkString(object->String(), output);
+    return !expire.has_value() || AppendExpireAt(args[0], *expire, output);
+  }
+  if (command == "EXPIRE" || command == "PEXPIRE" || command == "PEXPIREAT") {
+    if (args.empty()) {
+      return false;
+    }
+    const auto expire = db->Expiration(args[0]);
+    if (expire.has_value()) {
+      return AppendExpireAt(args[0], *expire, output);
+    }
+    return AppendSingleKeyCommand("DEL", args[0], output);
+  }
+  return AppendCommand(command, args, output);
+}
+
+void Aof::Run() {
+  std::deque<std::string> batch;
+  std::vector<iovec> blocks;
+  while (true) {
+    bool should_sync = false;
+    {
+      std::unique_lock<std::mutex> lock(mutex_);
+      while (healthy_ && pending_.empty() && !stopping_) {
+        if (fsync_ == FsyncPolicy::kEverySecond && dirty_) {
+          const auto deadline = last_sync_ + kSyncInterval;
+          if (!work_available_.wait_until(lock, deadline, [this] {
+                return stopping_ || !pending_.empty() || !healthy_;
+              })) {
+            break;
+          }
+        } else {
+          work_available_.wait(lock, [this] {
+            return stopping_ || !pending_.empty() || !healthy_;
+          });
+        }
+      }
+      if (!healthy_) {
+        FailLocked();
+        return;
+      }
+      if (!pending_.empty()) {
+        batch.swap(pending_);
+        pending_bytes_ = 0;
+        writing_ = true;
+      } else if (dirty_ &&
+                 (stopping_ || (fsync_ == FsyncPolicy::kEverySecond &&
+                                std::chrono::steady_clock::now() - last_sync_ >=
+                                    kSyncInterval))) {
+        syncing_ = true;
+        should_sync = true;
+      } else if (stopping_) {
+        return;
+      }
+    }
+
+    if (!batch.empty()) {
+      const bool written = WriteBatch(fd_, batch, &blocks);
+      {
+        const std::scoped_lock lock(mutex_);
+        writing_ = false;
+        if (!written) {
+          FailLocked();
+          return;
+        }
+        dirty_ = true;
+        NotifyIfIdleLocked();
+      }
+      batch.clear();
+      continue;
+    }
+
+    if (should_sync) {
+      const bool synced = Sync();
+      {
+        const std::scoped_lock lock(mutex_);
+        syncing_ = false;
+        if (!synced) {
+          FailLocked();
+          return;
+        }
+        dirty_ = false;
+        last_sync_ = std::chrono::steady_clock::now();
+        NotifyIfIdleLocked();
+      }
+    }
+  }
+}
+
+bool Aof::Sync() const { return SyncFile(fd_); }
+
+void Aof::FailLocked() {
+  healthy_ = false;
+  pending_.clear();
+  pending_bytes_ = 0;
+  writing_ = false;
+  syncing_ = false;
+  dirty_ = false;
+  idle_.notify_all();
+}
+
+void Aof::NotifyIfIdleLocked() {
+  if (!writing_ && !syncing_ && pending_.empty()) {
+    idle_.notify_all();
+  }
+}
+}  // namespace redis_simple::aof

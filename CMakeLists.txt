@@ -159,6 +159,7 @@ redis_simple_add_gtest_suite(CommandRegistryTest)
 redis_simple_add_gtest_suite(RedisDbTest)
 redis_simple_add_gtest_suite(RedisObjectTest)
 redis_simple_add_gtest_suite(AsyncReclaimerTest)
+redis_simple_add_gtest_suite(AofTest)
 redis_simple_add_gtest_suite(ServerOptionsTest)
 redis_simple_add_gtest_suite(ShutdownTest)
 redis_simple_add_gtest_suite(ReplyTest)
@@ -230,6 +231,12 @@ redis_simple_add_executable(
 )
 target_link_libraries(mock_hash_client PRIVATE redis_simple_cli)
 
+redis_simple_add_executable(
+  mock_aof_client
+  "integration/aof_client_test.cpp"
+)
+target_link_libraries(mock_aof_client PRIVATE redis_simple_cli)
+
 add_test(
   NAME redis_simple_integration_tcp
   COMMAND
@@ -245,6 +252,15 @@ add_test(
     /bin/sh
     "${CMAKE_SOURCE_DIR}/scripts/run_server_lifecycle_test.sh"
     $<TARGET_FILE:redis_simple>
+)
+
+add_test(
+  NAME redis_simple_integration_aof
+  COMMAND
+    /bin/sh
+    "${CMAKE_SOURCE_DIR}/scripts/run_aof_integration_test.sh"
+    $<TARGET_FILE:redis_simple>
+    $<TARGET_FILE:mock_aof_client>
 )
 
 add_test(
@@ -313,6 +329,7 @@ add_test(
 set_tests_properties(
   redis_simple_integration_tcp
   redis_simple_integration_server_lifecycle
+  redis_simple_integration_aof
   redis_simple_integration_command_connection
   redis_simple_integration_command_key
   redis_simple_integration_command_string
@@ -338,6 +355,10 @@ set_tests_properties(
   redis_simple_integration_server_lifecycle
   PROPERTIES RESOURCE_LOCK redis_simple_port_18080
 )
+set_tests_properties(
+  redis_simple_integration_aof
+  PROPERTIES RESOURCE_LOCK redis_simple_port_18081
+)
 
 set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark's tests" FORCE)
 add_subdirectory("third_party/benchmark")
@@ -359,6 +380,7 @@ if(REDIS_SIMPLE_BUILD_FUZZERS)
 
   add_library(redis_simple_fuzz_core STATIC ${REDIS_SIMPLE_CORE_SOURCES})
   redis_simple_configure_target(redis_simple_fuzz_core)
+  target_link_libraries(redis_simple_fuzz_core PUBLIC Threads::Threads)
   target_compile_options(
     redis_simple_fuzz_core
     PRIVATE
@@ -408,6 +430,7 @@ if(REDIS_SIMPLE_BUILD_FUZZERS)
     dynamic_buffer_fuzzer
     reply_buffer_fuzzer
     db_expiration_fuzzer
+    aof_fuzzer
     event_loop_fuzzer
   )
   foreach(fuzz_target IN LISTS REDIS_SIMPLE_FUZZ_TARGETS)

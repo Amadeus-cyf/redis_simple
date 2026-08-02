@@ -16,6 +16,10 @@
 #include "server/db/db.h"
 #include "server/reply.h"
 
+namespace redis_simple::aof {
+class Aof;
+}
+
 namespace redis_simple {
 enum class ClientStatus {
   kOk = 0,
@@ -57,8 +61,10 @@ class Client {
   ClientStatus ProcessInputBuffer();
   void Free() { connection_->Close(); }
   const command::CommandArgs& Args() const { return args_; }
+  void MarkModified() { modified_ = true; }
 
  private:
+  friend class aof::Aof;
   enum class RequestStatus {
     kReady,
     kIncomplete,
@@ -68,6 +74,9 @@ class Client {
 
   Client(std::unique_ptr<connection::Connection> connection,
          OutputBufferLimits output_limits);
+  explicit Client(db::RedisDb* db);
+  bool ExecuteForReplay(const command::Command* command,
+                        command::CommandArgs* args);
   RequestStatus ParseRequest();
   ClientStatus ProcessCommand();
   bool CanQueueReply(size_t size);
@@ -75,6 +84,7 @@ class Client {
   ssize_t SendListReply();
   std::unique_ptr<connection::Connection> connection_;
   db::RedisDb* db_{nullptr};
+  aof::Aof* aof_{nullptr};
   const command::Command* command_{nullptr};
   command::CommandArgs args_;
   in_memory::DynamicBuffer query_buf_;
@@ -84,5 +94,8 @@ class Client {
   reply::ProtocolVersion protocol_{reply::ProtocolVersion::kResp2};
   bool reads_paused_{};
   bool close_after_reply_{};
+  bool modified_{};
+  bool discard_replies_{};
+  bool reply_error_{};
 };
 }  // namespace redis_simple

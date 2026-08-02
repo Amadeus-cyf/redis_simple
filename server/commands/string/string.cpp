@@ -97,6 +97,7 @@ void HandleIncrement(Client* const client, int64_t increment) {
     client->AddReply(reply::FromError("ERR failed to set key"));
     return;
   }
+  client->MarkModified();
   client->AddReply(reply::FromInt64(next));
 }
 }  // namespace
@@ -130,14 +131,20 @@ void HandleAppend(Client* const client) {
       client->AddReply(reply::FromError("ERR string length out of range"));
       return;
     }
-    redis_db->SetKey(
-        key, db::RedisObject::CreateWithString(std::string(value_to_append)),
-        0);
+    if (redis_db->SetKey(
+            key,
+            db::RedisObject::CreateWithString(std::string(value_to_append)),
+            0) == db::DbStatus::kError) {
+      client->AddReply(reply::FromError("ERR failed to set key"));
+      return;
+    }
+    client->MarkModified();
     client->AddReply(reply::FromInt64(*length));
     return;
   }
   std::string* const value = object->MutableString();
   value->append(value_to_append);
+  client->MarkModified();
   const auto length = ToReplyInteger(value->size());
   client->AddReply(length.has_value()
                        ? reply::FromInt64(*length)
@@ -183,6 +190,7 @@ void HandleMSet(Client* const client) {
         args[i], db::RedisObject::CreateWithString(std::string(args[i + 1])),
         0);
   }
+  client->MarkModified();
   client->AddReply(reply::FromString("OK"));
 }
 }  // namespace redis_simple::command::strings

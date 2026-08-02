@@ -36,6 +36,9 @@ void HandleZAdd(Client* const client) {
 
   if (auto* redis_db = client->Db()) {
     const auto result = ZAdd(redis_db, &args);
+    if (result.has_value()) {
+      client->MarkModified();
+    }
     client->AddReply(result.has_value() ? reply::FromInt64(*result)
                                         : reply::WrongTypeError());
   } else {
