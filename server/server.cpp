@@ -102,10 +102,16 @@ bool Server::InstallAcceptCallback() {
 
 int Server::ServerCron() {
   auto* const server = Server::Get();
+  auto* const append_only_file = server->Aof();
   if (shutdown::StopRequested() ||
-      (server->Aof() != nullptr && !server->Aof()->Healthy())) {
+      (append_only_file != nullptr && !append_only_file->Healthy())) {
     server->Stop();
     return event_loop::ToInt(event_loop::EventFlag::kNoMore);
+  }
+  if (append_only_file != nullptr && append_only_file->ShouldAutoRewrite() &&
+      append_only_file->StartRewrite(server->Db()) ==
+          aof::RewriteResult::kError) {
+    RS_LOG_WARN("automatic AOF rewrite failed to start\n");
   }
   ActiveExpireCycle();
   return 1;

@@ -12,6 +12,8 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <filesystem>
 #include <initializer_list>
 #include <limits>
 #include <memory>
@@ -23,6 +25,7 @@
 #include <vector>
 
 #include "logging/logger.h"
+#include "memory/dynamic_buffer.h"
 #include "server/client.h"
 #include "server/commands/command.h"
 #include "server/db/db.h"
@@ -33,12 +36,34 @@
 namespace redis_simple::aof {
 namespace {
 constexpr size_t kReadChunkSize = size_t{64} * 1024;
-constexpr size_t kMaxReplayCommandBytes = size_t{64} * 1024 * 1024;
 constexpr size_t kSnapshotBatchSize = 64;
 // Covers a bulk-string frame or array header, including a size_t decimal value.
 constexpr size_t kRespElementOverhead = 32;
 constexpr std::string_view kLongestInt64 = "-9223372036854775808";
 constexpr auto kSyncInterval = std::chrono::seconds(1);
+constexpr auto kRewriteRetryDelay = std::chrono::seconds(5);
+
+class SystemFileOps final : public FileOps {
+ public:
+  ssize_t Write(int fd, const void* data, size_t size) override {
+    return write(fd, data, size);
+  }
+
+  ssize_t WriteVector(int fd, const iovec* blocks, int count) override {
+    return writev(fd, blocks, count);
+  }
+
+  int Sync(int fd) override { return fsync(fd); }
+
+  int Rename(const char* source, const char* destination) override {
+    return std::rename(source, destination);
+  }
+};
+
+std::shared_ptr<FileOps> DefaultFileOps() {
+  static auto file_ops = std::make_shared<SystemFileOps>();
+  return file_ops;
+}
 
 size_t MaxIovCount() {
   static const size_t max_iov_count = [] {
@@ -51,11 +76,11 @@ size_t MaxIovCount() {
   return max_iov_count;
 }
 
-bool WriteAll(int fd, std::string_view data) {
+bool WriteAll(FileOps* const file_ops, int fd, std::string_view data) {
   size_t written = 0;
   while (written < data.size()) {
     const ssize_t result =
-        write(fd, data.data() + written, data.size() - written);
+        file_ops->Write(fd, data.data() + written, data.size() - written);
     if (result > 0) {
       written += static_cast<size_t>(result);
       continue;
@@ -68,13 +93,35 @@ bool WriteAll(int fd, std::string_view data) {
   return true;
 }
 
-bool SyncFile(int fd) {
-  while (fsync(fd) < 0) {
+bool SyncFile(FileOps* const file_ops, int fd) {
+  while (file_ops->Sync(fd) < 0) {
     if (errno != EINTR) {
       return false;
     }
   }
   return true;
+}
+
+size_t RespBulkSize(std::string_view value) {
+  constexpr size_t kFramingBytes = 5;
+  size_t digits = 1;
+  for (size_t size = value.size(); size >= 10; size /= 10) {
+    ++digits;
+  }
+  if (value.size() >
+      std::numeric_limits<size_t>::max() - digits - kFramingBytes) {
+    return std::numeric_limits<size_t>::max();
+  }
+  return value.size() + digits + kFramingBytes;
+}
+
+size_t RespArrayHeaderSize(size_t element_count) {
+  constexpr size_t kFramingBytes = 3;
+  size_t digits = 1;
+  for (size_t size = element_count; size >= 10; size /= 10) {
+    ++digits;
+  }
+  return digits + kFramingBytes;
 }
 
 bool AddSize(size_t value, size_t* const total) {
@@ -172,24 +219,6 @@ bool AppendFixedCommand(std::initializer_list<std::string_view> elements,
   return true;
 }
 
-bool BeginSnapshotBatch(std::string_view command, std::string_view key,
-                        size_t item_index, size_t item_count,
-                        size_t elements_per_item, std::string* const output) {
-  if (item_index % kSnapshotBatchSize != 0) {
-    return true;
-  }
-  const size_t batch_size =
-      std::min(kSnapshotBatchSize, item_count - item_index);
-  const size_t element_count = 2 + (batch_size * elements_per_item);
-  if (!ReserveResp(command.size() + key.size(), element_count, 1, output)) {
-    return false;
-  }
-  reply::AppendArrayHeader(element_count, output);
-  reply::AppendBulkString(command, output);
-  reply::AppendBulkString(key, output);
-  return true;
-}
-
 bool AppendSingleKeyCommand(std::string_view command, std::string_view key,
                             std::string* const output) {
   if (!ReserveCommands({command, key}, 1, output)) {
@@ -220,173 +249,307 @@ bool AppendExpireAt(std::string_view key, int64_t expire, std::string* output) {
   return true;
 }
 
-bool WriteBatch(int fd, std::deque<std::string>& batch,
-                std::vector<iovec>* const blocks) {
-  const size_t max_iov_count = MaxIovCount();
-  blocks->reserve(std::min(batch.size(), max_iov_count));
-  auto command = batch.begin();
+template <typename Sink>
+class SnapshotBatch {
+ public:
+  SnapshotBatch(std::string_view command, std::string_view key,
+                size_t elements_per_item, const Limits& limits, Sink* sink)
+      : command_(command),
+        key_(key),
+        elements_per_item_(elements_per_item),
+        limits_(&limits),
+        sink_(sink) {}
 
-  while (command != batch.end()) {
-    blocks->clear();
-    for (; command != batch.end() && blocks->size() < max_iov_count;
-         ++command) {
-      blocks->push_back({command->data(), command->size()});
+  bool Append(std::initializer_list<std::string_view> elements) {
+    if (elements.size() != elements_per_item_) {
+      return false;
     }
-
-    size_t index = 0;
-    while (index < blocks->size()) {
-      ssize_t written = -1;
-      while (true) {
-        written = writev(fd, blocks->data() + index,
-                         static_cast<int>(blocks->size() - index));
-        if (written >= 0 || errno != EINTR) {
-          break;
-        }
-      }
-      if (written <= 0) {
+    size_t item_size = 0;
+    for (const auto element : elements) {
+      const size_t encoded_size = RespBulkSize(element);
+      if (encoded_size == std::numeric_limits<size_t>::max() ||
+          !AddSize(encoded_size, &item_size)) {
         return false;
       }
-      auto consumed = static_cast<size_t>(written);
-      while (consumed > 0) {
-        auto& block = (*blocks)[index];
-        if (consumed < block.iov_len) {
-          auto* data = static_cast<char*>(block.iov_base);
-          block.iov_base = data + consumed;
-          block.iov_len -= consumed;
-          consumed = 0;
-        } else {
-          consumed -= block.iov_len;
-          ++index;
-        }
+    }
+
+    if (item_count_ > 0 &&
+        (item_count_ == kSnapshotBatchSize ||
+         body_.size() >
+             limits_->snapshot_block_bytes -
+                 std::min(item_size, limits_->snapshot_block_bytes))) {
+      if (!Flush()) {
+        return false;
       }
+    }
+
+    for (const auto element : elements) {
+      reply::AppendBulkString(element, &body_);
+    }
+    ++item_count_;
+    return CommandSize() <= limits_->max_replay_command_bytes;
+  }
+
+  bool Finish() { return Flush(); }
+
+ private:
+  [[nodiscard]] size_t CommandSize() const {
+    const size_t element_count = 2 + (item_count_ * elements_per_item_);
+    size_t size = RespArrayHeaderSize(element_count);
+    if (!AddSize(RespBulkSize(command_), &size) ||
+        !AddSize(RespBulkSize(key_), &size) || !AddSize(body_.size(), &size)) {
+      return std::numeric_limits<size_t>::max();
+    }
+    return size;
+  }
+
+  bool Flush() {
+    if (item_count_ == 0) {
+      return true;
+    }
+    const size_t element_count = 2 + (item_count_ * elements_per_item_);
+    std::string header = reply::FromArrayHeader(element_count);
+    reply::AppendBulkString(command_, &header);
+    reply::AppendBulkString(key_, &header);
+    if (body_.size() > limits_->max_replay_command_bytes ||
+        header.size() > limits_->max_replay_command_bytes - body_.size() ||
+        !(*sink_)(std::move(header)) || !(*sink_)(std::move(body_))) {
+      return false;
+    }
+    body_.clear();
+    item_count_ = 0;
+    return true;
+  }
+
+  std::string_view command_;
+  std::string_view key_;
+  size_t elements_per_item_;
+  const Limits* limits_;
+  Sink* sink_;
+  std::string body_;
+  size_t item_count_{};
+};
+
+template <typename Sink>
+bool EmitFixedCommand(std::initializer_list<std::string_view> elements,
+                      const Limits& limits, Sink* sink) {
+  std::string record;
+  if (!AppendFixedCommand(elements, &record) ||
+      record.size() > limits.max_replay_command_bytes) {
+    return false;
+  }
+  return (*sink)(std::move(record));
+}
+
+template <typename Sink>
+bool EmitString(std::string_view key, std::string_view value,
+                const Limits& limits, Sink* sink) {
+  size_t fixed_overhead = RespBulkSize("APPEND");
+  if (!AddSize(RespBulkSize(key), &fixed_overhead) ||
+      !AddSize(64, &fixed_overhead)) {
+    return false;
+  }
+  if (fixed_overhead >= limits.max_replay_command_bytes) {
+    return false;
+  }
+  const size_t target =
+      std::min(limits.snapshot_block_bytes, limits.max_replay_command_bytes);
+  const size_t chunk_size = std::max<size_t>(
+      1, target > fixed_overhead
+             ? target - fixed_overhead
+             : limits.max_replay_command_bytes - fixed_overhead);
+  if (value.size() <= chunk_size) {
+    return EmitFixedCommand({"SET", key, value}, limits, sink);
+  }
+  if (!EmitFixedCommand({"SET", key, ""}, limits, sink)) {
+    return false;
+  }
+  for (size_t offset = 0; offset < value.size(); offset += chunk_size) {
+    const size_t size = std::min(chunk_size, value.size() - offset);
+    if (!EmitFixedCommand({"APPEND", key, value.substr(offset, size)}, limits,
+                          sink)) {
+      return false;
     }
   }
   return true;
 }
 
+template <typename Sink>
 bool AppendSnapshotRecord(std::string_view key, const db::RedisObject& object,
-                          std::optional<int64_t> expire,
-                          std::deque<std::string>* const snapshot) {
-  snapshot->emplace_back();
-  auto& record = snapshot->back();
+                          std::optional<int64_t> expire, const Limits& limits,
+                          Sink* sink) {
   bool encoded = false;
   switch (object.Type()) {
     case db::RedisObject::ObjectType::kString:
-      encoded = AppendFixedCommand({"SET", key, object.String()}, &record);
+      encoded = EmitString(key, object.String(), limits, sink);
       break;
     case db::RedisObject::ObjectType::kSet: {
       const auto* set = object.Set();
-      const size_t size = set->Size();
-      size_t index = 0;
-      encoded = set->ForEachMember(
-          [key, size, &index, &record](std::string_view member) {
-            if (!BeginSnapshotBatch("SADD", key, index, size, 1, &record)) {
-              return false;
-            }
-            reply::AppendBulkString(member, &record);
-            ++index;
-            return true;
-          });
+      SnapshotBatch batch("SADD", key, 1, limits, sink);
+      encoded = set->ForEachMember([&batch](std::string_view member) {
+        return batch.Append({member});
+      }) && batch.Finish();
       break;
     }
     case db::RedisObject::ObjectType::kList: {
       const auto* list = object.List();
       const size_t size = list->Size();
-      size_t index = 0;
       if (size == 0) {
         encoded = true;
         break;
       }
-      encoded = list->ForEach(
-          0, size - 1, [key, size, &index, &record](std::string_view value) {
-            if (!BeginSnapshotBatch("RPUSH", key, index, size, 1, &record)) {
-              return false;
-            }
-            reply::AppendBulkString(value, &record);
-            ++index;
-            return true;
-          });
+      SnapshotBatch batch("RPUSH", key, 1, limits, sink);
+      encoded = list->ForEach(0, size - 1, [&batch](std::string_view value) {
+        return batch.Append({value});
+      }) && batch.Finish();
       break;
     }
     case db::RedisObject::ObjectType::kZSet: {
       const auto* zset = object.ZSet();
-      const size_t size = zset->Size();
-      size_t index = 0;
-      encoded = zset->ForEachEntry(
-          [key, size, &index, &record](std::string_view member, double score) {
-            if (!BeginSnapshotBatch("ZADD", key, index, size, 2, &record)) {
-              return false;
-            }
-            const std::string score_text = utils::FloatToString(score);
-            reply::AppendBulkString(score_text, &record);
-            reply::AppendBulkString(member, &record);
-            ++index;
-            return true;
-          });
+      SnapshotBatch batch("ZADD", key, 2, limits, sink);
+      encoded = zset->ForEachEntry([&batch](std::string_view member,
+                                            double score) {
+        const std::string score_text = utils::FloatToString(score);
+        return batch.Append({score_text, member});
+      }) && batch.Finish();
       break;
     }
     case db::RedisObject::ObjectType::kHash: {
       const auto* hash = object.Hash();
-      const size_t size = hash->Size();
-      size_t index = 0;
-      encoded = hash->ForEachEntry(
-          [key, size, &index, &record](std::string_view field,
-                                       std::string_view value) {
-            if (!BeginSnapshotBatch("HSET", key, index, size, 2, &record)) {
-              return false;
-            }
-            reply::AppendBulkString(field, &record);
-            reply::AppendBulkString(value, &record);
-            ++index;
-            return true;
-          });
+      SnapshotBatch batch("HSET", key, 2, limits, sink);
+      encoded = hash->ForEachEntry([&batch](std::string_view field,
+                                            std::string_view value) {
+        return batch.Append({field, value});
+      }) && batch.Finish();
       break;
     }
   }
-  if (!encoded ||
-      (expire.has_value() && !AppendExpireAt(key, *expire, &record))) {
-    snapshot->pop_back();
+  if (!encoded) {
     return false;
   }
-  if (record.empty()) {
-    snapshot->pop_back();
+  if (expire.has_value()) {
+    std::string record;
+    if (!AppendExpireAt(key, *expire, &record) ||
+        record.size() > limits.max_replay_command_bytes ||
+        !(*sink)(std::move(record))) {
+      return false;
+    }
   }
   return true;
 }
 
-bool BuildSnapshot(db::RedisDb* const db,
-                   std::deque<std::string>* const snapshot) {
-  return db != nullptr && snapshot != nullptr &&
-         db->ForEachObject([db, snapshot](std::string_view key,
-                                          const db::RedisObject& object) {
-           return AppendSnapshotRecord(key, object, db->Expiration(key),
-                                       snapshot);
+template <typename Sink>
+bool BuildSnapshotRecords(db::RedisDb* const db, const Limits& limits,
+                          Sink* sink) {
+  return db != nullptr && sink != nullptr &&
+         db->ForEachObject([db, &limits, sink](std::string_view key,
+                                               const db::RedisObject& object) {
+           return AppendSnapshotRecord(key, object, db->Expiration(key), limits,
+                                       sink);
          });
 }
 }  // namespace
 
+std::string_view ErrorName(AofError error) {
+  switch (error) {
+    case AofError::kNone:
+      return "none";
+    case AofError::kQueueFull:
+      return "queue-full";
+    case AofError::kWrite:
+      return "write";
+    case AofError::kSync:
+      return "sync";
+    case AofError::kRename:
+      return "rename";
+    case AofError::kDirectorySync:
+      return "directory-sync";
+    case AofError::kSnapshot:
+      return "snapshot";
+  }
+  return "unknown";
+}
+
+std::string_view RewriteStatusName(RewriteStatus status) {
+  switch (status) {
+    case RewriteStatus::kNeverRun:
+      return "none";
+    case RewriteStatus::kSucceeded:
+      return "ok";
+    case RewriteStatus::kFailed:
+      return "err";
+  }
+  return "unknown";
+}
+
+char* Aof::Record::Data() {
+  if (auto* owned = std::get_if<std::string>(&data_)) {
+    return owned->data();
+  }
+  return (*std::get_if<std::shared_ptr<std::string>>(&data_))->data();
+}
+
+size_t Aof::Record::Size() const {
+  if (const auto* owned = std::get_if<std::string>(&data_)) {
+    return owned->size();
+  }
+  return (*std::get_if<std::shared_ptr<std::string>>(&data_))->size();
+}
+
 std::unique_ptr<Aof> Aof::Open(const Options& options, db::RedisDb* const db) {
-  if (db == nullptr || options.path.empty()) {
+  if (db == nullptr || options.path.empty() ||
+      options.limits.max_replay_command_bytes == 0 ||
+      options.limits.snapshot_block_bytes == 0 ||
+      options.limits.max_snapshot_queue_bytes == 0) {
     return nullptr;
   }
-  const int fd = open(options.path.c_str(), O_RDWR | O_CREAT, 0644);
+  int open_flags = O_RDWR | O_CREAT;
+#ifdef O_CLOEXEC
+  open_flags |= O_CLOEXEC;
+#endif
+  const int fd = open(options.path.c_str(), open_flags, 0644);
   if (fd < 0) {
     return nullptr;
   }
-  auto aof = std::unique_ptr<Aof>(new Aof(fd, options.path, options.fsync));
-  if (!aof->Replay(db) || lseek(fd, 0, SEEK_END) < 0) {
+  struct stat file_info {};
+  if (fstat(fd, &file_info) < 0 || file_info.st_size < 0 ||
+      static_cast<uintmax_t>(file_info.st_size) >
+          std::numeric_limits<size_t>::max()) {
+    close(fd);
     return nullptr;
   }
+  auto aof = std::unique_ptr<Aof>(
+      new Aof(fd, options, static_cast<size_t>(file_info.st_size)));
+  if (!aof->SyncParentDirectory() || !aof->Replay(db) ||
+      lseek(fd, 0, SEEK_END) < 0 || fstat(fd, &file_info) < 0 ||
+      file_info.st_size < 0 ||
+      static_cast<uintmax_t>(file_info.st_size) >
+          std::numeric_limits<size_t>::max()) {
+    return nullptr;
+  }
+  aof->current_size_ = static_cast<size_t>(file_info.st_size);
+  aof->base_size_ = aof->current_size_;
   if (options.fsync != FsyncPolicy::kAlways) {
-    aof->worker_ = std::thread([instance = aof.get()] { instance->Run(); });
+    try {
+      aof->worker_ = std::thread([instance = aof.get()] { instance->Run(); });
+    } catch (const std::system_error&) {
+      return nullptr;
+    }
   }
   return aof;
 }
 
-Aof::Aof(int fd, std::string path, FsyncPolicy fsync)
+Aof::Aof(int fd, const Options& options, size_t file_size)
     : fd_(fd),
-      path_(std::move(path)),
-      fsync_(fsync),
+      path_(options.path),
+      fsync_(options.fsync),
+      auto_rewrite_min_bytes_(options.auto_rewrite_min_bytes),
+      auto_rewrite_percentage_(options.auto_rewrite_percentage),
+      limits_(options.limits),
+      file_ops_(options.file_ops != nullptr ? options.file_ops
+                                            : DefaultFileOps()),
+      current_size_(file_size),
+      base_size_(file_size),
       last_sync_(std::chrono::steady_clock::now()) {}
 
 bool Aof::Append(std::string_view command,
@@ -405,24 +568,50 @@ bool Aof::Append(std::string_view command,
     if (!healthy_ || stopping_) {
       return false;
     }
-    BufferRewriteCommandLocked(encoded);
-    if (!WriteAll(fd_, encoded) || !SyncFile(fd_)) {
-      FailLocked();
+    std::shared_ptr<std::string> shared;
+    std::string_view data = encoded;
+    if (rewriting_ && !rewrite_failed_) {
+      shared = std::make_shared<std::string>(std::move(encoded));
+      data = *shared;
+      BufferRewriteCommandLocked(shared);
     }
-    return healthy_;
+    if (!WriteAll(file_ops_.get(), fd_, data)) {
+      FailLocked(AofError::kWrite);
+      return false;
+    }
+    if (!SyncFile(fd_)) {
+      FailLocked(AofError::kSync);
+      return false;
+    }
+    if (current_size_ > std::numeric_limits<size_t>::max() - data.size()) {
+      FailLocked(AofError::kWrite);
+      return false;
+    }
+    current_size_ += data.size();
+    return true;
   }
 
   {
     const std::scoped_lock lock(mutex_);
-    if (!healthy_ || stopping_ || encoded.size() > kMaxPendingBytes ||
-        pending_bytes_ > kMaxPendingBytes - encoded.size() ||
-        pending_.size() >= kMaxPendingCommands) {
-      FailLocked();
+    if (!healthy_ || stopping_) {
       return false;
     }
-    BufferRewriteCommandLocked(encoded);
+    if (encoded.size() > limits_.max_pending_bytes ||
+        pending_bytes_ > limits_.max_pending_bytes - encoded.size() ||
+        pending_.size() >= limits_.max_pending_commands ||
+        current_size_ > std::numeric_limits<size_t>::max() - encoded.size()) {
+      FailLocked(AofError::kQueueFull);
+      return false;
+    }
     pending_bytes_ += encoded.size();
-    pending_.push_back(std::move(encoded));
+    current_size_ += encoded.size();
+    if (rewriting_ && !rewrite_failed_) {
+      auto shared = std::make_shared<std::string>(std::move(encoded));
+      BufferRewriteCommandLocked(shared);
+      pending_.emplace_back(std::move(shared));
+    } else {
+      pending_.emplace_back(std::move(encoded));
+    }
   }
   work_available_.notify_one();
   return true;
@@ -443,18 +632,16 @@ RewriteResult Aof::StartRewrite(db::RedisDb* const db) {
     }
     rewriting_ = true;
     rewrite_failed_ = false;
+    snapshot_complete_ = false;
+    snapshot_pending_.clear();
     rewrite_pending_.clear();
+    snapshot_pending_bytes_ = 0;
     rewrite_pending_bytes_ = 0;
+    last_error_ = AofError::kNone;
+    last_rewrite_attempt_ = std::chrono::steady_clock::now();
   }
   if (completed_rewrite.joinable()) {
     completed_rewrite.join();
-  }
-
-  std::deque<std::string> snapshot;
-  if (!BuildSnapshot(db, &snapshot)) {
-    const std::scoped_lock lock(mutex_);
-    FinishRewriteLocked();
-    return RewriteResult::kError;
   }
 
   std::string path_template = path_ + ".rewrite.XXXXXX";
@@ -463,9 +650,18 @@ RewriteResult Aof::StartRewrite(db::RedisDb* const db) {
   const int rewrite_fd = mkstemp(writable_path.data());
   if (rewrite_fd < 0) {
     const std::scoped_lock lock(mutex_);
-    FinishRewriteLocked();
+    FinishRewriteLocked(RewriteStatus::kFailed, AofError::kWrite);
     return RewriteResult::kError;
   }
+#ifdef FD_CLOEXEC
+  if (fcntl(rewrite_fd, F_SETFD, FD_CLOEXEC) < 0) {
+    close(rewrite_fd);
+    unlink(writable_path.data());
+    const std::scoped_lock lock(mutex_);
+    FinishRewriteLocked(RewriteStatus::kFailed, AofError::kWrite);
+    return RewriteResult::kError;
+  }
+#endif
 
   struct stat file_info {};
   const mode_t mode = fstat(fd_, &file_info) == 0
@@ -475,24 +671,67 @@ RewriteResult Aof::StartRewrite(db::RedisDb* const db) {
     close(rewrite_fd);
     unlink(writable_path.data());
     const std::scoped_lock lock(mutex_);
-    FinishRewriteLocked();
+    FinishRewriteLocked(RewriteStatus::kFailed, AofError::kWrite);
     return RewriteResult::kError;
   }
 
   try {
     rewrite_worker_ = std::thread(
-        [this, rewrite_fd, temp_path = std::string(writable_path.data()),
-         snapshot = std::move(snapshot)]() mutable {
-          RunRewrite(rewrite_fd, temp_path, std::move(snapshot));
+        [this, rewrite_fd, temp_path = std::string(writable_path.data())] {
+          RunRewrite(rewrite_fd, temp_path);
         });
   } catch (const std::system_error&) {
     close(rewrite_fd);
     unlink(writable_path.data());
     const std::scoped_lock lock(mutex_);
-    FinishRewriteLocked();
+    FinishRewriteLocked(RewriteStatus::kFailed, AofError::kWrite);
+    return RewriteResult::kError;
+  }
+
+  const bool snapshot_built = BuildSnapshot(db);
+  {
+    const std::scoped_lock lock(mutex_);
+    if (rewriting_) {
+      snapshot_complete_ = true;
+      if (!snapshot_built) {
+        rewrite_failed_ = true;
+        rewrite_status_ = RewriteStatus::kFailed;
+        last_error_ = AofError::kSnapshot;
+      }
+    }
+  }
+  rewrite_state_changed_.notify_all();
+  if (!snapshot_built) {
+    WaitUntilRewriteIdle();
     return RewriteResult::kError;
   }
   return RewriteResult::kStarted;
+}
+
+bool Aof::ShouldAutoRewrite() const {
+  const std::scoped_lock lock(mutex_);
+  if (!healthy_ || stopping_ || rewriting_ || auto_rewrite_percentage_ == 0 ||
+      current_size_ == 0 || current_size_ < auto_rewrite_min_bytes_) {
+    return false;
+  }
+  if (rewrite_status_ == RewriteStatus::kFailed &&
+      std::chrono::steady_clock::now() - last_rewrite_attempt_ <
+          kRewriteRetryDelay) {
+    return false;
+  }
+  if (base_size_ == 0) {
+    return true;
+  }
+  const size_t growth = current_size_ - std::min(current_size_, base_size_);
+  return static_cast<long double>(growth) * 100.0L >=
+         static_cast<long double>(base_size_) *
+             static_cast<long double>(auto_rewrite_percentage_);
+}
+
+AofState Aof::State() const {
+  const std::scoped_lock lock(mutex_);
+  return {healthy_,      rewriting_, rewrite_status_, last_error_,
+          current_size_, base_size_, pending_bytes_};
 }
 
 bool Aof::Healthy() const {
@@ -540,8 +779,7 @@ bool Aof::Replay(db::RedisDb* const db) {
   const bool replayed = [this, db] {
     Client client(db);
     std::array<char, kReadChunkSize> chunk{};
-    std::string input;
-    input.reserve(kReadChunkSize);
+    in_memory::DynamicBuffer input;
     command::CommandArgs args;
     size_t complete_bytes = 0;
     bool reached_end = false;
@@ -559,13 +797,11 @@ bool Aof::Replay(db::RedisDb* const db) {
       }
       reached_end = bytes_read == 0;
       if (bytes_read > 0) {
-        input.append(chunk.data(), static_cast<size_t>(bytes_read));
+        input.Append(chunk.data(), static_cast<size_t>(bytes_read));
       }
 
-      size_t consumed = 0;
-      while (consumed < input.size()) {
-        const std::string_view remaining(input.data() + consumed,
-                                         input.size() - consumed);
+      while (!input.Empty()) {
+        const std::string_view remaining = input.View();
         if (remaining.front() != '*') {
           return false;
         }
@@ -577,6 +813,9 @@ bool Aof::Replay(db::RedisDb* const db) {
         if (parsed.status != request_parser::ParseStatus::kComplete) {
           return false;
         }
+        if (parsed.consumed > limits_.max_replay_command_bytes) {
+          return false;
+        }
         const auto* metadata = command::Find(name);
         if (metadata == nullptr ||
             metadata->access != command::CommandAccess::kWrite ||
@@ -584,22 +823,24 @@ bool Aof::Replay(db::RedisDb* const db) {
             !client.ExecuteForReplay(metadata, &args)) {
           return false;
         }
-        consumed += parsed.consumed;
-        complete_bytes += parsed.consumed;
+        if (!AddSize(parsed.consumed, &complete_bytes)) {
+          return false;
+        }
+        input.Consume(parsed.consumed);
       }
-      if (consumed > 0) {
-        input.erase(0, consumed);
-      }
-      if (input.size() > kMaxReplayCommandBytes) {
+      if (input.View().size() > limits_.max_replay_command_bytes) {
         return false;
       }
     }
 
-    if (!input.empty() &&
-        ftruncate(fd_, static_cast<off_t>(complete_bytes)) < 0) {
-      return false;
+    if (!input.Empty()) {
+      if (complete_bytes >
+              static_cast<uintmax_t>(std::numeric_limits<off_t>::max()) ||
+          ftruncate(fd_, static_cast<off_t>(complete_bytes)) < 0) {
+        return false;
+      }
     }
-    return input.empty() || SyncFile(fd_);
+    return input.Empty() || SyncFile(fd_);
   }();
   db->SetLoading(false);
   return replayed;
@@ -646,8 +887,89 @@ bool Aof::Encode(std::string_view command,
   return AppendCommand(command, args, output);
 }
 
+bool Aof::BuildSnapshot(db::RedisDb* const db) {
+  auto sink = [this](std::string block) {
+    return QueueSnapshotBlock(std::move(block));
+  };
+  return BuildSnapshotRecords(db, limits_, &sink);
+}
+
+bool Aof::QueueSnapshotBlock(std::string block) {
+  if (block.empty()) {
+    return true;
+  }
+  const size_t block_size = block.size();
+  std::unique_lock<std::mutex> lock(mutex_);
+  rewrite_state_changed_.wait(lock, [this, block_size] {
+    // One oversized block may enter an empty queue so a valid replay command
+    // cannot deadlock behind the softer snapshot queue limit.
+    return !rewriting_ || rewrite_failed_ || stopping_ ||
+           snapshot_pending_.empty() ||
+           (block_size <= limits_.max_snapshot_queue_bytes &&
+            snapshot_pending_bytes_ <=
+                limits_.max_snapshot_queue_bytes - block_size);
+  });
+  if (!rewriting_ || rewrite_failed_ || stopping_) {
+    return false;
+  }
+  if (snapshot_pending_bytes_ >
+      std::numeric_limits<size_t>::max() - block_size) {
+    rewrite_failed_ = true;
+    last_error_ = AofError::kSnapshot;
+    return false;
+  }
+  snapshot_pending_bytes_ += block_size;
+  snapshot_pending_.emplace_back(std::move(block));
+  rewrite_state_changed_.notify_all();
+  return true;
+}
+
+bool Aof::WriteBatch(int fd, RecordQueue& batch,
+                     std::vector<iovec>* const blocks) const {
+  const size_t max_iov_count = MaxIovCount();
+  blocks->reserve(std::min(batch.size(), max_iov_count));
+  auto record = batch.begin();
+
+  while (record != batch.end()) {
+    blocks->clear();
+    for (; record != batch.end() && blocks->size() < max_iov_count; ++record) {
+      blocks->push_back({record->Data(), record->Size()});
+    }
+
+    size_t index = 0;
+    while (index < blocks->size()) {
+      ssize_t written = -1;
+      while (true) {
+        written =
+            file_ops_->WriteVector(fd, blocks->data() + index,
+                                   static_cast<int>(blocks->size() - index));
+        if (written >= 0 || errno != EINTR) {
+          break;
+        }
+      }
+      if (written <= 0) {
+        return false;
+      }
+      auto consumed = static_cast<size_t>(written);
+      while (consumed > 0) {
+        auto& block = (*blocks)[index];
+        if (consumed < block.iov_len) {
+          auto* data = static_cast<char*>(block.iov_base);
+          block.iov_base = data + consumed;
+          block.iov_len -= consumed;
+          consumed = 0;
+        } else {
+          consumed -= block.iov_len;
+          ++index;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 void Aof::Run() {
-  std::deque<std::string> batch;
+  RecordQueue batch;
   std::vector<iovec> blocks;
   while (true) {
     bool should_sync = false;
@@ -668,7 +990,6 @@ void Aof::Run() {
         }
       }
       if (!healthy_) {
-        FailLocked();
         return;
       }
       if (!pending_.empty()) {
@@ -692,7 +1013,7 @@ void Aof::Run() {
         const std::scoped_lock lock(mutex_);
         writing_ = false;
         if (!written) {
-          FailLocked();
+          FailLocked(AofError::kWrite);
           return;
         }
         dirty_ = true;
@@ -703,12 +1024,12 @@ void Aof::Run() {
     }
 
     if (should_sync) {
-      const bool synced = Sync();
+      const bool synced = SyncFile(fd_);
       {
         const std::scoped_lock lock(mutex_);
         syncing_ = false;
         if (!synced) {
-          FailLocked();
+          FailLocked(AofError::kSync);
           return;
         }
         dirty_ = false;
@@ -719,12 +1040,36 @@ void Aof::Run() {
   }
 }
 
-void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path,
-                     std::deque<std::string> snapshot) {
-  std::deque<std::string> batch;
+void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path) {
+  RecordQueue batch;
   std::vector<iovec> blocks;
-  bool succeeded = WriteBatch(rewrite_fd, snapshot, &blocks);
-  snapshot.clear();
+  bool succeeded = true;
+  AofError error = AofError::kNone;
+
+  while (succeeded) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    rewrite_state_changed_.wait(lock, [this] {
+      return !healthy_ || rewrite_failed_ || stopping_ ||
+             !snapshot_pending_.empty() || snapshot_complete_;
+    });
+    if (!healthy_ || rewrite_failed_ || stopping_) {
+      error =
+          last_error_ == AofError::kNone ? AofError::kSnapshot : last_error_;
+      break;
+    }
+    if (snapshot_pending_.empty()) {
+      break;
+    }
+    batch.swap(snapshot_pending_);
+    snapshot_pending_bytes_ = 0;
+    rewrite_state_changed_.notify_all();
+    lock.unlock();
+    succeeded = WriteBatch(rewrite_fd, batch, &blocks);
+    if (!succeeded) {
+      error = AofError::kWrite;
+    }
+    batch.clear();
+  }
 
   while (succeeded) {
     std::unique_lock<std::mutex> lock(mutex_);
@@ -733,6 +1078,8 @@ void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path,
              (!writing_ && !syncing_ && pending_.empty());
     });
     if (!healthy_ || rewrite_failed_) {
+      error =
+          last_error_ == AofError::kNone ? AofError::kSnapshot : last_error_;
       break;
     }
     if (!rewrite_pending_.empty()) {
@@ -740,21 +1087,40 @@ void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path,
       rewrite_pending_bytes_ = 0;
       lock.unlock();
       succeeded = WriteBatch(rewrite_fd, batch, &blocks);
+      if (!succeeded) {
+        error = AofError::kWrite;
+      }
       batch.clear();
       continue;
     }
 
-    succeeded = SyncFile(rewrite_fd) &&
-                std::rename(temp_path.c_str(), path_.c_str()) == 0;
-    if (succeeded) {
+    struct stat file_info {};
+    if (fstat(rewrite_fd, &file_info) < 0 || file_info.st_size < 0) {
+      succeeded = false;
+      error = AofError::kWrite;
+    } else if (!SyncFile(rewrite_fd)) {
+      succeeded = false;
+      error = AofError::kSync;
+    } else if (file_ops_->Rename(temp_path.c_str(), path_.c_str()) < 0) {
+      succeeded = false;
+      error = AofError::kRename;
+    } else {
       const int old_fd = fd_;
       fd_ = rewrite_fd;
       rewrite_fd = -1;
       dirty_ = false;
       last_sync_ = std::chrono::steady_clock::now();
       close(old_fd);
+      current_size_ = static_cast<size_t>(file_info.st_size);
+      base_size_ = current_size_;
+      if (!SyncParentDirectory()) {
+        succeeded = false;
+        error = AofError::kDirectorySync;
+        FailLocked(error);
+      }
     }
-    FinishRewriteLocked();
+    FinishRewriteLocked(
+        succeeded ? RewriteStatus::kSucceeded : RewriteStatus::kFailed, error);
     work_available_.notify_all();
     lock.unlock();
     if (rewrite_fd >= 0) {
@@ -762,7 +1128,9 @@ void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path,
       unlink(temp_path.c_str());
     }
     if (!succeeded) {
-      RS_LOG_DEBUG("AOF rewrite failed\n");
+      RS_LOG_ERROR("AOF rewrite failed: %.*s\n",
+                   static_cast<int>(ErrorName(error).size()),
+                   ErrorName(error).data());
     }
     return;
   }
@@ -771,40 +1139,75 @@ void Aof::RunRewrite(int rewrite_fd, const std::string& temp_path,
   unlink(temp_path.c_str());
   {
     const std::scoped_lock lock(mutex_);
-    FinishRewriteLocked();
+    FinishRewriteLocked(RewriteStatus::kFailed,
+                        error == AofError::kNone ? AofError::kSnapshot : error);
   }
-  RS_LOG_DEBUG("AOF rewrite failed\n");
+  RS_LOG_ERROR("AOF rewrite failed: %.*s\n",
+               static_cast<int>(ErrorName(error).size()),
+               ErrorName(error).data());
 }
 
-void Aof::BufferRewriteCommandLocked(const std::string& command) {
+void Aof::BufferRewriteCommandLocked(
+    const std::shared_ptr<std::string>& command) {
   if (!rewriting_ || rewrite_failed_) {
     return;
   }
-  if (command.size() > kMaxPendingBytes ||
-      rewrite_pending_bytes_ > kMaxPendingBytes - command.size() ||
-      rewrite_pending_.size() >= kMaxPendingCommands) {
+  if (command->size() > limits_.max_pending_bytes ||
+      rewrite_pending_bytes_ > limits_.max_pending_bytes - command->size() ||
+      rewrite_pending_.size() >= limits_.max_pending_commands) {
     rewrite_failed_ = true;
+    rewrite_status_ = RewriteStatus::kFailed;
+    last_error_ = AofError::kQueueFull;
     rewrite_pending_.clear();
     rewrite_pending_bytes_ = 0;
   } else {
-    rewrite_pending_bytes_ += command.size();
-    rewrite_pending_.push_back(command);
+    rewrite_pending_bytes_ += command->size();
+    rewrite_pending_.emplace_back(command);
   }
   rewrite_state_changed_.notify_all();
 }
 
-void Aof::FinishRewriteLocked() {
+void Aof::FinishRewriteLocked(RewriteStatus status, AofError error) {
+  snapshot_pending_.clear();
   rewrite_pending_.clear();
+  snapshot_pending_bytes_ = 0;
   rewrite_pending_bytes_ = 0;
+  snapshot_complete_ = false;
   rewriting_ = false;
-  rewrite_failed_ = false;
+  rewrite_failed_ = status == RewriteStatus::kFailed;
+  rewrite_status_ = status;
+  if (error != AofError::kNone) {
+    last_error_ = error;
+  }
   rewrite_state_changed_.notify_all();
 }
 
-bool Aof::Sync() const { return SyncFile(fd_); }
+bool Aof::SyncFile(int fd) const { return aof::SyncFile(file_ops_.get(), fd); }
 
-void Aof::FailLocked() {
+bool Aof::SyncParentDirectory() const {
+  std::filesystem::path parent = std::filesystem::path(path_).parent_path();
+  if (parent.empty()) {
+    parent = ".";
+  }
+  int open_flags = O_RDONLY;
+#ifdef O_CLOEXEC
+  open_flags |= O_CLOEXEC;
+#endif
+#ifdef O_DIRECTORY
+  open_flags |= O_DIRECTORY;
+#endif
+  const int directory_fd = open(parent.c_str(), open_flags);
+  if (directory_fd < 0) {
+    return false;
+  }
+  const bool synced = SyncFile(directory_fd);
+  const bool closed = close(directory_fd) == 0;
+  return synced && closed;
+}
+
+void Aof::FailLocked(AofError error) {
   healthy_ = false;
+  last_error_ = error;
   pending_.clear();
   pending_bytes_ = 0;
   writing_ = false;
@@ -812,6 +1215,9 @@ void Aof::FailLocked() {
   dirty_ = false;
   idle_.notify_all();
   rewrite_state_changed_.notify_all();
+  RS_LOG_ERROR("AOF became unhealthy: %.*s\n",
+               static_cast<int>(ErrorName(error).size()),
+               ErrorName(error).data());
 }
 
 void Aof::NotifyIfIdleLocked() {

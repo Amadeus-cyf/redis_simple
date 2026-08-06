@@ -19,7 +19,7 @@ trap cleanup EXIT INT TERM
 
 start_server() {
   "$server" --bind 127.0.0.1 --port 18081 --appendonly yes \
-    --appendfilename "$aof_file" --appendfsync everysec &
+    --appendfilename "$aof_file" --appendfsync everysec "$@" &
   server_pid=$!
   sleep 1
   if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -52,4 +52,15 @@ fi
 
 start_server || exit $?
 "$client" read || exit $?
+stop_server || exit $?
+
+aof_file="${aof_dir}/automatic.aof"
+start_server --auto-aof-rewrite-min-size 1 \
+  --auto-aof-rewrite-percentage 1 || exit $?
+"$client" auto-write || exit $?
+stop_server || exit $?
+
+start_server --auto-aof-rewrite-min-size 1 \
+  --auto-aof-rewrite-percentage 1 || exit $?
+"$client" auto-read || exit $?
 stop_server

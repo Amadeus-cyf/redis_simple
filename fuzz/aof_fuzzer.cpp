@@ -6,7 +6,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "server/aof.h"
 #include "server/db/db.h"
@@ -53,6 +55,21 @@ void FuzzAof(const uint8_t* data, size_t size) {
     auto database = db::RedisDb::Create();
     auto append_only_file = aof::Aof::Open(
         {path.data(), aof::FsyncPolicy::kAlways}, database.get());
+    if (append_only_file != nullptr) {
+      std::string value;
+      if (size > 0) {
+        value.assign(reinterpret_cast<const char*>(data), size);
+      }
+      if (database->SetKey("fuzz", db::RedisObject::CreateWithString(value),
+                           0) == db::DbStatus::kOk) {
+        const std::vector<std::string_view> args = {"fuzz", value};
+        append_only_file->Append("SET", args, database.get());
+        if (append_only_file->Healthy()) {
+          append_only_file->StartRewrite(database.get());
+          append_only_file->WaitUntilRewriteIdle();
+        }
+      }
+    }
   }
   unlink(path.data());
 }

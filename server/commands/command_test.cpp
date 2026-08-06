@@ -30,7 +30,7 @@ TEST(CommandRegistryTest, FindsExpandedRedisCommandSet) {
       "LSET",    "LREM",    "LTRIM",     "SINTER",        "SUNION",
       "SDIFF",   "ZCOUNT",  "ZREVRANGE", "ZRANGEBYSCORE", "HMGET",
       "HKEYS",   "HVALS",   "HINCRBY",   "HELLO",         "PING",
-      "ECHO",    "QUIT",    "SCAN",      "BGREWRITEAOF"};
+      "ECHO",    "QUIT",    "SCAN",      "BGREWRITEAOF",  "INFO"};
   for (const auto* name : names) {
     const auto* command = Find(name);
     ASSERT_NE(command, nullptr) << name;
@@ -69,5 +69,11 @@ TEST(CommandRegistryTest, ExposesCommandMetadata) {
   ASSERT_NE(rewrite, nullptr);
   EXPECT_EQ(rewrite->access, CommandAccess::kAdmin);
   EXPECT_FALSE(rewrite->keys.HasKeys());
+
+  const auto* info = Find("INFO");
+  ASSERT_NE(info, nullptr);
+  EXPECT_EQ(info->access, CommandAccess::kAdmin);
+  EXPECT_TRUE(info->arity.Accepts(0));
+  EXPECT_TRUE(info->arity.Accepts(1));
 }
 }  // namespace redis_simple::command

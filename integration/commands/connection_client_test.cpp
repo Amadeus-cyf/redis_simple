@@ -62,6 +62,13 @@ int Run() {
                    "ERR append only file is disabled\n")) {
     return EXIT_FAILURE;
   }
+  cli.AddCommand(std::vector<std::string_view>{"INFO", "persistence"});
+  const std::string persistence_info = cli.ReadReply();
+  if (persistence_info.find("aof_enabled:0") == std::string::npos ||
+      persistence_info.find("aof_last_error:none") == std::string::npos) {
+    RS_LOG_DEBUG("unexpected persistence info: %s\n", persistence_info.c_str());
+    return EXIT_FAILURE;
+  }
   if (!ExpectReply(&cli, {"QUIT"}, "OK\n")) {
     return EXIT_FAILURE;
   }

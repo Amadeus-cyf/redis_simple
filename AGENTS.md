@@ -45,6 +45,12 @@ Guidance for AI coding agents working in this repository.
   the snapshot and buffered mutation delta have been synced and atomically
   installed. The normal append path should pay no copy cost when no rewrite is
   active.
+- Bound AOF snapshot memory and replay command sizes together. Split large
+  strings into replay-safe commands and batch collections by encoded bytes, not
+  only element count.
+- Complete durable AOF replacement in this order: sync the temporary file,
+  rename it, then sync the parent directory. Keep failed rewrites observable
+  through `INFO persistence` without disabling a still-healthy original AOF.
 
 ## Build And Test
 
@@ -126,8 +132,10 @@ Before committing, run the relevant build and tests.
   - `integration/tcp/`
 - Keep server option and graceful shutdown coverage in the lifecycle integration
   test rather than introducing a separate command-test server implementation.
-- Keep AOF restart, rewrite compaction, shutdown flush, expiration, and
-  cross-data-type recovery in the dedicated AOF integration test.
+- Keep AOF restart, manual and automatic rewrite compaction, shutdown flush,
+  expiration, and cross-data-type recovery in the dedicated AOF integration
+  test. Use injected file operations for deterministic write, sync, rename, and
+  directory-sync failure unit tests.
 - Keep command-family integration tests split by area, including key, string,
   set, list, zset, hash, and connection commands.
 - Register integration command tests as separate CTest entries by command

@@ -16,6 +16,9 @@ TEST(ServerOptionsTest, UsesDefaults) {
   EXPECT_FALSE(result.options.append_only);
   EXPECT_EQ(result.options.aof_options.path, "appendonly.aof");
   EXPECT_EQ(result.options.aof_options.fsync, aof::FsyncPolicy::kEverySecond);
+  EXPECT_EQ(result.options.aof_options.auto_rewrite_min_bytes,
+            size_t{64} * 1024 * 1024);
+  EXPECT_EQ(result.options.aof_options.auto_rewrite_percentage, 100);
 }
 
 TEST(ServerOptionsTest, ParsesBindAddressAndPort) {
@@ -30,9 +33,17 @@ TEST(ServerOptionsTest, ParsesBindAddressAndPort) {
 }
 
 TEST(ServerOptionsTest, ParsesAofOptions) {
-  constexpr std::array kArgv = {
-      "redis_simple",        "--appendonly",  "yes",   "--appendfilename",
-      "/tmp/appendonly.aof", "--appendfsync", "always"};
+  constexpr std::array kArgv = {"redis_simple",
+                                "--appendonly",
+                                "yes",
+                                "--appendfilename",
+                                "/tmp/appendonly.aof",
+                                "--appendfsync",
+                                "always",
+                                "--auto-aof-rewrite-min-size",
+                                "4096",
+                                "--auto-aof-rewrite-percentage",
+                                "50"};
 
   const auto result = ParseServerOptions(kArgv.size(), kArgv.data());
 
@@ -40,6 +51,8 @@ TEST(ServerOptionsTest, ParsesAofOptions) {
   EXPECT_TRUE(result.options.append_only);
   EXPECT_EQ(result.options.aof_options.path, "/tmp/appendonly.aof");
   EXPECT_EQ(result.options.aof_options.fsync, aof::FsyncPolicy::kAlways);
+  EXPECT_EQ(result.options.aof_options.auto_rewrite_min_bytes, 4096);
+  EXPECT_EQ(result.options.aof_options.auto_rewrite_percentage, 50);
 }
 
 TEST(ServerOptionsTest, HandlesHelpAndInvalidArguments) {
@@ -67,6 +80,13 @@ TEST(ServerOptionsTest, HandlesHelpAndInvalidArguments) {
                                         "sometimes"};
   EXPECT_EQ(
       ParseServerOptions(kInvalidFsync.size(), kInvalidFsync.data()).status,
+      OptionsStatus::kError);
+
+  constexpr std::array kInvalidRewriteSize = {
+      "redis_simple", "--auto-aof-rewrite-min-size", "many"};
+  EXPECT_EQ(
+      ParseServerOptions(kInvalidRewriteSize.size(), kInvalidRewriteSize.data())
+          .status,
       OptionsStatus::kError);
 }
 }  // namespace redis_simple

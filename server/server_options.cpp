@@ -1,6 +1,7 @@
 #include "server/server_options.h"
 
 #include <charconv>
+#include <cstddef>
 #include <string_view>
 #include <system_error>
 
@@ -51,6 +52,15 @@ bool ParseFsyncPolicy(std::string_view value, aof::FsyncPolicy* const policy) {
   }
   return false;
 }
+
+bool ParseSize(std::string_view value, size_t* const result) {
+  if (value.empty()) {
+    return false;
+  }
+  const auto parsed =
+      std::from_chars(value.data(), value.data() + value.size(), *result);
+  return parsed.ec == std::errc() && parsed.ptr == value.data() + value.size();
+}
 }  // namespace
 
 OptionsResult ParseServerOptions(int argc, const char* const* argv) {
@@ -62,7 +72,9 @@ OptionsResult ParseServerOptions(int argc, const char* const* argv) {
       return result;
     }
     if (option != "--bind" && option != "--port" && option != "--appendonly" &&
-        option != "--appendfilename" && option != "--appendfsync") {
+        option != "--appendfilename" && option != "--appendfsync" &&
+        option != "--auto-aof-rewrite-min-size" &&
+        option != "--auto-aof-rewrite-percentage") {
       result.status = OptionsStatus::kError;
       result.error = "unknown option";
       return result;
@@ -108,6 +120,24 @@ OptionsResult ParseServerOptions(int argc, const char* const* argv) {
       result.error = "appendfilename cannot be empty";
       return result;
     }
+    if (option == "--auto-aof-rewrite-min-size") {
+      if (ParseSize(value,
+                    &result.options.aof_options.auto_rewrite_min_bytes)) {
+        continue;
+      }
+      result.status = OptionsStatus::kError;
+      result.error = "auto AOF rewrite minimum size must be a byte count";
+      return result;
+    }
+    if (option == "--auto-aof-rewrite-percentage") {
+      if (ParseSize(value,
+                    &result.options.aof_options.auto_rewrite_percentage)) {
+        continue;
+      }
+      result.status = OptionsStatus::kError;
+      result.error = "auto AOF rewrite percentage must be an integer";
+      return result;
+    }
     if (!ParseFsyncPolicy(value, &result.options.aof_options.fsync)) {
       result.status = OptionsStatus::kError;
       result.error = "appendfsync must be always, everysec, or no";
@@ -120,6 +150,8 @@ OptionsResult ParseServerOptions(int argc, const char* const* argv) {
 std::string_view ServerUsage() {
   return "Usage: redis_simple [--bind <address>] [--port <port>] "
          "[--appendonly <yes|no>] [--appendfilename <path>] "
-         "[--appendfsync <always|everysec|no>]\n";
+         "[--appendfsync <always|everysec|no>] "
+         "[--auto-aof-rewrite-min-size <bytes>] "
+         "[--auto-aof-rewrite-percentage <percent>]\n";
 }
 }  // namespace redis_simple

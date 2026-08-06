@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sys/types.h>
+#include <sys/uio.h>
+
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -9,6 +12,8 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
+#include <variant>
 #include <vector>
 
 namespace redis_simple::db {
@@ -22,9 +27,34 @@ enum class FsyncPolicy {
   kNo,
 };
 
+class FileOps {
+ public:
+  virtual ssize_t Write(int fd, const void* data, size_t size) = 0;
+  virtual ssize_t WriteVector(int fd, const iovec* blocks, int count) = 0;
+  virtual int Sync(int fd) = 0;
+  virtual int Rename(const char* source, const char* destination) = 0;
+  virtual ~FileOps() = default;
+};
+
+struct Limits {
+  size_t max_pending_bytes{size_t{64} * 1024 * 1024};
+  size_t max_pending_commands{size_t{64} * 1024};
+  size_t max_replay_command_bytes{size_t{64} * 1024 * 1024};
+  size_t snapshot_block_bytes{size_t{1024} * 1024};
+  size_t max_snapshot_queue_bytes{size_t{4} * 1024 * 1024};
+};
+
 struct Options {
+  Options() = default;
+  Options(std::string file_path, FsyncPolicy fsync_policy)
+      : path(std::move(file_path)), fsync(fsync_policy) {}
+
   std::string path{"appendonly.aof"};
   FsyncPolicy fsync{FsyncPolicy::kEverySecond};
+  size_t auto_rewrite_min_bytes{size_t{64} * 1024 * 1024};
+  size_t auto_rewrite_percentage{100};
+  Limits limits;
+  std::shared_ptr<FileOps> file_ops;
 };
 
 enum class RewriteResult {
@@ -32,6 +62,35 @@ enum class RewriteResult {
   kInProgress,
   kError,
 };
+
+enum class RewriteStatus {
+  kNeverRun,
+  kSucceeded,
+  kFailed,
+};
+
+enum class AofError {
+  kNone,
+  kQueueFull,
+  kWrite,
+  kSync,
+  kRename,
+  kDirectorySync,
+  kSnapshot,
+};
+
+struct AofState {
+  bool healthy{};
+  bool rewrite_in_progress{};
+  RewriteStatus rewrite_status{RewriteStatus::kNeverRun};
+  AofError last_error{AofError::kNone};
+  size_t current_size{};
+  size_t base_size{};
+  size_t pending_bytes{};
+};
+
+std::string_view ErrorName(AofError error);
+std::string_view RewriteStatusName(RewriteStatus status);
 
 class Aof {
  public:
@@ -41,41 +100,66 @@ class Aof {
   bool Append(std::string_view command,
               const std::vector<std::string_view>& args, db::RedisDb* db);
   RewriteResult StartRewrite(db::RedisDb* db);
+  bool ShouldAutoRewrite() const;
+  AofState State() const;
   bool Healthy() const;
   void WaitUntilIdle();
   void WaitUntilRewriteIdle();
   ~Aof();
 
  private:
-  Aof(int fd, std::string path, FsyncPolicy fsync);
+  class Record {
+   public:
+    explicit Record(std::string data) : data_(std::move(data)) {}
+    explicit Record(std::shared_ptr<std::string> data)
+        : data_(std::move(data)) {}
+    char* Data();
+    size_t Size() const;
+
+   private:
+    std::variant<std::string, std::shared_ptr<std::string>> data_;
+  };
+
+  using RecordQueue = std::deque<Record>;
+
+  Aof(int fd, const Options& options, size_t file_size);
   bool Replay(db::RedisDb* db);
   static bool Encode(std::string_view command,
                      const std::vector<std::string_view>& args, db::RedisDb* db,
                      std::string* output);
+  bool BuildSnapshot(db::RedisDb* db);
+  bool QueueSnapshotBlock(std::string block);
+  bool WriteBatch(int fd, RecordQueue& batch, std::vector<iovec>* blocks) const;
   void Run();
-  void RunRewrite(int rewrite_fd, const std::string& temp_path,
-                  std::deque<std::string> snapshot);
-  void BufferRewriteCommandLocked(const std::string& command);
-  void FinishRewriteLocked();
-  bool Sync() const;
-  void FailLocked();
+  void RunRewrite(int rewrite_fd, const std::string& temp_path);
+  void BufferRewriteCommandLocked(const std::shared_ptr<std::string>& command);
+  void FinishRewriteLocked(RewriteStatus status, AofError error);
+  bool SyncFile(int fd) const;
+  bool SyncParentDirectory() const;
+  void FailLocked(AofError error);
   void NotifyIfIdleLocked();
 
-  static constexpr size_t kMaxPendingBytes = size_t{64} * 1024 * 1024;
-  static constexpr size_t kMaxPendingCommands = size_t{64} * 1024;
   int fd_;
   std::string path_;
   FsyncPolicy fsync_;
+  size_t auto_rewrite_min_bytes_;
+  size_t auto_rewrite_percentage_;
+  Limits limits_;
+  std::shared_ptr<FileOps> file_ops_;
   mutable std::mutex mutex_;
   std::condition_variable work_available_;
   std::condition_variable idle_;
   std::condition_variable rewrite_state_changed_;
-  std::deque<std::string> pending_;
-  std::deque<std::string> rewrite_pending_;
+  RecordQueue pending_;
+  RecordQueue snapshot_pending_;
+  RecordQueue rewrite_pending_;
   std::thread worker_;
   std::thread rewrite_worker_;
   size_t pending_bytes_{};
+  size_t snapshot_pending_bytes_{};
   size_t rewrite_pending_bytes_{};
+  size_t current_size_{};
+  size_t base_size_{};
   bool writing_{};
   bool syncing_{};
   bool dirty_{};
@@ -83,6 +167,10 @@ class Aof {
   bool healthy_{true};
   bool rewriting_{};
   bool rewrite_failed_{};
+  bool snapshot_complete_{};
+  RewriteStatus rewrite_status_{RewriteStatus::kNeverRun};
+  AofError last_error_{AofError::kNone};
   std::chrono::steady_clock::time_point last_sync_;
+  std::chrono::steady_clock::time_point last_rewrite_attempt_{};
 };
 }  // namespace redis_simple::aof

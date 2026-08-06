@@ -51,7 +51,9 @@ Enable AOF persistence with Redis-style fsync policies:
 
 ```sh
 ./build/debug/redis_simple --appendonly yes \
-  --appendfilename appendonly.aof --appendfsync everysec
+  --appendfilename appendonly.aof --appendfsync everysec \
+  --auto-aof-rewrite-min-size 67108864 \
+  --auto-aof-rewrite-percentage 100
 ```
 
 AOF is disabled by default. When enabled, `appendonly.aof` is the default path
@@ -60,9 +62,21 @@ mutation before continuing, while `no` delegates periodic durability to the
 operating system. Background policies move encoded commands into a bounded
 writer queue and use scatter/gather writes without copying command payloads.
 Graceful shutdown drains and syncs the queue. `BGREWRITEAOF` compacts command
-history into a point-in-time database snapshot while a background thread writes,
-syncs, and atomically replaces the AOF. Mutations that overlap the rewrite are
-buffered and appended before the replacement becomes active.
+history into a point-in-time database snapshot. Snapshot records are produced in
+bounded blocks while a background thread writes them; large strings are split
+into replay-safe commands, and collection batches are limited by encoded bytes.
+Mutations that overlap the rewrite share one immutable encoded record between
+the normal writer and rewrite delta queues. The replacement file is synced,
+renamed atomically, and followed by a parent-directory sync before it becomes
+durable.
+
+Automatic rewriting starts after the AOF reaches 64 MiB and grows by 100% from
+the last rewrite or startup size. The two `--auto-aof-rewrite-*` options override
+those defaults; a percentage of `0` disables automatic rewriting. Use
+`INFO persistence` to inspect rewrite progress, the last rewrite/error status,
+current and base sizes, and queued bytes. An unrecoverable append or sync error
+marks persistence unhealthy and stops the server instead of continuing without
+durable command history.
 
 Clients can send standard RESP arrays of bulk strings or the legacy inline
 syntax. RESP2 is the default reply protocol; `HELLO 3` switches a connection to
@@ -92,7 +106,7 @@ including protocol errors such as `ERR wrong number of arguments` and
   `ZRANGEBYSCORE`, `ZCOUNT`, `ZSCORE`
 - Hashes: `HSET`, `HGET`, `HDEL`, `HLEN`, `HEXISTS`, `HGETALL`, `HMGET`,
   `HKEYS`, `HVALS`, `HINCRBY`
-- Persistence: `BGREWRITEAOF`
+- Persistence: `BGREWRITEAOF`, `INFO [persistence]`
 - Connection: `HELLO` with RESP2 and RESP3 negotiation, `PING`, `ECHO`, `QUIT`
 
 `UNLINK` detaches keys synchronously and releases their values on a background
@@ -105,8 +119,8 @@ replays them before the server accepts clients. Relative expirations are stored
 as absolute millisecond timestamps, incomplete final records are truncated,
 and corruption before the final record prevents startup. AOF rewrites traverse
 collection values through borrowed views, retain concurrent mutations in a
-bounded delta queue, and preserve the original file if rewriting fails before
-the atomic replacement.
+bounded delta queue, preserve the original file if rewriting fails before the
+atomic replacement, and retry failed automatic rewrites after a short delay.
 
 ## Test
 
